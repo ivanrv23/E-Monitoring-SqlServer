@@ -1,4 +1,3 @@
-from sqlite3 import Error
 from services.security.apis.conexiones.conexion import Connection
 
 class ReporteModel:
@@ -15,7 +14,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer nombre equipo reporte: " + str(e))
             return None
         finally:
@@ -31,7 +30,7 @@ class ReporteModel:
             cur.execute(sql, (ruta, texto_titulo, texto_descripcion, proyectoid, tipo, orden))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al actualizar reporte: " + str(e))
             return False
         finally:
@@ -41,13 +40,13 @@ class ReporteModel:
     def mdlGuardarDatosReporte(imagen_blob, texto_titulo, texto_descripcion, proyectoid, tipo, orden, equipo, anexo):
         conn = Connection.connectionDB()
         sql = """INSERT INTO graficos_reporte (id_proyecto, vista_reporte, imagen_grafica, titulo_grafica, descripcion_grafica, posicion_grafica, equipo_grafica, anexo_reporte) 
-        VALUES (?, ?, ?, ?, ?, ?, ?,?);"""
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
         try:
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, tipo, imagen_blob, texto_titulo, texto_descripcion, orden, equipo, anexo))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al guardar reporte: " + str(e))
             return False
         finally:
@@ -56,7 +55,7 @@ class ReporteModel:
 
     def mdlObtenerTotalGraficas(proyecto, tipo):
         conn = Connection.connectionDB()
-        sql = """SELECT * FROM graficos_reporte WHERE id_proyecto = ? AND vista_reporte = ? ORDER BY posicion_grafica AND id_reporte"""
+        sql = """SELECT * FROM graficos_reporte WHERE id_proyecto = ? AND vista_reporte = ? ORDER BY posicion_grafica, id_reporte"""
         try:
             cur = conn.cursor()
             cur.execute(sql, (proyecto, tipo))
@@ -65,7 +64,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar reporte: " + str(e))
             return None
         finally:
@@ -74,7 +73,7 @@ class ReporteModel:
     
     def mdlObtenerlistaGraficosAnexos(proyecto):
         conn = Connection.connectionDB()
-        sql = """SELECT id_reporte,imagen_grafica FROM graficos_reporte WHERE id_proyecto = ?"""
+        sql = """SELECT id_reporte, imagen_grafica FROM graficos_reporte WHERE id_proyecto = ?"""
         try:
             cur = conn.cursor()
             cur.execute(sql, (proyecto,))
@@ -83,12 +82,12 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar reporte: " + str(e))
             return None
         finally:
             if conn:
-                    conn.close()
+                conn.close()
     
     def mdlObtenerlistaUmbralPrismasAnexos(proyecto):
         conn = Connection.connectionDB()
@@ -101,12 +100,12 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer umbral: " + str(e))
             return None
         finally:
             if conn:
-                    conn.close()
+                conn.close()
     
     def mdlObtenerlistaUmbralPiezometrosAnexos(proyecto):
         conn = Connection.connectionDB()
@@ -119,12 +118,12 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer umbral: " + str(e))
             return None
         finally:
             if conn:
-                    conn.close()
+                conn.close()
     
     def mdlObtenerlistaUmbralesInclinometrosAnexos(proyecto):
         conn = Connection.connectionDB()
@@ -137,12 +136,12 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer umbral: " + str(e))
             return None
         finally:
             if conn:
-                    conn.close()
+                conn.close()
     
     def mdlObtenerlistaUmbralCeldasAnexos(proyecto):
         conn = Connection.connectionDB()
@@ -155,12 +154,12 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer umbral: " + str(e))
             return None
         finally:
             if conn:
-                    conn.close()
+                conn.close()
                    
     # En el modelo se agrega la consulta SQL para eliminar el gráfico
     def mdlEliminarGrafica(img_id):
@@ -171,9 +170,9 @@ class ReporteModel:
             cur.execute(sql, (img_id,))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print(f"Error al eliminar gráfico: {e}")
-            False
+            return False
         finally:
             if conn:
                 conn.close()
@@ -186,7 +185,7 @@ class ReporteModel:
             cur.execute(sql, (id,))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print(f"Error al eliminar umbral: {e}")
             return False
         finally:
@@ -195,7 +194,7 @@ class ReporteModel:
             
     def mdlObtenerTiposGraficas(proyecto):
         conn = Connection.connectionDB()
-        sql = """SELECT DISTINCT vista_reporte FROM graficos_reporte WHERE id_proyecto = ? ORDER BY posicion_grafica;"""
+        sql = """SELECT DISTINCT vista_reporte FROM graficos_reporte WHERE id_proyecto = ? ORDER BY vista_reporte;"""
         try:
             cur = conn.cursor()
             cur.execute(sql, (proyecto,))
@@ -204,7 +203,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar reportes: " + str(e))
             return None
         finally:
@@ -222,7 +221,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al listar reporte general: " + str(e))
             return None
         finally:
@@ -238,7 +237,7 @@ class ReporteModel:
             cur.execute(sql, (proyectoid, encabezado, titulo, lugar, para, de, cc, fecha, asunto, texto, comentario, conclusiones, recomendacion))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al guardar reporte: " + str(e))
             return False
         finally:
@@ -254,7 +253,7 @@ class ReporteModel:
             cur.execute(sql, (encabezado, titulo, lugar, para, de, cc, fecha, asunto, texto, comentario, conclusiones, recomendacion, proyectoid))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al actualizar reporte: " + str(e))
             return False
         finally:
@@ -263,10 +262,10 @@ class ReporteModel:
     
     def mdlObtenerDataAnexos(proyectoid):
         conn = Connection.connectionDB()
-        sql = """SELECT (SELECT count(*) FROM inclinometros WHERE id_proyecto = ?) AS canti_inclino,
-        (SELECT count(*) FROM piezometros WHERE id_proyecto = ? AND estado_piezometro = '1') AS canti_piezohidra,
-        (SELECT count(*) FROM piezometrocuerdas WHERE id_proyecto = ?) AS canti_piezocuerda,
-        (SELECT count(*) FROM celdas WHERE id_proyecto = ?) AS canti_celdas;"""
+        sql = """SELECT (SELECT COUNT(*) FROM inclinometros WHERE id_proyecto = ?) AS canti_inclino,
+        (SELECT COUNT(*) FROM piezometros WHERE id_proyecto = ? AND estado_piezometro = '1') AS canti_piezohidra,
+        (SELECT COUNT(*) FROM piezometrocuerdas WHERE id_proyecto = ?) AS canti_piezocuerda,
+        (SELECT COUNT(*) FROM celdas WHERE id_proyecto = ?) AS canti_celdas;"""
         try:
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, proyectoid, proyectoid, proyectoid))
@@ -275,7 +274,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener data anexos: " + str(e))
             return None
         finally:
@@ -294,7 +293,7 @@ class ReporteModel:
                 return row[0]
             else:
                 return 0
-        except Error as e:
+        except Exception as e:
             print("Error al obtener prismas anexos: " + str(e))
             return 0
         finally:
@@ -313,7 +312,7 @@ class ReporteModel:
                 return row[0]
             else:
                 return 0
-        except Error as e:
+        except Exception as e:
             print("Error al obtener prismas anexos: " + str(e))
             return 0
         finally:
@@ -339,7 +338,7 @@ class ReporteModel:
             cur.execute(sql, datos)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al guardar anexo 1: " + str(e))
             return False
         finally:
@@ -357,7 +356,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener data anexo 2: " + str(e))
             return None
         finally:
@@ -379,25 +378,25 @@ class ReporteModel:
             cur.execute(sql, datos)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al guardar anexo 2: " + str(e))
             return False
         finally:
             if conn:
                 conn.close()
     
-    def mdlObtenerGraficasReporteTipo(proyectoid, tipo,anexo):
+    def mdlObtenerGraficasReporteTipo(proyectoid, tipo, anexo):
         conn = Connection.connectionDB()
-        sql = """SELECT * FROM graficos_reporte WHERE id_proyecto = ? AND vista_reporte = ? AND anexo_reporte=?;"""
+        sql = """SELECT * FROM graficos_reporte WHERE id_proyecto = ? AND vista_reporte = ? AND anexo_reporte = ?;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql, (proyectoid, tipo,anexo))
+            cur.execute(sql, (proyectoid, tipo, anexo))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al listar gráficas: " + str(e))
             return None
         finally:
@@ -407,38 +406,55 @@ class ReporteModel:
     # Obtener jefes firma
     def mdlObtenerResponsables():
         conn = Connection.connectionDB()
-        sql = """SELECT * FROM personal_empresa WHERE tipo=?"""
+        sql = """SELECT * FROM personal_empresa WHERE tipo = ?"""
         try:
             cur = conn.cursor()
-            cur.execute(sql,(0,) )
+            cur.execute(sql, (0,))
             rows = cur.fetchall()
             if rows:
                 return rows
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar reporte: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    # MODELO PARA GUARDAR RESPONSABLES
+    # MODELO PARA GUARDAR RESPONSABLES (SQL Server usando MERGE)
     def mdlGuardarResponsables(datos_guardados):
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
-            # Recorrer cada fila de datos y hacer el INSERT OR REPLACE en la tabla
+            # Recorrer cada fila de datos
             for datos in datos_guardados:
-                sql = '''INSERT OR REPLACE INTO personal_empresa (id, supervision, responsable, comentario, firma)
-                        VALUES (?, ?, ?, ?, ?)'''
-                cursor.execute(sql, (
-                    datos['id'],  # Asegúrate de que los datos tengan un campo 'id'
-                    datos['supervision'],
-                    datos['responsable'],
-                    datos['comentarios'],
-                    datos['imagen']
-                ))
+                # Verificar si existe el registro
+                cursor.execute("SELECT COUNT(*) FROM personal_empresa WHERE id = ?", (datos['id'],))
+                existe = cursor.fetchone()[0]
+                
+                if existe > 0:
+                    # Actualizar
+                    sql = '''UPDATE personal_empresa SET supervision = ?, responsable = ?, comentario = ?, firma = ?
+                            WHERE id = ?'''
+                    cursor.execute(sql, (
+                        datos['supervision'],
+                        datos['responsable'],
+                        datos['comentarios'],
+                        datos['imagen'],
+                        datos['id']
+                    ))
+                else:
+                    # Insertar
+                    sql = '''INSERT INTO personal_empresa (id, supervision, responsable, comentario, firma)
+                            VALUES (?, ?, ?, ?, ?)'''
+                    cursor.execute(sql, (
+                        datos['id'],
+                        datos['supervision'],
+                        datos['responsable'],
+                        datos['comentarios'],
+                        datos['imagen']
+                    ))
             # Guardar los cambios en la base de datos
             conexion.commit()
             return "Datos guardados correctamente"
@@ -448,61 +464,55 @@ class ReporteModel:
         finally:
             # Cerrar la conexión
             cursor.close()
+            conexion.close()
     
     def mdlObtenerCoordenadasEquipos(proyecto, tipo):
-        # 1: prismas
-        # 2: prismas manuales
-        # 3: piezometros manual
-        # 4: piezometros Cuerda
-        # 5: inclinometros
-        # 6: celdas 
         conn = None
+        cur = None
         try:
             if tipo == 1:
                 tabla = f'prismas{proyecto}'
                 sql = f"""
+                    WITH RankedPrismas AS (
+                        SELECT nombre_prisma, este_target, norte_target, elevacion_target,
+                            ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY (SELECT NULL)) AS rn
+                        FROM {tabla}
+                    )
                     SELECT nombre_prisma, este_target, norte_target, elevacion_target
-                    FROM {tabla} t1
-                    WHERE t1.rowid = (
-                        SELECT MIN(t2.rowid)
-                        FROM {tabla} t2
-                        WHERE t2.nombre_prisma = t1.nombre_prisma
-                    );
+                    FROM RankedPrismas
+                    WHERE rn = 1;
                 """
             elif tipo == 2:
                 tabla = f'prismas{proyecto}'
                 sql = f"""
+                    WITH RankedPrismas AS (
+                        SELECT nombre_prisma, este_target, norte_target, elevacion_target,
+                            ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY (SELECT NULL)) AS rn
+                        FROM {tabla}
+                    )
                     SELECT nombre_prisma, este_target, norte_target, elevacion_target
-                    FROM {tabla} t1
-                    WHERE t1.rowid = (
-                        SELECT MIN(t2.rowid)
-                        FROM {tabla} t2
-                        WHERE t2.nombre_prisma = t1.nombre_prisma
-                    );
+                    FROM RankedPrismas
+                    WHERE rn = 1;
                 """
             elif tipo == 3:
-                tabla = 'piezometros'
                 sql = """
                     SELECT nombre_piezometro, este_piezometro, norte_piezometro, elevacion_piezometro
                     FROM piezometros
                     WHERE id_proyecto = ?;
                 """
             elif tipo == 4:
-                tabla = 'piezometrocuerdas'
                 sql = """
                     SELECT nombre_piezometro, este_piezometro, norte_piezometro, elevacion_piezometro
                     FROM piezometrocuerdas
                     WHERE id_proyecto = ?;
                 """
             elif tipo == 5:
-                tabla = 'inclinometros'
                 sql = """
                     SELECT nombre_inclinometro, este_inclinometro, norte_inclinometro, elevacion_inclinometro
                     FROM inclinometros
                     WHERE id_proyecto = ?;
                 """
             elif tipo == 6:
-                tabla = 'celdas'
                 sql = """
                     SELECT nombre_celda, coordenada_este_celda, coordenada_norte_celda, cota_instalacion_celda
                     FROM celdas
@@ -517,7 +527,7 @@ class ReporteModel:
                 cur.execute(sql)
             rows = cur.fetchall()
             return rows if rows else None
-        except Error as e:
+        except Exception as e:
             print(f"Error al comprobar reporte: {str(e)}")
             return None
         finally:
@@ -532,8 +542,8 @@ class ReporteModel:
             cursor = conn.cursor()
             # Elimina los datos de la tabla
             cursor.execute(f"DELETE FROM {tabla}")
-            # Reinicia los índices de la tabla (Para SQLite)
-            cursor.execute(f"DELETE FROM sqlite_sequence WHERE name='{tabla}'")  # En caso de que uses SQLite
+            # Reiniciar el contador de identidad (SQL Server)
+            cursor.execute(f"DBCC CHECKIDENT ('{tabla}', RESEED, 0)")
             conn.commit()  # Confirma la transacción
             return True  # Si todo fue bien, retorna True
         except Exception as e:
@@ -610,17 +620,17 @@ class ReporteModel:
             cursor.close()
             conexion.close()
     
-    def mdlObtenerUmbralesEquiposTipo(proyectoID,id_equipo):
+    def mdlObtenerUmbralesEquiposTipo(proyectoID, id_equipo):
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
             # Consulta SQL usando SELECT * para obtener todas las columnas
             query = """SELECT *
             FROM umbrales_alerta_equipos
-            WHERE proyecto_id = ? AND id_equipo=?
+            WHERE proyecto_id = ? AND id_equipo = ?
             """
             # Ejecutar la consulta
-            cursor.execute(query, (proyectoID,id_equipo))
+            cursor.execute(query, (proyectoID, id_equipo))
             # Obtener todos los resultados
             resultados = cursor.fetchone()
             # Verificar si hay datos y retornarlos
@@ -648,7 +658,7 @@ class ReporteModel:
                 cursor.execute("""
                     UPDATE reporte_general
                     SET encabezado_reporte = ?, pie_reporte = ?, titulo_reporte = ?,
-                        lugar_reporte = ?,fecha_reporte = ?, para_reporte = ?, de_reporte = ?, cc_reporte = ?,
+                        lugar_reporte = ?, fecha_reporte = ?, para_reporte = ?, de_reporte = ?, cc_reporte = ?,
                         asunto_reporte = ?, descripcion_reporte = ?, conclusiones_reporte = ?,
                         recomendaciones_reporte = ?, componente_reporte = ?
                     WHERE id_proyecto = ?
@@ -657,7 +667,7 @@ class ReporteModel:
                 # Si no existe una imagen, insertamos un nuevo registro
                 cursor.execute("""
                     INSERT INTO reporte_general (id_proyecto, encabezado_reporte, pie_reporte, titulo_reporte,
-                                                lugar_reporte,fecha_reporte, para_reporte, de_reporte, cc_reporte, asunto_reporte,
+                                                lugar_reporte, fecha_reporte, para_reporte, de_reporte, cc_reporte, asunto_reporte,
                                                 descripcion_reporte, conclusiones_reporte, recomendaciones_reporte, componente_reporte)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, data)
@@ -674,13 +684,13 @@ class ReporteModel:
         sql = """SELECT * FROM firmas WHERE id_proyecto = ?;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql,(proyectoid,))
+            cur.execute(sql, (proyectoid,))
             row = cur.fetchone()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer firma: " + str(e))
             return None
         finally:
@@ -693,7 +703,7 @@ class ReporteModel:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
             # Verificar si ya existe algún registro en la tabla
-            cursor.execute("SELECT COUNT(*) FROM firmas WHERE id_proyecto=?", (proyectoid,))
+            cursor.execute("SELECT COUNT(*) FROM firmas WHERE id_proyecto = ?", (proyectoid,))
             count = cursor.fetchone()[0]
             if count > 0:
                 # Actualizar el registro existente
@@ -743,7 +753,7 @@ class ReporteModel:
             cursor.close()
             conexion.close()
     
-    def mdlObtenerListaPrismas(tabla, tipo,id_componente):
+    def mdlObtenerListaPrismas(tabla, tipo, id_componente):
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
@@ -769,14 +779,14 @@ class ReporteModel:
                 INNER JOIN
                     componentes com ON ins.id_componente = com.id_componente
                 WHERE
-                    ins.estado_instrumentacion = 1 AND ins.tipo_equipo = ? AND ins.id_componente=?
+                    ins.estado_instrumentacion = 1 AND ins.tipo_equipo = ? AND ins.id_componente = ?
             ) AS subquery
             WHERE
                 subquery.rn = 1
             ORDER BY
                 subquery.nombre_prisma;
             """
-            cursor.execute(sql, (tipo,id_componente))
+            cursor.execute(sql, (tipo, id_componente))
             rows = cursor.fetchall()
             return rows if rows else None
         except Exception as e:
@@ -786,7 +796,7 @@ class ReporteModel:
             if conn:
                 conn.close()
     
-    def mdlObtenerListaInclinometros(proyectoid,id_componente):
+    def mdlObtenerListaInclinometros(proyectoid, id_componente):
         sql = """SELECT 
                     incl.nombre_inclinometro,
                     incl.este_inclinometro,
@@ -800,25 +810,25 @@ class ReporteModel:
                 INNER JOIN 
                     componentes com ON ins.id_componente = com.id_componente
                 WHERE 
-                    incl.id_proyecto=? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo= 'INCLINOMETRO' AND ins.id_componente=?
+                    incl.id_proyecto = ? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo = 'INCLINOMETRO' AND ins.id_componente = ?
                 """
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, (proyectoid,id_componente))
+            cur.execute(sql, (proyectoid, id_componente))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer lista inclinómetros reporte: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mdlObtenerListaPiezometros(proyecto,tabla, tipo,id_componente):
+    def mdlObtenerListaPiezometros(proyecto, tabla, tipo, id_componente):
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
@@ -836,9 +846,9 @@ class ReporteModel:
             INNER JOIN 
                 componentes com ON ins.id_componente = com.id_componente
             WHERE 
-                pz.id_proyecto=? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo= ? AND ins.id_componente=?
+                pz.id_proyecto = ? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo = ? AND ins.id_componente = ?
             """
-            cursor.execute(sql, (proyecto,tipo,id_componente))
+            cursor.execute(sql, (proyecto, tipo, id_componente))
             rows = cursor.fetchall()
             return rows if rows else None
         except Exception as e:
@@ -848,7 +858,7 @@ class ReporteModel:
             if conn:
                 conn.close()
     
-    def mdlObtenerListaCeldas(proyectoid,id_componente):
+    def mdlObtenerListaCeldas(proyectoid, id_componente):
         sql = """SELECT 
                     cld.nombre_celda,
                     cld.este_celda,
@@ -862,25 +872,25 @@ class ReporteModel:
                 INNER JOIN 
                     componentes com ON ins.id_componente = com.id_componente
                 WHERE 
-                    cld.id_proyecto=? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo= 'CELDA' AND ins.id_componente=?
+                    cld.id_proyecto = ? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo = 'CELDA' AND ins.id_componente = ?
                 """
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, (proyectoid,id_componente))
+            cur.execute(sql, (proyectoid, id_componente))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
-            print("Error al traer lista inclinómetros reporte: " + str(e))
+        except Exception as e:
+            print("Error al traer lista celdas reporte: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mdlObtenerListaAcelerografos(proyectoid,id_componente):
+    def mdlObtenerListaAcelerografos(proyectoid, id_componente):
         sql = """SELECT 
             acel.nombre_acelerografo,
             acel.este_acelerografo,
@@ -894,25 +904,25 @@ class ReporteModel:
         INNER JOIN
             componentes com ON ins.id_componente = com.id_componente
         WHERE 
-            acel.id_proyecto=? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo= 'ACELEROGRAFO' AND ins.id_componente=?
+            acel.id_proyecto = ? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo = 'ACELEROGRAFO' AND ins.id_componente = ?
                 """
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, (proyectoid,id_componente))
+            cur.execute(sql, (proyectoid, id_componente))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
-            print("Error al traer lista inclinómetros reporte: " + str(e))
+        except Exception as e:
+            print("Error al traer lista acelerografos reporte: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mdlObtenerListaSondajesTDR(proyectoid,id_componente):
+    def mdlObtenerListaSondajesTDR(proyectoid, id_componente):
         sql = """SELECT 
             stdr.nombre_sondajetdr,
             stdr.este_sondajetdr,
@@ -926,19 +936,19 @@ class ReporteModel:
         INNER JOIN
             componentes com ON ins.id_componente = com.id_componente
         WHERE 
-            stdr.id_proyecto=? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo= 'TDR' AND ins.id_componente=?
+            stdr.id_proyecto = ? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo = 'TDR' AND ins.id_componente = ?
                 """
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, (proyectoid,id_componente))
+            cur.execute(sql, (proyectoid, id_componente))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
-            print("Error al traer lista inclinómetros reporte: " + str(e))
+        except Exception as e:
+            print("Error al traer lista sondajes TDR reporte: " + str(e))
             return None
         finally:
             if conn:
@@ -946,18 +956,16 @@ class ReporteModel:
     
     def mdlObtenerListaImagenesReporte(id_componente):
         sql = """SELECT * FROM graficos_reporte WHERE id_componente = ? AND tipo_reporte = 'GENERAL';"""
-        # sql = """SELECT * FROM graficos_reporte WHERE tipo_reporte = 'GENERAL';"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (id_componente,))
-            # cur.execute(sql)
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer img reporte general: " + str(e))
             return None
         finally:
@@ -975,7 +983,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar control parametros: " + str(e))
             return None
         finally:
@@ -993,7 +1001,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar condiciones físicas: " + str(e))
             return None
         finally:
@@ -1011,7 +1019,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar operatividad equipos: " + str(e))
             return None
         finally:
@@ -1029,7 +1037,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar observaciones anexo1: " + str(e))
             return None
         finally:
@@ -1037,7 +1045,7 @@ class ReporteModel:
                 conn.close()
     
     def mdlObtenerAnexo2(proyectoid):
-        sql = """SELECT * FROM anexos2 WHERE proyecto_id=?"""
+        sql = """SELECT * FROM anexos2 WHERE proyecto_id = ?"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1047,7 +1055,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar reporte: " + str(e))
             return None
         finally:
@@ -1065,7 +1073,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar ubicaciones intrumentacion anexo2: " + str(e))
             return None
         finally:
@@ -1083,7 +1091,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar intrumentacion anexo2: " + str(e))
             return None
         finally:
@@ -1101,7 +1109,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar observaciones anexo2: " + str(e))
             return None
         finally:
@@ -1109,7 +1117,7 @@ class ReporteModel:
                 conn.close()
     
     def mdlObtenerObtenerComponentes(proyecto_id):
-        sql = """SELECT * FROM componentes  WHERE id_proyecto = ? AND estado_componente = 1;"""
+        sql = """SELECT * FROM componentes WHERE id_proyecto = ? AND estado_componente = 1;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1119,7 +1127,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener componentes: " + str(e))
             return None
         finally:
@@ -1127,7 +1135,7 @@ class ReporteModel:
                 conn.close()
     
     def mdlObtenerResumenEjecutivoAnexo1(idcomponente):
-        sql = f"""SELECT * FROM resumen_ejecutivo_anexo1 WHERE id_componente = ?;"""
+        sql = """SELECT * FROM resumen_ejecutivo_anexo1 WHERE id_componente = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1137,7 +1145,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer resumen ejecutivo a1: " + str(e))
             return None
         finally:
@@ -1157,7 +1165,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error en resumen ejecutivo a1: " + str(e))
             return None
         finally:
@@ -1177,7 +1185,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar parametros : " + str(e))
             return None
         finally:
@@ -1197,7 +1205,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar condiciones fisicas : " + str(e))
             return None
         finally:
@@ -1217,7 +1225,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar observaciones : " + str(e))
             return None
         finally:
@@ -1237,7 +1245,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar observaciones : " + str(e))
             return None
         finally:
@@ -1255,7 +1263,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer resumen ejecutivo a2: " + str(e))
             return None
         finally:
@@ -1275,7 +1283,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error resumen ejecutivo a2: " + str(e))
             return None
         finally:
@@ -1295,7 +1303,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar intrumentacion Geotecnica: " + str(e))
             return None
         finally:
@@ -1314,7 +1322,7 @@ class ReporteModel:
                 return rows
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar interpretacion: " + str(e))
             return None
         finally:
@@ -1322,7 +1330,7 @@ class ReporteModel:
                 conn.close()
     
     def mdlDatosVI3DPositivas(idcomponente, tabla, tipo_prisma):
-        validacion = "SELECT nombre_equipo FROM instrumentacion WHERE tipo_equipo = 'PRISMAS' AND id_componente=?;"
+        validacion = "SELECT nombre_equipo FROM instrumentacion WHERE tipo_equipo = 'PRISMAS' AND id_componente = ?;"
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1334,7 +1342,7 @@ class ReporteModel:
                 return None
             # Extraer los nombres de los equipos filtrados
             nombres_equipos = [row[0] for row in filtro_rows]
-            # Consulta SQL con filtro por nombres de equipos
+            # Consulta SQL con filtro por nombres de equipos (SQL Server)
             sql = f"""
             WITH PrismasCTE AS (
                 SELECT
@@ -1343,18 +1351,14 @@ class ReporteModel:
                     este_target,
                     norte_target,
                     elevacion_target,
-                    CAST(
-                        julianday(hora_prisma) -
-                        julianday(first_value(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma))
-                        AS NUMERIC
-                    ) AS dias,
+                    CAST(DATEDIFF(SECOND, FIRST_VALUE(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), hora_prisma) AS FLOAT) / 86400.0 AS dias,
                     CASE
-                        WHEN row_number() OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma) = 1 THEN 0
+                        WHEN ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma) = 1 THEN 0
                         ELSE
                             SQRT(
-                                POWER(este_target - lag(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2) +
-                                POWER(norte_target - lag(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2) +
-                                POWER(elevacion_target - lag(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2)
+                                POWER(este_target - LAG(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2) +
+                                POWER(norte_target - LAG(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2) +
+                                POWER(elevacion_target - LAG(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2)
                             )
                     END AS tresD2
                 FROM {tabla}
@@ -1364,11 +1368,14 @@ class ReporteModel:
                 nombre_prisma,
                 hora_prisma AS FECHAS,
                 dias AS DIAS,
-                dias*24 AS HORAS,
+                dias * 24 AS HORAS,
                 CASE
-                    WHEN row_number() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) = 1 THEN 0
+                    WHEN ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) = 1 THEN 0
                     ELSE
-                        (tresD2*100) / ((julianday(hora_prisma) - LAG(julianday(hora_prisma), 1, julianday(hora_prisma)) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma)))
+                        CASE
+                            WHEN DATEDIFF(SECOND, LAG(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), hora_prisma) = 0 THEN 0
+                            ELSE (tresD2 * 100) / (CAST(DATEDIFF(SECOND, LAG(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), hora_prisma) AS FLOAT) / 86400.0)
+                        END
                 END AS VI3D2,
                 ? AS tipo_prisma
             FROM PrismasCTE;
@@ -1380,7 +1387,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar lecturas VI3D positivas: " + str(e))
             return None
         finally:
@@ -1400,7 +1407,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar observaciones : " + str(e))
             return None
         finally:
@@ -1414,7 +1421,7 @@ class ReporteModel:
             cur.execute("SELECT id_reporte FROM reporte_anexos WHERE id_proyecto = ? AND tipo_anexo = ?;", (idproyecto, tiporeporte))
             registro_existente = cur.fetchone()
             if registro_existente:
-                datos.insert(13, datos[12]) # duplicar imagen
+                datos.insert(13, datos[12])  # duplicar imagen
                 # Actualizar solo los campos necesarios
                 sql_update = """UPDATE reporte_anexos SET titulo_portada = ?, subtitulo_portada = ?, lugar_portada = ?,
                 autor_portada = ?, tipo_documento = ?, codigo_reporte = ?, destinatario_reporte = ?, remitente_reporte = ?,
@@ -1435,7 +1442,7 @@ class ReporteModel:
                 cur.execute(sql_insert, params)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al guardar o actualizar data general anexo: " + str(e))
             return False
         finally:
@@ -1453,7 +1460,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al listar reporte anexo general: " + str(e))
             return None
         finally:
@@ -1486,7 +1493,7 @@ class ReporteModel:
             # Confirmar los cambios en la base de datos
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al guardar resumen ejecutivo a1: " + str(e))
             return False
         finally:
@@ -1506,7 +1513,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer imagenes reporte: " + str(e))
             return None
         finally:
@@ -1537,7 +1544,7 @@ class ReporteModel:
             # Confirmar los cambios en la base de datos
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al guardar resumen ejecutivo a2: " + str(e))
             return False
         finally:
@@ -1555,7 +1562,7 @@ class ReporteModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer img reportes: " + str(e))
             return None
         finally:
@@ -1570,7 +1577,7 @@ class ReporteModel:
             cur.execute(sql, (idimagen,))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print(f"Error al eliminar imagen reporte: {e}")
             return False
         finally:

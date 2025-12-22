@@ -1,15 +1,14 @@
-from sqlite3 import Error
 from services.security.apis.conexiones.conexion import Connection
 
 class TopografiaModel:
         
     def mdlObtenerTipoTopografia(proyectoid, idcomponente, idtopo):
         tipo = "TOPOGRAFIA"
-        conn = Connection.connectionDB()
         sql = """SELECT t.tipo_topografia, t.archivo_topografia FROM instrumentacion i INNER JOIN topografias t ON i.id_equipo = t.id_topografia
         INNER JOIN componentes c ON i.id_componente = c.id_componente WHERE c.id_proyecto = ? AND c.id_componente = ?
         AND i.tipo_equipo = ? AND i.id_equipo = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, idcomponente, tipo, idtopo))
             row = cur.fetchone()
@@ -17,7 +16,7 @@ class TopografiaModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener tipo topo: " + str(e))
             return None
         finally:
@@ -26,10 +25,10 @@ class TopografiaModel:
 
     # LISTAR DATA COTAS TERRENO DETALLE POR ID    
     def mdlObtenerDataCotasTerrenoDetalle(idsuelo):
-        conn = Connection.connectionDB()
         sql = """SELECT s.nombre_terreno, d.fecha_detalle, d.nivel_detalle, d.id_detalle FROM cotaterreno_detalle d INNER JOIN cotasterreno s
         ON d.id_terreno = s.id_terreno WHERE d.id_terreno = ? ORDER BY d.fecha_detalle;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idsuelo,))
             row = cur.fetchall()
@@ -37,45 +36,37 @@ class TopografiaModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar terreno detalle: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    
-    
-    
-    
-    
-        
-    def mdlRegistrarNuevaTopografia(proyectoid, idcomponente, nombrenuevo, tipo, ubicacion, comentario,fecha_formateada):
+    def mdlRegistrarNuevaTopografia(proyectoid, idcomponente, nombrenuevo, tipo, ubicacion, comentario, fecha_formateada):
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Iniciar una transacción
-            conn.execute('BEGIN')
             # Verificar si el equipo ya existe en la tabla instrumentacion
             sql_check = """SELECT 1 FROM instrumentacion WHERE id_componente = ? AND nombre_equipo = ? AND tipo_equipo = 'TOPOGRAFIA';"""
             cur.execute(sql_check, (idcomponente, nombrenuevo))
             if cur.fetchone():
                 return False, None
-            # Insertar el equipo en la tabla equipos
+            # Insertar el equipo en la tabla topografias y obtener el ID
             sql_insert = """INSERT INTO topografias (id_proyecto, nombre_topografia, tipo_topografia, archivo_topografia,
-            comentario_topografia,fecha_topografia) VALUES (?, ?, ?, ?, ?,?);"""
-            cur.execute(sql_insert, (proyectoid, nombrenuevo, tipo, ubicacion, comentario,fecha_formateada))
+            comentario_topografia, fecha_topografia) OUTPUT INSERTED.id_topografia VALUES (?, ?, ?, ?, ?, ?);"""
+            cur.execute(sql_insert, (proyectoid, nombrenuevo, tipo, ubicacion, comentario, fecha_formateada))
             # Obtener el ID del equipo recién insertado
-            equipo_id = cur.lastrowid
-            # Insertar el equipo en la tabla instrumentacion
+            equipo_id = cur.fetchone()[0]
+            # Insertar el equipo en la tabla instrumentacion y obtener el ID
             sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo)
-                                            VALUES (?, ?, ?, ?, ?);"""
+                                            OUTPUT INSERTED.id_instrumentacion VALUES (?, ?, ?, ?, ?);"""
             cur.execute(sql_insert_instrumentacion, (idcomponente, 'TOPOGRAFIA', nombrenuevo, equipo_id, 'topografias'))
-            idinstrumento = cur.lastrowid
+            idinstrumento = cur.fetchone()[0]
             # Confirmar la transacción
             conn.commit()
             return True, idinstrumento
-        except Error as e:
+        except Exception as e:
             # Realizar rollback en caso de error
             conn.rollback()
             print("Error al guardar topografia: " + str(e))
@@ -100,7 +91,7 @@ class TopografiaModel:
                 return datatopos
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al cambiar componente topografias: " + str(e))
             return None
         finally:
@@ -170,7 +161,7 @@ class TopografiaModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar info topografia: " + str(e))
             return None
         finally:
@@ -178,18 +169,17 @@ class TopografiaModel:
                 conn.close()
     
     def mdlActualizarTopografia(componente, nombrenuevo, comentario, asignarfecha, idinstrumento, idtopografia):
-        sql = """UPDATE topografias SET nombre_topografia = ?, comentario_topografia = ?, fecha_topografia = ?  WHERE id_topografia = ?;"""
+        sql = """UPDATE topografias SET nombre_topografia = ?, comentario_topografia = ?, fecha_topografia = ? WHERE id_topografia = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (nombrenuevo, comentario, asignarfecha, idtopografia))
             query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?
             WHERE id_instrumentacion = ? AND tipo_equipo = 'TOPOGRAFIA';"""
-            cur = conn.cursor()
             cur.execute(query_instrumentacion, (componente, nombrenuevo, idinstrumento))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al editar topografia: " + str(e))
             return False
         finally:
@@ -247,22 +237,21 @@ class TopografiaModel:
             cur.execute(sql, (idtopo,))
             row = cur.fetchone()
             return row[0] if row else "Fecha no disponible"  # Valor por defecto si no hay resultado
-        except Error as e:
+        except Exception as e:
             print("Error al consultar info topografia: " + str(e))
             return "Error en la consulta"  # Valor por defecto en caso de error
         finally:
             if conn:
                 conn.close()
+    
     def mdlRegistrarPrismaVirtual(id_componente, x, y, z, nombre_prisma, radio, color):
         try:
             # Obtener la conexión a la base de datos
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-
             # Verificar si ya existe un prisma con el mismo nombre
             cursor.execute("SELECT COUNT(*) FROM prismas_virtuales WHERE nombre_prisma_virtual = ?", (nombre_prisma,))
             count = cursor.fetchone()[0]
-
             # Si existe, modificar el nombre
             if count > 0:
                 # Agregar un número al final del nombre
@@ -274,42 +263,35 @@ class TopografiaModel:
                     suffix += 1
                     new_nombre_prisma = f"{nombre_prisma}_{suffix}"
                 nombre_prisma = new_nombre_prisma
-
-            # Insertar en la tabla prismas_virtuales
+            # Insertar en la tabla prismas_virtuales y obtener el ID
             cursor.execute("""
                 INSERT INTO prismas_virtuales (nombre_prisma_virtual, coordenada_x, coordenada_y, coordenada_z, radio_prisma_virtual, color_prisma)
+                OUTPUT INSERTED.id_prisma_virtual
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (nombre_prisma, x, y, z, radio, color))
-
             # Obtener el último ID insertado en prismas_virtuales
-            id_prisma_virtual = cursor.lastrowid
-
-            # Insertar en la tabla instrumentacion
+            id_prisma_virtual = cursor.fetchone()[0]
+            # Insertar en la tabla instrumentacion y obtener el ID
             cursor.execute("""
                 INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo)
+                OUTPUT INSERTED.id_instrumentacion
                 VALUES (?, 'PRISMAVIRTUAL', ?, ?, 'prismas_virtuales')
             """, (id_componente, nombre_prisma, id_prisma_virtual))
-            id_instrumentacion = cursor.lastrowid
-
+            id_instrumentacion = cursor.fetchone()[0]
             # Confirmar la transacción
             conn.commit()
-
             # Obtener la fila recién agregada
             cursor.execute("""
                 SELECT * FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'PRISMAVIRTUAL';
             """, (id_instrumentacion,))
             nueva_fila = cursor.fetchall()
-
             return nueva_fila
-
         except Exception as e:
             # Si hay un error, hacer rollback
             conn.rollback()
             print(f"Error al registrar prisma virtual: {e}")
             return None
-
         finally:
-            # Cerrar la conexión
             if conn:
                 conn.close()
-
+    
