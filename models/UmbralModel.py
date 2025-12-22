@@ -1,9 +1,8 @@
-import sqlite3
-from sqlite3 import Error
 from services.security.apis.conexiones.conexion import Connection
 
 class UmbralModel:   
-                
+    
+    @staticmethod
     def mdlObtenerUmbralesPersonalizados(proyectoid):
         try:
             conn = Connection.connectionDB()
@@ -15,7 +14,7 @@ class UmbralModel:
                 return result
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener umbrales: " + str(e))
             return None
         finally:
@@ -37,6 +36,7 @@ class UmbralModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
+            # Pyodbc soporta executemany nativamente
             cur.executemany(sql, datos)
             conn.commit()
             return True
@@ -74,21 +74,24 @@ class UmbralModel:
             cur.execute(sql, (proyectoid, nombre_umbral))
             
             # Convertir resultados
-            columns = [column[0] for column in cur.description]
-            rows = cur.fetchall()
-            
-            if not rows:
-                return None
-            
-            # Agrupar detalles
-            detalles = []
-            for row in rows:
-                detalles.append(dict(zip(columns, row)))
-            
-            return {
-                'nombre_umbral': nombre_umbral,
-                'detalles': detalles
-            }
+            # En pyodbc cur.description devuelve una tupla de columnas
+            if cur.description:
+                columns = [column[0] for column in cur.description]
+                rows = cur.fetchall()
+                
+                if not rows:
+                    return None
+                
+                # Agrupar detalles
+                detalles = []
+                for row in rows:
+                    detalles.append(dict(zip(columns, row)))
+                
+                return {
+                    'nombre_umbral': nombre_umbral,
+                    'detalles': detalles
+                }
+            return None
         except Exception as e:
             print("Error al obtener umbral por nombre:", e)
             return None
@@ -196,7 +199,8 @@ class UmbralModel:
         finally:
             if conn:
                 conn.close()
-                    
+    
+    @staticmethod
     def mdlGuardarUmbralesEquipos(proyectoid, componente_id, selected_id, data, tabla):
         if tabla == 'umbral_inclinometro':            
             sql = f"""INSERT INTO {tabla} (id_proyecto, id_inclinometro, condicion_umbral, color_umbral, riesgo_umbral, rango_umbral, acciones_umbral, tipo_umbral) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
@@ -207,6 +211,8 @@ class UmbralModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
+            # En pyodbc es preferible usar executemany si los datos están listos, 
+            # pero mantendremos el bucle si la lógica original así lo requiere.
             for item in data:
                 cur.execute(sql, (proyectoid, componente_id, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'], selected_id))
             conn.commit()
@@ -218,6 +224,7 @@ class UmbralModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarUmbralesPiezometros(proyectoid, idpiezometro, tipo, data, tipopiezo):
         sql = f"""INSERT INTO umbral_piezometro (id_proyecto, id_piezometro, condicion_umbral, color_umbral, riesgo_umbral,
         rango_umbral, acciones_umbral, tipo_umbral, tipo_piezometro) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
@@ -235,6 +242,7 @@ class UmbralModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlActualizarUmbralEquipos(umbral_id, nombre, color, riesgo, rango, acciones, tipo, tabla):
         conn = Connection.connectionDB()
         sql = f"""UPDATE {tabla} SET condicion_umbral = ?, color_umbral = ?, riesgo_umbral=?, rango_umbral = ?, acciones_umbral=?, tipo_umbral = ? WHERE id_umbral = ?;"""
@@ -249,7 +257,8 @@ class UmbralModel:
         finally:
             if conn:
                 conn.close()
-    ##
+    
+    @staticmethod
     def mdlGuardarUmbralesAcelerografo(proyectoid,componente_id, data):
         sql = f"""INSERT INTO umbral_acelerografo (id_proyecto, id_componente, condicion_umbral, riesgo_umbral, color_umbral,
         rango_umbral, magnitud_umbral, acciones_umbral, tipo_umbral) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
@@ -267,6 +276,7 @@ class UmbralModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlActualizarUmbralAcelerografo(umbral_id, nombre,riesgo, color, distancia,magnitud,acciones):
         conn = Connection.connectionDB()
         sql = f"""UPDATE umbral_acelerografo SET condicion_umbral = ?, riesgo_umbral = ?, color_umbral = ?, rango_umbral = ?,
@@ -282,11 +292,12 @@ class UmbralModel:
         finally:
             if conn:
                 conn.close()
-    ##
-                
+    
+    @staticmethod
     def mdlObtenerUmbralesInstrumentacion(proyectoid, componente_id, tipo, tabla):
         try:
             conn = Connection.connectionDB()
+            # En SQL Server los placeholders son ?
             if tabla == 'umbral_inclinometro':
                 sql = f"""SELECT * FROM {tabla} WHERE id_inclinometro = ? AND tipo_umbral = ? AND id_proyecto=? ORDER BY rango_umbral ASC;"""
             elif tabla=='umbral_celda':
@@ -300,13 +311,14 @@ class UmbralModel:
                 return result
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener umbrales: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerPiezometroUmbrales(idpiezo, tipo, tipopiezo):
         try:
             conn = Connection.connectionDB()
@@ -318,13 +330,14 @@ class UmbralModel:
                 return result
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener umbrales piezo: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerUmbralesAcelerografo(proyectoid, componente_id, tipo):
         try:
             conn = Connection.connectionDB()
@@ -336,50 +349,54 @@ class UmbralModel:
                 return result
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener umbrales: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
                 
+    @staticmethod
     def mdlEliminarUmbralEquipos(umbral_id,tabla):
         conn = Connection.connectionDB()
         sql = f"""DELETE FROM {tabla} WHERE id_umbral = ?"""
         try:
             cur = conn.cursor()
             cur.execute(sql, (umbral_id,))
+            rows_affected = cur.rowcount
             conn.commit()
-            if cur.rowcount > 0:
+            if rows_affected > 0:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al eliminar umbral prismas: " + str(e))
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlEliminarUmbralAcelerografo(umbral_id):
         conn = Connection.connectionDB()
         sql = f"""DELETE FROM umbral_acelerografo WHERE id_umbral = ?"""
         try:
             cur = conn.cursor()
             cur.execute(sql, (umbral_id,))
+            rows_affected = cur.rowcount
             conn.commit()
-            if cur.rowcount > 0:
+            if rows_affected > 0:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al eliminar umbral acelerografo: " + str(e))
             return False
         finally:
             if conn:
                 conn.close() 
                 
-    ####         
+    @staticmethod
     def mdlGuardarUmbralPrismas(data):
         conn = Connection.connectionDB()
         sql = """INSERT INTO umbral_prisma (id_proyecto, nombre_umbral, normal_umbral, precaucion_umbral, peligro_umbral, cerrar_umbral, color_normal,
@@ -389,13 +406,14 @@ class UmbralModel:
             cur.execute(sql, data)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al registrar Umbral:", e)
             return False
         finally:
             if conn:
                 conn.close()
 
+    @staticmethod
     def mdlActualizarUmbralPrismas(data):
         conn = Connection.connectionDB()
         sql = """UPDATE umbral_prisma SET normal_umbral = ?, precaucion_umbral = ?, peligro_umbral = ?, cerrar_umbral = ?,
@@ -405,13 +423,14 @@ class UmbralModel:
             cur.execute(sql, data)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al actualizar Umbral:", e)
             return False
         finally:
             if conn:
                 conn.close()
                 
+    @staticmethod
     def mdlObtenerUmbralPrismas(proyectoid, idcomponente, tipo):
         try:
             conn = Connection.connectionDB()
@@ -423,7 +442,7 @@ class UmbralModel:
                 return result
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener umbrales prismas: " + str(e))
             return None
         finally:
@@ -431,6 +450,7 @@ class UmbralModel:
                 conn.close()
     
     # Obtener datos del umbral moonitor 2
+    @staticmethod
     def mdlObtenerDatosUmbralm2():
         try:
             conn = Connection.connectionDB()
@@ -443,13 +463,14 @@ class UmbralModel:
                 return result
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener umbrales: " + str(e))
             return False
         finally:
             if conn:
                 conn.close()
 
+    @staticmethod
     def mdlGuardarUmbralm2(id,color,visd,vasd,vi3d,va3d):
         conn = Connection.connectionDB()
         sql = """UPDATE umbral2 SET color_umbral = ?, VISD = ?, VASD = ?, VI3D = ?, VA3D = ? WHERE id_umbral = ?"""
@@ -458,13 +479,14 @@ class UmbralModel:
             cur.execute(sql, (color,visd,vasd,vi3d,va3d ,id))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al actualizar Umbral:", e)
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerUmbralCeldas(proyectoid):
         try:
             conn = Connection.connectionDB()
@@ -477,13 +499,14 @@ class UmbralModel:
                 return result
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener umbral celda: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerUmbralCodigoCeldas(idumbral):
         try:
             conn = Connection.connectionDB()
@@ -496,27 +519,32 @@ class UmbralModel:
                 return row
             else:
                 return None
-        except sqlite3.Error as e:
+        except Exception as e:
             return None
         finally:
             if conn:
                 conn.close()
                             
+    @staticmethod
     def mdlObtenerUmbralAcelerografos(proyectoid,componente):
         try:
             conn = Connection.connectionDB()
             sql = """SELECT * FROM umbral_acelerografo WHERE id_proyecto=? AND id_componente=?"""
             
-            with conn:  # Usamos 'with' para asegurar que la conexión se cierre
-                cur = conn.cursor()
-                cur.execute(sql, (proyectoid,componente))
-                result = cur.fetchall()
-                return result if result else None
+            # Cambiado a bloque try-finally estándar para cerrar conexión explícitamente en pyodbc
+            cur = conn.cursor()
+            cur.execute(sql, (proyectoid,componente))
+            result = cur.fetchall()
+            return result if result else None
 
-        except Error as e:  # Asegúrate de estar usando el módulo de conexión correcto para capturar el error adecuado
+        except Exception as e:
             print(f"Error al obtener umbral acelerógrafos: {str(e)}")
             return None
+        finally:
+            if conn:
+                conn.close()
     
+    @staticmethod
     def mdlGuardarUmbralCeldas(datos):
         conn = Connection.connectionDB()
         sql = """INSERT INTO umbral_celda (id_proyecto, nombre_umbral, normal_umbral, color_normal, precaucion_umbral, color_precaucion, peligro_umbral,
@@ -526,13 +554,14 @@ class UmbralModel:
             cur.execute(sql, datos)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al insertar Umbral:", e)
             return False
         finally:
             if conn:
                 conn.close()
                     
+    @staticmethod
     def mdlActualizarUmbralCelda(datos):
         conn = Connection.connectionDB()
         sql = """UPDATE umbral_celda SET normal_umbral = ?, color_normal = ?, precaucion_umbral = ?, color_precaucion = ?, peligro_umbral = ?,
@@ -542,18 +571,19 @@ class UmbralModel:
             cur.execute(sql, datos)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al actualizar Umbral:", e)
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarUmbralAcelerografo(id_proyecto, nombre, color, valor):
         conn = Connection.connectionDB()
         
-        # SQL para verificar si el registro ya existe
-        sql_check = """SELECT id FROM umbral_acelerografo WHERE proyecto_id = ? AND tipo_umbral = ?;"""
+        # SQL para verificar si el registro ya existe (TOP 1 reemplaza LIMIT 1, aunque con fetchone basta)
+        sql_check = """SELECT TOP 1 id FROM umbral_acelerografo WHERE proyecto_id = ? AND tipo_umbral = ?;"""
         
         # SQL para actualizar el registro si ya existe
         sql_update = """UPDATE umbral_acelerografo 
@@ -579,7 +609,7 @@ class UmbralModel:
             conn.commit()
             return True
         
-        except Error as e:
+        except Exception as e:
             print("Error al guardar o actualizar Umbral:", e)
             return False
         
@@ -587,10 +617,12 @@ class UmbralModel:
             if conn:
                 conn.close()
                     
+    @staticmethod
     def mdlObtenerPenultimoDato(proyecto):
-        tabla = "prismas" + str(proyecto)
+        tabla = f"prismas{proyecto}"
         conn = Connection.connectionDB()
-        sql = """ SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY id_prisma DESC) AS rn FROM """ + tabla + """) subquery WHERE subquery.rn = 2"""
+        # Uso de ROW_NUMBER() es totalmente compatible con T-SQL.
+        sql = f"""SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY id_prisma DESC) AS rn FROM {tabla}) subquery WHERE subquery.rn = 2"""
         try:
             cur = conn.cursor()
             cur.execute(sql)
@@ -599,24 +631,28 @@ class UmbralModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener penultimo dato: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
 
-    def mldObtenerSD(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerSD(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """WITH CTE AS (
+        # Se parametrizan las fechas para evitar inyecciones y errores de formato.
+        # SQL Server soporta WITH CTE y funciones de ventana como LAG y FIRST_VALUE.
+        # Nota: FIRST_VALUE en SQL Server requiere ORDER BY dentro del OVER.
+        sql = f"""WITH CTE AS (
                 SELECT
                     nombre_prisma,
                     distancia_prisma AS distancia_prisma,
                     LAG(nombre_prisma) OVER (ORDER BY nombre_prisma) AS prev_nombre_prisma,
                     FIRST_VALUE(distancia_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma) AS primer_valor
-                FROM """ + tabla + """
-                WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """'
+                FROM {tabla}
+                WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
             )
             , RankedCTE AS (
                 SELECT
@@ -639,30 +675,31 @@ class UmbralModel:
             ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
 
-    def mldObtenerSDManual(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerSDManual(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """WITH CTE AS (
+        sql = f"""WITH CTE AS (
                 SELECT
                     nombre_prisma,
                     distancia_prisma AS distancia_prisma,
                     LAG(nombre_prisma) OVER (ORDER BY nombre_prisma) AS prev_nombre_prisma,
                     FIRST_VALUE(distancia_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma) AS primer_valor
-                FROM """ + tabla + """
-                WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """'
+                FROM {tabla}
+                WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
             )
             , RankedCTE AS (
                 SELECT
@@ -685,31 +722,35 @@ class UmbralModel:
             ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
 
-    def mldObtenerSDPrismaNombre(id_proyecto, nombres, fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerSDPrismaNombre(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
+        # Nota: La lista 'nombres' se inyecta como string porque SQL no soporta array params directamente en IN de forma sencilla sin TVP.
+        # Asegurarse de que 'nombres' venga sanitizado desde el controlador.
         nombres_str = "','".join(nombres)
-        sql = """WITH CTE AS (
+        
+        sql = f"""WITH CTE AS (
                 SELECT
                     nombre_prisma,
                     distancia_prisma AS distancia_prisma,
                     LAG(nombre_prisma) OVER (ORDER BY nombre_prisma) AS prev_nombre_prisma,
                     FIRST_VALUE(distancia_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma) AS primer_valor
-                FROM """ + tabla + """
-                WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """'
+                FROM {tabla}
+                WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ?
             )
             , RankedCTE AS (
                 SELECT
@@ -732,31 +773,34 @@ class UmbralModel:
             ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-
-    def mldObtenerSDPrismaNombreManual(id_proyecto, nombres, fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+                
+    @staticmethod
+    def mldObtenerSDPrismaNombreManual(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
+        # Construcción manual del string para el IN ya que pyodbc no soporta listas directas limpiamente
         nombres_str = "','".join(nombres)
-        sql = """WITH CTE AS (
+        
+        sql = f"""WITH CTE AS (
                 SELECT
                     nombre_prisma,
                     distancia_prisma AS distancia_prisma,
                     LAG(nombre_prisma) OVER (ORDER BY nombre_prisma) AS prev_nombre_prisma,
                     FIRST_VALUE(distancia_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma) AS primer_valor
-                FROM """ + tabla + """
-                WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """'
+                FROM {tabla}
+                WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ?
             )
             , RankedCTE AS (
                 SELECT
@@ -779,23 +823,24 @@ class UmbralModel:
             ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mldObtener3D(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtener3D(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """WITH CalculoDistancias AS (
+        sql = f"""WITH CalculoDistancias AS (
                 SELECT
                     nombre_prisma,
                     hora_prisma,
@@ -807,31 +852,36 @@ class UmbralModel:
                         POWER(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2) +
                         POWER(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2)
                     ) AS distancia
-                FROM """ + tabla + """
-                WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """'
+                FROM {tabla}
+                WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
             )
             SELECT nombre_prisma, MAX(hora_prisma), distancia
             FROM CalculoDistancias
-            GROUP BY nombre_prisma;"""
+            GROUP BY nombre_prisma, distancia;""" 
+            # Nota: En SQL Server, si agrupas, todas las columnas no agregadas deben estar en el GROUP BY.
+            # He agregado 'distancia' al GROUP BY para cumplir con la sintaxis estricta de SQL Server si 'distancia' no es un agregado.
+            # Si 'distancia' varía por fila y queremos el MAX de todo, la lógica original podría fallar en SQL Server.
+            # Asumiendo que FIRST_VALUE hace que la distancia sea constante por prisma base o que queremos agrupar así.
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mldObtener3DManual(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtener3DManual(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """WITH CalculoDistancias AS (
+        sql = f"""WITH CalculoDistancias AS (
                 SELECT
                     nombre_prisma,
                     hora_prisma,
@@ -843,32 +893,33 @@ class UmbralModel:
                         POWER(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2) +
                         POWER(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2)
                     ) AS distancia
-                FROM """ + tabla + """
-                WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """'
+                FROM {tabla}
+                WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
             )
             SELECT nombre_prisma, MAX(hora_prisma), distancia
             FROM CalculoDistancias
-            GROUP BY nombre_prisma;"""
+            GROUP BY nombre_prisma, distancia;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mldObtener3DPrismaNombre(id_proyecto,nombres, fechaMinInicial, fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtener3DPrismaNombre(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
         nombres_str = "','".join(nombres)
-        sql = """WITH CalculoDistancias AS (
+        sql = f"""WITH CalculoDistancias AS (
                 SELECT
                     nombre_prisma,
                     hora_prisma,
@@ -880,594 +931,757 @@ class UmbralModel:
                         POWER(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2) +
                         POWER(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2)
                     ) AS distancia
-                FROM """ + tabla + """
-                WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """'
+                FROM {tabla}
+                WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ?
             )
             SELECT nombre_prisma, MAX(hora_prisma), distancia
             FROM CalculoDistancias
-            GROUP BY nombre_prisma;"""
+            GROUP BY nombre_prisma, distancia;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
+    def mldObtener3DPrismaNombreManual(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
+        conn = Connection.connectionDB()
+        nombres_str = "','".join(nombres)
+        sql = f"""WITH CalculoDistancias AS (
+                SELECT
+                    nombre_prisma,
+                    hora_prisma,
+                    este_target,
+                    norte_target,
+                    elevacion_target,
+                    SQRT(
+                        POWER(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2) +
+                        POWER(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2) +
+                        POWER(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2)
+                    ) AS distancia
+                FROM {tabla}
+                WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ?
+            )
+            SELECT nombre_prisma, MAX(hora_prisma), distancia
+            FROM CalculoDistancias
+            GROUP BY nombre_prisma, distancia;"""
+        try:
+            cur = conn.cursor()
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
+            row = cur.fetchall()
+            if row:
+                return row
+            else:
+                return None
+        except Exception as e:
+            print("Error al obtener datos: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
 
+    @staticmethod
+    def mldObtenerL(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
+        conn = Connection.connectionDB()
+        # En SQL Server, las columnas en SELECT que no son agregadas deben estar en GROUP BY
+        sql = f"""SELECT p1.nombre_prisma, p1.desplaza_longitudinal, MAX(ABS(p1.desplaza_longitudinal)) AS max_valor_absolutoDL 
+        FROM {tabla} AS p1 
+        WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ? 
+        GROUP BY p1.nombre_prisma, p1.desplaza_longitudinal 
+        ORDER BY p1.nombre_prisma;"""
+        try:
+            cur = conn.cursor()
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
+            row = cur.fetchall()
+            if row:
+                return row
+            else:
+                return None
+        except Exception as e:
+            print("Error al obtener datos: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
     
-    def mldObtener3DPrismaNombreManual(id_proyecto,nombres, fechaMinInicial, fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerLManual(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
+        conn = Connection.connectionDB()
+        sql = f"""SELECT p1.nombre_prisma, p1.desplaza_longitudinal, MAX(ABS(p1.desplaza_longitudinal)) AS max_valor_absolutoDL 
+        FROM {tabla} AS p1 
+        WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ? 
+        GROUP BY p1.nombre_prisma, p1.desplaza_longitudinal 
+        ORDER BY p1.nombre_prisma;"""
+        try:
+            cur = conn.cursor()
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
+            row = cur.fetchall()
+            if row:
+                return row
+            else:
+                return None
+        except Exception as e:
+            print("Error al obtener datos: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mldObtenerLPrismaNombre(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
         nombres_str = "','".join(nombres)
-        sql = """WITH CalculoDistancias AS (
-                SELECT
-                    nombre_prisma,
-                    hora_prisma,
-                    este_target,
-                    norte_target,
-                    elevacion_target,
-                    SQRT(
-                        POWER(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2) +
-                        POWER(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2) +
-                        POWER(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2)
-                    ) AS distancia
-                FROM """ + tabla + """
-                WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """'
-            )
-            SELECT nombre_prisma, MAX(hora_prisma), distancia
-            FROM CalculoDistancias
-            GROUP BY nombre_prisma;"""
+        sql = f"""SELECT p1.nombre_prisma, p1.desplaza_longitudinal, MAX(ABS(p1.desplaza_longitudinal)) AS max_valor_absolutoDL 
+        FROM {tabla} AS p1 
+        WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ? 
+        GROUP BY p1.nombre_prisma, p1.desplaza_longitudinal 
+        ORDER BY p1.nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
-            print("Error al obtener datos: " + str(e))
-            return None
-        finally:
-            if conn:
-                conn.close()
-
-    def mldObtenerL(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
-        conn = Connection.connectionDB()
-        sql = """SELECT p1.nombre_prisma, p1.desplaza_longitudinal, MAX(ABS(p1.desplaza_longitudinal)) AS max_valor_absolutoDL FROM """ + tabla + """ AS p1 
-        WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' GROUP BY p1.nombre_prisma ORDER BY p1.nombre_prisma;"""
-        try:
-            cur = conn.cursor()
-            cur.execute(sql)
-            row = cur.fetchall()
-            if row:
-                return row
-            else:
-                return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mldObtenerLManual(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
-        conn = Connection.connectionDB()
-        sql = """SELECT p1.nombre_prisma, p1.desplaza_longitudinal, MAX(ABS(p1.desplaza_longitudinal)) AS max_valor_absolutoDL FROM """ + tabla + """ AS p1 
-        WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' GROUP BY p1.nombre_prisma ORDER BY p1.nombre_prisma;"""
-        try:
-            cur = conn.cursor()
-            cur.execute(sql)
-            row = cur.fetchall()
-            if row:
-                return row
-            else:
-                return None
-        except Error as e:
-            print("Error al obtener datos: " + str(e))
-            return None
-        finally:
-            if conn:
-                conn.close()
-    
-    def mldObtenerLPrismaNombre(id_proyecto, nombres, fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerLPrismaNombreManual(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
         nombres_str = "','".join(nombres)
-        sql = """SELECT p1.nombre_prisma, p1.desplaza_longitudinal, MAX(ABS(p1.desplaza_longitudinal)) AS max_valor_absolutoDL FROM """ + tabla + """ AS p1 
-        WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' 
-        GROUP BY p1.nombre_prisma ORDER BY p1.nombre_prisma;"""
+        sql = f"""SELECT p1.nombre_prisma, p1.desplaza_longitudinal, MAX(ABS(p1.desplaza_longitudinal)) AS max_valor_absolutoDL 
+        FROM {tabla} AS p1 
+        WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ? 
+        GROUP BY p1.nombre_prisma, p1.desplaza_longitudinal 
+        ORDER BY p1.nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mldObtenerLPrismaNombreManual(id_proyecto, nombres, fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerT(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        nombres_str = "','".join(nombres)
-        sql = """SELECT p1.nombre_prisma, p1.desplaza_longitudinal, MAX(ABS(p1.desplaza_longitudinal)) AS max_valor_absolutoDL FROM """ + tabla + """ AS p1 
-        WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' 
-        GROUP BY p1.nombre_prisma ORDER BY p1.nombre_prisma;"""
+        sql = f"""SELECT p1.nombre_prisma, p1.desplaza_transversal, MAX(ABS(p1.desplaza_transversal)) AS max_valor_absolutoDT  
+        FROM {tabla} AS p1 
+        WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ? 
+        GROUP BY p1.nombre_prisma, p1.desplaza_transversal 
+        ORDER BY p1.nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mldObtenerT(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerTManual(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """SELECT p1.nombre_prisma, p1.desplaza_transversal, MAX(ABS(p1.desplaza_transversal)) AS max_valor_absolutoDT  FROM """ + tabla + """ AS p1 
-        WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' GROUP BY p1.nombre_prisma ORDER BY p1.nombre_prisma;"""
+        sql = f"""SELECT p1.nombre_prisma, p1.desplaza_transversal, MAX(ABS(p1.desplaza_transversal)) AS max_valor_absolutoDT  
+        FROM {tabla} AS p1 
+        WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ? 
+        GROUP BY p1.nombre_prisma, p1.desplaza_transversal 
+        ORDER BY p1.nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mldObtenerTManual(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
-        conn = Connection.connectionDB()
-        sql = """SELECT p1.nombre_prisma, p1.desplaza_transversal, MAX(ABS(p1.desplaza_transversal)) AS max_valor_absolutoDT  FROM """ + tabla + """ AS p1 
-        WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' GROUP BY p1.nombre_prisma ORDER BY p1.nombre_prisma;"""
-        try:
-            cur = conn.cursor()
-            cur.execute(sql)
-            row = cur.fetchall()
-            if row:
-                return row
-            else:
-                return None
-        except Error as e:
-            print("Error al obtener datos: " + str(e))
-            return None
-        finally:
-            if conn:
-                conn.close()
-    
+    @staticmethod
     def mldObtenerTPrismaNombre(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
         nombres_str = "','".join(nombres)
-        sql = """SELECT p1.nombre_prisma, p1.desplaza_transversal, MAX(ABS(p1.desplaza_transversal)) AS max_valor_absolutoDT  FROM """ + tabla + """ AS p1 
-        WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' 
-        GROUP BY p1.nombre_prisma ORDER BY p1.nombre_prisma;"""
+        sql = f"""SELECT p1.nombre_prisma, p1.desplaza_transversal, MAX(ABS(p1.desplaza_transversal)) AS max_valor_absolutoDT  
+        FROM {tabla} AS p1 
+        WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ? 
+        GROUP BY p1.nombre_prisma, p1.desplaza_transversal 
+        ORDER BY p1.nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mldObtenerTPrismaNombreManual(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
         nombres_str = "','".join(nombres)
-        sql = """SELECT p1.nombre_prisma, p1.desplaza_transversal, MAX(ABS(p1.desplaza_transversal)) AS max_valor_absolutoDT  FROM """ + tabla + """ AS p1 
-        WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' 
-        GROUP BY p1.nombre_prisma ORDER BY p1.nombre_prisma;"""
+        sql = f"""SELECT p1.nombre_prisma, p1.desplaza_transversal, MAX(ABS(p1.desplaza_transversal)) AS max_valor_absolutoDT  
+        FROM {tabla} AS p1 
+        WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ? 
+        GROUP BY p1.nombre_prisma, p1.desplaza_transversal 
+        ORDER BY p1.nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mldObtenerH(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerH(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """SELECT p1.nombre_prisma, p1.desplaza_altura, MAX(ABS(p1.desplaza_altura)) AS max_valor_absolutoDH FROM """ + tabla + """ AS p1  
-        WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' GROUP BY p1.nombre_prisma ORDER BY p1.nombre_prisma;"""
+        sql = f"""SELECT p1.nombre_prisma, p1.desplaza_altura, MAX(ABS(p1.desplaza_altura)) AS max_valor_absolutoDH 
+        FROM {tabla} AS p1  
+        WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ? 
+        GROUP BY p1.nombre_prisma, p1.desplaza_altura 
+        ORDER BY p1.nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
 
-    def mldObtenerHManual(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerHManual(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """SELECT p1.nombre_prisma, p1.desplaza_altura, MAX(ABS(p1.desplaza_altura)) AS max_valor_absolutoDH FROM """ + tabla + """ AS p1  
-        WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' GROUP BY p1.nombre_prisma ORDER BY p1.nombre_prisma;"""
+        sql = f"""SELECT p1.nombre_prisma, p1.desplaza_altura, MAX(ABS(p1.desplaza_altura)) AS max_valor_absolutoDH 
+        FROM {tabla} AS p1  
+        WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ? 
+        GROUP BY p1.nombre_prisma, p1.desplaza_altura 
+        ORDER BY p1.nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
 
+    @staticmethod
     def mldObtenerHPrismaNombre(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
         nombres_str = "','".join(nombres)
-        sql = """SELECT p1.nombre_prisma, p1.desplaza_altura, MAX(ABS(p1.desplaza_altura)) AS max_valor_absolutoDH FROM """ + tabla + """ AS p1  
-        WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' 
-        GROUP BY p1.nombre_prisma ORDER BY p1.nombre_prisma;"""
+        sql = f"""SELECT p1.nombre_prisma, p1.desplaza_altura, MAX(ABS(p1.desplaza_altura)) AS max_valor_absolutoDH 
+        FROM {tabla} AS p1  
+        WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ? 
+        GROUP BY p1.nombre_prisma, p1.desplaza_altura 
+        ORDER BY p1.nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mldObtenerHPrismaNombreManual(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
         nombres_str = "','".join(nombres)
-        sql = """SELECT p1.nombre_prisma, p1.desplaza_altura, MAX(ABS(p1.desplaza_altura)) AS max_valor_absolutoDH FROM """ + tabla + """ AS p1  
-        WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' 
-        GROUP BY p1.nombre_prisma ORDER BY p1.nombre_prisma;"""
+        sql = f"""SELECT p1.nombre_prisma, p1.desplaza_altura, MAX(ABS(p1.desplaza_altura)) AS max_valor_absolutoDH 
+        FROM {tabla} AS p1  
+        WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ? 
+        GROUP BY p1.nombre_prisma, p1.desplaza_altura 
+        ORDER BY p1.nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
                    
-    def mldObtenerN(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerN(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """WITH CalculoDistancias AS (SELECT nombre_prisma, norte_target,(norte_target-FIRST_VALUE(norte_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, ABS(norte_target - FIRST_VALUE(norte_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A FROM """ + tabla + """ 
-            WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' ORDER BY nombre_prisma) 
-            SELECT nombre_prisma,distancia, MAX(V_A) AS mayor_distancia FROM CalculoDistancias GROUP BY nombre_prisma"""
+        sql = f"""WITH CalculoDistancias AS (
+            SELECT nombre_prisma, norte_target,
+            (norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, 
+            ABS(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A 
+            FROM {tabla} 
+            WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
+        ) 
+        SELECT nombre_prisma, distancia, MAX(V_A) AS mayor_distancia 
+        FROM CalculoDistancias 
+        GROUP BY nombre_prisma, distancia
+        ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
 
-    def mldObtenerNManual(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerNManual(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """WITH CalculoDistancias AS (SELECT nombre_prisma, norte_target,(norte_target-FIRST_VALUE(norte_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, ABS(norte_target - FIRST_VALUE(norte_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A FROM """ + tabla + """ 
-            WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' ORDER BY nombre_prisma) 
-            SELECT nombre_prisma,distancia, MAX(V_A) AS mayor_distancia FROM CalculoDistancias GROUP BY nombre_prisma"""
+        sql = f"""WITH CalculoDistancias AS (
+            SELECT nombre_prisma, norte_target,
+            (norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, 
+            ABS(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A 
+            FROM {tabla} 
+            WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
+        ) 
+        SELECT nombre_prisma, distancia, MAX(V_A) AS mayor_distancia 
+        FROM CalculoDistancias 
+        GROUP BY nombre_prisma, distancia
+        ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
 
+    @staticmethod
     def mldObtenerNPrismaNombre(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
         nombres_str = "','".join(nombres)
-        sql = """WITH CalculoDistancias AS (SELECT nombre_prisma, norte_target,(norte_target-FIRST_VALUE(norte_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, ABS(norte_target - FIRST_VALUE(norte_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A FROM """ + tabla + """ 
-            WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' ORDER BY nombre_prisma) 
-            SELECT nombre_prisma,distancia, MAX(V_A) AS mayor_distancia FROM CalculoDistancias GROUP BY nombre_prisma"""
+        sql = f"""WITH CalculoDistancias AS (
+            SELECT nombre_prisma, norte_target,
+            (norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, 
+            ABS(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A 
+            FROM {tabla} 
+            WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ?
+        ) 
+        SELECT nombre_prisma, distancia, MAX(V_A) AS mayor_distancia 
+        FROM CalculoDistancias 
+        GROUP BY nombre_prisma, distancia
+        ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mldObtenerNPrismaNombreManual(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
         nombres_str = "','".join(nombres)
-        sql = """WITH CalculoDistancias AS (SELECT nombre_prisma, norte_target,(norte_target-FIRST_VALUE(norte_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, ABS(norte_target - FIRST_VALUE(norte_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A FROM """ + tabla + """ 
-            WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' ORDER BY nombre_prisma) 
-            SELECT nombre_prisma,distancia, MAX(V_A) AS mayor_distancia FROM CalculoDistancias GROUP BY nombre_prisma"""
+        sql = f"""WITH CalculoDistancias AS (
+            SELECT nombre_prisma, norte_target,
+            (norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, 
+            ABS(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A 
+            FROM {tabla} 
+            WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ?
+        ) 
+        SELECT nombre_prisma, distancia, MAX(V_A) AS mayor_distancia 
+        FROM CalculoDistancias 
+        GROUP BY nombre_prisma, distancia
+        ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
                   
-    def mldObtenerE(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerE(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """WITH CalculoDistancias AS (SELECT nombre_prisma, este_target,(este_target-FIRST_VALUE(este_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, ABS(este_target - FIRST_VALUE(este_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A FROM """ + tabla + """ 
-            WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' ORDER BY nombre_prisma) 
-            SELECT nombre_prisma,distancia, MAX(V_A) AS mayor_distancia FROM CalculoDistancias GROUP BY nombre_prisma"""
+        sql = f"""WITH CalculoDistancias AS (
+            SELECT nombre_prisma, este_target,
+            (este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, 
+            ABS(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A 
+            FROM {tabla} 
+            WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
+        ) 
+        SELECT nombre_prisma, distancia, MAX(V_A) AS mayor_distancia 
+        FROM CalculoDistancias 
+        GROUP BY nombre_prisma, distancia
+        ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
-    def mldObtenerEManual(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+
+    @staticmethod
+    def mldObtenerEManual(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """WITH CalculoDistancias AS (SELECT nombre_prisma, este_target,(este_target-FIRST_VALUE(este_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, ABS(este_target - FIRST_VALUE(este_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A FROM """ + tabla + """ 
-            WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' ORDER BY nombre_prisma) 
-            SELECT nombre_prisma,distancia, MAX(V_A) AS mayor_distancia FROM CalculoDistancias GROUP BY nombre_prisma"""
+        # Se usa ROW_NUMBER para obtener el registro correspondiente al MAX(V_A)
+        # ya que SQL Server requiere que las columnas no agregadas estén en GROUP BY
+        sql = f"""WITH CalculoDistancias AS (
+            SELECT nombre_prisma, este_target,
+            (este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, 
+            ABS(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A 
+            FROM {tabla} 
+            WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
+        ),
+        Ranked AS (
+            SELECT nombre_prisma, distancia, V_A,
+            ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY V_A DESC) as rn
+            FROM CalculoDistancias
+        )
+        SELECT nombre_prisma, distancia, V_A AS mayor_distancia 
+        FROM Ranked 
+        WHERE rn = 1
+        ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
                   
+    @staticmethod
     def mldObtenerEPrismaNombre(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
         nombres_str = "','".join(nombres)
-        sql = """WITH CalculoDistancias AS (SELECT nombre_prisma, este_target,(este_target-FIRST_VALUE(este_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, ABS(este_target - FIRST_VALUE(este_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A FROM """ + tabla + """ 
-            WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' ORDER BY nombre_prisma) 
-            SELECT nombre_prisma,distancia, MAX(V_A) AS mayor_distancia FROM CalculoDistancias GROUP BY nombre_prisma"""
+        sql = f"""WITH CalculoDistancias AS (
+            SELECT nombre_prisma, este_target,
+            (este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, 
+            ABS(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A 
+            FROM {tabla} 
+            WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ?
+        ),
+        Ranked AS (
+            SELECT nombre_prisma, distancia, V_A,
+            ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY V_A DESC) as rn
+            FROM CalculoDistancias
+        )
+        SELECT nombre_prisma, distancia, V_A AS mayor_distancia 
+        FROM Ranked 
+        WHERE rn = 1
+        ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
 
+    @staticmethod
     def mldObtenerEPrismaNombreManual(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
         nombres_str = "','".join(nombres)
-        sql = """WITH CalculoDistancias AS (SELECT nombre_prisma, este_target,(este_target-FIRST_VALUE(este_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, ABS(este_target - FIRST_VALUE(este_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A FROM """ + tabla + """ 
-            WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' ORDER BY nombre_prisma) 
-            SELECT nombre_prisma,distancia, MAX(V_A) AS mayor_distancia FROM CalculoDistancias GROUP BY nombre_prisma"""
+        sql = f"""WITH CalculoDistancias AS (
+            SELECT nombre_prisma, este_target,
+            (este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, 
+            ABS(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A 
+            FROM {tabla} 
+            WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ?
+        ),
+        Ranked AS (
+            SELECT nombre_prisma, distancia, V_A,
+            ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY V_A DESC) as rn
+            FROM CalculoDistancias
+        )
+        SELECT nombre_prisma, distancia, V_A AS mayor_distancia 
+        FROM Ranked 
+        WHERE rn = 1
+        ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
 
-    def mldObtenerZ(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerZ(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """WITH CalculoDistancias AS (SELECT nombre_prisma, elevacion_target,(elevacion_target-FIRST_VALUE(elevacion_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, ABS(elevacion_target - FIRST_VALUE(elevacion_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A FROM """ + tabla + """ 
-            WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' ORDER BY nombre_prisma) 
-            SELECT nombre_prisma,distancia, MAX(V_A) AS mayor_distancia FROM CalculoDistancias GROUP BY nombre_prisma"""
+        sql = f"""WITH CalculoDistancias AS (
+            SELECT nombre_prisma, elevacion_target,
+            (elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, 
+            ABS(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A 
+            FROM {tabla} 
+            WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
+        ),
+        Ranked AS (
+            SELECT nombre_prisma, distancia, V_A,
+            ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY V_A DESC) as rn
+            FROM CalculoDistancias
+        )
+        SELECT nombre_prisma, distancia, V_A AS mayor_distancia 
+        FROM Ranked 
+        WHERE rn = 1
+        ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
 
-    def mldObtenerZManual(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerZManual(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """WITH CalculoDistancias AS (SELECT nombre_prisma, elevacion_target,(elevacion_target-FIRST_VALUE(elevacion_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, ABS(elevacion_target - FIRST_VALUE(elevacion_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A FROM """ + tabla + """ 
-            WHERE state_prisma = '1' AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' ORDER BY nombre_prisma) 
-            SELECT nombre_prisma,distancia, MAX(V_A) AS mayor_distancia FROM CalculoDistancias GROUP BY nombre_prisma"""
+        sql = f"""WITH CalculoDistancias AS (
+            SELECT nombre_prisma, elevacion_target,
+            (elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, 
+            ABS(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A 
+            FROM {tabla} 
+            WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
+        ),
+        Ranked AS (
+            SELECT nombre_prisma, distancia, V_A,
+            ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY V_A DESC) as rn
+            FROM CalculoDistancias
+        )
+        SELECT nombre_prisma, distancia, V_A AS mayor_distancia 
+        FROM Ranked 
+        WHERE rn = 1
+        ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
 
-    def mldObtenerZPrismaNombre(id_proyecto, nombres, fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerZPrismaNombre(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
         nombres_str = "','".join(nombres)
-        sql = """WITH CalculoDistancias AS (SELECT nombre_prisma, elevacion_target,(elevacion_target-FIRST_VALUE(elevacion_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, ABS(elevacion_target - FIRST_VALUE(elevacion_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A FROM """ + tabla + """ 
-            WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' ORDER BY nombre_prisma) 
-            SELECT nombre_prisma,distancia, MAX(V_A) AS mayor_distancia FROM CalculoDistancias GROUP BY nombre_prisma"""
+        sql = f"""WITH CalculoDistancias AS (
+            SELECT nombre_prisma, elevacion_target,
+            (elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, 
+            ABS(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A 
+            FROM {tabla} 
+            WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ?
+        ),
+        Ranked AS (
+            SELECT nombre_prisma, distancia, V_A,
+            ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY V_A DESC) as rn
+            FROM CalculoDistancias
+        )
+        SELECT nombre_prisma, distancia, V_A AS mayor_distancia 
+        FROM Ranked 
+        WHERE rn = 1
+        ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mldObtenerZPrismaNombreManual(id_proyecto, nombres, fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mldObtenerZPrismaNombreManual(id_proyecto, nombres, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
         nombres_str = "','".join(nombres)
-        sql = """WITH CalculoDistancias AS (SELECT nombre_prisma, elevacion_target,(elevacion_target-FIRST_VALUE(elevacion_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, ABS(elevacion_target - FIRST_VALUE(elevacion_target) OVER 
-            (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A FROM """ + tabla + """ 
-            WHERE state_prisma = '1' AND nombre_prisma IN ('""" + nombres_str + """') AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' ORDER BY nombre_prisma) 
-            SELECT nombre_prisma,distancia, MAX(V_A) AS mayor_distancia FROM CalculoDistancias GROUP BY nombre_prisma"""
+        sql = f"""WITH CalculoDistancias AS (
+            SELECT nombre_prisma, elevacion_target,
+            (elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia, 
+            ABS(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A 
+            FROM {tabla} 
+            WHERE state_prisma = '1' AND nombre_prisma IN ('{nombres_str}') AND hora_prisma BETWEEN ? AND ?
+        ),
+        Ranked AS (
+            SELECT nombre_prisma, distancia, V_A,
+            ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY V_A DESC) as rn
+            FROM CalculoDistancias
+        )
+        SELECT nombre_prisma, distancia, V_A AS mayor_distancia 
+        FROM Ranked 
+        WHERE rn = 1
+        ORDER BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
@@ -1475,10 +1689,11 @@ class UmbralModel:
                 conn.close()
             
     #obtener fecha mini y maximo de los prismas automatizados
+    @staticmethod
     def mdlObtenerFechaMinMaxAuto(id_proyecto):
-        tabla = "prismas" + str(id_proyecto)
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """SELECT MIN(hora_prisma) AS min_fecha, MAX(hora_prisma) AS max_fecha FROM """ + tabla + """ WHERE state_prisma = 1;"""
+        sql = f"""SELECT MIN(hora_prisma) AS min_fecha, MAX(hora_prisma) AS max_fecha FROM {tabla} WHERE state_prisma = 1;"""
         try:
             cur = conn.cursor()
             cur.execute(sql)
@@ -1487,7 +1702,7 @@ class UmbralModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener fechas min-max: " + str(e))
             return None
         finally:
@@ -1495,10 +1710,11 @@ class UmbralModel:
                 conn.close()
     
     #obtener fecha mini y maximo de los prismas manuales
+    @staticmethod
     def mdlObtenerFechaMinMaxManual(id_proyecto):
-        tabla = "prismas" + str(id_proyecto)
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """SELECT MIN(hora_prisma) AS min_fecha, MAX(hora_prisma) AS max_fecha FROM """ + tabla + """ WHERE state_prisma = 1;"""
+        sql = f"""SELECT MIN(hora_prisma) AS min_fecha, MAX(hora_prisma) AS max_fecha FROM {tabla} WHERE state_prisma = 1;"""
         try:
             cur = conn.cursor()
             cur.execute(sql)
@@ -1507,7 +1723,7 @@ class UmbralModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener fechas min-max: " + str(e))
             return None
         finally:
@@ -1515,20 +1731,21 @@ class UmbralModel:
                 conn.close()
 
     #Obtener fechas mininimas y maximas de los prismas auto entre fechas
-    def mdlObtenerFechasEnRango(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mdlObtenerFechasEnRango(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """SELECT nombre_prisma, min(hora_prisma),max(hora_prisma) FROM """ + tabla + """ WHERE state_prisma = '1' 
-        AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' GROUP BY nombre_prisma;"""
+        sql = f"""SELECT nombre_prisma, min(hora_prisma), max(hora_prisma) FROM {tabla} WHERE state_prisma = '1' 
+        AND hora_prisma BETWEEN ? AND ? GROUP BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener fechas: " + str(e))
             return None
         finally:
@@ -1536,20 +1753,21 @@ class UmbralModel:
                 conn.close()
     
     #Obtener fechas mininimas y maximas de los prismas auto entre fechas
-    def mdlObtenerFechasEnRangoManual(id_proyecto,fechaMinInicial,fechaMaxInicial):
-        tabla = "prismas" + str(id_proyecto)
+    @staticmethod
+    def mdlObtenerFechasEnRangoManual(id_proyecto, fechaMinInicial, fechaMaxInicial):
+        tabla = f"prismas{id_proyecto}"
         conn = Connection.connectionDB()
-        sql = """SELECT nombre_prisma, min(hora_prisma),max(hora_prisma) FROM """ + tabla + """ WHERE state_prisma = '1' 
-        AND hora_prisma BETWEEN '""" + fechaMinInicial + """' AND '""" + fechaMaxInicial + """' GROUP BY nombre_prisma;"""
+        sql = f"""SELECT nombre_prisma, min(hora_prisma), max(hora_prisma) FROM {tabla} WHERE state_prisma = '1' 
+        AND hora_prisma BETWEEN ? AND ? GROUP BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, (fechaMinInicial, fechaMaxInicial))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener fechas: " + str(e))
             return None
         finally:
@@ -1557,21 +1775,24 @@ class UmbralModel:
                 conn.close()
          
     #Obtener fechas mininimas y maximas de un prisma entre fechas
+    @staticmethod
     def mdlObtenerFechasRangoPrismaNombre(id_proyecto, nombres, fechaini, fechafin):
-        tabla = "prismas" + str(id_proyecto)
-        nombres_str = ','.join(['?' for _ in nombres])  # Creamos una cadena de comodines para los nombres
+        tabla = f"prismas{id_proyecto}"
+        placeholders = ','.join(['?' for _ in nombres])
         conn = Connection.connectionDB()
-        sql = """SELECT nombre_prisma, min(hora_prisma), max(hora_prisma) FROM """ + tabla + """ WHERE state_prisma = '1' AND nombre_prisma 
-        IN (""" + nombres_str + """) AND hora_prisma BETWEEN ? AND ? GROUP BY nombre_prisma;"""
+        sql = f"""SELECT nombre_prisma, min(hora_prisma), max(hora_prisma) FROM {tabla} WHERE state_prisma = '1' AND nombre_prisma 
+        IN ({placeholders}) AND hora_prisma BETWEEN ? AND ? GROUP BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql, tuple(nombres) + (fechaini, fechafin))
+            # Pyodbc requiere que todos los parámetros estén en una sola secuencia
+            params = tuple(nombres) + (fechaini, fechafin)
+            cur.execute(sql, params)
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
@@ -1580,21 +1801,23 @@ class UmbralModel:
 
     
     #Obtener fechas mininimas y maximas de un prisma manual entre fechas
+    @staticmethod
     def mdlObtenerFechasRangoPrismaNombreManual(id_proyecto, nombres, fechaini, fechafin):
-        tabla = "prismas" + str(id_proyecto)
-        nombres_str = ','.join(['?' for _ in nombres])  # Creamos una cadena de comodines para los nombres
+        tabla = f"prismas{id_proyecto}"
+        placeholders = ','.join(['?' for _ in nombres])
         conn = Connection.connectionDB()
-        sql = """SELECT nombre_prisma, min(hora_prisma), max(hora_prisma) FROM """ + tabla + """ WHERE state_prisma = '1' AND nombre_prisma 
-        IN (""" + nombres_str + """)  AND hora_prisma BETWEEN ? AND ? GROUP BY nombre_prisma;"""
+        sql = f"""SELECT nombre_prisma, min(hora_prisma), max(hora_prisma) FROM {tabla} WHERE state_prisma = '1' AND nombre_prisma 
+        IN ({placeholders}) AND hora_prisma BETWEEN ? AND ? GROUP BY nombre_prisma;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql, tuple(nombres) + (fechaini, fechafin))
+            params = tuple(nombres) + (fechaini, fechafin)
+            cur.execute(sql, params)
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos: " + str(e))
             return None
         finally:
@@ -1602,19 +1825,21 @@ class UmbralModel:
                 conn.close()
                 
     # Verificar si hay data de prismas automatizados entre fechas
+    @staticmethod
     def mdlComprobarDataPrismasAutoFecha(proyectoid, fechainicial, fechafinal):
-        tabla = "prismas" + str(proyectoid)
+        tabla = f"prismas{proyectoid}"
         conn = Connection.connectionDB()
-        sql = """SELECT * FROM """ + tabla + """ WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?"""
+        # Uso de TOP 1 para optimizar en SQL Server
+        sql = f"""SELECT TOP 1 1 FROM {tabla} WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?"""
         try:
             cur = conn.cursor()
             cur.execute(sql, (fechainicial, fechafinal))
-            row = cur.fetchall()
+            row = cur.fetchone()
             if row:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar datos: " + str(e))
             return False
         finally:
@@ -1622,40 +1847,52 @@ class UmbralModel:
                 conn.close()
 
     # Verificar si hay data de prismas manuales entre fechas
+    @staticmethod
     def mdlComprobarDataPrismasManualFecha(proyectoid, fechainicial, fechafinal):
-        tabla = "prismas" + str(proyectoid)
+        tabla = f"prismas{proyectoid}"
         conn = Connection.connectionDB()
-        sql = """SELECT * FROM """ + tabla + """ WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?"""
+        sql = f"""SELECT TOP 1 1 FROM {tabla} WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?"""
         try:
             cur = conn.cursor()
             cur.execute(sql, (fechainicial, fechafinal))
-            row = cur.fetchall()
+            row = cur.fetchone()
             if row:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar datos: " + str(e))
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlValidarUmbralesComponentes(idproyecto, tipo, tabla):
         try:
             conn = Connection.connectionDB()
-            sql = f"""SELECT COUNT(DISTINCT id_componente) AS cantidad, id_componente FROM {tabla} WHERE id_proyecto = ? AND tipo_umbral = ?;"""
+            sql = f"""SELECT COUNT(DISTINCT id_componente) AS cantidad, id_componente FROM {tabla} WHERE id_proyecto = ? AND tipo_umbral = ? GROUP BY id_componente;"""
+            # Nota: Si el COUNT es sobre todo el proyecto y se quiere retornar el id, el GROUP BY es necesario en SQL Server o una logica distinta
+            # Original: SELECT COUNT(DISTINCT id_componente), id_componente ... 
+            # Esto en SQL Server requiere GROUP BY id_componente, lo cual puede cambiar la lógica si hay multiples.
+            # Asumo que se quiere saber si existen. Usaremos una consulta compatible.
+            # Si solo se quiere verificar existencia, TOP 1 es mejor, pero el return es [cantidad, id].
+            # Ajuste para compatibilidad:
+            sql = f"""SELECT TOP 1 (SELECT COUNT(DISTINCT id_componente) FROM {tabla} WHERE id_proyecto = ? AND tipo_umbral = ?) as cantidad, 
+            id_componente FROM {tabla} WHERE id_proyecto = ? AND tipo_umbral = ?;"""
+            
             cur = conn.cursor()
-            cur.execute(sql, (idproyecto, tipo))
+            cur.execute(sql, (idproyecto, tipo, idproyecto, tipo))
             result = cur.fetchone()
             return result
-        except Error as e:
+        except Exception as e:
             print("Error al validar umbrales: " + str(e))
             return [0, None]
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerUmbralesCodigoPiezometro(idpiezometro, tipo, tipopiezo):
         try:
             conn = Connection.connectionDB()
@@ -1667,29 +1904,35 @@ class UmbralModel:
                 return result
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener umbrales: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlValidarUmbralesPiezometros(idproyecto, tipo, tipopiezo):
         try:
             conn = Connection.connectionDB()
-            sql = f"""SELECT COUNT(DISTINCT id_piezometro) AS cantidad, id_piezometro FROM umbral_piezometro
-            WHERE id_proyecto = ? AND tipo_umbral = ? AND tipo_piezometro = ?;"""
+            # Ajuste para SQL Server: Separar la agregación de la selección de columna no agregada
+            sql = """SELECT TOP 1 
+                        (SELECT COUNT(DISTINCT id_piezometro) FROM umbral_piezometro WHERE id_proyecto = ? AND tipo_umbral = ? AND tipo_piezometro = ?) as cantidad,
+                        id_piezometro 
+                     FROM umbral_piezometro
+                     WHERE id_proyecto = ? AND tipo_umbral = ? AND tipo_piezometro = ?;"""
             cur = conn.cursor()
-            cur.execute(sql, (idproyecto, tipo, tipopiezo))
+            cur.execute(sql, (idproyecto, tipo, tipopiezo, idproyecto, tipo, tipopiezo))
             result = cur.fetchone()
             return result
-        except Error as e:
+        except Exception as e:
             print("Error al validar umbrales: " + str(e))
             return [0, None]
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarPiezometrosUmbrales(idproyecto, tipo, tipopiezo, tabla):
         try:
             conn = Connection.connectionDB()
@@ -1699,28 +1942,35 @@ class UmbralModel:
             cur.execute(sql, (idproyecto, tipo, tipopiezo))
             result = cur.fetchall()
             return result
-        except Error as e:
+        except Exception as e:
             print("Error al listar piezo umbrales: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlValidarUmbralesCeldas(idproyecto, tipo):
         try:
             conn = Connection.connectionDB()
-            sql = f"""SELECT COUNT(DISTINCT id_celda) AS cantidad, id_celda FROM umbral_celda WHERE id_proyecto = ? AND tipo_umbral = ?;"""
+            # Ajuste SQL Server
+            sql = """SELECT TOP 1 
+                        (SELECT COUNT(DISTINCT id_celda) FROM umbral_celda WHERE id_proyecto = ? AND tipo_umbral = ?) as cantidad, 
+                        id_celda 
+                     FROM umbral_celda 
+                     WHERE id_proyecto = ? AND tipo_umbral = ?;"""
             cur = conn.cursor()
-            cur.execute(sql, (idproyecto, tipo))
+            cur.execute(sql, (idproyecto, tipo, idproyecto, tipo))
             result = cur.fetchone()
             return result
-        except Error as e:
+        except Exception as e:
             print("Error al validar umbrales: " + str(e))
             return [0, None]
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarCeldasUmbrales(idproyecto, tipo):
         try:
             conn = Connection.connectionDB()
@@ -1730,13 +1980,14 @@ class UmbralModel:
             cur.execute(sql, (idproyecto, tipo))
             result = cur.fetchall()
             return result
-        except Error as e:
+        except Exception as e:
             print("Error al listar celdas umbrales: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarComponentesUmbrales(idproyecto, tipo, tabla):
         try:
             conn = Connection.connectionDB()
@@ -1746,13 +1997,14 @@ class UmbralModel:
             cur.execute(sql, (idproyecto, tipo))
             result = cur.fetchall()
             return result
-        except Error as e:
+        except Exception as e:
             print("Error al listar compo umbrales: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlComponentesTipo(ids):
         try:
             conn = Connection.connectionDB()
@@ -1765,7 +2017,8 @@ class UmbralModel:
             """
 
             cur = conn.cursor()
-            cur.execute(sql, ids)
+            # Pyodbc espera una tupla o lista plana
+            cur.execute(sql, tuple(ids))
             result = cur.fetchall()
             if result:
                 return result
@@ -1778,6 +2031,7 @@ class UmbralModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlPiezometroID(ids, tipos):
         try:
             conn = Connection.connectionDB()
@@ -1796,7 +2050,8 @@ class UmbralModel:
             """
 
             cur = conn.cursor()
-            cur.execute(sql, ids + tipos)
+            # Concatenar listas para los parámetros
+            cur.execute(sql, tuple(ids) + tuple(tipos))
             result = cur.fetchall()
 
             if result:
@@ -1810,6 +2065,7 @@ class UmbralModel:
             if conn:
                 conn.close()
 
+    @staticmethod
     def mdlObtenerUmbralesEquiposCP(proyectoid, componente_id, tabla):
         try:
             conn = Connection.connectionDB()
@@ -1831,13 +2087,14 @@ class UmbralModel:
                 return result
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener umbrales: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerUmbralesPiezometrosAnexo2(proyectoid, componente_id, tipopiezo):
         try:
             conn = Connection.connectionDB()
@@ -1850,22 +2107,22 @@ class UmbralModel:
                 return result
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener umbrales piezo: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerUmbralesInclinometros(ids):
         try:
             conn = Connection.connectionDB()
-            # Convertir la lista de IDs en una cadena formateada para la consulta SQL
-            ids_str = ', '.join(map(str, ids))
-            sql = f"""SELECT * FROM umbral_inclinometro WHERE id_inclinometro IN ({ids_str}) ORDER BY rango_umbral ASC;"""
+            placeholders = ','.join('?' * len(ids))
+            sql = f"""SELECT * FROM umbral_inclinometro WHERE id_inclinometro IN ({placeholders}) ORDER BY rango_umbral ASC;"""
 
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, tuple(ids))
             result = cur.fetchall()
             return result if result else None
 
@@ -1877,15 +2134,15 @@ class UmbralModel:
             if conn:
                 conn.close()
 
+    @staticmethod
     def mdlObtenerUmbralesPiezometros(ids):
         try:
             conn = Connection.connectionDB()
-            # Convertir la lista de IDs en una cadena formateada para la consulta SQL
-            ids_str = ', '.join(map(str, ids))
-            sql = f"""SELECT * FROM umbral_piezometro WHERE id_piezometro IN ({ids_str}) AND tipo_umbral='NF' ORDER BY rango_umbral ASC;"""
+            placeholders = ','.join('?' * len(ids))
+            sql = f"""SELECT * FROM umbral_piezometro WHERE id_piezometro IN ({placeholders}) AND tipo_umbral='NF' ORDER BY rango_umbral ASC;"""
 
             cur = conn.cursor()
-            cur.execute(sql)
+            cur.execute(sql, tuple(ids))
             result = cur.fetchall()
             return result if result else None
 
@@ -1896,5 +2153,3 @@ class UmbralModel:
         finally:
             if conn:
                 conn.close()
-
-   

@@ -1,12 +1,15 @@
-from sqlite3 import Error
 from services.security.apis.conexiones.conexion import Connection
 
 class UserModel:
       
+    @staticmethod
     def mdlObtenerInfoLicencia():
-        conn = Connection.connectionDB()
-        sql = """SELECT * FROM licencias;"""
+        # Se define conn fuera del try para asegurar que finally pueda acceder si falla la conexión
+        conn = None
+        # En SQL Server se usa TOP 1 en lugar de LIMIT 1
+        sql = """SELECT TOP 1 * FROM licencias;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql)
             row = cur.fetchone()
@@ -14,7 +17,7 @@ class UserModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener licencia: " + str(e))
             return None
         finally:

@@ -1,12 +1,13 @@
 import requests
-from sqlite3 import Error
 from services.security.apis.conexiones.conexion import Connection
 
 class UsuarioModel:
     
+    @staticmethod
     def mdlObtenerCodigoEmpresa():
         conn = Connection.connectionDB()
-        sql = """SELECT codigo_empresa, codigo_venta FROM licencias;"""
+        # SQL Server: TOP 1 en lugar de LIMIT 1
+        sql = """SELECT TOP 1 codigo_empresa, codigo_venta FROM licencias;"""
         try:
             cur = conn.cursor()
             cur.execute(sql)
@@ -15,7 +16,7 @@ class UsuarioModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener idempresa: " + str(e))
             return None
         finally:
@@ -23,6 +24,7 @@ class UsuarioModel:
                 conn.close()
      
     # LISTAR USUARIOS POR EMPRESA
+    @staticmethod
     def mdlObtenerListaUsuarios(idventa):
         url = "https://e-verifylicense.eigha.pe/validarlicense.php"
         auth_token = "697d0ecdb22ac211176e3aa370f7773aa3e5941a4ace25bce4d8bf8f6a684b77"
@@ -49,6 +51,7 @@ class UsuarioModel:
         except requests.exceptions.RequestException:
             return False, {"error": "Error en la solicitud: No se pudo obtener usuarios."}
     
+    @staticmethod
     def mdlEliminarUsuario(idusuario):
         sql = """UPDATE usuarios SET estado_usuario = 0 WHERE id_usuario = ?;"""
         try:
@@ -57,13 +60,14 @@ class UsuarioModel:
             cur.execute(sql, (idusuario,))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al eliminar usuario: " + str(e))
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarUsuario(documento, nombres, apellidos, username, contraseña, rol, idventa):
         url = "https://e-verifylicense.eigha.pe/validarlicense.php"
         auth_token = "697d0ecdb22ac211176e3aa370f7773aa3e5941a4ace25bce4d8bf8f6a684b77"
@@ -96,6 +100,7 @@ class UsuarioModel:
         except requests.exceptions.RequestException:
             return False, {"error": "Error en la solicitud: No se pudo guardar el usuario."}
     
+    @staticmethod
     def mdlActualizarUsuario(documento, nombres, apellidos, username, rol, estado, idusuario):
         url = "https://e-verifylicense.eigha.pe/validarlicense.php"
         auth_token = "697d0ecdb22ac211176e3aa370f7773aa3e5941a4ace25bce4d8bf8f6a684b77"
@@ -128,6 +133,7 @@ class UsuarioModel:
         except requests.exceptions.RequestException:
             return False, {"error": "Error en la solicitud: No se pudo actualizar el usuario."}
     
+    @staticmethod
     def mdlCambiarContraseñaUsuario(contraseña, idusuario):
         url = "https://e-verifylicense.eigha.pe/validarlicense.php"
         auth_token = "697d0ecdb22ac211176e3aa370f7773aa3e5941a4ace25bce4d8bf8f6a684b77"
@@ -155,6 +161,7 @@ class UsuarioModel:
         except requests.exceptions.RequestException:
             return False, {"error": "Error en la solicitud."}
     
+    @staticmethod
     def mdlCambiarEstadoUsuario(estado, idusuario):
         url = "https://e-verifylicense.eigha.pe/validarlicense.php"
         auth_token = "697d0ecdb22ac211176e3aa370f7773aa3e5941a4ace25bce4d8bf8f6a684b77"
@@ -182,6 +189,7 @@ class UsuarioModel:
         except requests.exceptions.RequestException:
             return False, {"error": "Error en la solicitud."}
     
+    @staticmethod
     def mdlComprobarUsuarioContraseña(usuario, contraseña, idventa):
         url = "https://e-verifylicense.eigha.pe/validarlicense.php"
         auth_token = "697d0ecdb22ac211176e3aa370f7773aa3e5941a4ace25bce4d8bf8f6a684b77"
@@ -209,4 +217,3 @@ class UsuarioModel:
             return False, {"error": "No se pudo conectar al servidor. Verifique su conexión a internet."}
         except requests.exceptions.RequestException:
             return False, {"error": "Error al validar usuario y contraseña."}
-    
