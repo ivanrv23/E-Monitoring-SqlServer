@@ -1,6 +1,6 @@
 import pyodbc
 # import pandas as pd # (Opcional, si no lo usas en este archivo específico puedes quitarlo)
-from services.security.apis.conexiones.conexion import Connection
+from services.security.apis.conexiones.connection import Connection
 
 class DashboardModel:
     

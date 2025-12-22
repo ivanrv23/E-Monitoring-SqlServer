@@ -1,4 +1,4 @@
-from services.security.apis.conexiones.conexion import Connection
+from services.security.apis.conexiones.connection import Connection
 
 class EquipoModel:
     

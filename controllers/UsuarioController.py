@@ -10,10 +10,6 @@ class UsuarioController:
         respuesta, data = UsuarioModel.mdlObtenerListaUsuarios(idventa)
         return respuesta, data
     
-    def ctrlEliminarUsuario(idusuario):
-        respuesta = UsuarioModel.mdlEliminarUsuario(idusuario)
-        return respuesta
-    
     def ctrlGuardarUsuario(documento, nombres, apellidos, username, contraseña, rol, idventa):
         respuesta, data = UsuarioModel.mdlGuardarUsuario(documento, nombres, apellidos, username, contraseña, rol, idventa)
         return respuesta, data
