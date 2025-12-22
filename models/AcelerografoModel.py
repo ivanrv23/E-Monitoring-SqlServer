@@ -1,4 +1,3 @@
-from sqlite3 import Error
 from services.security.apis.conexiones.conexion import Connection
 from datetime import datetime
 
@@ -15,7 +14,7 @@ class AcelerografoModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener fechas max acelerografos: " + str(e))
             return None
         finally:
@@ -23,12 +22,12 @@ class AcelerografoModel:
                 conn.close()
     
     def mdlListarAcelerografoProyecto(proyecto, idcomponente, idacelero):
-        conn = Connection.connectionDB()
-        sql = f"""SELECT p.id_acelerografo, p.nombre_acelerografo, c.id_componente, p.este_acelerografo, p.norte_acelerografo,
-        p.elevacion_acelerografo FROM acelerografos p INNER JOIN instrumentacion t ON p.id_acelerografo = t.id_equipo
-		INNER JOIN componentes c ON t.id_componente = c.id_componente
-        WHERE c.id_proyecto = ? AND t.id_equipo = ? AND c.id_componente = ?;"""
         try:
+            conn = Connection.connectionDB()
+            sql = """SELECT p.id_acelerografo, p.nombre_acelerografo, c.id_componente, p.este_acelerografo, p.norte_acelerografo,
+            p.elevacion_acelerografo FROM acelerografos p INNER JOIN instrumentacion t ON p.id_acelerografo = t.id_equipo
+            INNER JOIN componentes c ON t.id_componente = c.id_componente
+            WHERE c.id_proyecto = ? AND t.id_equipo = ? AND c.id_componente = ?;"""
             cur = conn.cursor()
             cur.execute(sql, (proyecto, idacelero, idcomponente))
             row = cur.fetchone()
@@ -36,7 +35,7 @@ class AcelerografoModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar acelerografo: " + str(e))
             return None
         finally:
@@ -44,21 +43,21 @@ class AcelerografoModel:
                 conn.close()
     
     def mdlObtenerMagnitud(tabla, idcomponente, acelerografos):
-        placeholders = ', '.join(['?' for _ in acelerografos])
-        params = [idcomponente] + acelerografos
-        conn = Connection.connectionDB()
-        sql = f"""SELECT c.id_componente, a.nombre_acelerografo, d.fecha_detalle, d.magnitud_detalle, d.distancia_detalle
-        FROM acelerografos AS a INNER JOIN {tabla} AS d ON a.id_acelerografo = d.id_acelerografo 
-        INNER JOIN instrumentacion t ON a.id_acelerografo = t.id_equipo
-        INNER JOIN componentes c ON t.id_componente = c.id_componente
-        WHERE c.id_componente = ? AND t.id_instrumentacion IN ({placeholders})
-        ORDER BY a.nombre_acelerografo ASC, d.fecha_detalle ASC;"""
         try:
+            placeholders = ', '.join(['?' for _ in acelerografos])
+            params = [idcomponente] + acelerografos
+            conn = Connection.connectionDB()
+            sql = f"""SELECT c.id_componente, a.nombre_acelerografo, d.fecha_detalle, d.magnitud_detalle, d.distancia_detalle
+            FROM acelerografos AS a INNER JOIN {tabla} AS d ON a.id_acelerografo = d.id_acelerografo 
+            INNER JOIN instrumentacion t ON a.id_acelerografo = t.id_equipo
+            INNER JOIN componentes c ON t.id_componente = c.id_componente
+            WHERE c.id_componente = ? AND t.id_instrumentacion IN ({placeholders})
+            ORDER BY a.nombre_acelerografo ASC, d.fecha_detalle ASC;"""
             cur = conn.cursor()
             cur.execute(sql, params)
             rows = cur.fetchall()
             return rows if rows else None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener magnitud acelerografos: " + str(e))
             return None
         finally:
@@ -66,21 +65,21 @@ class AcelerografoModel:
                 conn.close()
     
     def mdlObtenerMagnitudFechas(tabla, idcomponente, acelerografos, fechaini, fechafin):
-        placeholders = ', '.join(['?' for _ in acelerografos])
-        params = [idcomponente] + acelerografos + [fechaini] + [fechafin]
-        conn = Connection.connectionDB()
-        sql = f"""SELECT c.id_componente, a.nombre_acelerografo, d.fecha_detalle, d.magnitud_detalle, d.distancia_detalle
-        FROM acelerografos AS a INNER JOIN {tabla} AS d ON a.id_acelerografo = d.id_acelerografo 
-        INNER JOIN instrumentacion t ON a.id_acelerografo = t.id_equipo
-        INNER JOIN componentes c ON t.id_componente = c.id_componente
-        WHERE c.id_componente = ? AND t.id_instrumentacion IN ({placeholders}) AND d.fecha_detalle BETWEEN ? AND ?
-        ORDER BY a.nombre_acelerografo ASC, d.fecha_detalle ASC;"""
         try:
+            placeholders = ', '.join(['?' for _ in acelerografos])
+            params = [idcomponente] + acelerografos + [fechaini] + [fechafin]
+            conn = Connection.connectionDB()
+            sql = f"""SELECT c.id_componente, a.nombre_acelerografo, d.fecha_detalle, d.magnitud_detalle, d.distancia_detalle
+            FROM acelerografos AS a INNER JOIN {tabla} AS d ON a.id_acelerografo = d.id_acelerografo 
+            INNER JOIN instrumentacion t ON a.id_acelerografo = t.id_equipo
+            INNER JOIN componentes c ON t.id_componente = c.id_componente
+            WHERE c.id_componente = ? AND t.id_instrumentacion IN ({placeholders}) AND d.fecha_detalle BETWEEN ? AND ?
+            ORDER BY a.nombre_acelerografo ASC, d.fecha_detalle ASC;"""
             cur = conn.cursor()
             cur.execute(sql, params)
             rows = cur.fetchall()
             return rows if rows else None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener magnitud acelerografos: " + str(e))
             return None
         finally:
@@ -88,7 +87,7 @@ class AcelerografoModel:
                 conn.close()
     
     def mdlActualizarLecturaAcelerografo(tabla, datos, idproyecto, username, nombres):
-        sql_insert = f"""UPDATE {tabla} SET fecha_detalle = ?, magnitud_detalle = ?, distancia_detalle = ?, observacion_detalle = ? WHERE id_detalle = ?;"""
+        sql_update = f"""UPDATE {tabla} SET fecha_detalle = ?, magnitud_detalle = ?, distancia_detalle = ?, observacion_detalle = ? WHERE id_detalle = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -103,11 +102,11 @@ class AcelerografoModel:
                 query_historial = """INSERT INTO historial (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
                 VALUES (?, ?, ?, ?, ?, ?, ?);"""
                 cur.execute(query_historial, (idproyecto, fecha_cambio, accion, tabla, cambios, username, nombres))
-            # actualizar cota piezometro
-            cur.execute(sql_insert, datos)
+            # actualizar lectura acelerografo
+            cur.execute(sql_update, datos)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al actualizar lectura acelerografo:", e)
             return False
         finally:
@@ -115,9 +114,9 @@ class AcelerografoModel:
                 conn.close()
     
     def mdlEliminarLecturaAcelerografo(tabla, idacelero, idproyecto, username, nombres):
-        conn = Connection.connectionDB()
-        sql = f"""DELETE FROM {tabla} WHERE id_detalle = ?;"""
         try:
+            conn = Connection.connectionDB()
+            sql = f"""DELETE FROM {tabla} WHERE id_detalle = ?;"""
             cur = conn.cursor()
             # guardar en historial
             query_select = f"""SELECT * FROM {tabla} WHERE id_detalle = ?;"""
@@ -130,14 +129,14 @@ class AcelerografoModel:
                 query_historial = """INSERT INTO historial (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
                 VALUES (?, ?, ?, ?, ?, ?, ?);"""
                 cur.execute(query_historial, (idproyecto, fecha_cambio, accion, tabla, cambios, username, nombres))
-            # eliminar lectura celda
+            # eliminar lectura
             cur.execute(sql, (idacelero,))
             conn.commit()
             if cur.rowcount > 0:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al eliminar lectura acelerografo: " + str(e))
             return False
         finally:
@@ -168,7 +167,7 @@ class AcelerografoModel:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al eliminar lecturas acelerografo: " + str(e))
             return False
         finally:
@@ -186,64 +185,29 @@ class AcelerografoModel:
                 return True, row
             else:
                 return False, None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar Acelerografo: " + str(e))
             return False, None
         finally:
             if conn:
                 conn.close()
     
-    # def mdlRegistrarAcelerografo(proyecto_id, datos):
-    #     try:
-    #         conn = Connection.connectionDB()
-    #         cur = conn.cursor()
-    #         # Iniciar una transacción
-    #         conn.execute("BEGIN")
-    #         # Verificar si el equipo ya existe en la tabla instrumentacion
-    #         sql_check = """SELECT 1 FROM instrumentacion WHERE id_componente = ? AND nombre_equipo = ? AND tipo_equipo = 'ACELEROGRAFO';"""
-    #         cur.execute(sql_check, (datos[4], datos[0]))
-    #         if cur.fetchone():
-    #             print("El equipo ya existe en la tabla instrumentacion.")
-    #             return "NO"
-    #         # Insertar el nuevo acelerógrafo
-    #         sql_insert = """INSERT INTO acelerografos (id_proyecto, nombre_acelerografo, este_acelerografo, norte_acelerografo,
-    #         elevacion_acelerografo) VALUES (?, ?, ?, ?, ?);"""
-    #         cur.execute(sql_insert, (proyecto_id, datos[0], datos[1], datos[2], datos[3]))
-    #         # Obtener el ID del acelerógrafo recién insertado
-    #         acelerografo_id = cur.lastrowid
-    #         # Insertar en la tabla instrumentacion
-    #         sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo,
-    #         tabla_equipo) VALUES (?, ?, ?, ?, ?);"""
-    #         cur.execute(sql_insert_instrumentacion, (datos[4], 'ACELEROGRAFO', datos[0], acelerografo_id, 'acelerografos'))
-    #         # Confirmar la transacción
-    #         conn.commit()
-    #         return True
-    #     except Error as e:
-    #         print("Error al guardar Acelerografo:", e)
-    #         # Realizar un rollback en caso de error
-    #         conn.rollback()
-    #         return False
-    #     finally:
-    #         if conn:
-    #             conn.close()
     def mdlRegistrarAcelerografo(proyecto_id, datos):
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Iniciar una transacción
-            conn.execute("BEGIN")
             # Verificar si el equipo ya existe en la tabla instrumentacion
             sql_check = """SELECT 1 FROM instrumentacion WHERE id_componente = ? AND nombre_equipo = ? AND tipo_equipo = 'ACELEROGRAFO';"""
             cur.execute(sql_check, (datos[4], datos[0]))
             if cur.fetchone():
                 print("El equipo ya existe en la tabla instrumentacion.")
                 return "NO", None
-            # Insertar el nuevo acelerógrafo
+            # Insertar el nuevo acelerógrafo y obtener el ID generado
             sql_insert = """INSERT INTO acelerografos (id_proyecto, nombre_acelerografo, este_acelerografo, norte_acelerografo,
-            elevacion_acelerografo) VALUES (?, ?, ?, ?, ?);"""
+            elevacion_acelerografo) OUTPUT INSERTED.id_acelerografo VALUES (?, ?, ?, ?, ?);"""
             cur.execute(sql_insert, (proyecto_id, datos[0], datos[1], datos[2], datos[3]))
             # Obtener el ID del acelerógrafo recién insertado
-            acelerografo_id = cur.lastrowid
+            acelerografo_id = cur.fetchone()[0]
             # Insertar en la tabla instrumentacion
             sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo,
             tabla_equipo) VALUES (?, ?, ?, ?, ?);"""
@@ -251,7 +215,7 @@ class AcelerografoModel:
             # Confirmar la transacción
             conn.commit()
             return "SI", acelerografo_id
-        except Error as e:
+        except Exception as e:
             print("Error al guardar Acelerografo:", e)
             # Realizar un rollback en caso de error
             conn.rollback()
@@ -264,14 +228,12 @@ class AcelerografoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Iniciar una transacción
-            conn.execute("BEGIN")
-            # Insertar el nuevo acelerógrafo
+            # Insertar el nuevo acelerógrafo y obtener el ID generado
             sql_insert = """INSERT INTO acelerografos (id_proyecto, nombre_acelerografo, este_acelerografo, norte_acelerografo,
-            elevacion_acelerografo) VALUES (?, ?, ?, ?, ?);"""
+            elevacion_acelerografo) OUTPUT INSERTED.id_acelerografo VALUES (?, ?, ?, ?, ?);"""
             cur.execute(sql_insert, (proyecto_id, datos[0], datos[1], datos[2], datos[3]))
             # Obtener el ID del acelerógrafo recién insertado
-            acelerografo_id = cur.lastrowid
+            acelerografo_id = cur.fetchone()[0]
             # Insertar en la tabla instrumentacion
             sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo,
             tabla_equipo) VALUES (?, ?, ?, ?, ?);"""
@@ -279,7 +241,7 @@ class AcelerografoModel:
             # Confirmar la transacción
             conn.commit()
             return acelerografo_id
-        except Error as e:
+        except Exception as e:
             print("Error al guardar Acelerografo formato:", e)
             # Realizar un rollback en caso de error
             conn.rollback()
@@ -299,7 +261,7 @@ class AcelerografoModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener acelerografos:", e)
             return None  
         finally:
@@ -308,29 +270,28 @@ class AcelerografoModel:
                 
     def mdlRegistrarDataAcelerografo(proyectoID, datos):
         tabla = f'acelerografo_detalle{proyectoID}'
-        # Crear tabla si no existe
-        crear_tabla_sql = f"""CREATE TABLE IF NOT EXISTS {tabla} (
-            "id_detalle"	INTEGER NOT NULL UNIQUE,
-            "id_acelerografo"	INTEGER NOT NULL,
-            "fecha_detalle"	TEXT NOT NULL,
-            "magnitud_detalle"	NUMERIC NOT NULL,
-            "distancia_detalle"	NUMERIC NOT NULL,
-            "observacion_detalle"	TEXT,
-            PRIMARY KEY("id_detalle" AUTOINCREMENT)
-        );"""
+        # Crear tabla si no existe (SQL Server)
+        crear_tabla_sql = f"""IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '{tabla}')
+        BEGIN
+            CREATE TABLE {tabla} (
+                [id_detalle] INT IDENTITY(1,1) PRIMARY KEY,
+                [id_acelerografo] INT NOT NULL,
+                [fecha_detalle] NVARCHAR(50) NOT NULL,
+                [magnitud_detalle] DECIMAL(18,6) NOT NULL,
+                [distancia_detalle] DECIMAL(18,6) NOT NULL,
+                [observacion_detalle] NVARCHAR(MAX)
+            );
+        END"""
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            cursor.execute("PRAGMA foreign_keys = OFF")
-            cursor.execute("PRAGMA synchronous = OFF")
-            cursor.execute("PRAGMA journal_mode = OFF")
-            cursor.execute("PRAGMA temp_store = MEMORY")
-            cursor.execute("PRAGMA cache_size = 100000")
+            # Crear tabla si no existe
             cursor.execute(crear_tabla_sql)
-            conn.execute("BEGIN TRANSACTION")
+            conn.commit()
             # Crear un conjunto de tuplas con los valores de fecha y hora para comparar los registros existentes
             idacelero = datos[0][0]
-            existen_acelero = set([(row[0]) for row in cursor.execute(f"SELECT fecha_detalle FROM {tabla} WHERE id_acelerografo = ?;", (idacelero,))])
+            cursor.execute(f"SELECT fecha_detalle FROM {tabla} WHERE id_acelerografo = ?;", (idacelero,))
+            existen_acelero = set([row[0] for row in cursor.fetchall()])
             lote_registros = []
             contador = 0
             for fila in datos:
@@ -341,22 +302,20 @@ class AcelerografoModel:
                 fecha_hora_nueva = fecha_original + " " + hora_original
                 # Verifica si el registro no existe en el conjunto
                 if fecha_hora_nueva not in existen_acelero:
-                    datito = [fila[0], fecha_hora_nueva, fila[3], fila[4]]
+                    datito = (fila[0], fecha_hora_nueva, fila[3], fila[4])
                     lote_registros.append(datito)
                     contador += 1
-                if contador % 1000 == 0:
+                if contador % 1000 == 0 and lote_registros:
                     cursor.executemany(f"""INSERT INTO {tabla} (id_acelerografo, fecha_detalle, magnitud_detalle, distancia_detalle)
                                        VALUES (?, ?, ?, ?);""", lote_registros)
+                    conn.commit()
                     lote_registros = []
             if lote_registros:
                 cursor.executemany(f"""INSERT INTO {tabla} (id_acelerografo, fecha_detalle, magnitud_detalle, distancia_detalle)
                                    VALUES (?, ?, ?, ?);""", lote_registros)
-            conn.execute("COMMIT")
-            cursor.execute("PRAGMA foreign_keys = ON")
-            cursor.execute("PRAGMA synchronous = NORMAL")
-            cursor.execute("PRAGMA journal_mode = DELETE")
+                conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al guardar data acelerografos: " + str(e))
             return False
         finally:
@@ -378,7 +337,7 @@ class AcelerografoModel:
                 return datasismos
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al cambiar componente acelerografos: " + str(e))
             return None
         finally:
@@ -445,7 +404,7 @@ class AcelerografoModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar info acelerografo: " + str(e))
             return None
         finally:
@@ -454,7 +413,7 @@ class AcelerografoModel:
     
     def mdlActualizarAcelerografo(datos, data):
         query = """UPDATE acelerografos SET nombre_acelerografo = ?, este_acelerografo = ?, norte_acelerografo = ?,
-        elevacion_acelerografo = ? WHERE id_acelerografo  = ?;"""
+        elevacion_acelerografo = ? WHERE id_acelerografo = ?;"""
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
@@ -464,7 +423,7 @@ class AcelerografoModel:
             cursor.execute(query_instrumentacion, data)
             conexion.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print(f"Error al actualizar acelerografo: {e}")
             return False
         finally:
@@ -529,7 +488,7 @@ class AcelerografoModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener umbrales acelerografo:", e)
             return None  
         finally:
@@ -549,7 +508,7 @@ class AcelerografoModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer data acelerografo: " + str(e))
             return None
         finally:
@@ -564,7 +523,7 @@ class AcelerografoModel:
             cur.execute(sql, (nuevocomponente, idinstrumento))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al cambiar componente acelerografo: " + str(e))
             return False
         finally:

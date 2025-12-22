@@ -1,15 +1,14 @@
 from services.security.apis.conexiones.conexion import Connection
-from sqlite3 import Error
 
 class AsistenteVozModel:
     
     def mdlObtenerInformacionPrismas(tabla, prismas, idcomponente, fechaini, fechafin):
         placeholders = ', '.join(['?' for _ in prismas])
         params = prismas + [idcomponente] + [fechaini] + [fechafin]
-        sql = f"""SELECT p.nombre_prisma, count(*) as cantidad, min(p.hora_prisma), max(p.hora_prisma)
+        sql = f"""SELECT p.nombre_prisma, COUNT(*) AS cantidad, MIN(p.hora_prisma), MAX(p.hora_prisma)
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND p.hora_prisma BETWEEN ? AND ? GROUP BY nombre_prisma ORDER BY p.nombre_prisma;"""
+        AND p.hora_prisma BETWEEN ? AND ? GROUP BY p.nombre_prisma ORDER BY p.nombre_prisma;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -19,7 +18,8 @@ class AsistenteVozModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
+            print("Error al obtener información prismas: " + str(e))
             return None
         finally:
             if conn:
@@ -69,7 +69,7 @@ class AsistenteVozModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener resumen voz desplazamiento: " + str(e))
             return None
         finally:
@@ -82,46 +82,49 @@ class AsistenteVozModel:
         sql = f"""WITH ResumenVelocidad AS (
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, p.elevacion_target,
                 CASE 
-                    WHEN COALESCE(LAG(julianday(p.hora_prisma)) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 0) = 0 THEN 0
+                    WHEN LAG(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma) IS NULL THEN 0
+                    WHEN DATEDIFF(SECOND, LAG(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) = 0 THEN 0
                     ELSE ABS(SQRT(
                         POWER(p.este_target - LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2) +
                         POWER(p.norte_target - LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2) +
                         POWER(p.elevacion_target - LAG(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2)
-                    ) / (julianday(p.hora_prisma) - LAG(julianday(p.hora_prisma)) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma)))
+                    ) / (CAST(DATEDIFF(SECOND, LAG(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0))
                 END AS VI3D,
                 CASE 
-                    WHEN (julianday(p.hora_prisma) - julianday(FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma))) = 0 THEN 0
+                    WHEN DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) = 0 THEN 0
                     ELSE ABS(SQRT(
                         POWER(p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2) +
                         POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2) +
                         POWER(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2)
-                    ) / (julianday(p.hora_prisma) - julianday(FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma))))
+                    ) / (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0))
                 END AS VA3D,
                 CASE 
-                    WHEN COALESCE(LAG(julianday(p.hora_prisma)) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 0) = 0 THEN 0
+                    WHEN LAG(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma) IS NULL THEN 0
+                    WHEN DATEDIFF(SECOND, LAG(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) = 0 THEN 0
                     ELSE ABS(SQRT(
                         POWER(p.este_target - LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2) +
                         POWER(p.norte_target - LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2)
-                    ) / (julianday(p.hora_prisma) - LAG(julianday(p.hora_prisma)) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma)))
+                    ) / (CAST(DATEDIFF(SECOND, LAG(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0))
                 END AS VI2D,
                 CASE 
-                    WHEN (julianday(p.hora_prisma) - julianday(FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma))) = 0 THEN 0
+                    WHEN DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) = 0 THEN 0
                     ELSE ABS(SQRT(
                         POWER(p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2) +
                         POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2)
-                    ) / (julianday(p.hora_prisma) - julianday(FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma))))
+                    ) / (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0))
                 END AS VA2D,
                 CASE
-                    WHEN CAST(julianday(p.hora_prisma) - julianday(COALESCE(LAG(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma)) AS NUMERIC) = 0 THEN 0
+                    WHEN LAG(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma) IS NULL THEN 0
+                    WHEN DATEDIFF(SECOND, LAG(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) = 0 THEN 0
                     ELSE ABS((
-                        (p.distancia_prisma - LAG(p.distancia_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma))
-                    ) / CAST(julianday(p.hora_prisma) - julianday(COALESCE(LAG(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma)) AS NUMERIC))
+                        p.distancia_prisma - LAG(p.distancia_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma)
+                    ) / (CAST(DATEDIFF(SECOND, LAG(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0))
                 END AS VISD,
                 CASE
-                    WHEN CAST(julianday(p.hora_prisma) - julianday(FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma)) AS NUMERIC) = 0 THEN 0
+                    WHEN DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) = 0 THEN 0
                     ELSE ABS((
-                        (p.distancia_prisma - FIRST_VALUE(p.distancia_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma))
-                    ) / CAST(julianday(p.hora_prisma) - julianday(FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma)) AS NUMERIC))
+                        p.distancia_prisma - FIRST_VALUE(p.distancia_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma)
+                    ) / (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0))
                 END AS VASD
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
@@ -140,7 +143,7 @@ class AsistenteVozModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener resumen voz velocidad: " + str(e))
             return None
         finally:
