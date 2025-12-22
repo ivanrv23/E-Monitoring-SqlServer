@@ -1,6 +1,6 @@
 from PySide6.QtCore import QTimer
 from datetime import datetime, date
-from PySide6.QtWidgets import (QPushButton, QLineEdit, QLabel,QCheckBox)
+from PySide6.QtWidgets import (QPushButton, QLineEdit, QLabel, QCheckBox)
 from services.security.apis.apiDB import ConnectionAPI
 from services.security.encriptacion import Encriptacion
 from services.security.licencia import Licencia
@@ -11,9 +11,9 @@ from views.login import Login
 from services.security.session import Session
 from modules.license.procesarLicencia import ProcesarLicencia
 from controllers.UsuarioController import UsuarioController
-from PySide6.QtCore import Qt
 from services.autenticacion.gestor2fa import Gestor2FA
-from views.dialogos_2fa import DialogoValidar2FA, DialogoActivar2FA 
+from views.dialogos_2fa import DialogoValidar2FA, DialogoActivar2FA
+
 class Principal:
     timer = QTimer()
     

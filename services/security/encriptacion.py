@@ -1,5 +1,4 @@
 import wmi
-import os
 from cryptography.fernet import Fernet
 import hashlib
 import subprocess

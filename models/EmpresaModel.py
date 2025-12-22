@@ -114,9 +114,9 @@ class EmpresaModel:
                 conn.close()
     
     def mdlObtenerDatosConfiguracionSoftware():
-        conn = Connection.connectionDB()
         sql = """SELECT * FROM configuraciongrafica"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql,)
             row = cur.fetchone()
