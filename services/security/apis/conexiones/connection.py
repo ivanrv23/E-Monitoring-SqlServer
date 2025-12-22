@@ -2,8 +2,6 @@ import os
 import pyodbc
 from dotenv import load_dotenv
 
-# Carga las variables del archivo .env al iniciar este script
-# Asegúrate de que el archivo .env esté en la raíz de tu proyecto
 load_dotenv()
 
 class Connection:
@@ -11,33 +9,45 @@ class Connection:
     @staticmethod
     def connectionDB():
         try:
-            # 1. Recuperar credenciales del archivo .env
             server = os.getenv("SQL_SERVER")
             port = os.getenv("SQL_PORT", "1433")
             database = os.getenv("SQL_DATABASE")
             username = os.getenv("SQL_USER")
             password = os.getenv("SQL_PASSWORD")
-            # Validación simple: si no hay servidor o base de datos definida, retornamos None
             if not server or not database:
                 print("Error: No se encontraron las variables de entorno para SQL Server.")
                 return None
-            # 2. Definir el Driver (asegúrate de tener instalado el ODBC Driver 17)
-            driver = '{ODBC Driver 17 for SQL Server}'
-            # 3. Construir la cadena de conexión
-            # Nota: SQL Server usa coma para separar IP y Puerto (IP,Puerto)
+            # Detectar el mejor driver disponible
+            available_drivers = pyodbc.drivers()
+            driver_priority = [
+                'ODBC Driver 18 for SQL Server',
+                'ODBC Driver 17 for SQL Server',
+                'ODBC Driver 13 for SQL Server',
+                'SQL Server Native Client 11.0',
+                'SQL Server'
+            ]
+            driver = None
+            for preferred_driver in driver_priority:
+                if preferred_driver in available_drivers:
+                    driver = f'{{{preferred_driver}}}'
+                    break
+            if not driver:
+                print("Error: No se encontró un driver compatible de SQL Server.")
+                return None
+            # Construir la cadena de conexión
             connection_string = (
                 f'DRIVER={driver};'
                 f'SERVER={server},{port};'
                 f'DATABASE={database};'
                 f'UID={username};'
                 f'PWD={password};'
-                'TrustServerCertificate=yes;' # Importante para evitar errores SSL locales
+                'TrustServerCertificate=yes;'
+                'Encrypt=yes;'  # Recomendado para ODBC Driver 18
             )
-            # 4. Intentar conectar
-            conn = pyodbc.connect(connection_string, timeout=3)
+            # Intentar conectar
+            conn = pyodbc.connect(connection_string, timeout=5)
             return conn
         except pyodbc.Error as e:
-            # Puedes imprimir el error en consola para depurar si falla
             print(f"Error de conexión SQL Server: {e}")
             return None
         except Exception as e:
