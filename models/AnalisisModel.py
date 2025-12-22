@@ -1,5 +1,4 @@
 from services.security.apis.conexiones.conexion import Connection
-from sqlite3 import Error
 import datetime
 import numpy as np
 
@@ -17,7 +16,7 @@ class AnalisisModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener componentes analisis: ", e)
             return None
         finally:
@@ -25,7 +24,7 @@ class AnalisisModel:
                 conn.close()
     
     def mdlObtenerNombresPrismasComponente(idcomponente, tipo):
-        sql = f"""SELECT * FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = ? AND estado_instrumentacion = 1;"""
+        sql = """SELECT * FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = ? AND estado_instrumentacion = 1;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -35,7 +34,7 @@ class AnalisisModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al listar prismas analisis: " + str(e))
             return None
         finally:
@@ -61,7 +60,7 @@ class AnalisisModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar trayectoria: " + str(e))
             return None
         finally:
@@ -87,7 +86,7 @@ class AnalisisModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar trayectoria: " + str(e))
             return None
         finally:
@@ -110,7 +109,7 @@ class AnalisisModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar variacion coordenadas: " + str(e))
             return None
         finally:
@@ -133,7 +132,7 @@ class AnalisisModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar variacion coordenadas fechas: " + str(e))
             return None
         finally:
@@ -143,25 +142,25 @@ class AnalisisModel:
     def mdlCalcularVelocidadIV(tabla, prismas, idcomponente, unidadmedida):
         placeholders = ', '.join(['?' for _ in prismas])
         params = [unidadmedida] + prismas + [idcomponente]
-        conn = Connection.connectionDB()
         sql = f"""WITH inversoVelocidad AS (
             SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
-                CAST(julianday(p.hora_prisma) - julianday(FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma)) AS NUMERIC) * 24.0 AS horas,
-                CAST(julianday(p.hora_prisma) - julianday(FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma)) AS NUMERIC) AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) AS FLOAT) / 3600.0 AS horas,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
                     POWER(p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2) +
                     POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2) +
                     POWER(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2)
                 ) * ? AS tresD
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-			WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            ORDER BY p.nombre_prisma, p.hora_prisma
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
         )
         SELECT id_instrumentacion, nombre_prisma, hora_prisma, dias, horas,
             CASE WHEN tresD = 0 THEN 0 ELSE (horas/tresD) END AS iv_horas,
             CASE WHEN tresD = 0 THEN 0 ELSE (dias/tresD) END AS iv_dias
-        FROM inversoVelocidad;"""
+        FROM inversoVelocidad
+        ORDER BY nombre_prisma, hora_prisma;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, params)
             row = cur.fetchall()
@@ -169,7 +168,7 @@ class AnalisisModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar inversa velocidad: " + str(e))
             return None
         finally:
@@ -179,25 +178,26 @@ class AnalisisModel:
     def mdlCalcularVelocidadFechasIV(tabla, prismas, idcomponente, fechaini, fechafin, unidadmedida):
         placeholders = ', '.join(['?' for _ in prismas])
         params = [unidadmedida] + prismas + [idcomponente] + [fechaini] + [fechafin]
-        conn = Connection.connectionDB()
         sql = f"""WITH inversoVelocidad AS (
             SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
-                CAST(julianday(p.hora_prisma) - julianday(FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma)) AS NUMERIC) * 24.0 AS horas,
-                CAST(julianday(p.hora_prisma) - julianday(FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma)) AS NUMERIC) AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) AS FLOAT) / 3600.0 AS horas,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
                     POWER(p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2) +
                     POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2) +
                     POWER(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.nombre_prisma, p.hora_prisma), 2)
                 ) * ? AS tresD
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-			WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ? ORDER BY p.nombre_prisma, p.hora_prisma
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            AND p.hora_prisma BETWEEN ? AND ?
         )
         SELECT id_instrumentacion, nombre_prisma, hora_prisma, dias, horas,
             CASE WHEN tresD = 0 THEN 0 ELSE (horas/tresD) END AS iv_horas,
             CASE WHEN tresD = 0 THEN 0 ELSE (dias/tresD) END AS iv_dias
-        FROM inversoVelocidad;"""
+        FROM inversoVelocidad
+        ORDER BY nombre_prisma, hora_prisma;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, params)
             row = cur.fetchall()
@@ -205,7 +205,7 @@ class AnalisisModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar inversa velocidad: " + str(e))
             return None
         finally:
@@ -223,7 +223,7 @@ class AnalisisModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener estereografias: ", e)
             return None  
         finally:
@@ -241,7 +241,7 @@ class AnalisisModel:
         ),
         MagnitudCalculada AS (
             SELECT nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target, desplaza_este, desplaza_norte,
-            desplaza_elevacion, sqrt(power(desplaza_norte, 2) + power(desplaza_este, 2)) AS magnitud
+            desplaza_elevacion, SQRT(POWER(desplaza_norte, 2) + POWER(desplaza_este, 2)) AS magnitud
             FROM Desplazamientos
         ),
         Resultados AS (
@@ -276,7 +276,7 @@ class AnalisisModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar trend plunge: " + str(e))
             return None
         finally:
@@ -296,7 +296,7 @@ class AnalisisModel:
         ),
         MagnitudCalculada AS (
             SELECT nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target, desplaza_este, desplaza_norte,
-            desplaza_elevacion, sqrt(power(desplaza_norte, 2) + power(desplaza_este, 2)) AS magnitud
+            desplaza_elevacion, SQRT(POWER(desplaza_norte, 2) + POWER(desplaza_este, 2)) AS magnitud
             FROM Desplazamientos
         ),
         Resultados AS (
@@ -331,7 +331,7 @@ class AnalisisModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar trend plunge: " + str(e))
             return None
         finally:
@@ -349,7 +349,7 @@ class AnalisisModel:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al obtener datos:", e)
             return False  
         finally:
@@ -357,15 +357,15 @@ class AnalisisModel:
                 conn.close()
     
     def mdlActualizarDatosEstereografia(idproyecto, nombre, inclinacion, direccion, numero):
-        conn = Connection.connectionDB()
         sql = """UPDATE estereografias SET nombre_estereografia = ?, inclinacion_estereografia = ?, direccion_estereografia = ?
         WHERE id_proyecto = ? AND codigo_estereografia = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (nombre, inclinacion, direccion, idproyecto, numero))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al actualizar Talud:", e)
             return False
         finally:
@@ -373,15 +373,15 @@ class AnalisisModel:
                 conn.close()
     
     def mdlGuardarDatosEstereografia(idproyecto, nombre, inclinacion, direccion, numero):
-        conn = Connection.connectionDB()
         sql = """INSERT INTO estereografias (id_proyecto, nombre_estereografia, inclinacion_estereografia, direccion_estereografia,
         codigo_estereografia) VALUES (?, ?, ?, ?, ?);"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idproyecto, nombre, inclinacion, direccion, numero))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al guardar talud:", e)
             return False
         finally:
@@ -389,9 +389,9 @@ class AnalisisModel:
                 conn.close()
     
     def mdlEliminaeDatoEstereografia(idproyecto, numero):
-        conn = Connection.connectionDB()
         sql = """DELETE FROM estereografias WHERE id_proyecto = ? AND codigo_estereografia = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idproyecto, numero))
             conn.commit()
@@ -399,7 +399,7 @@ class AnalisisModel:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al eliminar estereografía: " + str(e))
             return False
         finally:
@@ -407,19 +407,17 @@ class AnalisisModel:
                 conn.close()
     
     def mdlResumenPrismas(tabla, unidad):
-        conn = Connection.connectionDB()
-        sql = f"""
-            SELECT nombre_prisma, MIN(hora) AS fecha_minima, MAX(hora) AS fecha_maxima,
-                COUNT(*) AS cantidad,
-                CAST(JULIANDAY(MAX(hora)) - JULIANDAY(MIN(hora)) + 1 AS REAL) as total_dias,
-                COUNT(*) / (CAST(JULIANDAY(MAX(hora)) - JULIANDAY(MIN(hora)) + 1 AS REAL) / ?) AS ratio
-            FROM (
-                SELECT nombre_prisma, hora_prisma AS hora FROM {tabla}
-                WHERE state_prisma = 1 AND estado_prisma = 1
-            ) GROUP BY nombre_prisma;
+        sql = f"""SELECT nombre_prisma, MIN(hora) AS fecha_minima, MAX(hora) AS fecha_maxima,
+            COUNT(*) AS cantidad,
+            CAST(DATEDIFF(DAY, MIN(hora), MAX(hora)) + 1 AS FLOAT) AS total_dias,
+            COUNT(*) / (CAST(DATEDIFF(DAY, MIN(hora), MAX(hora)) + 1 AS FLOAT) / ?) AS ratio
+        FROM (
+            SELECT nombre_prisma, hora_prisma AS hora FROM {tabla}
+            WHERE state_prisma = 1 AND estado_prisma = 1
+        ) AS subquery GROUP BY nombre_prisma;
         """
-
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (unidad,))
             rows = cur.fetchall()
@@ -493,20 +491,16 @@ class AnalisisModel:
 
     def mdlObtenerDataPrismasDesviaciones(tabla, idproyecto, componente, nombreprisma, tipoprisma):
         try:
-            conn = Connection.connectionDB()   # Asegúrate de usar el nombre correcto de tu base de datos
+            conn = Connection.connectionDB()
             cur = conn.cursor()
-
             # Obtener la última fecha de limpieza registrada para el proyecto, componente y nombre de prisma
             cur.execute('''
-                SELECT ultima_fecha_modificada
+                SELECT TOP 1 ultima_fecha_modificada
                 FROM registro_limpieza_desviaciones
                 WHERE id_proyecto = ? AND id_componente = ? AND equipo = ? AND tipo_equipo = ?
                 ORDER BY ultima_fecha_modificada DESC
-                LIMIT 1
             ''', (idproyecto, componente, nombreprisma, tipoprisma))
-
             row = cur.fetchone()
-
             if row:
                 ultima_fecha_modificada = row[0]
                 # Consulta para obtener los datos de los prismas con fecha superior a la última fecha de limpieza
@@ -518,7 +512,6 @@ class AnalisisModel:
                 """
                 cur.execute(sql, (nombreprisma, ultima_fecha_modificada))
                 rows = cur.fetchall()
-
                 if rows:
                     return rows
                 else:
@@ -533,16 +526,13 @@ class AnalisisModel:
                 """
                 cur.execute(sql, (nombreprisma,))
                 rows = cur.fetchall()
-
                 if rows:
                     return rows
                 else:
                     return None
-
-        except Error as e:
+        except Exception as e:
             print("Error al consultar coordenadas del prisma: " + str(e))
             return None
-
         finally:
             if conn:
                 conn.close()
@@ -554,34 +544,34 @@ class AnalisisModel:
             # Validar nombre de tabla
             if not tabla.replace("_", "").isalnum():
                 return False
-            # Configuración de rendimiento
-            cursor.execute("PRAGMA journal_mode = WAL")
-            cursor.execute("PRAGMA synchronous = NORMAL")
-            cursor.execute("PRAGMA cache_size = 10000")
-            # Crear tabla de backup completa
-            cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS backup_{tabla} (
-                id_prisma INTEGER NOT NULL,
-                hora_prisma TEXT NOT NULL,
-                nombre_prisma TEXT NOT NULL,
-                este_target NUMERIC NOT NULL,
-                norte_target NUMERIC NOT NULL,
-                elevacion_target NUMERIC NOT NULL,
-                distancia_prisma NUMERIC NOT NULL,
-                fecha_backup TEXT NOT NULL,
-                UNIQUE (id_prisma, fecha_backup)
-            )
-            """)
-            # Crear índices para el backup
-            cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_backup_{tabla}_id_prisma ON backup_{tabla}(id_prisma)")
-            cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_backup_{tabla}_fecha ON backup_{tabla}(fecha_backup)")
+            # Crear tabla de backup completa si no existe
+            crear_backup_sql = f"""
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'backup_{tabla}')
+            BEGIN
+                CREATE TABLE backup_{tabla} (
+                    id_prisma INT NOT NULL,
+                    hora_prisma NVARCHAR(50) NOT NULL,
+                    nombre_prisma NVARCHAR(100) NOT NULL,
+                    este_target DECIMAL(18,6) NOT NULL,
+                    norte_target DECIMAL(18,6) NOT NULL,
+                    elevacion_target DECIMAL(18,6) NOT NULL,
+                    distancia_prisma DECIMAL(18,6) NOT NULL,
+                    fecha_backup NVARCHAR(50) NOT NULL,
+                    CONSTRAINT UK_backup_{tabla} UNIQUE (id_prisma, fecha_backup)
+                );
+                CREATE INDEX idx_backup_{tabla}_id_prisma ON backup_{tabla}(id_prisma);
+                CREATE INDEX idx_backup_{tabla}_fecha ON backup_{tabla}(fecha_backup);
+            END
+            """
+            cursor.execute(crear_backup_sql)
+            conn.commit()
             timestamp = datetime.datetime.now().isoformat()
-            cursor.execute("BEGIN TRANSACTION")
             for i in range(0, len(datos), lote):
                 batch = datos[i:i + lote]
                 ids = [str(registro[0]) for registro in batch]  # id_prisma
+                placeholders = ','.join(['?' for _ in ids])
                 # 1. Hacer backup de todos los campos relevantes
-                cursor.execute(f"""
+                backup_sql = f"""
                 INSERT INTO backup_{tabla} (
                     id_prisma, hora_prisma, nombre_prisma, 
                     este_target, norte_target, elevacion_target, distancia_prisma,
@@ -592,39 +582,39 @@ class AnalisisModel:
                     este_target, norte_target, elevacion_target, distancia_prisma,
                     ?
                 FROM {tabla}
-                WHERE id_prisma IN ({','.join(['?']*len(ids))})
-                """, [timestamp] + ids)
+                WHERE id_prisma IN ({placeholders})
+                """
+                cursor.execute(backup_sql, [timestamp] + ids)
                 # 2. Preparar actualización solo de los campos target
                 update_sql = f"""
                 UPDATE {tabla} 
                 SET este_target = CASE id_prisma {' '.join([f"WHEN ? THEN ?" for _ in batch])} ELSE este_target END,
                     norte_target = CASE id_prisma {' '.join([f"WHEN ? THEN ?" for _ in batch])} ELSE norte_target END,
                     elevacion_target = CASE id_prisma {' '.join([f"WHEN ? THEN ?" for _ in batch])} ELSE elevacion_target END
-                WHERE id_prisma IN ({','.join(['?']*len(ids))})
+                WHERE id_prisma IN ({placeholders})
                 """
                 # 3. Preparar parámetros (convertir numpy a float)
                 params = []
-                # Agregamos los parámetros en orden: primero los del 'este', luego 'norte', luego 'elevacion'
                 for row in batch:
                     id_prisma = row[0]
                     este = float(row[3]) if isinstance(row[3], np.float64) else row[3]
-                    params.extend([id_prisma, este])  # Para este_target
+                    params.extend([id_prisma, este])
                 for row in batch:
                     id_prisma = row[0]
                     norte = float(row[4]) if isinstance(row[4], np.float64) else row[4]
-                    params.extend([id_prisma, norte])  # Para norte_target
+                    params.extend([id_prisma, norte])
                 for row in batch:
                     id_prisma = row[0]
                     elevacion = float(row[5]) if isinstance(row[5], np.float64) else row[5]
-                    params.extend([id_prisma, elevacion])  # Para elevacion_target
+                    params.extend([id_prisma, elevacion])
                 params.extend(ids)
                 cursor.execute(update_sql, params)
-            cursor.execute("COMMIT")
+                conn.commit()
             return True
         except Exception as e:
             print(f"Error en actualización: {str(e)}")
-            if 'cursor' in locals() and conn:
-                cursor.execute("ROLLBACK")
+            if 'conn' in locals() and conn:
+                conn.rollback()
             return False
         finally:
             if 'conn' in locals() and conn:
@@ -636,10 +626,6 @@ class AnalisisModel:
             cursor = conn.cursor()
             if not tabla.replace("_", "").isalnum():
                 return False
-            # Configuración de rendimiento
-            cursor.execute("PRAGMA journal_mode = WAL")
-            cursor.execute("PRAGMA synchronous = NORMAL")
-            cursor.execute("PRAGMA cache_size = 10000")
             tabla_backup = f"backup_{tabla}"
             # 1. Obtener la fecha más reciente de backup para ese nombre_prisma
             cursor.execute(f"""
@@ -654,24 +640,24 @@ class AnalisisModel:
                 return False
             # 2. Procesar la data en lotes
             while True:
-                cursor.execute(f"""SELECT id_prisma, este_target, norte_target, elevacion_target
+                cursor.execute(f"""
+                    SELECT TOP (?) id_prisma, este_target, norte_target, elevacion_target
                     FROM {tabla_backup}
                     WHERE nombre_prisma = ? AND fecha_backup = ?
-                    LIMIT ?
-                """, (nombreprisma, fecha_backup_actual, lote))
+                """, (lote, nombreprisma, fecha_backup_actual))
                 batch = cursor.fetchall()
                 if not batch:
                     break
                 ids = [str(row[0]) for row in batch]
+                placeholders = ','.join(['?' for _ in ids])
                 update_sql = f"""
                 UPDATE {tabla}
                 SET 
                     este_target = CASE id_prisma {' '.join(['WHEN ? THEN ?' for _ in batch])} ELSE este_target END,
                     norte_target = CASE id_prisma {' '.join(['WHEN ? THEN ?' for _ in batch])} ELSE norte_target END,
                     elevacion_target = CASE id_prisma {' '.join(['WHEN ? THEN ?' for _ in batch])} ELSE elevacion_target END
-                WHERE id_prisma IN ({','.join(['?'] * len(ids))})
+                WHERE id_prisma IN ({placeholders})
                 """
-                # Parámetros ordenados por campo
                 params = []
                 for row in batch:
                     params.extend([row[0], row[1]])  # este
@@ -680,20 +666,19 @@ class AnalisisModel:
                 for row in batch:
                     params.extend([row[0], row[3]])  # elevación
                 params.extend(ids)
-                cursor.execute("BEGIN TRANSACTION")
                 cursor.execute(update_sql, params)
                 # 3. Eliminar la data restaurada de la tabla de backup
                 cursor.execute(f"""
                     DELETE FROM {tabla_backup}
-                    WHERE id_prisma IN ({','.join(['?'] * len(ids))})
+                    WHERE id_prisma IN ({placeholders})
                     AND nombre_prisma = ? AND fecha_backup = ?
                 """, ids + [nombreprisma, fecha_backup_actual])
-                cursor.execute("COMMIT")
+                conn.commit()
             return True
         except Exception as e:
             print(f"Error en restauracion de prismas: {str(e)}")
-            if 'cursor' in locals() and conn:
-                cursor.execute("ROLLBACK")
+            if 'conn' in locals() and conn:
+                conn.rollback()
             return False
         finally:
             if 'conn' in locals() and conn:
@@ -708,7 +693,7 @@ class AnalisisModel:
             cur.execute(sql, (idproyecto, tabla, nombre_prisma, campo, id_prisma, current_value, nuevo_valor, fecha, username, nombres))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al registrar cambios", e)
             return False
         finally:
@@ -717,40 +702,35 @@ class AnalisisModel:
     
     def mdlVerificarSIdesviaciones(proyecto):
         try:
-            # Conectar a la base de datos SQLite
             conn = Connection.connectionDB()
             sql = "SELECT 1 FROM desviaciones WHERE id_proyecto = ?;"
             cur = conn.cursor()
             cur.execute(sql, (proyecto,))
             return cur.fetchone() is not None
-        except Error:
+        except Exception:
             return False
         finally:
             if conn:
                 conn.close()
 
-    def mdlObtenerDataDesviacionesPrisma(proyecto,tabla, fecha_calculo,nombreprisma):
+    def mdlObtenerDataDesviacionesPrisma(proyecto, tabla, fecha_calculo, nombreprisma):
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-
-            # Verificar si la tabla existe (manera más segura)
-            cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tabla,))
+            # Verificar si la tabla existe (SQL Server)
+            cur.execute("SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?", (tabla,))
             if not cur.fetchone():
                 print(f"Error: La tabla '{tabla}' no existe en el proyecto {proyecto}")
                 return None
-
             # Consulta SQL con parámetros preparados
-            sql = """
+            sql = f"""
             SELECT nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target
-            FROM {}
-            WHERE nombre_prisma=?  AND hora_prisma <= ? ORDER BY hora_prisma ASC
-            """.format(tabla)
-
+            FROM {tabla}
+            WHERE nombre_prisma = ? AND hora_prisma <= ? ORDER BY hora_prisma ASC
+            """
             cur.execute(sql, (nombreprisma, fecha_calculo))
             return cur.fetchall()
-
-        except Error as e:
+        except Exception as e:
             print(f"Error al obtener desviaciones proyecto {proyecto}: {e}")
             return None
         finally:
@@ -761,10 +741,8 @@ class AnalisisModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-
             # Eliminar registros existentes del proyecto
             cur.execute("DELETE FROM desviaciones WHERE id_proyecto = ?", (idproyecto,))
-
             # Insertar nuevos registros
             for desviacion in desviaciones:
                 cur.execute("""
@@ -790,7 +768,6 @@ class AnalisisModel:
                     desviacion['desviacion_cota'],
                     desviacion['fecha_calculo']
                 ))
-
             conn.commit()
             conn.close()
             return True
@@ -804,7 +781,6 @@ class AnalisisModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            
             for desviacion in desviaciones:
                 cur.execute("""
                     INSERT INTO desviaciones (
@@ -829,7 +805,6 @@ class AnalisisModel:
                     desviacion['desviacion_cota'],
                     desviacion['fecha_calculo']
                 ))
-            
             conn.commit()
             conn.close()
             return True
@@ -843,7 +818,6 @@ class AnalisisModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-
             for desviacion in desviaciones:
                 # Verificar si el registro ya existe
                 cur.execute("""
@@ -851,7 +825,6 @@ class AnalisisModel:
                     FROM desviaciones
                     WHERE id_proyecto = ? AND nombre_prisma = ?
                 """, (desviacion['id_proyecto'], desviacion['nombre_prisma']))
-
                 if cur.fetchone()[0] > 0:
                     # Si existe, actualizar el registro
                     cur.execute("""
@@ -880,28 +853,27 @@ class AnalisisModel:
                     # Si no existe, insertar un nuevo registro
                     cur.execute("""
                         INSERT INTO desviaciones (
-                        id_proyecto,
-                        nombre_prisma,
-                        centro_este,
-                        desviacion_este,
-                        centro_norte,
-                        desviacion_norte,
-                        centro_cota,
-                        desviacion_cota,
-                        fecha_calculo
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    desviacion['id_proyecto'],
-                    desviacion['nombre_prisma'],
-                    desviacion['centro_este'],
-                    desviacion['desviacion_este'],
-                    desviacion['centro_norte'],
-                    desviacion['desviacion_norte'],
-                    desviacion['centro_cota'],
-                    desviacion['desviacion_cota'],
-                    desviacion['fecha_calculo']
-                ))
-
+                            id_proyecto,
+                            nombre_prisma,
+                            centro_este,
+                            desviacion_este,
+                            centro_norte,
+                            desviacion_norte,
+                            centro_cota,
+                            desviacion_cota,
+                            fecha_calculo
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        desviacion['id_proyecto'],
+                        desviacion['nombre_prisma'],
+                        desviacion['centro_este'],
+                        desviacion['desviacion_este'],
+                        desviacion['centro_norte'],
+                        desviacion['desviacion_norte'],
+                        desviacion['centro_cota'],
+                        desviacion['desviacion_cota'],
+                        desviacion['fecha_calculo']
+                    ))
             conn.commit()
             conn.close()
             return True
@@ -910,20 +882,19 @@ class AnalisisModel:
             if conn:
                 conn.close()
             return False
-
         
     def mdlObtenerDesviacionesPrisma(idproyecto, nombreprisma):
-        sql = f"""SELECT * FROM desviaciones WHERE id_proyecto=? AND nombre_prisma=? """
+        sql = """SELECT * FROM desviaciones WHERE id_proyecto = ? AND nombre_prisma = ?"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, (idproyecto,nombreprisma))
+            cur.execute(sql, (idproyecto, nombreprisma))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al listar prismas trayectoria: " + str(e))
             return None
         finally:
@@ -934,20 +905,20 @@ class AnalisisModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Verificar si la tabla existe (manera más segura)
-            cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tabla,))
+            # Verificar si la tabla existe (SQL Server)
+            cur.execute("SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?", (tabla,))
             if not cur.fetchone():
                 print(f"Error: La tabla '{tabla}' no existe en el proyecto {proyecto}")
                 return None
             # Consulta SQL con parámetros preparados
-            sql = """
+            sql = f"""
             SELECT nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target
-            FROM {}
+            FROM {tabla}
             WHERE hora_prisma <= ? AND state_prisma = 1 AND estado_prisma = 1
-            """.format(tabla)
+            """
             cur.execute(sql, (fecha_calculo,))
             return cur.fetchall()
-        except Error as e:
+        except Exception as e:
             print(f"Error al obtener datos de {tabla} para proyecto {proyecto}: {e}")
             return None
         finally:
@@ -958,23 +929,20 @@ class AnalisisModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Verificar si la tabla existe (manera más segura)
-            cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tabla,))
+            # Verificar si la tabla existe (SQL Server)
+            cur.execute("SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?", (tabla,))
             if not cur.fetchone():
                 print(f"Error: La tabla '{tabla}' no existe en el proyecto {proyecto}")
                 return None
-
             # Consulta SQL con parámetros preparados
-            sql = """
+            sql = f"""
             SELECT nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target
-            FROM {}
+            FROM {tabla}
             WHERE hora_prisma <= ? AND state_prisma = 1 AND estado_prisma = 1
-            """.format(tabla)
-
+            """
             cur.execute(sql, (fecha_calculo,))
             return cur.fetchall()
-
-        except Error as e:
+        except Exception as e:
             print(f"Error al obtener datos de {tabla} para proyecto {proyecto}: {e}")
             return None
         finally:
@@ -988,11 +956,9 @@ class AnalisisModel:
         (nombre_equipo, indice_lectura, tabla_equipo, fecha_equipo, coordenada_este, coordenada_norte, coordenada_cota, distancia_inclinada, fecha_modificacion)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-
             # Verificar si el registro ya existe
             cur.execute(sql_check, (id_lectura, nombre))
             if cur.fetchone():
@@ -1001,13 +967,12 @@ class AnalisisModel:
             cur.execute(sql_insert, (nombre, id_lectura, tabla, fecha_equipo, coordenada_este, coordenada_norte, coordenada_cota, distancia_inclinada, fecha_modificacion))
             conn.commit()
             return "Registro insertado con éxito."
-        except Error as e:
+        except Exception as e:
             print(f"Error al hacer buckpup de cambios: {e}")
             return None
         finally:
             if conn:
                 conn.close()
-
 
     def mdlRestaurarEquipo(idproyecto, nombreprisma, tipoprisma):
         # Determinar la tabla de prismas según el tipo
@@ -1039,33 +1004,35 @@ class AnalisisModel:
                     # Actualizar los registros en la tabla de prismas
                     cur.execute(sql_update, (este, norte, cota, distancia, indice_lectura))
                 conn.commit()
-                return True,"Registros actualizados con éxito."
+                return True, "Registros actualizados con éxito."
             else:
-                return False,f"No existe backup para el equipo '{nombreprisma}'."
-        except Error as e:
+                return False, f"No existe backup para el equipo '{nombreprisma}'."
+        except Exception as e:
             print(f"Error al restaurar equipos: {e}")
-            return False,"Error al restaurar el equipo."
+            return False, "Error al restaurar el equipo."
         finally:
             if conn:
                 conn.close()
-
     
-    def mdlRegitroUltimaLimpiezaElipse(idproyecto,componente,nombre_prisma,tipoprisma,hora_prisma):
+    def mdlRegitroUltimaLimpiezaElipse(idproyecto, componente, nombre_prisma, tipoprisma, hora_prisma):
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Crear la tabla si no existe
+            # Crear la tabla si no existe (SQL Server)
             cur.execute('''
-                CREATE TABLE IF NOT EXISTS "registro_limpieza_desviaciones" (
-                    "id_registro" INTEGER NOT NULL UNIQUE,
-                    "id_proyecto" INTEGER,
-                    "id_componente" INTEGER,
-                    "equipo" TEXT,
-                    "tipo_equipo" TEXT,
-                    "ultima_fecha_modificada" TEXT,
-                    PRIMARY KEY("id_registro" AUTOINCREMENT)
-                )
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'registro_limpieza_desviaciones')
+                BEGIN
+                    CREATE TABLE registro_limpieza_desviaciones (
+                        id_registro INT IDENTITY(1,1) PRIMARY KEY,
+                        id_proyecto INT,
+                        id_componente INT,
+                        equipo NVARCHAR(100),
+                        tipo_equipo NVARCHAR(50),
+                        ultima_fecha_modificada NVARCHAR(50)
+                    )
+                END
             ''')
+            conn.commit()
             # Insertar los datos en la tabla
             cur.execute('''
                 INSERT INTO registro_limpieza_desviaciones (id_proyecto, id_componente, equipo, tipo_equipo, ultima_fecha_modificada)
@@ -1073,7 +1040,7 @@ class AnalisisModel:
             ''', (idproyecto, componente, nombre_prisma, tipoprisma, hora_prisma))
             # Confirmar los cambios en la base de datos
             conn.commit()
-        except Error as e:
+        except Exception as e:
             print(f"Error al registrar la limpieza: {e}")
             return False
         finally:
@@ -1082,28 +1049,26 @@ class AnalisisModel:
         return True
     
     def mdlEliminarRegistroLimpiezaDesviaciones(idproyecto, nombreprisma, tipoprisma):
-        conn = Connection.connectionDB()
-        cur = conn.cursor()
         try:
-            # Consulta para encontrar el último registro basado en la fecha
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            # Consulta para encontrar y eliminar el último registro basado en la fecha (SQL Server)
             cur.execute('''
                 DELETE FROM registro_limpieza_desviaciones
                 WHERE id_registro = (
-                    SELECT id_registro
+                    SELECT TOP 1 id_registro
                     FROM registro_limpieza_desviaciones
                     WHERE id_proyecto = ? AND equipo = ? AND tipo_equipo = ?
                     ORDER BY ultima_fecha_modificada DESC
-                    LIMIT 1
                 )
             ''', (idproyecto, nombreprisma, tipoprisma))
             # Confirmar los cambios
             conn.commit()
-        except Error as e:
+        except Exception as e:
             print(f"Error al eliminar el registro: {e}")
         finally:
             # Cerrar la conexión
             conn.close()
-            
     
     def mdlAjustarDataPrismaCoordenada(df_ajustado, tabla, idcomponente):
         conn = None
@@ -1111,10 +1076,6 @@ class AnalisisModel:
         existe = True
         try:
             conn = Connection.connectionDB()
-            conn.execute("PRAGMA synchronous = OFF")
-            conn.execute("PRAGMA journal_mode = MEMORY")  
-            conn.execute("PRAGMA cache_size = 100000")
-            conn.execute("PRAGMA temp_store = MEMORY")
             cursor = conn.cursor()
             # PASO 1: VERIFICAR Y CREAR BACKUP COMPLETO EN LA TABLA PRINCIPAL
             nombre_original = df_ajustado['nombre'].iloc[0]
@@ -1125,10 +1086,18 @@ class AnalisisModel:
             total_backup = cursor.fetchone()[0]
             if total_backup == 0:
                 cursor.execute(f"""
-                INSERT INTO {tabla} 
+                INSERT INTO {tabla} (
+                    state_prisma, estado_prisma, nombre_prisma, perfil_prisma, hora_prisma,
+                    angulo_horizontal, angulo_vertical, distancia_prisma, tipoppm_prisma,
+                    ppm_prisma, presion_prisma, temperatura_prisma, constante_prisma,
+                    este_target, norte_target, elevacion_target, altura_reflector,
+                    altura_instrumento, este_estacion, norte_estacion, altura_estacion,
+                    medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,
+                    diferencia_limitevelocidad, distancia_horizontal, diferencia_atipica,
+                    desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos
+                )
                 SELECT 
-                    NULL as id_prisma,
-                    state_prisma, estado_prisma, ? as nombre_prisma, perfil_prisma, hora_prisma,
+                    state_prisma, estado_prisma, ?, perfil_prisma, hora_prisma,
                     angulo_horizontal, angulo_vertical, distancia_prisma, tipoppm_prisma,
                     ppm_prisma, presion_prisma, temperatura_prisma, constante_prisma,
                     este_target, norte_target, elevacion_target, altura_reflector,
@@ -1154,10 +1123,18 @@ class AnalisisModel:
                 if ids_sin_backup:
                     placeholders = ','.join('?' for _ in ids_sin_backup)
                     cursor.execute(f"""
-                    INSERT INTO {tabla} 
+                    INSERT INTO {tabla} (
+                        state_prisma, estado_prisma, nombre_prisma, perfil_prisma, hora_prisma,
+                        angulo_horizontal, angulo_vertical, distancia_prisma, tipoppm_prisma,
+                        ppm_prisma, presion_prisma, temperatura_prisma, constante_prisma,
+                        este_target, norte_target, elevacion_target, altura_reflector,
+                        altura_instrumento, este_estacion, norte_estacion, altura_estacion,
+                        medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,
+                        diferencia_limitevelocidad, distancia_horizontal, diferencia_atipica,
+                        desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos
+                    )
                     SELECT 
-                        NULL as id_prisma,
-                        state_prisma, estado_prisma, ? as nombre_prisma, perfil_prisma, hora_prisma,
+                        state_prisma, estado_prisma, ?, perfil_prisma, hora_prisma,
                         angulo_horizontal, angulo_vertical, distancia_prisma, tipoppm_prisma,
                         ppm_prisma, presion_prisma, temperatura_prisma, constante_prisma,
                         este_target, norte_target, elevacion_target, altura_reflector,
@@ -1185,20 +1162,20 @@ class AnalisisModel:
                     (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo, estado_instrumentacion)
                     VALUES (?, ?, ?, ?, ?, 1)
                     """, (idcomponente,
-                        registro_instrumentacion[0],  # tipo_equipo
-                        nombre_backup,                # nombre_equipo (con sufijo _original)
-                        registro_instrumentacion[1],  # id_equipo
-                        registro_instrumentacion[2]   # tabla_equipo
+                        registro_instrumentacion[0],
+                        nombre_backup,
+                        registro_instrumentacion[1],
+                        registro_instrumentacion[2]
                     ))
             conn.commit()
             # PASO 3: PREPARAR DATOS PARA ACTUALIZACIÓN MASIVA
             datos_actualizacion = []
             for _, row in df_ajustado.iterrows():
                 datos_actualizacion.append((
-                    row['distancia'],  # distancia_prisma
-                    row['este'],       # este_target
-                    row['norte'],      # norte_target
-                    row['elevacion'],  # elevacion_target
+                    row['distancia'],
+                    row['este'],
+                    row['norte'],
+                    row['elevacion'],
                     row['id']
                 ))
             # PASO 4: ACTUALIZACIÓN POR LOTES - REGISTROS CON NOMBRE ORIGINAL
@@ -1212,12 +1189,12 @@ class AnalisisModel:
             datos_actualizacion_segura = []
             for _, row in df_ajustado.iterrows():
                 datos_actualizacion_segura.append((
-                    row['distancia'],  # distancia_prisma
-                    row['este'],       # este_target
-                    row['norte'],      # norte_target
-                    row['elevacion'],  # elevacion_target
-                    row['id'],         # id_prisma
-                    nombre_original    # nombre_prisma
+                    row['distancia'],
+                    row['este'],
+                    row['norte'],
+                    row['elevacion'],
+                    row['id'],
+                    nombre_original
                 ))
             # Dividir en lotes de 1000 registros
             lote_size = 1000
@@ -1225,7 +1202,7 @@ class AnalisisModel:
             for i in range(0, total_registros, lote_size):
                 lote = datos_actualizacion_segura[i:i + lote_size]
                 cursor.executemany(query_actualizar, lote)
-                conn.commit()  # Commit parcial cada lote
+                conn.commit()
             return True, existe
         except Exception as e:
             print(f"Error: {e}")
@@ -1240,8 +1217,6 @@ class AnalisisModel:
         finally:
             if conn:
                 try:
-                    conn.execute("PRAGMA synchronous = NORMAL")
-                    conn.execute("PRAGMA journal_mode = DELETE")
                     conn.close()
                 except Exception as e:
                     print(f"Advertencia al cerrar conexión: {e}")
@@ -1251,7 +1226,7 @@ class AnalisisModel:
                         pass
     
     def mdlListarSaltosPrisma(idproyecto, prisma):
-        sql = f"""SELECT nombre_equipo, fecha_cambio, columna_modificada, valor_anterior, nuevo_valor, usuario_cambio
+        sql = """SELECT nombre_equipo, fecha_cambio, columna_modificada, valor_anterior, nuevo_valor, usuario_cambio
         FROM registro_ajuste_coordenadas WHERE id_proyecto = ? AND nombre_equipo = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -1262,7 +1237,7 @@ class AnalisisModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer historial saltos: " + str(e))
             return None
         finally:
@@ -1271,11 +1246,12 @@ class AnalisisModel:
                     
     def mdlObtenerDataCoordenadaAjuste(tabla, nombreprisma, columna):
         conn = None
+        cur = None
         try:
             conn = Connection.connectionDB()
-            sql = f"""SELECT id_prisma,nombre_prisma, hora_prisma, {columna}
+            sql = f"""SELECT id_prisma, nombre_prisma, hora_prisma, {columna}
                     FROM {tabla}
-                    WHERE nombre_prisma = ? AND estado_prisma=1 ORDER BY hora_prisma;"""
+                    WHERE nombre_prisma = ? AND estado_prisma = 1 ORDER BY hora_prisma;"""
             cur = conn.cursor()
             cur.execute(sql, (nombreprisma,))
             results = cur.fetchall()
@@ -1291,6 +1267,7 @@ class AnalisisModel:
                 
     def mdlOmitirLecturasRuido(tabla, ids):
         conn = None
+        cur = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1316,8 +1293,4 @@ class AnalisisModel:
                 cur.close()
             if conn:
                 conn.close()
-
-
-
-
     

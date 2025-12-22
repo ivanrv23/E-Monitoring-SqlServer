@@ -1,5 +1,3 @@
-import sqlite3
-from sqlite3 import Error
 from services.security.apis.conexiones.conexion import Connection
 from datetime import datetime
 
@@ -16,7 +14,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener fechas max piezo cuerda: " + str(e))
             return None
         finally:
@@ -34,7 +32,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener fechas max piezo manual: " + str(e))
             return None
         finally:
@@ -45,19 +43,19 @@ class PiezometroModel:
     def mdlListarPiezometrosCuerdaProyecto(proyecto, idcomponente, idpiezo, fecha):
         sql = f"""SELECT p.id_piezometro, p.nombre_piezometro, c.id_componente, p.este_piezometro, p.norte_piezometro,
         p.elevacion_piezometro, p.inclinacion_piezometro, p.azimut_piezometro,
-		p.tipo_piezometro, d.fecha_cuerda, d.medida_calculada,
+        p.tipo_piezometro, d.fecha_cuerda, d.medida_calculada,
         COALESCE(
-                (SELECT c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = d.id_piezometro AND c2.tipo_piezometro = 'PCV'
-                AND c2.fecha_cota <= d.fecha_cuerda ORDER BY c2.fecha_cota DESC LIMIT 1),
-                (SELECT c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = d.id_piezometro AND c3.tipo_piezometro = 'PCV'
-                ORDER BY c3.fecha_cota ASC LIMIT 1)
+                (SELECT TOP 1 c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = d.id_piezometro AND c2.tipo_piezometro = 'PCV'
+                AND c2.fecha_cota <= d.fecha_cuerda ORDER BY c2.fecha_cota DESC),
+                (SELECT TOP 1 c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = d.id_piezometro AND c3.tipo_piezometro = 'PCV'
+                ORDER BY c3.fecha_cota ASC)
             ) AS cota
-		FROM piezometrocuerdas p
-		INNER JOIN piezometrocuerda_detalle{proyecto} d ON p.id_piezometro = d.id_piezometro
-		INNER JOIN instrumentacion t ON p.id_piezometro = t.id_equipo
-		INNER JOIN componentes c ON t.id_componente = c.id_componente
+        FROM piezometrocuerdas p
+        INNER JOIN piezometrocuerda_detalle{proyecto} d ON p.id_piezometro = d.id_piezometro
+        INNER JOIN instrumentacion t ON p.id_piezometro = t.id_equipo
+        INNER JOIN componentes c ON t.id_componente = c.id_componente
         WHERE c.id_proyecto = ? AND t.id_instrumentacion = ? AND c.id_componente = ?
-		AND d.fecha_cuerda = ?;"""
+        AND d.fecha_cuerda = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -67,7 +65,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar piezometro: " + str(e))
             return None
         finally:
@@ -79,19 +77,19 @@ class PiezometroModel:
         conn = Connection.connectionDB()
         sql = f"""SELECT p.id_piezometro, p.nombre_piezometro, c.id_componente, p.este_piezometro, p.norte_piezometro,
         p.elevacion_piezometro, p.inclinacion_piezometro, p.azimut_piezometro, p.stickup_piezometro,
-		p.tipo_piezometro, d.fecha_piezometro, d.medida_piezometro,
+        p.tipo_piezometro, d.fecha_piezometro, d.medida_piezometro,
         COALESCE(
-                (SELECT c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = d.id_piezometro AND c2.tipo_piezometro = 'PVC'
-                AND c2.fecha_cota <= d.fecha_piezometro ORDER BY c2.fecha_cota DESC LIMIT 1),
-                (SELECT c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = d.id_piezometro AND c3.tipo_piezometro = 'PVC'
-                ORDER BY c3.fecha_cota ASC LIMIT 1)
+                (SELECT TOP 1 c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = d.id_piezometro AND c2.tipo_piezometro = 'PVC'
+                AND c2.fecha_cota <= d.fecha_piezometro ORDER BY c2.fecha_cota DESC),
+                (SELECT TOP 1 c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = d.id_piezometro AND c3.tipo_piezometro = 'PVC'
+                ORDER BY c3.fecha_cota ASC)
             ) AS cota
-		FROM piezometromanuales p
-		INNER JOIN piezometromanual_detalle{proyecto} d ON p.id_piezometro = d.id_piezometro
-		INNER JOIN instrumentacion t ON p.id_piezometro = t.id_equipo
-		INNER JOIN componentes c ON t.id_componente = c.id_componente
+        FROM piezometromanuales p
+        INNER JOIN piezometromanual_detalle{proyecto} d ON p.id_piezometro = d.id_piezometro
+        INNER JOIN instrumentacion t ON p.id_piezometro = t.id_equipo
+        INNER JOIN componentes c ON t.id_componente = c.id_componente
         WHERE c.id_proyecto = ? AND t.id_instrumentacion = ? AND c.id_componente = ?
-		AND d.fecha_piezometro = ?;"""
+        AND d.fecha_piezometro = ?;"""
         try:
             cur = conn.cursor()
             cur.execute(sql, (proyecto, idinstrumento, idcomponente, fecha))
@@ -100,7 +98,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar piezometro manual: " + str(e))
             return None
         finally:
@@ -120,7 +118,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar piezometros cuerda vibrante: " + str(e))
             return None
         finally:
@@ -140,7 +138,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar piezometros: " + str(e))
             return None
         finally:
@@ -161,7 +159,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar piezometros: " + str(e))
             return None
         finally:
@@ -182,7 +180,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar piezometros: " + str(e))
             return None
         finally:
@@ -202,7 +200,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar piezometros: " + str(e))
             return None
         finally:
@@ -222,7 +220,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar piezometros: " + str(e))
             return None
         finally:
@@ -236,17 +234,17 @@ class PiezometroModel:
             cur = conn.cursor()
             # Validar que el componente y el tipo sean PIEZOMETROMANUAL y que el nombre coincida
             sql_validacion = """SELECT COUNT(*) FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = ? AND nombre_equipo = ?;"""
-            cur.execute(sql_validacion, (componente, 'PIEZOMETROMANUAL', datos[1]))  # Asumiendo que el nombre está en la segunda posición de datos
+            cur.execute(sql_validacion, (componente, 'PIEZOMETROMANUAL', datos[1]))
             count = cur.fetchone()[0]
             if count > 0:
                 return "NO"
-            # Insertar el piezómetro en la tabla piezometromanuales
+            # Insertar el piezómetro en la tabla piezometromanuales y obtener el ID
             sql_insert = """INSERT INTO piezometromanuales (id_proyecto, nombre_piezometro, codigo_piezometro, norte_piezometro, este_piezometro, elevacion_piezometro,
             fundacion_piezometro, stickup_piezometro, inclinacion_piezometro, azimut_piezometro, comentario_piezometro)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+            OUTPUT INSERTED.id_piezometro VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
             cur.execute(sql_insert, datos)
             # Obtener el id_piezometro recién insertado
-            id_piezometro = cur.lastrowid
+            id_piezometro = cur.fetchone()[0]
             # Registrar la cota en la tabla cotas_piezometricas
             sql_detalle = """INSERT INTO cotas_piezometricas (id_piezometro, tipo_piezometro, fecha_cota, nivel_cota) VALUES (?, ?, ?, ?);"""
             cur.execute(sql_detalle, (id_piezometro, tipo, fecha, nivel))
@@ -256,7 +254,7 @@ class PiezometroModel:
             # Confirmar la transacción
             conn.commit()
             return "OK"
-        except Error as e:
+        except Exception as e:
             print("Error al guardar piezómetro manual: " + str(e))
             # Hacer rollback en caso de error
             conn.rollback()
@@ -269,13 +267,13 @@ class PiezometroModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Insertar el piezómetro en la tabla piezometromanuales
+            # Insertar el piezómetro en la tabla piezometromanuales y obtener el ID
             sql_insert = """INSERT INTO piezometromanuales (id_proyecto, nombre_piezometro, codigo_piezometro, norte_piezometro, este_piezometro, elevacion_piezometro,
             fundacion_piezometro, stickup_piezometro, inclinacion_piezometro, azimut_piezometro, comentario_piezometro)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+            OUTPUT INSERTED.id_piezometro VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
             cur.execute(sql_insert, datos)
             # Obtener el id_piezometro recién insertado
-            id_piezometro = cur.lastrowid
+            id_piezometro = cur.fetchone()[0]
             # Registrar la cota en la tabla cotas_piezometricas
             sql_detalle = """INSERT INTO cotas_piezometricas (id_piezometro, tipo_piezometro, fecha_cota, nivel_cota) VALUES (?, ?, ?, ?);"""
             cur.execute(sql_detalle, (id_piezometro, tipo, fecha, nivel))
@@ -285,7 +283,7 @@ class PiezometroModel:
             # Confirmar la transacción
             conn.commit()
             return id_piezometro
-        except Error as e:
+        except Exception as e:
             print("Error al guardar piezómetro manual: " + str(e))
             # Hacer rollback en caso de error
             conn.rollback()
@@ -301,18 +299,18 @@ class PiezometroModel:
             cur = conn.cursor()
             # Validar que el componente y el tipo sean PIEZOMETROCUERDA y que el nombre coincida
             sql_validacion = """SELECT COUNT(*) FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = ? AND nombre_equipo = ?;"""
-            cur.execute(sql_validacion, (componente, 'PIEZOMETROCUERDA', datos[2]))  # Asumiendo que el nombre está en la segunda posición de datos
+            cur.execute(sql_validacion, (componente, 'PIEZOMETROCUERDA', datos[2]))
             count = cur.fetchone()[0]
             if count > 0:
                 return "NO"
-            # Insertar el piezómetro en la tabla piezometrocuerdas
+            # Insertar el piezómetro en la tabla piezometrocuerdas y obtener el ID
             sql_insert = """INSERT INTO piezometrocuerdas (id_proyecto, id_formula, nombre_piezometro, serie_sensor, este_piezometro, norte_piezometro,
             elevacion_piezometro, fundacion_piezometro, inclinacion_piezometro, azimut_piezometro, frecuencia_inicial, temperatura_inicial, presion_inicial,
             factor_calibracion, temperatura_correccion, unidad_lectura, constante_a, constante_b, constante_c, factor_conversion, comentario_piezometro)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+            OUTPUT INSERTED.id_piezometro VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
             cur.execute(sql_insert, datos)
             # Obtener el id_piezometro recién insertado
-            id_piezometro = cur.lastrowid
+            id_piezometro = cur.fetchone()[0]
             # Registrar la cota en la tabla cotas_piezometricas
             sql_detalle = """INSERT INTO cotas_piezometricas (id_piezometro, tipo_piezometro, fecha_cota, nivel_cota) VALUES (?, ?, ?, ?);"""
             cur.execute(sql_detalle, (id_piezometro, tipo, fecha, nivelactual))
@@ -322,7 +320,7 @@ class PiezometroModel:
             # Confirmar la transacción
             conn.commit()
             return "OK"
-        except Error as e:
+        except Exception as e:
             print("Error al guardar piezómetro de cuerda: " + str(e))
             # Hacer rollback en caso de error
             conn.rollback()
@@ -335,14 +333,14 @@ class PiezometroModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Insertar el piezómetro en la tabla piezometrocuerdas
+            # Insertar el piezómetro en la tabla piezometrocuerdas y obtener el ID
             sql_insert = """INSERT INTO piezometrocuerdas (id_proyecto, nombre_piezometro, serie_sensor, este_piezometro, norte_piezometro, elevacion_piezometro,
             fundacion_piezometro, inclinacion_piezometro, azimut_piezometro, factor_calibracion, temperatura_correccion, frecuencia_inicial, temperatura_inicial,
             presion_inicial, unidad_lectura, constante_a, constante_b, constante_c, factor_conversion, comentario_piezometro)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+            OUTPUT INSERTED.id_piezometro VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
             cur.execute(sql_insert, datos)
             # Obtener el id_piezometro recién insertado
-            id_piezometro = cur.lastrowid
+            id_piezometro = cur.fetchone()[0]
             # Registrar la cota en la tabla cotas_piezometricas
             sql_detalle = """INSERT INTO cotas_piezometricas (id_piezometro, tipo_piezometro, fecha_cota, nivel_cota) VALUES (?, ?, ?, ?);"""
             cur.execute(sql_detalle, (id_piezometro, tipo, fecha, nivelactual))
@@ -352,7 +350,7 @@ class PiezometroModel:
             # Confirmar la transacción
             conn.commit()
             return id_piezometro
-        except Error as e:
+        except Exception as e:
             print("Error al guardar piezómetro de cuerda formato: " + str(e))
             # Hacer rollback en caso de error
             conn.rollback()
@@ -372,7 +370,7 @@ class PiezometroModel:
                 return False
             else:
                 return True
-        except Error as e:
+        except Exception as e:
             print("Error al validar formula piezometro: " + str(e))
             return False
         finally:
@@ -387,7 +385,7 @@ class PiezometroModel:
             cur.execute(sql, (formula, sentencia))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al guardar formula piezometro: " + str(e))
             return False
         finally:
@@ -406,11 +404,10 @@ class PiezometroModel:
             cur.execute(sql, datos)
             query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?
             WHERE id_instrumentacion = ? AND tipo_equipo = 'PIEZOMETROCUERDA';"""
-            cur = conn.cursor()
             cur.execute(query_instrumentacion, data)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al editar piezometro de cuerda vibrante: " + str(e))
             return False
         finally:
@@ -428,7 +425,7 @@ class PiezometroModel:
             cur.execute(sql, datos)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al editar piezometro de cuerda vibrante: " + str(e))
             return False
         finally:
@@ -444,7 +441,7 @@ class PiezometroModel:
             cur.execute(sql, (tipo, idpiezo))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al editar estado cuerda vibrante: " + str(e))
             return False
         finally:
@@ -462,11 +459,10 @@ class PiezometroModel:
             cur.execute(sql, datos)
             query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?
             WHERE id_instrumentacion = ? AND tipo_equipo = 'PIEZOMETROMANUAL';"""
-            cur = conn.cursor()
             cur.execute(query_instrumentacion, data)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al actualizar piezometro manual: " + str(e))
             return False
         finally:
@@ -484,7 +480,7 @@ class PiezometroModel:
             cur.execute(sql, datos)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al actualizar piezometro manual: " + str(e))
             return False
         finally:
@@ -500,7 +496,7 @@ class PiezometroModel:
             cur.execute(sql, (estado, idpiezo))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al cambiar tipo data piezómetro: " + str(e))
             return False
         finally:
@@ -522,7 +518,7 @@ class PiezometroModel:
                 return True, row
             else:
                 return False, None
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar piezómetro: " + str(e))
             return False, None
         finally:
@@ -536,12 +532,11 @@ class PiezometroModel:
             fecha_nueva = datetime.strptime(fecha, '%d/%m/%Y').strftime('%Y-%m-%d')
             fecha_hora = fecha_nueva + " " + hora
             sql = """INSERT INTO piezometro_detalle (observacion_detalle, id_piezometro, fecha_piezometro, medida_piezometro) VALUES ('Manual', ?, ?, ?)"""
-            
             cur = conn.cursor()
             cur.execute(sql, (idpiezometro, fecha_hora, medida))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al guardar piezómetro manual: " + str(e))
             return False
         finally:
@@ -550,20 +545,13 @@ class PiezometroModel:
     
     # REGISTRAR LECTURAS ORIGINAL PIEZOMETROS DE CUERDA VIBRANTE DESDE LA TABLA   
     def mdlGuardarPiezometrosCuerdaTablaOriginal(data):
-        # DELETE FROM prismas;
-        # DELETE FROM sqlite_sequence WHERE name='prismas';
         conn = Connection.connectionDB()
         cursor = conn.cursor()
         try:
-            cursor.execute("PRAGMA foreign_keys = OFF")
-            cursor.execute("PRAGMA synchronous = OFF")
-            cursor.execute("PRAGMA journal_mode = OFF")
-            cursor.execute("PRAGMA temp_store = MEMORY")
-            cursor.execute("PRAGMA cache_size = 100000")
-            conn.execute("BEGIN TRANSACTION")
             # Crear un conjunto de tuplas con los valores de fecha y hora para comparar los registros existentes
             idpiezo = data[0][0]
-            existen_piezometros = set([(row[0]) for row in cursor.execute(f"SELECT fecha_cuerda FROM piezometrocuerda_detalle WHERE id_piezometro = {idpiezo}")])
+            cursor.execute("SELECT fecha_cuerda FROM piezometrocuerda_detalle WHERE id_piezometro = ?", (idpiezo,))
+            existen_piezometros = set([row[0] for row in cursor.fetchall()])
             lote_registros = []
             contador = 0
             for fila in data:
@@ -575,30 +563,25 @@ class PiezometroModel:
                 fecha_nueva = datetime.strptime(fecha_formateada, '%d/%m/%Y').strftime('%Y-%m-%d')
                 fecha_hora_nueva = fecha_nueva + " " + hora_original
                 # Verifica si el registro no existe en el conjunto
-                if (fecha_hora_nueva) not in existen_piezometros:
+                if fecha_hora_nueva not in existen_piezometros:
                     datito = []
-                    datito.append(fila[0]) # id piezometro
+                    datito.append(fila[0])  # id piezometro
                     datito.append(fecha_hora_nueva)
-                    datito.append(abs(float(fila[3]))) # siempre positivo la medida
-                    datito.append(fila[4]) # temperatura
-                    datito.append(fila[5]) # presion
-                    datito.append(fila[6]) # Observacion
+                    datito.append(abs(float(fila[3])))  # siempre positivo la medida
+                    datito.append(fila[4])  # temperatura
+                    datito.append(fila[5])  # presion
+                    datito.append(fila[6])  # Observacion
                     lote_registros.append(datito)
                     contador += 1
-                    
-                if contador % 1000 == 0:
+                if contador % 1000 == 0 and lote_registros:
                     cursor.executemany("""INSERT INTO piezometrocuerda_detalle (id_piezometro, fecha_cuerda, frecuencia_cuerda, temperatura_cuerda, presion_barometrica, observacion_cuerda) VALUES (?, ?, ?, ?, ?, ?)""", lote_registros)
+                    conn.commit()
                     lote_registros = []
-
             if lote_registros:
                 cursor.executemany("""INSERT INTO piezometrocuerda_detalle (id_piezometro, fecha_cuerda, frecuencia_cuerda, temperatura_cuerda, presion_barometrica, observacion_cuerda) VALUES (?, ?, ?, ?, ?, ?)""", lote_registros)
-                    
-            conn.execute("COMMIT")
-            cursor.execute("PRAGMA foreign_keys = ON")
-            cursor.execute("PRAGMA synchronous = NORMAL")
-            cursor.execute("PRAGMA journal_mode = DELETE")
+                conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al guardar los piezometros de cuerda " + str(e))
             return False
         finally:
@@ -611,27 +594,29 @@ class PiezometroModel:
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            cursor.execute(f"""CREATE TABLE IF NOT EXISTS "{table_name}" (
-                "id_cuerda" INTEGER NOT NULL UNIQUE,
-                "id_piezometro" INTEGER NOT NULL,
-                "fecha_cuerda" TEXT NOT NULL,
-                "frecuencia_cuerda" NUMERIC NOT NULL,
-                "temperatura_cuerda" NUMERIC NOT NULL,
-                "presion_barometrica" NUMERIC,
-                "medida_calculada" NUMERIC,
-                "observacion_cuerda" TEXT,
-                "estado_cuerda" INTEGER NOT NULL DEFAULT 1,
-                PRIMARY KEY("id_cuerda" AUTOINCREMENT)
-            );""")
-            cursor.execute("PRAGMA foreign_keys = OFF")
-            cursor.execute("PRAGMA synchronous = OFF")
-            cursor.execute("PRAGMA journal_mode = OFF")
-            cursor.execute("PRAGMA temp_store = MEMORY")
-            cursor.execute("PRAGMA cache_size = 100000")
-            conn.execute("BEGIN TRANSACTION")
+            # Crear tabla si no existe (SQL Server)
+            crear_tabla_sql = f"""
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '{table_name}')
+            BEGIN
+                CREATE TABLE [{table_name}] (
+                    [id_cuerda] INT IDENTITY(1,1) PRIMARY KEY,
+                    [id_piezometro] INT NOT NULL,
+                    [fecha_cuerda] NVARCHAR(50) NOT NULL,
+                    [frecuencia_cuerda] DECIMAL(18,6) NOT NULL,
+                    [temperatura_cuerda] DECIMAL(18,6) NOT NULL,
+                    [presion_barometrica] DECIMAL(18,6),
+                    [medida_calculada] DECIMAL(18,6),
+                    [observacion_cuerda] NVARCHAR(MAX),
+                    [estado_cuerda] INT NOT NULL DEFAULT 1
+                );
+            END
+            """
+            cursor.execute(crear_tabla_sql)
+            conn.commit()
             # Crear un conjunto de tuplas con los valores de fecha y hora para comparar los registros existentes
             placeholders = ','.join(['?'] * len(idspiezos))
-            existen_piezometros = set([(row[0], row[1]) for row in cursor.execute(f"SELECT id_piezometro, fecha_cuerda FROM {table_name} WHERE id_piezometro IN ({placeholders});", list(idspiezos))])
+            cursor.execute(f"SELECT id_piezometro, fecha_cuerda FROM {table_name} WHERE id_piezometro IN ({placeholders});", list(idspiezos))
+            existen_piezometros = set([(row[0], row[1]) for row in cursor.fetchall()])
             lote_registros = []
             contador = 0
             for fila in data:
@@ -649,9 +634,8 @@ class PiezometroModel:
                     datito.append(fila[5])  # presion barometrica
                     datito.append(fila[6])  # data calculada MCA
                     datito.append(fila[7])  # Observacion
-                    lote_registros.append(datito)
+                    lote_registros.append(tuple(datito))
                     contador += 1
-
                     if contador % 1000 == 0:
                         cursor.executemany(f"""
                             INSERT INTO {table_name} (
@@ -660,8 +644,8 @@ class PiezometroModel:
                                 medida_calculada, observacion_cuerda
                             ) VALUES (?, ?, ?, ?, ?, ?, ?)
                         """, lote_registros)
+                        conn.commit()
                         lote_registros = []
-
             if lote_registros:
                 cursor.executemany(f"""
                     INSERT INTO {table_name} (
@@ -670,14 +654,10 @@ class PiezometroModel:
                         medida_calculada, observacion_cuerda
                     ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, lote_registros)
-
-            conn.execute("COMMIT")
-            cursor.execute("PRAGMA foreign_keys = ON")
-            cursor.execute("PRAGMA synchronous = NORMAL")
-            cursor.execute("PRAGMA journal_mode = DELETE")
+                conn.commit()
             return True
         except Exception as e:
-            conn.execute("ROLLBACK")
+            conn.rollback()
             print("Error al guardar los piezometros de cuerda: " + str(e))
             return False
         finally:
@@ -699,7 +679,7 @@ class PiezometroModel:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al comprobar piezómetro: " + str(e))
             return False
         finally:
@@ -709,40 +689,35 @@ class PiezometroModel:
     # REGISTRAR PIEZOMETROS MANUALES DESDE LA TABLA   
     def mdlGuardarPiezometrosManualesTabla(idproyecto, data):
         nombretabla = "piezometromanual_detalle" + str(idproyecto)
+        # Crear tabla si no existe (SQL Server)
         sqltable = f"""
-            CREATE TABLE IF NOT EXISTS "{nombretabla}" (
-                "id_detalle" INTEGER NOT NULL UNIQUE,
-                "id_piezometro" INTEGER NOT NULL,
-                "fecha_piezometro" TEXT NOT NULL,
-                "medida_piezometro" NUMERIC,
-                "observacion_detalle" TEXT,
-                "estado_manual" INTEGER NOT NULL DEFAULT 1,
-                PRIMARY KEY("id_detalle" AUTOINCREMENT)
-            );
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '{nombretabla}')
+            BEGIN
+                CREATE TABLE [{nombretabla}] (
+                    [id_detalle] INT IDENTITY(1,1) PRIMARY KEY,
+                    [id_piezometro] INT NOT NULL,
+                    [fecha_piezometro] NVARCHAR(50) NOT NULL,
+                    [medida_piezometro] DECIMAL(18,6),
+                    [observacion_detalle] NVARCHAR(MAX),
+                    [estado_manual] INT NOT NULL DEFAULT 1
+                );
+            END
         """
         conn = Connection.connectionDB()
         try:
             cursor = conn.cursor()
-            cursor.execute("PRAGMA foreign_keys = OFF")
-            cursor.execute("PRAGMA synchronous = OFF")
-            cursor.execute("PRAGMA journal_mode = OFF")
-            cursor.execute("PRAGMA temp_store = MEMORY")
-            cursor.execute("PRAGMA cache_size = 100000")
             cursor.execute(sqltable)
-            conn.execute("BEGIN TRANSACTION")
-
+            conn.commit()
             # Crear un conjunto de tuplas con los valores de fecha y hora para comparar los registros existentes
             idpiezo = data[0][0]
-            existen_piezometros = set([(row[0]) for row in cursor.execute(f"SELECT fecha_piezometro FROM {nombretabla} WHERE id_piezometro = ?;", (idpiezo,))])
-
+            cursor.execute(f"SELECT fecha_piezometro FROM {nombretabla} WHERE id_piezometro = ?;", (idpiezo,))
+            existen_piezometros = set([row[0] for row in cursor.fetchall()])
             lote_registros = []
             contador = 0
-
             for fila in data:
                 fecha_original = fila[1]
                 hora_original = fila[2]
                 fecha_hora_nueva = fecha_original + " " + hora_original
-
                 # Verifica si el registro no existe en el conjunto
                 if fecha_hora_nueva not in existen_piezometros:
                     datito = []
@@ -750,31 +725,26 @@ class PiezometroModel:
                     datito.append(fecha_hora_nueva)
                     datito.append(abs(float(fila[3])))  # siempre positivo la medida
                     datito.append(fila[4])  # observacion_detalle
-                    lote_registros.append(datito)
+                    lote_registros.append(tuple(datito))
                     contador += 1
-
                     if contador % 1000 == 0:
                         cursor.executemany(f"""
                             INSERT INTO {nombretabla} (
                                 id_piezometro, fecha_piezometro, medida_piezometro, observacion_detalle
                             ) VALUES (?, ?, ?, ?)
                         """, lote_registros)
+                        conn.commit()
                         lote_registros = []
-
             if lote_registros:
                 cursor.executemany(f"""
                     INSERT INTO {nombretabla} (
                         id_piezometro, fecha_piezometro, medida_piezometro, observacion_detalle
                     ) VALUES (?, ?, ?, ?)
                 """, lote_registros)
-
-            conn.execute("COMMIT")
-            cursor.execute("PRAGMA foreign_keys = ON")
-            cursor.execute("PRAGMA synchronous = NORMAL")
-            cursor.execute("PRAGMA journal_mode = DELETE")
+                conn.commit()
             return True
         except Exception as e:
-            conn.execute("ROLLBACK")
+            conn.rollback()
             print("Error al guardar los piezometros manuales: " + str(e))
             return False
         finally:
@@ -788,13 +758,8 @@ class PiezometroModel:
             idpiezo = data[0][0]
             tipopiezo = data[0][1]
             cursor = conn.cursor()
-            cursor.execute("PRAGMA foreign_keys = OFF")
-            cursor.execute("PRAGMA synchronous = OFF")
-            cursor.execute("PRAGMA journal_mode = OFF")
-            cursor.execute("PRAGMA temp_store = MEMORY")
-            cursor.execute("PRAGMA cache_size = 100000")
-            conn.execute("BEGIN TRANSACTION")
-            existen_cotas = set([(row[0]) for row in cursor.execute("SELECT fecha_cota FROM cotas_piezometricas WHERE id_piezometro = ? AND tipo_piezometro = ?;", (idpiezo, tipopiezo))])
+            cursor.execute("SELECT fecha_cota FROM cotas_piezometricas WHERE id_piezometro = ? AND tipo_piezometro = ?;", (idpiezo, tipopiezo))
+            existen_cotas = set([row[0] for row in cursor.fetchall()])
             lote_registros = []
             contador = 0
             for fila in data:
@@ -802,20 +767,18 @@ class PiezometroModel:
                 nueva_fila[2] = f"{nueva_fila[2]} 00:00:00"
                 # Verifica si el registro no existe en el conjunto
                 if nueva_fila[2] not in existen_cotas:
-                    lote_registros.append(nueva_fila)
+                    lote_registros.append(tuple(nueva_fila))
                     contador += 1
                     if contador % 1000 == 0:
                         cursor.executemany("""INSERT INTO cotas_piezometricas (id_piezometro, tipo_piezometro, fecha_cota, nivel_cota) VALUES (?, ?, ?, ?);""", lote_registros)
+                        conn.commit()
                         lote_registros = []
             if lote_registros:
                 cursor.executemany("""INSERT INTO cotas_piezometricas (id_piezometro, tipo_piezometro, fecha_cota, nivel_cota) VALUES (?, ?, ?, ?);""", lote_registros)
-            conn.execute("COMMIT")
-            cursor.execute("PRAGMA foreign_keys = ON")
-            cursor.execute("PRAGMA synchronous = NORMAL")
-            cursor.execute("PRAGMA journal_mode = DELETE")
+                conn.commit()
             return True
         except Exception as e:
-            conn.execute("ROLLBACK")
+            conn.rollback()
             print("Error al guardar las cotas: " + str(e))
             return False
         finally:
@@ -849,7 +812,8 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
+            print("Error al obtener data piezometro A: " + str(e))
             return None
         finally:
             if conn:
@@ -873,16 +837,17 @@ class PiezometroModel:
                 pd.medida_calculada, pz.unidad_lectura
                 FROM piezometrocuerda_detalle pd 
                 INNER JOIN piezometrocuerdas pz ON pd.id_piezometro = pz.id_piezometro 
-                WHERE pd.id_piezometro = ? AND pd.fecha_cuerda BETWEEN '""" + str(fechaini) + """' AND '""" + str(fechafin) + """';"""
+                WHERE pd.id_piezometro = ? AND pd.fecha_cuerda BETWEEN ? AND ?;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql, (idpiezo,))
+            cur.execute(sql, (idpiezo, str(fechaini), str(fechafin)))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
+            print("Error al obtener data piezometro auto fechas: " + str(e))
             return None
         finally:
             if conn:
@@ -910,7 +875,8 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
+            print("Error al obtener data piezometro N: " + str(e))
             return None
         finally:
             if conn:
@@ -929,16 +895,17 @@ class PiezometroModel:
             pz.elevacion_piezometro
             FROM piezometro_detalle pd
             INNER JOIN piezometros pz ON pd.id_piezometro = pz.id_piezometro 
-            WHERE pd.id_piezometro = ? AND pd.fecha_piezometro BETWEEN '""" + str(fechaini) + """' AND '""" + str(fechafin) + """';"""
+            WHERE pd.id_piezometro = ? AND pd.fecha_piezometro BETWEEN ? AND ?;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql, (idpiezodetalle,))
+            cur.execute(sql, (idpiezodetalle, str(fechaini), str(fechafin)))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
+            print("Error al obtener data piezometro manual fechas: " + str(e))
             return None
         finally:
             if conn:
@@ -955,7 +922,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar piezometro cuerda: " + str(e))
             return None
         finally:
@@ -973,7 +940,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar piezometro manual: " + str(e))
             return None
         finally:
@@ -991,7 +958,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar detalle piezometro cuerda: " + str(e))
             return None
         finally:
@@ -1000,7 +967,7 @@ class PiezometroModel:
     
     def mdlTraerBaseDetallePiezometro(idpiezo):
         conn = Connection.connectionDB()
-        sql = """SELECT 'Automatizado' AS tipo, * FROM piezometrocuerda_detalle WHERE id_piezometro = ? ORDER BY fecha_cuerda ASC LIMIT 1;"""
+        sql = """SELECT TOP 1 'Automatizado' AS tipo, * FROM piezometrocuerda_detalle WHERE id_piezometro = ? ORDER BY fecha_cuerda ASC;"""
         try:
             cur = conn.cursor()
             cur.execute(sql, (idpiezo,))
@@ -1009,7 +976,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar base piezometro cuerda: " + str(e))
             return None
         finally:
@@ -1027,7 +994,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar detalle piezometro manual: " + str(e))
             return None
         finally:
@@ -1045,7 +1012,7 @@ class PiezometroModel:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al eliminar piezómetro: " + str(e))
             return False
         finally:
@@ -1063,7 +1030,7 @@ class PiezometroModel:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al eliminar piezómetro: " + str(e))
             return False
         finally:
@@ -1083,7 +1050,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener fechas min-max: " + str(e))
             return None
         finally:
@@ -1103,7 +1070,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener fechas min-max: " + str(e))
             return None
         finally:
@@ -1115,20 +1082,19 @@ class PiezometroModel:
         params = [idcomponente] + listapiezo + [unidadmedidad] + [unidadmedidad]
         sql = f"""WITH cte_cota AS (
             SELECT it.id_instrumentacion, p.nombre_piezometro, d.fecha_piezometro, p.tipo_piezometro,
-            CAST(julianday(d.fecha_piezometro) - julianday(FIRST_VALUE(d.fecha_piezometro) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_piezometro)) AS NUMERIC) AS dias,
-            CAST(julianday(d.fecha_piezometro) - julianday(FIRST_VALUE(d.fecha_piezometro) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_piezometro)) AS NUMERIC) * 24 AS horas,
+            CAST(DATEDIFF(SECOND, FIRST_VALUE(d.fecha_piezometro) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_piezometro), d.fecha_piezometro) AS FLOAT) / 86400.0 AS dias,
+            CAST(DATEDIFF(SECOND, FIRST_VALUE(d.fecha_piezometro) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_piezometro), d.fecha_piezometro) AS FLOAT) / 3600.0 AS horas,
             d.medida_piezometro, p.stickup_piezometro, p.fundacion_piezometro,
             COALESCE(
-                (SELECT c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = d.id_piezometro 
-                AND c2.tipo_piezometro = 'PVC' AND c2.fecha_cota <= d.fecha_piezometro ORDER BY c2.fecha_cota DESC LIMIT 1),
-                (SELECT c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = d.id_piezometro
-                AND c3.tipo_piezometro = 'PVC' ORDER BY c3.fecha_cota ASC LIMIT 1)
-            ) AS elevacion,it.tipo_equipo,it.id_equipo
+                (SELECT TOP 1 c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = d.id_piezometro 
+                AND c2.tipo_piezometro = 'PVC' AND c2.fecha_cota <= d.fecha_piezometro ORDER BY c2.fecha_cota DESC),
+                (SELECT TOP 1 c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = d.id_piezometro
+                AND c3.tipo_piezometro = 'PVC' ORDER BY c3.fecha_cota ASC)
+            ) AS elevacion, it.tipo_equipo, it.id_equipo
             FROM piezometromanuales p INNER JOIN {tabla} d ON p.id_piezometro = d.id_piezometro
             INNER JOIN instrumentacion AS it ON it.id_equipo = p.id_piezometro
             INNER JOIN componentes AS co ON co.id_componente = it.id_componente
             WHERE d.estado_manual = 1 AND co.id_componente = ? AND it.id_instrumentacion IN ({placeholders})
-            ORDER BY p.nombre_piezometro ASC, d.fecha_piezometro ASC
         )
         SELECT id_instrumentacion, nombre_piezometro, fecha_piezometro, dias, horas,
             CASE
@@ -1143,7 +1109,7 @@ class PiezometroModel:
                     FIRST_VALUE(medida_piezometro) OVER (PARTITION BY nombre_piezometro ORDER BY fecha_piezometro))
                 ELSE 
                     medida_piezometro - FIRST_VALUE(medida_piezometro) OVER (PARTITION BY nombre_piezometro ORDER BY fecha_piezometro)
-            END * ? AS acumulado, fundacion_piezometro, elevacion,tipo_equipo,id_equipo
+            END * ? AS acumulado, fundacion_piezometro, elevacion, tipo_equipo, id_equipo
         FROM cte_cota ORDER BY nombre_piezometro ASC, fecha_piezometro ASC;"""
         try:
             conn = Connection.connectionDB()
@@ -1154,7 +1120,7 @@ class PiezometroModel:
                 return rows
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener data piezo manual: " + str(e))
             return None
         finally:
@@ -1167,20 +1133,20 @@ class PiezometroModel:
         params = [idcomponente] + listapiezo + [fechaini] + [fechafin] + [unidadmedidad] + [unidadmedidad]
         sql = f"""WITH cte_cota AS (
             SELECT it.id_instrumentacion, p.nombre_piezometro, d.fecha_piezometro, p.tipo_piezometro,
-            CAST(julianday(d.fecha_piezometro) - julianday(FIRST_VALUE(d.fecha_piezometro) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_piezometro)) AS NUMERIC) AS dias,
-            CAST(julianday(d.fecha_piezometro) - julianday(FIRST_VALUE(d.fecha_piezometro) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_piezometro)) AS NUMERIC) * 24 AS horas,
+            CAST(DATEDIFF(SECOND, FIRST_VALUE(d.fecha_piezometro) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_piezometro), d.fecha_piezometro) AS FLOAT) / 86400.0 AS dias,
+            CAST(DATEDIFF(SECOND, FIRST_VALUE(d.fecha_piezometro) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_piezometro), d.fecha_piezometro) AS FLOAT) / 3600.0 AS horas,
             d.medida_piezometro, p.stickup_piezometro, p.fundacion_piezometro,
             COALESCE(
-                (SELECT c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = d.id_piezometro 
-                AND c2.tipo_piezometro = 'PVC' AND c2.fecha_cota <= d.fecha_piezometro ORDER BY c2.fecha_cota DESC LIMIT 1),
-                (SELECT c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = d.id_piezometro
-                AND c3.tipo_piezometro = 'PVC' ORDER BY c3.fecha_cota ASC LIMIT 1)
-            ) AS elevacion,it.tipo_equipo,it.id_equipo
+                (SELECT TOP 1 c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = d.id_piezometro 
+                AND c2.tipo_piezometro = 'PVC' AND c2.fecha_cota <= d.fecha_piezometro ORDER BY c2.fecha_cota DESC),
+                (SELECT TOP 1 c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = d.id_piezometro
+                AND c3.tipo_piezometro = 'PVC' ORDER BY c3.fecha_cota ASC)
+            ) AS elevacion, it.tipo_equipo, it.id_equipo
             FROM piezometromanuales p INNER JOIN {tabla} d ON p.id_piezometro = d.id_piezometro
             INNER JOIN instrumentacion AS it ON it.id_equipo = p.id_piezometro
             INNER JOIN componentes AS co ON co.id_componente = it.id_componente
             WHERE d.estado_manual = 1 AND co.id_componente = ? AND it.id_instrumentacion IN ({placeholders})
-            AND d.fecha_piezometro BETWEEN ? AND ? ORDER BY p.nombre_piezometro ASC, d.fecha_piezometro ASC
+            AND d.fecha_piezometro BETWEEN ? AND ?
         )
         SELECT id_instrumentacion, nombre_piezometro, fecha_piezometro, dias, horas,
             CASE
@@ -1195,7 +1161,7 @@ class PiezometroModel:
                     FIRST_VALUE(medida_piezometro) OVER (PARTITION BY nombre_piezometro ORDER BY fecha_piezometro))
                 ELSE 
                     medida_piezometro - FIRST_VALUE(medida_piezometro) OVER (PARTITION BY nombre_piezometro ORDER BY fecha_piezometro)
-            END * ? AS acumulado, fundacion_piezometro, elevacion,tipo_equipo,id_equipo
+            END * ? AS acumulado, fundacion_piezometro, elevacion, tipo_equipo, id_equipo
         FROM cte_cota ORDER BY nombre_piezometro ASC, fecha_piezometro ASC;"""
         try:
             cur = conn.cursor()
@@ -1205,7 +1171,7 @@ class PiezometroModel:
                 return rows
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener data piezo manual: " + str(e))
             return None
         finally:
@@ -1213,7 +1179,7 @@ class PiezometroModel:
                 conn.close()
     
     def mdlObtenerFormulaPiezometroCuerda(idpiezometro):
-        sql = f"""SELECT p.id_formula, f.sentencia FROM piezometrocuerdas p INNER JOIN formulas_piezometros f
+        sql = """SELECT p.id_formula, f.sentencia FROM piezometrocuerdas p INNER JOIN formulas_piezometros f
         ON p.id_formula = f.id_formula WHERE p.id_piezometro = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -1224,7 +1190,7 @@ class PiezometroModel:
                 return results
             else:
                 return [0, None]
-        except Error as e:
+        except Exception as e:
             print("Error al obtener formula cuerda:", e)
             return [0, None]
         finally:
@@ -1234,8 +1200,8 @@ class PiezometroModel:
     def mdlCalcularPiezometrosCuerda(tabla, idcomponente, listapiezo, unidadmedida):
         params = (unidadmedida, unidadmedida, idcomponente, listapiezo)
         sql = f"""SELECT t.id_instrumentacion, pzc.nombre_piezometro, pzcd.fecha_cuerda,
-            CAST(julianday(pzcd.fecha_cuerda) - julianday(FIRST_VALUE(pzcd.fecha_cuerda) OVER (PARTITION BY pzc.nombre_piezometro ORDER BY pzcd.fecha_cuerda)) AS NUMERIC) AS dias,
-            CAST(julianday(pzcd.fecha_cuerda) - julianday(FIRST_VALUE(pzcd.fecha_cuerda) OVER (PARTITION BY pzc.nombre_piezometro ORDER BY pzcd.fecha_cuerda)) AS NUMERIC) * 24 AS horas,
+            CAST(DATEDIFF(SECOND, FIRST_VALUE(pzcd.fecha_cuerda) OVER (PARTITION BY pzc.nombre_piezometro ORDER BY pzcd.fecha_cuerda), pzcd.fecha_cuerda) AS FLOAT) / 86400.0 AS dias,
+            CAST(DATEDIFF(SECOND, FIRST_VALUE(pzcd.fecha_cuerda) OVER (PARTITION BY pzc.nombre_piezometro ORDER BY pzcd.fecha_cuerda), pzcd.fecha_cuerda) AS FLOAT) / 3600.0 AS horas,
             pzcd.frecuencia_cuerda, pzcd.temperatura_cuerda, pzcd.presion_barometrica,
             CASE
                 WHEN pzc.tipo_piezometro = 1 THEN pzc.elevacion_piezometro + pzcd.medida_calculada
@@ -1246,12 +1212,12 @@ class PiezometroModel:
                 WHEN pzc.tipo_piezometro = 1 THEN pzcd.medida_calculada
                 ELSE pzcd.medida_calculada - pzc.elevacion_piezometro
             END * ? AS acumulado, pzc.fundacion_piezometro,
-			COALESCE(
-				(SELECT c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = pzc.id_piezometro 
-				   AND c2.tipo_piezometro = 'PCV' AND c2.fecha_cota <= pzcd.fecha_cuerda ORDER BY c2.fecha_cota DESC LIMIT 1),
-				(SELECT c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = pzc.id_piezometro 
-				   AND c3.tipo_piezometro = 'PCV' ORDER BY c3.fecha_cota ASC LIMIT 1)
-			) AS superficie, t.tipo_equipo, pzc.unidad_lectura
+            COALESCE(
+                (SELECT TOP 1 c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = pzc.id_piezometro 
+                   AND c2.tipo_piezometro = 'PCV' AND c2.fecha_cota <= pzcd.fecha_cuerda ORDER BY c2.fecha_cota DESC),
+                (SELECT TOP 1 c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = pzc.id_piezometro 
+                   AND c3.tipo_piezometro = 'PCV' ORDER BY c3.fecha_cota ASC)
+            ) AS superficie, t.tipo_equipo, pzc.unidad_lectura
         FROM piezometrocuerdas pzc INNER JOIN {tabla} pzcd ON pzc.id_piezometro = pzcd.id_piezometro 
         INNER JOIN instrumentacion t ON pzc.id_piezometro = t.id_equipo
         INNER JOIN componentes c ON t.id_componente = c.id_componente
@@ -1266,7 +1232,7 @@ class PiezometroModel:
                 return rows
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener data piezo cuerda: " + str(e))
             return None
         finally:
@@ -1276,21 +1242,20 @@ class PiezometroModel:
     def mdlCalcularPiezometrosCuerdaFormula(tabla, idcomponente, idinstrumento, unidadmedida, formula):
         params = (idcomponente, idinstrumento, unidadmedida, unidadmedida)
         sql = f"""WITH piezometros AS (SELECT t.id_instrumentacion, p.nombre_piezometro, d.fecha_cuerda,
-                CAST(julianday(d.fecha_cuerda) - julianday(FIRST_VALUE(d.fecha_cuerda) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_cuerda)) AS NUMERIC) AS dias,
-                CAST(julianday(d.fecha_cuerda) - julianday(FIRST_VALUE(d.fecha_cuerda) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_cuerda)) AS NUMERIC) * 24 AS horas,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(d.fecha_cuerda) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_cuerda), d.fecha_cuerda) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(d.fecha_cuerda) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_cuerda), d.fecha_cuerda) AS FLOAT) / 3600.0 AS horas,
                 d.frecuencia_cuerda, d.temperatura_cuerda, ({formula}) AS presion_barometrica,
                 p.fundacion_piezometro, p.elevacion_piezometro AS instalacion,
                 COALESCE(
-                    (SELECT c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = p.id_piezometro 
-                    AND c2.tipo_piezometro = 'PCV' AND c2.fecha_cota <= d.fecha_cuerda ORDER BY c2.fecha_cota DESC LIMIT 1),
-                    (SELECT c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = p.id_piezometro 
-                    AND c3.tipo_piezometro = 'PCV' ORDER BY c3.fecha_cota ASC LIMIT 1)
+                    (SELECT TOP 1 c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = p.id_piezometro 
+                    AND c2.tipo_piezometro = 'PCV' AND c2.fecha_cota <= d.fecha_cuerda ORDER BY c2.fecha_cota DESC),
+                    (SELECT TOP 1 c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = p.id_piezometro 
+                    AND c3.tipo_piezometro = 'PCV' ORDER BY c3.fecha_cota ASC)
                 ) AS superficie, t.tipo_equipo, p.unidad_lectura, p.factor_conversion
             FROM piezometrocuerdas p INNER JOIN {tabla} d ON p.id_piezometro = d.id_piezometro 
             INNER JOIN instrumentacion t ON p.id_piezometro = t.id_equipo
             INNER JOIN componentes c ON t.id_componente = c.id_componente
             WHERE d.estado_cuerda = 1 AND c.id_componente = ? AND t.id_instrumentacion = ?
-            ORDER BY p.nombre_piezometro ASC, d.fecha_cuerda ASC
         )
         SELECT id_instrumentacion, nombre_piezometro, fecha_cuerda, dias, horas, frecuencia_cuerda, temperatura_cuerda,
             presion_barometrica,
@@ -1298,7 +1263,8 @@ class PiezometroModel:
             (COALESCE(presion_barometrica - LAG(presion_barometrica) OVER (PARTITION BY nombre_piezometro ORDER BY fecha_cuerda), 0) * factor_conversion) * ? AS incremental,
             (presion_barometrica * factor_conversion) * ? AS acumulado, fundacion_piezometro,
             superficie, tipo_equipo, unidad_lectura
-        FROM piezometros;"""
+        FROM piezometros
+        ORDER BY nombre_piezometro ASC, fecha_cuerda ASC;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1308,7 +1274,7 @@ class PiezometroModel:
                 return rows
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener data piezo cuerda formula: " + str(e))
             return None
         finally:
@@ -1318,8 +1284,8 @@ class PiezometroModel:
     def mdlCalcularPiezometrosFechasCuerda(tabla, idcomponente, listapiezo, unidadmedida, fechaini, fechafin):
         params = (unidadmedida, unidadmedida, idcomponente, listapiezo, fechaini, fechafin)
         sql = f"""SELECT t.id_instrumentacion, pzc.nombre_piezometro, pzcd.fecha_cuerda,
-            CAST(julianday(pzcd.fecha_cuerda) - julianday(FIRST_VALUE(pzcd.fecha_cuerda) OVER (PARTITION BY pzc.nombre_piezometro ORDER BY pzcd.fecha_cuerda)) AS NUMERIC) AS dias,
-            CAST(julianday(pzcd.fecha_cuerda) - julianday(FIRST_VALUE(pzcd.fecha_cuerda) OVER (PARTITION BY pzc.nombre_piezometro ORDER BY pzcd.fecha_cuerda)) AS NUMERIC) * 24 AS horas,
+            CAST(DATEDIFF(SECOND, FIRST_VALUE(pzcd.fecha_cuerda) OVER (PARTITION BY pzc.nombre_piezometro ORDER BY pzcd.fecha_cuerda), pzcd.fecha_cuerda) AS FLOAT) / 86400.0 AS dias,
+            CAST(DATEDIFF(SECOND, FIRST_VALUE(pzcd.fecha_cuerda) OVER (PARTITION BY pzc.nombre_piezometro ORDER BY pzcd.fecha_cuerda), pzcd.fecha_cuerda) AS FLOAT) / 3600.0 AS horas,
             pzcd.frecuencia_cuerda, pzcd.temperatura_cuerda, pzcd.presion_barometrica,
             CASE
                 WHEN pzc.tipo_piezometro = 1 THEN pzc.elevacion_piezometro + pzcd.medida_calculada
@@ -1330,12 +1296,12 @@ class PiezometroModel:
                 WHEN pzc.tipo_piezometro = 1 THEN pzcd.medida_calculada
                 ELSE pzcd.medida_calculada - pzc.elevacion_piezometro
             END * ? AS acumulado, pzc.fundacion_piezometro,
-			COALESCE(
-				(SELECT c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = pzc.id_piezometro 
-				   AND c2.tipo_piezometro = 'PCV' AND c2.fecha_cota <= pzcd.fecha_cuerda ORDER BY c2.fecha_cota DESC LIMIT 1),
-				(SELECT c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = pzc.id_piezometro 
-				   AND c3.tipo_piezometro = 'PCV' ORDER BY c3.fecha_cota ASC LIMIT 1)
-			) AS superficie, t.tipo_equipo, pzc.unidad_lectura
+            COALESCE(
+                (SELECT TOP 1 c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = pzc.id_piezometro 
+                   AND c2.tipo_piezometro = 'PCV' AND c2.fecha_cota <= pzcd.fecha_cuerda ORDER BY c2.fecha_cota DESC),
+                (SELECT TOP 1 c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = pzc.id_piezometro 
+                   AND c3.tipo_piezometro = 'PCV' ORDER BY c3.fecha_cota ASC)
+            ) AS superficie, t.tipo_equipo, pzc.unidad_lectura
         FROM piezometrocuerdas pzc INNER JOIN {tabla} pzcd ON pzc.id_piezometro = pzcd.id_piezometro 
         INNER JOIN instrumentacion t ON pzc.id_piezometro = t.id_equipo
         INNER JOIN componentes c ON t.id_componente = c.id_componente
@@ -1350,7 +1316,7 @@ class PiezometroModel:
                 return rows
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener data piezo cuerda: " + str(e))
             return None
         finally:
@@ -1360,21 +1326,20 @@ class PiezometroModel:
     def mdlCalcularPiezometrosFechasCuerdaFormula(tabla, idcomponente, idinstrumento, unidadmedida, fechaini, fechafin, formula):
         params = (idcomponente, idinstrumento, fechaini, fechafin, unidadmedida, unidadmedida)
         sql = f"""WITH piezometros AS (SELECT t.id_instrumentacion, p.nombre_piezometro, d.fecha_cuerda,
-                CAST(julianday(d.fecha_cuerda) - julianday(FIRST_VALUE(d.fecha_cuerda) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_cuerda)) AS NUMERIC) AS dias,
-                CAST(julianday(d.fecha_cuerda) - julianday(FIRST_VALUE(d.fecha_cuerda) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_cuerda)) AS NUMERIC) * 24 AS horas,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(d.fecha_cuerda) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_cuerda), d.fecha_cuerda) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(d.fecha_cuerda) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_cuerda), d.fecha_cuerda) AS FLOAT) / 3600.0 AS horas,
                 d.frecuencia_cuerda, d.temperatura_cuerda, ({formula}) AS presion_barometrica,
                 p.fundacion_piezometro, p.elevacion_piezometro AS instalacion,
                 COALESCE(
-                    (SELECT c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = p.id_piezometro 
-                    AND c2.tipo_piezometro = 'PCV' AND c2.fecha_cota <= d.fecha_cuerda ORDER BY c2.fecha_cota DESC LIMIT 1),
-                    (SELECT c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = p.id_piezometro 
-                    AND c3.tipo_piezometro = 'PCV' ORDER BY c3.fecha_cota ASC LIMIT 1)
+                    (SELECT TOP 1 c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = p.id_piezometro 
+                    AND c2.tipo_piezometro = 'PCV' AND c2.fecha_cota <= d.fecha_cuerda ORDER BY c2.fecha_cota DESC),
+                    (SELECT TOP 1 c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = p.id_piezometro 
+                    AND c3.tipo_piezometro = 'PCV' ORDER BY c3.fecha_cota ASC)
                 ) AS superficie, t.tipo_equipo, p.unidad_lectura, p.factor_conversion
             FROM piezometrocuerdas p INNER JOIN {tabla} d ON p.id_piezometro = d.id_piezometro 
             INNER JOIN instrumentacion t ON p.id_piezometro = t.id_equipo
             INNER JOIN componentes c ON t.id_componente = c.id_componente
             WHERE d.estado_cuerda = 1 AND c.id_componente = ? AND t.id_instrumentacion = ? AND d.fecha_cuerda BETWEEN ? AND ?
-            ORDER BY p.nombre_piezometro ASC, d.fecha_cuerda ASC
         )
         SELECT id_instrumentacion, nombre_piezometro, fecha_cuerda, dias, horas, frecuencia_cuerda, temperatura_cuerda,
             presion_barometrica,
@@ -1382,7 +1347,8 @@ class PiezometroModel:
             (COALESCE(presion_barometrica - LAG(presion_barometrica) OVER (PARTITION BY nombre_piezometro ORDER BY fecha_cuerda), 0) * factor_conversion) * ? AS incremental,
             (presion_barometrica * factor_conversion) * ? AS acumulado, fundacion_piezometro,
             superficie, tipo_equipo, unidad_lectura
-        FROM piezometros;"""
+        FROM piezometros
+        ORDER BY nombre_piezometro ASC, fecha_cuerda ASC;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1392,7 +1358,7 @@ class PiezometroModel:
                 return rows
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener data piezo cuerda fechas formula: " + str(e))
             return None
         finally:
@@ -1422,7 +1388,7 @@ class PiezometroModel:
             cur.execute(sql, datos)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al editar lectura cuerda vibrante: " + str(e))
             return False
         finally:
@@ -1484,7 +1450,7 @@ class PiezometroModel:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al eliminar lectura cuerda: " + str(e))
             return False
         finally:
@@ -1522,12 +1488,12 @@ class PiezometroModel:
             conn.close()
     
     def mdlActualizarCotaPiezometrica(idproyecto, idcota, datofecha, cotamedida, username, nombres):
-        sql = f"""UPDATE cotas_piezometricas SET fecha_cota = ?, nivel_cota = ? WHERE id_cota = ?;"""
+        sql = """UPDATE cotas_piezometricas SET fecha_cota = ?, nivel_cota = ? WHERE id_cota = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             # guardar en historial
-            query_select = f"""SELECT * FROM cotas_piezometricas WHERE id_cota = ?;"""
+            query_select = """SELECT * FROM cotas_piezometricas WHERE id_cota = ?;"""
             cur.execute(query_select, (idcota,))
             datos_anteriores = cur.fetchone()
             if datos_anteriores:
@@ -1542,7 +1508,7 @@ class PiezometroModel:
             cur.execute(sql, (datofecha, cotamedida, idcota))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al editar cota piezometrica: " + str(e))
             return False
         finally:
@@ -1570,7 +1536,7 @@ class PiezometroModel:
             cur.execute(sql, datos)
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al editar lectura casagrande: " + str(e))
             return False
         finally:
@@ -1632,7 +1598,7 @@ class PiezometroModel:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al eliminar lectura casagrande: " + str(e))
             return False
         finally:
@@ -1682,7 +1648,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar piezometros: " + str(e))
             return None
         finally:
@@ -1701,13 +1667,12 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar piezometros: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
     
     def mdlCambiarComponentePiezometrosCuerda(idcomponente, nuevocomponente):
         sql = """UPDATE instrumentacion SET id_componente = ? WHERE id_componente = ? AND tipo_equipo = 'PIEZOMETROCUERDA';"""
@@ -1724,7 +1689,7 @@ class PiezometroModel:
                 return dataincli
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al cambiar componente cuerdas: " + str(e))
             return None
         finally:
@@ -1792,7 +1757,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar info cuerda: " + str(e))
             return None
         finally:
@@ -1863,7 +1828,7 @@ class PiezometroModel:
                 return dataincli
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al cambiar componente casagrandes: " + str(e))
             return None
         finally:
@@ -1931,7 +1896,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar info casagrande: " + str(e))
             return None
         finally:
@@ -1990,10 +1955,10 @@ class PiezometroModel:
     def mdlListarFechasPiezometroCuerda(tabla, idcomponente, idinstrumento, proyectoid):
         sql = f"""SELECT d.fecha_cuerda FROM {tabla} d
         INNER JOIN piezometrocuerdas p ON d.id_piezometro = p.id_piezometro
-		INNER JOIN instrumentacion i ON p.id_piezometro = i.id_equipo
-		INNER JOIN componentes c ON i.id_componente = c.id_componente
+        INNER JOIN instrumentacion i ON p.id_piezometro = i.id_equipo
+        INNER JOIN componentes c ON i.id_componente = c.id_componente
         WHERE c.id_proyecto = ? AND i.id_instrumentacion = ? AND c.id_componente = ?
-		ORDER BY d.fecha_cuerda;"""
+        ORDER BY d.fecha_cuerda;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -2003,7 +1968,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar fechas cuerda: " + str(e))
             return None
         finally:
@@ -2013,10 +1978,10 @@ class PiezometroModel:
     def mdlListarFechasPiezometroManual(tabla, idcomponente, idinstrumento, proyectoid):
         sql = f"""SELECT d.fecha_piezometro FROM {tabla} d
         INNER JOIN piezometromanuales p ON d.id_piezometro = p.id_piezometro
-		INNER JOIN instrumentacion i ON p.id_piezometro = i.id_equipo
-		INNER JOIN componentes c ON i.id_componente = c.id_componente
+        INNER JOIN instrumentacion i ON p.id_piezometro = i.id_equipo
+        INNER JOIN componentes c ON i.id_componente = c.id_componente
         WHERE c.id_proyecto = ? AND i.id_instrumentacion = ? AND c.id_componente = ?
-		ORDER BY d.fecha_piezometro;"""
+        ORDER BY d.fecha_piezometro;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -2026,7 +1991,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar fechas manual: " + str(e))
             return None
         finally:
@@ -2035,10 +2000,9 @@ class PiezometroModel:
     
     def mdlObtenerResumenCuerdaReporte(idproyecto, idcomponente, fechaini, fechafin):
         # Consulta para obtener los IDs de los equipos filtrados
-        filtro_sql = """
-        SELECT id_equipo
+        filtro_sql = """SELECT id_equipo
         FROM instrumentacion
-        WHERE tipo_equipo = 'PIEZOMETROCUERDA' AND id_componente = ? AND estado_instrumentacion=1
+        WHERE tipo_equipo = 'PIEZOMETROCUERDA' AND id_componente = ? AND estado_instrumentacion = 1
         """
         try:
             conn = Connection.connectionDB()
@@ -2046,30 +2010,27 @@ class PiezometroModel:
             # Ejecutar la consulta de filtro
             cur.execute(filtro_sql, (idcomponente,))
             filtro_rows = cur.fetchall()
-
             # Si no hay equipos filtrados, retornar None
             if not filtro_rows:
                 return None
-
             # Extraer los IDs de los equipos filtrados
             filtro_ids = [row[0] for row in filtro_rows]
-
             # Consulta principal modificada para usar los IDs filtrados
             sql = f"""
-            SELECT p.id_piezometro,p.nombre_piezometro, strftime('%d/%m/%Y', '{fechaini}') AS fechaini,
-            strftime('%d/%m/%Y', '{fechafin}') AS fechafin,
+            SELECT p.id_piezometro, p.nombre_piezometro, FORMAT(CAST(? AS DATE), 'dd/MM/yyyy') AS fechaini,
+            FORMAT(CAST(? AS DATE), 'dd/MM/yyyy') AS fechafin,
             COALESCE(
-                (SELECT c2.nivel_cota
+                (SELECT TOP 1 c2.nivel_cota
                 FROM cotas_piezometricas c2
                 WHERE c2.id_piezometro = d.id_piezometro
                 AND c2.tipo_piezometro = 'PCV'
                 AND c2.fecha_cota <= d.fecha_cuerda
-                ORDER BY c2.fecha_cota DESC LIMIT 1),
-                (SELECT c3.nivel_cota
+                ORDER BY c2.fecha_cota DESC),
+                (SELECT TOP 1 c3.nivel_cota
                 FROM cotas_piezometricas c3
                 WHERE c3.id_piezometro = d.id_piezometro
                 AND c3.tipo_piezometro = 'PCV'
-                ORDER BY c3.fecha_cota ASC LIMIT 1)
+                ORDER BY c3.fecha_cota ASC)
             ) AS cota_terreno,
             CASE
                 WHEN p.tipo_piezometro = 1 THEN p.elevacion_piezometro + d.medida_calculada
@@ -2088,27 +2049,23 @@ class PiezometroModel:
             AND p.id_piezometro IN ({','.join(['?']*len(filtro_ids))})
             ORDER BY p.nombre_piezometro;
             """
-
             # Ejecutar la consulta principal con los parámetros adicionales
-            cur.execute(sql, (idproyecto, fechaini, fechafin, fechaini, fechafin, *filtro_ids))
+            cur.execute(sql, (fechaini, fechafin, idproyecto, fechaini, fechafin, fechaini, fechafin, *filtro_ids))
             row = cur.fetchall()
-
             if row:
                 return row
             else:
                 return None
-
-        except Error as e:
+        except Exception as e:
             print("Error al resumir piezometros: " + str(e))
             return None
-
         finally:
             if conn:
                 conn.close()
                 
     def mdlObtenerResumenCasagrandeReporte(idproyecto, idcomponente, fechaini, fechafin):
         filtro_sql = """SELECT id_equipo FROM instrumentacion
-        WHERE tipo_equipo = 'PIEZOMETROMANUAL' AND id_componente = ? AND estado_instrumentacion=1;"""
+        WHERE tipo_equipo = 'PIEZOMETROMANUAL' AND id_componente = ? AND estado_instrumentacion = 1;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -2126,25 +2083,25 @@ class PiezometroModel:
                 SELECT p.id_piezometro, p.nombre_piezometro, p.tipo_piezometro, d.fecha_piezometro, d.medida_piezometro, d.observacion_detalle,
                 p.stickup_piezometro, p.elevacion_piezometro AS instalacion,
                 COALESCE(
-                    (SELECT c2.nivel_cota
+                    (SELECT TOP 1 c2.nivel_cota
                     FROM cotas_piezometricas c2
                     WHERE c2.id_piezometro = d.id_piezometro
                     AND c2.tipo_piezometro = 'PVC'
                     AND c2.fecha_cota <= d.fecha_piezometro
-                    ORDER BY c2.fecha_cota DESC LIMIT 1),
-                    (SELECT c3.nivel_cota
+                    ORDER BY c2.fecha_cota DESC),
+                    (SELECT TOP 1 c3.nivel_cota
                     FROM cotas_piezometricas c3
                     WHERE c3.id_piezometro = d.id_piezometro
                     AND c3.tipo_piezometro = 'PVC'
-                    ORDER BY c3.fecha_cota ASC LIMIT 1)
+                    ORDER BY c3.fecha_cota ASC)
                 ) AS elevacion,
                 ROW_NUMBER() OVER (PARTITION BY p.id_piezometro ORDER BY d.fecha_piezometro DESC) AS row_num
                 FROM piezometromanuales p INNER JOIN piezometromanual_detalle{idproyecto} d ON p.id_piezometro = d.id_piezometro
                 WHERE p.id_proyecto = ? AND d.fecha_piezometro BETWEEN ? AND ? AND d.estado_manual = 1
                 AND p.id_piezometro IN ({','.join(['?']*len(filtro_ids))})
             )
-            SELECT id_piezometro,nombre_piezometro, strftime('%d/%m/%Y', '{fechaini}') AS fechaini,
-            strftime('%d/%m/%Y', '{fechafin}') AS fechafin, elevacion,
+            SELECT id_piezometro, nombre_piezometro, FORMAT(CAST(? AS DATE), 'dd/MM/yyyy') AS fechaini,
+            FORMAT(CAST(? AS DATE), 'dd/MM/yyyy') AS fechafin, elevacion,
             CASE
                 WHEN tipo_piezometro = 1 THEN stickup_piezometro + elevacion - medida_piezometro
                 ELSE medida_piezometro
@@ -2152,13 +2109,13 @@ class PiezometroModel:
             FROM cte_cota WHERE row_num = 1 ORDER BY nombre_piezometro;
             """
             # Ejecutar la consulta principal con los parámetros adicionales
-            cur.execute(sql, (idproyecto, fechaini, fechafin, *filtro_ids))
+            cur.execute(sql, (idproyecto, fechaini, fechafin, *filtro_ids, fechaini, fechafin))
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al resumir piezometros: " + str(e))
             return None
         finally:
@@ -2178,7 +2135,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer data piezometro: " + str(e))
             return None
         finally:
@@ -2196,7 +2153,7 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer info cota piezometrica: " + str(e))
             return None
         finally:
@@ -2211,7 +2168,7 @@ class PiezometroModel:
             cur.execute(sql, (nuevocomponente, idinstrumento))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al cambiar componente piezometro: " + str(e))
             return False
         finally:
@@ -2229,19 +2186,19 @@ class PiezometroModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al traer formulas piezo: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mdlOmitirLecturaPiezometro(tabla,idPiezo,fecha,campo,campo_fecha):
+    def mdlOmitirLecturaPiezometro(tabla, idPiezo, fecha, campo, campo_fecha):
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            query_update = f"""UPDATE {tabla} SET {campo} = 0 WHERE id_piezometro = ? AND {campo_fecha}=?;"""
-            cursor.execute(query_update, (idPiezo,fecha))
+            query_update = f"""UPDATE {tabla} SET {campo} = 0 WHERE id_piezometro = ? AND {campo_fecha} = ?;"""
+            cursor.execute(query_update, (idPiezo, fecha))
             conn.commit()
             return True
         except Exception as e:
@@ -2250,3 +2207,4 @@ class PiezometroModel:
         finally:
             if conn:
                 conn.close()
+    

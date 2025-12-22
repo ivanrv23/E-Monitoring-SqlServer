@@ -1,5 +1,4 @@
 from services.security.apis.conexiones.conexion import Connection
-from sqlite3 import Error
 
 class EmpresaModel:
        
@@ -7,28 +6,23 @@ class EmpresaModel:
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
-
-            # Verificar si la empresa ya existe
-            cursor.execute("SELECT id_empresa FROM empresa LIMIT 1")
+            # Verificar si la empresa ya existe (SQL Server)
+            cursor.execute("SELECT TOP 1 id_empresa FROM empresa")
             empresa_existente = cursor.fetchone()
-
             campos = ["nombre_empresa = ?", "ruc_empresa = ?", "telefono_empresa = ?", "correo_empresa = ?"]
             valores = [datos['nombre_empresa'], datos['codigo_ruc'], datos['numero_contacto'], datos['correo_electronico']]
-
             if 'logo' in datos and datos['logo'] is not None:
                 campos.append("logo_empresa = ?")
                 valores.append(datos['logo'])
-
             if empresa_existente:
                 # Actualizar la información de la empresa
                 sql = f"UPDATE empresa SET {', '.join(campos)} WHERE id_empresa = ?"
                 valores.append(empresa_existente[0])
             else:
                 # Insertar una nueva empresa
-                sql = f"INSERT INTO empresa (nombre_empresa, ruc_empresa, telefono_empresa, correo_empresa, logo_empresa) VALUES (?, ?, ?, ?, ?)"
+                sql = "INSERT INTO empresa (nombre_empresa, ruc_empresa, telefono_empresa, correo_empresa, logo_empresa) VALUES (?, ?, ?, ?, ?)"
                 if 'logo' not in datos or datos['logo'] is None:
                     valores.append(None)  # Asegurarse de que el logo sea None si no se proporciona
-
             cursor.execute(sql, valores)
             conexion.commit()
             return True
@@ -43,30 +37,25 @@ class EmpresaModel:
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
-
             # Construir la consulta SQL dinámicamente
             campos = ["responsable = ?", "cargo = ?", "dni = ?", "cip = ?"]
             valores = [datos['nombre_responsable'], datos['cargo'], datos['dni'], datos['cip']]
-
             if 'firma' in datos and datos['firma'] is not None:
                 campos.append("firma = ?")
                 valores.append(datos['firma'])
-
             # Verificar si ya existe un registro
             cursor.execute("SELECT COUNT(*) FROM personal_empresa WHERE id_proyecto = ?", (proyectoid,))
             resultado = cursor.fetchone()
-
             if resultado[0] > 0:
                 # Si existe, hacer un UPDATE dinámico
                 sql = f"UPDATE personal_empresa SET {', '.join(campos)} WHERE id_proyecto = ?"
                 valores.append(proyectoid)
             else:
                 # Si no existe, hacer un INSERT
-                columnas = [campo.split('=')[0] for campo in campos]
+                columnas = [campo.split('=')[0].strip() for campo in campos]
                 columnas.append('id_proyecto')
                 sql = f"INSERT INTO personal_empresa ({', '.join(columnas)}) VALUES ({', '.join(['?' for _ in range(len(valores) + 1)])})"
                 valores.append(proyectoid)
-
             cursor.execute(sql, valores)
             conexion.commit()
             return True
@@ -82,13 +71,13 @@ class EmpresaModel:
         sql = """SELECT * FROM empresa"""
         try:
             cur = conn.cursor()
-            cur.execute(sql,)
+            cur.execute(sql)
             row = cur.fetchone()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener información de empresa: " + str(e))
             return None
         finally:
@@ -106,7 +95,7 @@ class EmpresaModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener info licencia:", e)
             return None
         finally:
@@ -118,13 +107,13 @@ class EmpresaModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql,)
+            cur.execute(sql)
             row = cur.fetchone()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener configuracion soft: " + str(e))
             return None
         finally:
@@ -136,13 +125,13 @@ class EmpresaModel:
         sql = """SELECT * FROM empresa;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql,)
+            cur.execute(sql)
             row = cur.fetchone()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener empresa: " + str(e))
             return None
         finally:
@@ -154,13 +143,11 @@ class EmpresaModel:
             # Establecer la conexión con la base de datos
             conn = Connection.connectionDB()
             sql = """SELECT * FROM firmas WHERE id_proyecto = ?;"""
-            with conn:
-                cur = conn.cursor()
-                cur.execute(sql, (proyectoid,))
-                row = cur.fetchone()
-                # Retornar la fila si existe, de lo contrario retornar None
-                return row if row else None
-        except Error as e:
+            cur = conn.cursor()
+            cur.execute(sql, (proyectoid,))
+            row = cur.fetchone()
+            return row if row else None
+        except Exception as e:
             print(f"Error al obtener configuración del responsable: {e}")
             return None
         finally:
@@ -172,13 +159,13 @@ class EmpresaModel:
         sql = """SELECT * FROM personal_empresa WHERE tipo = 0;"""
         try:
             cur = conn.cursor()
-            cur.execute(sql,)
+            cur.execute(sql)
             row = cur.fetchall()
             if row:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener firmas: " + str(e))
             return None
         finally:
@@ -194,7 +181,7 @@ class EmpresaModel:
             cur.execute(sql, (supervision, responsable, comentario, firma))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print(f"Error al insertar firma: {e}")
             return False
         finally:
@@ -212,7 +199,7 @@ class EmpresaModel:
                 return True
             else:
                 return False
-        except Error as e:
+        except Exception as e:
             print("Error al eliminar firma: " + str(e))
             return False
         finally:
@@ -224,17 +211,12 @@ class EmpresaModel:
             # Establecer la conexión con la base de datos
             conn = Connection.connectionDB()
             sql = """SELECT * FROM personal_empresa WHERE tipo = ?"""
-
-            # Usar el manejo de contexto para asegurar que el cursor se cierre correctamente
-            with conn:
-                cur = conn.cursor()
-                cur.execute(sql, (0,))
-                row = cur.fetchall()
-
-                # Retornar la fila si existe, de lo contrario retornar None
-                return row if row else None
-
-        except Error as e:
+            cur = conn.cursor()
+            cur.execute(sql, (0,))
+            row = cur.fetchall()
+            # Retornar la fila si existe, de lo contrario retornar None
+            return row if row else None
+        except Exception as e:
             print(f"Error al obtener configuración del responsable: {e}")
             return None
         finally:
@@ -263,8 +245,9 @@ class EmpresaModel:
                 datos['mostrarlluvia'], datos['velocidad_celda']
             ]
             if resultado[0] > 0:
+                # Si existe, actualizar el registro (SQL Server)
                 set_clause = ', '.join([f"{campo} = ?" for campo in campos])
-                sql = f"UPDATE configuraciongrafica SET {set_clause} WHERE id_configuracion = (SELECT id_configuracion FROM configuraciongrafica LIMIT 1)"
+                sql = f"UPDATE configuraciongrafica SET {set_clause} WHERE id_configuracion = (SELECT TOP 1 id_configuracion FROM configuraciongrafica)"
             else:
                 # Si no existe, inserta un nuevo registro
                 placeholders = ', '.join(['?' for _ in campos])
@@ -272,7 +255,7 @@ class EmpresaModel:
             cursor.execute(sql, valores)
             conexion.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print(f"Error al actualizar ajustes software: {e}")
             return False
         finally:
