@@ -8,15 +8,15 @@ class DatosModel:
     @staticmethod
     def mdlObtenerListaPrismasMarcados(tabla, zona, prismas):
         placeholders = ','.join(['?'] * len(prismas))
-        # T-SQL compatible
-        sql = f"""SELECT nombre_equipo FROM instrumentacion AS it INNER JOIN componentes AS co ON co.id_componente = it.id_componente
+        sql = f"""SELECT nombre_equipo FROM instrumentacion AS it 
+        INNER JOIN componentes AS co ON co.id_componente = it.id_componente
         WHERE it.nombre_equipo IN ({placeholders}) AND co.nombre_componente = ? AND tabla_equipo = ?;"""
         
         conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + [zona] + [tabla])
+            cur.execute(sql, prismas + [zona, tabla])
             results = cur.fetchall()
             return results if results else None
         except Exception as e:
@@ -29,10 +29,6 @@ class DatosModel:
     def mdlObtenerDataPrismasPositiva(tabla, idzona, tipoequipo, prismas, estado, decimales):
         placeholders = ', '.join(['?' for _ in prismas])
         params = [idzona] + [tipoequipo] + prismas + [idzona] + [tipoequipo] + prismas
-        
-        # CAMBIOS CRÍTICOS:
-        # 1. julianday(...) -> se cambia por DATEDIFF(SECOND, ...) / 86400.0 para obtener fracción de días.
-        # 2. Se usa NULLIF(..., 0) para evitar error de división por cero.
         
         sql = f"""WITH cte_prisma AS (
             SELECT it.tipo_equipo, p.id_prisma, p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, p.elevacion_target,
@@ -198,7 +194,6 @@ class DatosModel:
     def mdlObtenerInclinometros(proyecto_id, idzona, inclinometros, decimales):
         placeholders = ', '.join(['?' for _ in inclinometros])
         params = [idzona] + inclinometros
-        # Consulta estándar, compatible
         sql = f"""SELECT it.tipo_equipo, i.nombre_inclinometro, i.tipo_inclinometro, en.fecha_inclinometro,
             ROUND(de.profundidad_detalle, {decimales}) AS profundidad_detalle, de.apositivo_detalle, de.anegativo_detalle,
             de.bpositivo_detalle, de.bnegativo_detalle, ROUND(i.este_inclinometro, {decimales}) AS este_inclinometro,
@@ -233,10 +228,7 @@ class DatosModel:
             cur = conn.cursor()
             cur.execute(sql, (idpiezometro,))
             results = cur.fetchone()
-            if results:
-                return results
-            else:
-                return [0, None]
+            return results if results else [0, None]
         except Exception as e:
             print("Error al obtener formula cuerda:", e)
             return [0, None]
@@ -245,7 +237,6 @@ class DatosModel:
     
     @staticmethod
     def mdlObtenerPiezometrosCuerda(proyecto_id, idzona, idpiezometro, decimales):
-        # CAMBIO: LIMIT 1 -> TOP 1 (en subconsultas)
         sql = f"""SELECT it.tipo_equipo, p.nombre_piezometro, d.fecha_cuerda, ROUND(d.frecuencia_cuerda, {decimales}) AS frecuencia_cuerda,
             ROUND(d.temperatura_cuerda, {decimales}) AS temperatura_cuerda,
             CASE 
@@ -306,7 +297,6 @@ class DatosModel:
     
     @staticmethod
     def mdlObtenerPiezometrosCuerdaFormula(proyecto_id, idzona, idpiezometro, formula, decimales):
-        # CAMBIO: LIMIT 1 -> TOP 1
         sql = f"""WITH piezometros AS (SELECT it.tipo_equipo, p.nombre_piezometro, d.fecha_cuerda,
             d.frecuencia_cuerda, d.temperatura_cuerda,
             ({formula}) AS presion_barometrica, p.elevacion_piezometro AS instalacion,
@@ -368,7 +358,6 @@ class DatosModel:
     def mdlObtenerPiezometrosManuales(proyecto_id, idzona, piezometros, decimales):
         placeholders = ', '.join(['?' for _ in piezometros])
         params = [idzona] + piezometros
-        # CAMBIO: LIMIT 1 -> TOP 1
         sql = f"""WITH cte_cota AS (
             SELECT it.tipo_equipo, p.nombre_piezometro, p.tipo_piezometro, d.fecha_piezometro, d.medida_piezometro,
             d.observacion_detalle, p.stickup_piezometro, p.este_piezometro, p.norte_piezometro,
@@ -428,7 +417,6 @@ class DatosModel:
     def mdlObtenerPluviometros(proyecto_id, idzona, pluviometros, decimales):
         placeholders = ', '.join(['?' for _ in pluviometros])
         params = [idzona] + pluviometros
-        # Consulta estándar, compatible
         sql = f"""SELECT it.tipo_equipo, pm.nombre_pluviometro, pd.fecha_pluviometro,
             ROUND(pd.medida_pluviometro, {decimales}) AS medida_pluviometro, ROUND(pm.este_pluviometro, {decimales}) AS este_pluviometro,
             ROUND(pm.norte_pluviometro, {decimales}) AS norte_pluviometro, ROUND(pm.elevacion_pluviometro, {decimales}) AS elevacion_pluviometro,
@@ -479,7 +467,6 @@ class DatosModel:
     def mdlObtenerCeldasAsentamiento(proyecto_id, idzona, celdas, decimales):
         placeholders = ', '.join(['?' for _ in celdas])
         params = [idzona] + celdas
-        # CAMBIO: LIMIT 1 -> TOP 1
         sql = f"""SELECT it.tipo_equipo, ca.nombre_celda, cd.fecha_detalle, ROUND(cd.frecuencia_digits, {decimales}) AS frecuencia_digits,
             ROUND(cd.frecuencia_hz, {decimales}) AS frecuencia_hz, ROUND(cd.temperatura_detalle, {decimales}) AS temperatura_detalle,
             ROUND(cd.medida_calculada, {decimales}) AS medida_calculada,
@@ -515,7 +502,7 @@ class DatosModel:
             return None
         finally:
             if conn: conn.close()
-    
+
     @staticmethod
     def mdlObtenerAcelerografos(proyecto_id, idzona, acelerografos, decimales):
         placeholders = ', '.join(['?' for _ in acelerografos])
@@ -595,8 +582,6 @@ class DatosModel:
     def mdlRegistrarPrismasAutomatizadosUno(idproyecto, datos_procesados):
         respuesta = True
         nombretabla = f"prismas{idproyecto}"
-        
-        # Ajuste CREATE TABLE para SQL Server
         sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
         CREATE TABLE {nombretabla} (
             id_prisma INT IDENTITY(1,1) NOT NULL,
@@ -638,19 +623,13 @@ class DatosModel:
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            
-            # Crear tabla
             cursor.execute(sqltable)
             conn.commit()
             
-            # pyodbc no usa PRAGMAs, SQL Server no los soporta
-            # Verificación de registros existentes
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
-            
-            # Convertir fechas de SQL Server a string para comparar con dataframe
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if isinstance(row[1], datetime) else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
             total_registros = len(datos_procesados)
@@ -658,63 +637,44 @@ class DatosModel:
             lote_registros = []
             contador = 0
             
-            # Insert masivo
+            sql_insert = f"""
+                INSERT INTO {nombretabla} (
+                    state_prisma, nombre_prisma, perfil_prisma, hora_prisma, angulo_horizontal,
+                    angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, presion_prisma,
+                    temperatura_prisma, constante_prisma, este_target, norte_target, elevacion_target,
+                    altura_reflector, altura_instrumento, este_estacion, norte_estacion, altura_estacion,
+                    medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,
+                    diferencia_limitevelocidad, distancia_horizontal, diferencia_atipica,
+                    desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos
+                ) VALUES ({', '.join(['?'] * 30)})
+            """
+            
             for fila in datos_procesados.itertuples(index=False):
-                # fila[1] = nombre, fila[3] = hora (según CSV original)
-                # IMPORTANTE: Asegúrate que el DataFrame tenga la fecha como String 'YYYY-MM-DD HH:MM:SS'
-                if (fila[1], fila[3]) not in existing_records:
-                    lote_registros.append(fila)
+                if (fila[1], str(fila[3])) not in existing_records:
+                    datos_limpios = [None if pd.isna(x) else x for x in fila]
+                    lote_registros.append(tuple(datos_limpios))
                     contador += 1
                 
                 if contador % lote_tamano == 0:
-                    insert_query = f"""
-                        INSERT INTO {nombretabla} (
-                            state_prisma, nombre_prisma, perfil_prisma, hora_prisma, angulo_horizontal,
-                            angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, presion_prisma,
-                            temperatura_prisma, constante_prisma, este_target, norte_target, elevacion_target,
-                            altura_reflector, altura_instrumento, este_estacion, norte_estacion, altura_estacion,
-                            medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,
-                            diferencia_limitevelocidad, distancia_horizontal, diferencia_atipica,
-                            desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos
-                        ) VALUES ({', '.join(['?'] * len(fila))})
-                    """
-                    cursor.executemany(insert_query, lote_registros)
+                    cursor.executemany(sql_insert, lote_registros)
                     lote_registros = []
 
             if lote_registros:
-                insert_query = f"""
-                    INSERT INTO {nombretabla} (
-                        state_prisma, nombre_prisma, perfil_prisma, hora_prisma, angulo_horizontal,
-                        angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, presion_prisma,
-                        temperatura_prisma, constante_prisma, este_target, norte_target, elevacion_target,
-                        altura_reflector, altura_instrumento, este_estacion, norte_estacion, altura_estacion,
-                        medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,
-                        diferencia_limitevelocidad, distancia_horizontal, diferencia_atipica,
-                        desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos
-                    ) VALUES ({', '.join(['?'] * len(fila))})
-                """
-                cursor.executemany(insert_query, lote_registros)
+                cursor.executemany(sql_insert, lote_registros)
 
             conn.commit()
         except Exception as e:
-            print(f"Error al guardar datos prismas uno: {e}")
+            print(f"Error detallado SQL UNO: {e}")
             respuesta = False
             if conn: conn.rollback()
         finally:
             if conn: conn.close()
         return respuesta
     
-    
-    
-    
-#############################################################################################################
-
     @staticmethod
     def mdlRemplazarPrismasAutomatizadosUno(idproyecto, datos_procesados, componente=None):
         respuesta = True
         nombretabla = f"prismas{idproyecto}"
-        
-        # Sintaxis T-SQL
         sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
         CREATE TABLE {nombretabla} (
             id_prisma INT IDENTITY(1,1) NOT NULL,
@@ -756,88 +716,58 @@ class DatosModel:
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            
-            # Crear tabla
             cursor.execute(sqltable)
             conn.commit()
             
-            # NO USAR PRAGMAS EN SQL SERVER
-            
-            # Verificar registros en la tabla instrumentacion para eliminar
             if componente:
-                cursor.execute(f"""
-                    SELECT nombre_equipo FROM instrumentacion
-                    WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'
-                """, (componente,))
-                
+                cursor.execute(f"SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
                 rows = cursor.fetchall()
                 nombres_equipos = [row[0] for row in rows]
-                
-                # Eliminar registros en la tabla de prismas automatizados
                 if nombres_equipos:
                     placeholders = ','.join(['?'] * len(nombres_equipos))
-                    delete_sql = f"DELETE FROM {nombretabla} WHERE nombre_prisma IN ({placeholders})"
-                    cursor.execute(delete_sql, nombres_equipos)
-                
-                # Eliminar registros en la tabla instrumentacion
-                cursor.execute(f"""
-                    DELETE FROM instrumentacion
-                    WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'
-                """, (componente,))
+                    cursor.execute(f"DELETE FROM {nombretabla} WHERE nombre_prisma IN ({placeholders})", nombres_equipos)
+                cursor.execute(f"DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
             
-            # Verificación de registros existentes
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                # Normalizar fecha a string para comparar
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if isinstance(row[1], datetime) else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
-            total_registros = len(datos_procesados)
-            lote_tamano = max(5000, min(total_registros // 100, 10000))
+            lote_tamano = 5000
             lote_registros = []
             contador = 0
             
+            sql_insert = f"""
+                INSERT INTO {nombretabla} (
+                    state_prisma, nombre_prisma, perfil_prisma, hora_prisma, angulo_horizontal,
+                    angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, presion_prisma,
+                    temperatura_prisma, constante_prisma, este_target, norte_target, elevacion_target,
+                    altura_reflector, altura_instrumento, este_estacion, norte_estacion, altura_estacion,
+                    medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,
+                    diferencia_limitevelocidad, distancia_horizontal, diferencia_atipica,
+                    desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos
+                ) VALUES ({', '.join(['?'] * 30)})
+            """
+            
             for fila in datos_procesados.itertuples(index=False):
-                # fila[1] nombre, fila[3] hora
-                if (fila[1], fila[3]) not in existing_records:
-                    lote_registros.append(fila)
+                if (fila[1], str(fila[3])) not in existing_records:
+                    datos_limpios = [None if pd.isna(x) else x for x in fila]
+                    lote_registros.append(tuple(datos_limpios))
                     contador += 1
                 
                 if contador % lote_tamano == 0:
-                    insert_sql = f"""
-                        INSERT INTO {nombretabla} (
-                            state_prisma, nombre_prisma, perfil_prisma, hora_prisma, angulo_horizontal,
-                            angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, presion_prisma,
-                            temperatura_prisma, constante_prisma, este_target, norte_target, elevacion_target,
-                            altura_reflector, altura_instrumento, este_estacion, norte_estacion, altura_estacion,
-                            medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,
-                            diferencia_limitevelocidad, distancia_horizontal, diferencia_atipica,
-                            desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos
-                        ) VALUES ({', '.join(['?'] * len(fila))})
-                    """
-                    cursor.executemany(insert_sql, lote_registros)
+                    cursor.executemany(sql_insert, lote_registros)
                     lote_registros = []
-            
+
             if lote_registros:
-                insert_sql = f"""
-                    INSERT INTO {nombretabla} (
-                        state_prisma, nombre_prisma, perfil_prisma, hora_prisma, angulo_horizontal,
-                        angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, presion_prisma,
-                        temperatura_prisma, constante_prisma, este_target, norte_target, elevacion_target,
-                        altura_reflector, altura_instrumento, este_estacion, norte_estacion, altura_estacion,
-                        medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,
-                        diferencia_limitevelocidad, distancia_horizontal, diferencia_atipica,
-                        desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos
-                    ) VALUES ({', '.join(['?'] * len(fila))})
-                """
-                cursor.executemany(insert_sql, lote_registros)
-            
+                cursor.executemany(sql_insert, lote_registros)
+
             conn.commit()
         except Exception as e:
-            print(f"Error al reemplazar datos prismas uno: {e}")
-            if conn: conn.rollback()
+            print(f"Error detallado Reemplazar UNO: {e}")
             respuesta = False
+            if conn: conn.rollback()
         finally:
             if conn: conn.close()
         return respuesta
@@ -846,7 +776,6 @@ class DatosModel:
     def mdlRegistrarPrismasAutomatizadosDos(idproyecto, datos_procesados):
         respuesta = True
         nombretabla = f"prismas{idproyecto}"
-        
         sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
         CREATE TABLE {nombretabla} (
             id_prisma INT IDENTITY(1,1) NOT NULL,
@@ -891,44 +820,39 @@ class DatosModel:
             cursor.execute(sqltable)
             conn.commit()
             
-            # Verificar existentes
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if isinstance(row[1], datetime) else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
+            lote_tamano = 5000
             lote_registros = []
-            total_registros = len(datos_procesados)
-            lote_tamano = max(5000, min(total_registros // 100, 10000))
             contador = 0
             
+            sql_insert = f"""
+                INSERT INTO {nombretabla} (
+                    nombre_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, altura_reflector,
+                    altura_instrumento, este_target, norte_target, elevacion_target, hora_prisma)
+                VALUES ({', '.join(['?'] * 10)})
+            """
+            
             for fila in datos_procesados.itertuples(index=False):
-                # En estructura DOS: fila[0]=nombre, fila[9]=hora
-                if (fila[0], fila[9]) not in existing_records:
-                    lote_registros.append(fila)
+                if (fila[0], str(fila[9])) not in existing_records:
+                    datos_limpios = [None if pd.isna(x) else x for x in fila]
+                    lote_registros.append(tuple(datos_limpios))
                     contador += 1
                 
                 if contador % lote_tamano == 0:
-                    insert_sql = f"""
-                        INSERT INTO {nombretabla} (
-                            nombre_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, altura_reflector,
-                            altura_instrumento, este_target, norte_target, elevacion_target, hora_prisma)
-                        VALUES ({', '.join(['?'] * len(fila))});"""
-                    cursor.executemany(insert_sql, lote_registros)
+                    cursor.executemany(sql_insert, lote_registros)
                     lote_registros = []
 
             if lote_registros:
-                insert_sql = f"""
-                    INSERT INTO {nombretabla} (
-                        nombre_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, altura_reflector,
-                        altura_instrumento, este_target, norte_target, elevacion_target, hora_prisma)
-                    VALUES ({', '.join(['?'] * len(fila))});"""
-                cursor.executemany(insert_sql, lote_registros)
+                cursor.executemany(sql_insert, lote_registros)
 
             conn.commit()
         except Exception as e:
-            print(f"Error al guardar datos prismas dos: {e}")
+            print(f"Error detallado SQL DOS: {e}")
             respuesta = False
             if conn: conn.rollback()
         finally:
@@ -937,7 +861,6 @@ class DatosModel:
     
     @staticmethod
     def mdlRemplazarPrismasAutomatizadosDos(idproyecto, datos_procesados, componente=None):
-        # Misma estructura de tabla que las anteriores (Standard T-SQL)
         respuesta = True
         nombretabla = f"prismas{idproyecto}"
         sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
@@ -985,55 +908,49 @@ class DatosModel:
             conn.commit()
             
             if componente:
-                cursor.execute(f"""SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS';""", (componente,))
+                cursor.execute(f"SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
                 rows = cursor.fetchall()
                 nombres_equipos = [row[0] for row in rows]
-                
                 if nombres_equipos:
                     placeholders = ','.join(['?'] * len(nombres_equipos))
-                    cursor.execute(f"""DELETE FROM {nombretabla} WHERE nombre_prisma IN ({placeholders});""", nombres_equipos)
-                
-                cursor.execute(f"""DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS';""", (componente,))
+                    cursor.execute(f"DELETE FROM {nombretabla} WHERE nombre_prisma IN ({placeholders})", nombres_equipos)
+                cursor.execute(f"DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
             
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if isinstance(row[1], datetime) else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
+            lote_tamano = 5000
             lote_registros = []
-            total_registros = len(datos_procesados)
-            lote_tamano = max(5000, min(total_registros // 100, 10000))
             contador = 0
             
+            sql_insert = f"""
+                INSERT INTO {nombretabla} (
+                    nombre_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, altura_reflector,
+                    altura_instrumento, este_target, norte_target, elevacion_target, hora_prisma)
+                VALUES ({', '.join(['?'] * 10)})
+            """
+            
             for fila in datos_procesados.itertuples(index=False):
-                # fila[0]=nombre, fila[9]=hora
-                if (fila[0], fila[9]) not in existing_records:
-                    lote_registros.append(fila)
+                if (fila[0], str(fila[9])) not in existing_records:
+                    datos_limpios = [None if pd.isna(x) else x for x in fila]
+                    lote_registros.append(tuple(datos_limpios))
                     contador += 1
                 
                 if contador % lote_tamano == 0:
-                    insert_sql = f"""
-                        INSERT INTO {nombretabla} (
-                            nombre_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, altura_reflector,
-                            altura_instrumento, este_target, norte_target, elevacion_target, hora_prisma)
-                        VALUES ({', '.join(['?'] * len(fila))});"""
-                    cursor.executemany(insert_sql, lote_registros)
+                    cursor.executemany(sql_insert, lote_registros)
                     lote_registros = []
-            
+
             if lote_registros:
-                insert_sql = f"""
-                    INSERT INTO {nombretabla} (
-                        nombre_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, altura_reflector,
-                        altura_instrumento, este_target, norte_target, elevacion_target, hora_prisma)
-                    VALUES ({', '.join(['?'] * len(fila))});"""
-                cursor.executemany(insert_sql, lote_registros)
-            
+                cursor.executemany(sql_insert, lote_registros)
+
             conn.commit()
         except Exception as e:
-            print(f"Error al reemplazar datos prismas dos: {e}")
-            if conn: conn.rollback()
+            print(f"Error detallado Reemplazar DOS: {e}")
             respuesta = False
+            if conn: conn.rollback()
         finally:
             if conn: conn.close()
         return respuesta
@@ -1042,7 +959,6 @@ class DatosModel:
     def mdlRegistrarPrismasAutomatizadosTres(idproyecto, datos_procesados, encode, delimitador):
         equipos_unicos = set()
         nombretabla = f"prismas{idproyecto}"
-        
         sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
         CREATE TABLE {nombretabla} (
             id_prisma INT IDENTITY(1,1) NOT NULL,
@@ -1090,35 +1006,37 @@ class DatosModel:
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if isinstance(row[1], datetime) else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
             columnas_omitir = [2, 11, 14, 15, 16, 17]
             try:
                 df = pd.read_csv(datos_procesados, encoding=encode, sep=delimitador)
-            except Exception:
+            except:
                 df = pd.read_csv(datos_procesados, encoding=encode, sep=delimitador, engine='python')
                 
             df = df.dropna(how='all')
             todas_columnas = list(range(len(df.columns)))
             columnas_mantener = [col for col in todas_columnas if col not in columnas_omitir]
-            
-            # Limpieza de espacios en strings
             for col in columnas_mantener:
                 if df.iloc[:, col].dtype == object:
                     df.iloc[:, col] = df.iloc[:, col].apply(lambda x: x.strip() if isinstance(x, str) else x)
-            
             df_filtrado = df.iloc[:, columnas_mantener]
             
-            total_registros = len(df_filtrado)
-            lote_tamano = max(5000, min(total_registros // 100, 10000))
+            lote_tamano = 5000
             lote_registros = []
             contador = 0
+            
+            sql_insert = f"""INSERT INTO {nombretabla} (nombre_prisma, grupo_puntos, estado_prisma,
+                    hora_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, este_target, norte_target, elevacion_target,
+                    desplaza_transversal, desplaza_altura, perfil_prisma, medicion_prisma, tipoppm_prisma, ppm_prisma, presion_prisma, temperatura_prisma,
+                    constante_prisma, altura_reflector, altura_instrumento, este_estacion, norte_estacion, altura_estacion, diferencia_tiempocorto,
+                    diferencia_tiempolargo, diferencia_limitevelocidad, desplaza_longitudinal, distancia_horizontal, diferencia_atipica)
+                    VALUES ({', '.join(['?'] * 30)})"""
             
             for _, fila in df_filtrado.iterrows():
                 equipos_unicos.add(str(fila.iloc[0]))
                 
-                # Normalización de fecha para SQL Server
                 fecha_str = str(fila.iloc[3])
                 try:
                     fecha_limpia = fecha_str.split('+')[0].strip()
@@ -1127,55 +1045,44 @@ class DatosModel:
                     else:
                         fecha_obj = datetime.strptime(fecha_limpia, '%Y-%m-%d %H:%M:%S')
                     fechahora = fecha_obj.strftime('%Y-%m-%d %H:%M:%S')
-                except:
-                    fechahora = fecha_limpia # Fallback
-
-                # Comparar con existente
+                except ValueError:
+                    fechahora = fecha_limpia
+                
                 if (fila.iloc[0], fechahora) not in existing_records:
                     datos_fila = fila.tolist()
-                    datos_fila[3] = fechahora # Usar la fecha limpia
-                    lote_registros.append(tuple(datos_fila))
+                    datos_fila[3] = fechahora
+                    # LIMPIEZA
+                    datos_limpios = [None if pd.isna(x) else x for x in datos_fila]
+                    lote_registros.append(tuple(datos_limpios))
                     contador += 1
 
                 if contador % lote_tamano == 0:
                     unique_data = {(row[0], row[3]): row for row in lote_registros}
                     datalimpia = list(unique_data.values())
-                    
                     if datalimpia:
-                        insert_sql = f"""INSERT INTO {nombretabla} (nombre_prisma, grupo_puntos, estado_prisma,
-                        hora_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, este_target, norte_target, elevacion_target,
-                        desplaza_transversal, desplaza_altura, perfil_prisma, medicion_prisma, tipoppm_prisma, ppm_prisma, presion_prisma, temperatura_prisma,
-                        constante_prisma, altura_reflector, altura_instrumento, este_estacion, norte_estacion, altura_estacion, diferencia_tiempocorto,
-                        diferencia_tiempolargo, diferencia_limitevelocidad, desplaza_longitudinal, distancia_horizontal, diferencia_atipica)
-                        VALUES ({', '.join(['?'] * len(datalimpia[0]))});"""
-                        cursor.executemany(insert_sql, datalimpia)
+                        cursor.executemany(sql_insert, datalimpia)
                     lote_registros = []
 
             if lote_registros:
                 unique_data = {(row[0], row[3]): row for row in lote_registros}
                 datalimpia = list(unique_data.values())
                 if datalimpia:
-                    insert_sql = f"""INSERT INTO {nombretabla} (nombre_prisma, grupo_puntos, estado_prisma,
-                    hora_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, este_target, norte_target, elevacion_target,
-                    desplaza_transversal, desplaza_altura, perfil_prisma, medicion_prisma, tipoppm_prisma, ppm_prisma, presion_prisma, temperatura_prisma,
-                    constante_prisma, altura_reflector, altura_instrumento, este_estacion, norte_estacion, altura_estacion, diferencia_tiempocorto,
-                    diferencia_tiempolargo, diferencia_limitevelocidad, desplaza_longitudinal, distancia_horizontal, diferencia_atipica)
-                    VALUES ({', '.join(['?'] * len(datalimpia[0]))});"""
-                    cursor.executemany(insert_sql, datalimpia)
+                    cursor.executemany(sql_insert, datalimpia)
             
             conn.commit()
             return True, list(equipos_unicos)
         except Exception as e:
-            print(f"Error al guardar datos prismas tres: {e}")
+            print(f"Error detallado SQL TRES: {e}")
             if conn: conn.rollback()
             return False, []
         finally:
             if conn: conn.close()
-    
+            
     @staticmethod
     def mdlRemplazarPrismasAutomatizadosTres(idproyecto, datos_procesados, encode, delimitador, componente=None):
         equipos_unicos = set()
         nombretabla = f"prismas{idproyecto}"
+        
         sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
         CREATE TABLE {nombretabla} (
             id_prisma INT IDENTITY(1,1) NOT NULL,
@@ -1221,26 +1128,24 @@ class DatosModel:
             conn.commit()
             
             if componente:
-                cursor.execute(f"""SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS';""", (componente,))
+                cursor.execute(f"SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
                 rows = cursor.fetchall()
                 nombres_equipos = [row[0] for row in rows]
-                
                 if nombres_equipos:
                     placeholders = ','.join(['?'] * len(nombres_equipos))
-                    cursor.execute(f"""DELETE FROM {nombretabla} WHERE nombre_prisma IN ({placeholders});""", nombres_equipos)
-                
-                cursor.execute(f"""DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS';""", (componente,))
+                    cursor.execute(f"DELETE FROM {nombretabla} WHERE nombre_prisma IN ({placeholders})", nombres_equipos)
+                cursor.execute(f"DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
             
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if isinstance(row[1], datetime) else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
             columnas_omitir = [2, 11, 14, 15, 16, 17]
             try:
                 df = pd.read_csv(datos_procesados, encoding=encode, sep=delimitador)
-            except Exception:
+            except:
                 df = pd.read_csv(datos_procesados, encoding=encode, sep=delimitador, engine='python')
                 
             df = df.dropna(how='all')
@@ -1249,12 +1154,18 @@ class DatosModel:
             for col in columnas_mantener:
                 if df.iloc[:, col].dtype == object:
                     df.iloc[:, col] = df.iloc[:, col].apply(lambda x: x.strip() if isinstance(x, str) else x)
-            
             df_filtrado = df.iloc[:, columnas_mantener]
-            total_registros = len(df_filtrado)
-            lote_tamano = max(5000, min(total_registros // 100, 10000))
+            
+            lote_tamano = 5000
             lote_registros = []
             contador = 0
+            
+            sql_insert = f"""INSERT INTO {nombretabla} (nombre_prisma, grupo_puntos, estado_prisma,
+                    hora_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, este_target, norte_target, elevacion_target,
+                    desplaza_transversal, desplaza_altura, perfil_prisma, medicion_prisma, tipoppm_prisma, ppm_prisma, presion_prisma, temperatura_prisma,
+                    constante_prisma, altura_reflector, altura_instrumento, este_estacion, norte_estacion, altura_estacion, diferencia_tiempocorto,
+                    diferencia_tiempolargo, diferencia_limitevelocidad, desplaza_longitudinal, distancia_horizontal, diferencia_atipica)
+                    VALUES ({', '.join(['?'] * 30)})"""
             
             for _, fila in df_filtrado.iterrows():
                 equipos_unicos.add(str(fila.iloc[0]))
@@ -1267,44 +1178,34 @@ class DatosModel:
                     else:
                         fecha_obj = datetime.strptime(fecha_limpia, '%Y-%m-%d %H:%M:%S')
                     fechahora = fecha_obj.strftime('%Y-%m-%d %H:%M:%S')
-                except:
+                except ValueError:
                     fechahora = fecha_limpia
-
+                
                 if (fila.iloc[0], fechahora) not in existing_records:
                     datos_fila = fila.tolist()
                     datos_fila[3] = fechahora
-                    lote_registros.append(tuple(datos_fila))
+                    # LIMPIEZA
+                    datos_limpios = [None if pd.isna(x) else x for x in datos_fila]
+                    lote_registros.append(tuple(datos_limpios))
                     contador += 1
 
                 if contador % lote_tamano == 0:
                     unique_data = {(row[0], row[3]): row for row in lote_registros}
                     datalimpia = list(unique_data.values())
                     if datalimpia:
-                        insert_sql = f"""INSERT INTO {nombretabla} (nombre_prisma, grupo_puntos, estado_prisma,
-                        hora_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, este_target, norte_target, elevacion_target,
-                        desplaza_transversal, desplaza_altura, perfil_prisma, medicion_prisma, tipoppm_prisma, ppm_prisma, presion_prisma, temperatura_prisma,
-                        constante_prisma, altura_reflector, altura_instrumento, este_estacion, norte_estacion, altura_estacion, diferencia_tiempocorto,
-                        diferencia_tiempolargo, diferencia_limitevelocidad, desplaza_longitudinal, distancia_horizontal, diferencia_atipica)
-                        VALUES ({', '.join(['?'] * len(datalimpia[0]))});"""
-                        cursor.executemany(insert_sql, datalimpia)
+                        cursor.executemany(sql_insert, datalimpia)
                     lote_registros = []
 
             if lote_registros:
                 unique_data = {(row[0], row[3]): row for row in lote_registros}
                 datalimpia = list(unique_data.values())
                 if datalimpia:
-                    insert_sql = f"""INSERT INTO {nombretabla} (nombre_prisma, grupo_puntos, estado_prisma,
-                    hora_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, este_target, norte_target, elevacion_target,
-                    desplaza_transversal, desplaza_altura, perfil_prisma, medicion_prisma, tipoppm_prisma, ppm_prisma, presion_prisma, temperatura_prisma,
-                    constante_prisma, altura_reflector, altura_instrumento, este_estacion, norte_estacion, altura_estacion, diferencia_tiempocorto,
-                    diferencia_tiempolargo, diferencia_limitevelocidad, desplaza_longitudinal, distancia_horizontal, diferencia_atipica)
-                    VALUES ({', '.join(['?'] * len(datalimpia[0]))});"""
-                    cursor.executemany(insert_sql, datalimpia)
+                    cursor.executemany(sql_insert, datalimpia)
             
             conn.commit()
             return True, list(equipos_unicos)
         except Exception as e:
-            print(f"Error al reemplazar datos prismas tres: {e}")
+            print(f"Error detallado Reemplazar TRES: {e}")
             if conn: conn.rollback()
             return True, []
         finally:
@@ -1314,7 +1215,6 @@ class DatosModel:
     def mdlRegistrarPrismasAutomatizadosCuatro(idproyecto, datos_procesados):
         respuesta = True
         nombretabla = f"prismas{idproyecto}"
-        
         sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
         CREATE TABLE {nombretabla} (
             id_prisma INT IDENTITY(1,1) NOT NULL,
@@ -1362,44 +1262,38 @@ class DatosModel:
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if isinstance(row[1], datetime) else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
+            lote_tamano = 5000
             lote_registros = []
-            total_registros = len(datos_procesados)
-            lote_tamano = max(5000, min(total_registros // 100, 10000))
             contador = 0
             
+            sql_insert = f"""
+                INSERT INTO {nombretabla} (
+                    state_prisma, nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target, distancia_prisma,
+                    angulo_horizontal, angulo_vertical, ppm_prisma, diferencia_tiempolargo, diferencia_limitevelocidad,
+                    diferencia_atipica, desplaza_longitudinal, desplaza_transversal, desplaza_altura
+                ) VALUES ({', '.join(['?'] * 16)})
+            """
+            
             for fila in datos_procesados.itertuples(index=False):
-                # En CUATRO: fila[1]=nombre, fila[2]=hora
-                if (fila[1], fila[2]) not in existing_records:
-                    lote_registros.append(fila)
+                if (fila[1], str(fila[2])) not in existing_records:
+                    # LIMPIEZA
+                    datos_limpios = [None if pd.isna(x) else x for x in fila]
+                    lote_registros.append(tuple(datos_limpios))
                     contador += 1
                 
                 if contador % lote_tamano == 0:
-                    insert_sql = f"""
-                        INSERT INTO {nombretabla} (
-                            state_prisma, nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target, distancia_prisma,
-                            angulo_horizontal, angulo_vertical, ppm_prisma, diferencia_tiempolargo, diferencia_limitevelocidad,
-                            diferencia_atipica, desplaza_longitudinal, desplaza_transversal, desplaza_altura
-                        ) VALUES ({', '.join(['?'] * len(fila))})
-                    """
-                    cursor.executemany(insert_sql, lote_registros)
+                    cursor.executemany(sql_insert, lote_registros)
                     lote_registros = []
 
             if lote_registros:
-                insert_sql = f"""
-                    INSERT INTO {nombretabla} (
-                        state_prisma, nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target, distancia_prisma,
-                        angulo_horizontal, angulo_vertical, ppm_prisma, diferencia_tiempolargo, diferencia_limitevelocidad,
-                        diferencia_atipica, desplaza_longitudinal, desplaza_transversal, desplaza_altura
-                    ) VALUES ({', '.join(['?'] * len(fila))})
-                """
-                cursor.executemany(insert_sql, lote_registros)
+                cursor.executemany(sql_insert, lote_registros)
 
             conn.commit()
         except Exception as e:
-            print(f"Error al guardar datos prismas cuatro: {e}")
+            print(f"Error detallado SQL CUATRO: {e}")
             respuesta = False
             if conn: conn.rollback()
         finally:
@@ -1455,59 +1349,51 @@ class DatosModel:
             conn.commit()
             
             if componente:
-                cursor.execute(f"""SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS';""", (componente,))
+                cursor.execute(f"SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
                 rows = cursor.fetchall()
                 nombres_equipos = [row[0] for row in rows]
-                
                 if nombres_equipos:
                     placeholders = ','.join(['?'] * len(nombres_equipos))
-                    cursor.execute(f"""DELETE FROM {nombretabla} WHERE nombre_prisma IN ({placeholders});""", nombres_equipos)
-                
-                cursor.execute(f"""DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS';""", (componente,))
+                    cursor.execute(f"DELETE FROM {nombretabla} WHERE nombre_prisma IN ({placeholders})", nombres_equipos)
+                cursor.execute(f"DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
             
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if isinstance(row[1], datetime) else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
+            lote_tamano = 5000
             lote_registros = []
-            total_registros = len(datos_procesados)
-            lote_tamano = max(5000, min(total_registros // 100, 10000))
             contador = 0
             
+            sql_insert = f"""
+                INSERT INTO {nombretabla} (
+                    state_prisma, nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target, distancia_prisma,
+                    angulo_horizontal, angulo_vertical, ppm_prisma, diferencia_tiempolargo, diferencia_limitevelocidad,
+                    diferencia_atipica, desplaza_longitudinal, desplaza_transversal, desplaza_altura
+                ) VALUES ({', '.join(['?'] * 16)})
+            """
+            
             for fila in datos_procesados.itertuples(index=False):
-                # CUATRO: fila[1] nombre, fila[2] hora
-                if (fila[1], fila[2]) not in existing_records:
-                    lote_registros.append(fila)
+                if (fila[1], str(fila[2])) not in existing_records:
+                    # LIMPIEZA
+                    datos_limpios = [None if pd.isna(x) else x for x in fila]
+                    lote_registros.append(tuple(datos_limpios))
                     contador += 1
                 
                 if contador % lote_tamano == 0:
-                    insert_sql = f"""
-                        INSERT INTO {nombretabla} (
-                            state_prisma, nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target, distancia_prisma,
-                            angulo_horizontal, angulo_vertical, ppm_prisma, diferencia_tiempolargo, diferencia_limitevelocidad,
-                            diferencia_atipica, desplaza_longitudinal, desplaza_transversal, desplaza_altura
-                        ) VALUES ({', '.join(['?'] * len(fila))})
-                    """
-                    cursor.executemany(insert_sql, lote_registros)
+                    cursor.executemany(sql_insert, lote_registros)
                     lote_registros = []
-            
+
             if lote_registros:
-                insert_sql = f"""
-                    INSERT INTO {nombretabla} (
-                        state_prisma, nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target, distancia_prisma,
-                        angulo_horizontal, angulo_vertical, ppm_prisma, diferencia_tiempolargo, diferencia_limitevelocidad,
-                        diferencia_atipica, desplaza_longitudinal, desplaza_transversal, desplaza_altura
-                    ) VALUES ({', '.join(['?'] * len(fila))})
-                """
-                cursor.executemany(insert_sql, lote_registros)
-            
+                cursor.executemany(sql_insert, lote_registros)
+
             conn.commit()
         except Exception as e:
-            print(f"Error al reemplazar datos prismas cuatro: {e}")
-            if conn: conn.rollback()
+            print(f"Error detallado Reemplazar CUATRO: {e}")
             respuesta = False
+            if conn: conn.rollback()
         finally:
             if conn: conn.close()
         return respuesta
@@ -1516,7 +1402,6 @@ class DatosModel:
     def mdlRegistrarPrismasAutomatizadosCinco(idproyecto, datos_procesados):
         respuesta = True
         nombretabla = f"prismas{idproyecto}"
-        
         sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
         CREATE TABLE {nombretabla} (
             id_prisma INT IDENTITY(1,1) NOT NULL,
@@ -1564,52 +1449,45 @@ class DatosModel:
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if isinstance(row[1], datetime) else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
+            lote_tamano = 5000
             lote_registros = []
-            total_registros = len(datos_procesados)
-            lote_tamano = max(5000, min(total_registros // 100, 10000))
             contador = 0
             
+            sql_insert = f"""
+                INSERT INTO {nombretabla} (
+                    hora_prisma,nombre_prisma,este_target, norte_target, elevacion_target,altura_reflector, altura_instrumento,
+                    state_prisma,este_estacion, norte_estacion, altura_estacion,medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,perfil_prisma,
+                    distancia_horizontal, diferencia_atipica,desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos,
+                    angulo_horizontal,angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, presion_prisma,temperatura_prisma, constante_prisma
+                ) VALUES ({', '.join(['?'] * 29)})
+            """
+            
             for fila in datos_procesados.itertuples(index=False):
-                # CINCO: fila[1] nombre, fila[0] hora
-                if (fila[1], fila[0]) not in existing_records:
-                    lote_registros.append(fila)
+                if (fila[1], str(fila[0])) not in existing_records:
+                    # LIMPIEZA
+                    datos_limpios = [None if pd.isna(x) else x for x in fila]
+                    lote_registros.append(tuple(datos_limpios))
                     contador += 1
                 
                 if contador % lote_tamano == 0:
-                    insert_sql = f"""
-                        INSERT INTO {nombretabla} (
-                            hora_prisma,nombre_prisma,este_target, norte_target, elevacion_target,altura_reflector, altura_instrumento,
-                            state_prisma,este_estacion, norte_estacion, altura_estacion,medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,perfil_prisma,
-                            distancia_horizontal, diferencia_atipica,desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos,
-                            angulo_horizontal,angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, presion_prisma,temperatura_prisma, constante_prisma
-                        ) VALUES ({', '.join(['?'] * len(fila))})
-                    """
-                    cursor.executemany(insert_sql, lote_registros)
+                    cursor.executemany(sql_insert, lote_registros)
                     lote_registros = []
 
             if lote_registros:
-                insert_sql = f"""
-                    INSERT INTO {nombretabla} (
-                        hora_prisma,nombre_prisma,este_target, norte_target, elevacion_target,altura_reflector, altura_instrumento,
-                        state_prisma,este_estacion, norte_estacion, altura_estacion,medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,perfil_prisma,
-                        distancia_horizontal, diferencia_atipica,desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos,
-                        angulo_horizontal,angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, presion_prisma,temperatura_prisma, constante_prisma
-                    ) VALUES ({', '.join(['?'] * len(fila))})
-                """
-                cursor.executemany(insert_sql, lote_registros)
+                cursor.executemany(sql_insert, lote_registros)
 
             conn.commit()
         except Exception as e:
-            print(f"Error al guardar datos prismas cinco: {e}")
+            print(f"Error detallado SQL CINCO: {e}")
             respuesta = False
             if conn: conn.rollback()
         finally:
             if conn: conn.close()
         return respuesta
-
+    
     @staticmethod
     def mdlRemplazarPrismasAutomatizadosCinco(idproyecto, datos_procesados, componente=None):
         respuesta = True
@@ -1659,69 +1537,56 @@ class DatosModel:
             conn.commit()
             
             if componente:
-                cursor.execute(f"""SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS';""", (componente,))
+                cursor.execute(f"SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
                 rows = cursor.fetchall()
                 nombres_equipos = [row[0] for row in rows]
-                
                 if nombres_equipos:
                     placeholders = ','.join(['?'] * len(nombres_equipos))
-                    cursor.execute(f"""DELETE FROM {nombretabla} WHERE nombre_prisma IN ({placeholders});""", nombres_equipos)
-                
-                cursor.execute(f"""DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS';""", (componente,))
+                    cursor.execute(f"DELETE FROM {nombretabla} WHERE nombre_prisma IN ({placeholders})", nombres_equipos)
+                cursor.execute(f"DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
             
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if isinstance(row[1], datetime) else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
+            lote_tamano = 5000
             lote_registros = []
-            total_registros = len(datos_procesados)
-            lote_tamano = max(5000, min(total_registros // 100, 10000))
             contador = 0
             
+            sql_insert = f"""
+                INSERT INTO {nombretabla} (
+                    hora_prisma,nombre_prisma,este_target, norte_target, elevacion_target,altura_reflector, altura_instrumento,
+                    state_prisma,este_estacion, norte_estacion, altura_estacion,medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,perfil_prisma,
+                    distancia_horizontal, diferencia_atipica,desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos,
+                    angulo_horizontal,angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, presion_prisma,temperatura_prisma, constante_prisma
+                ) VALUES ({', '.join(['?'] * 29)})
+            """
+            
             for fila in datos_procesados.itertuples(index=False):
-                # CINCO: fila[1] nombre, fila[0] hora
-                if (fila[1], fila[0]) not in existing_records:
-                    lote_registros.append(fila)
+                if (fila[1], str(fila[0])) not in existing_records:
+                    # LIMPIEZA
+                    datos_limpios = [None if pd.isna(x) else x for x in fila]
+                    lote_registros.append(tuple(datos_limpios))
                     contador += 1
                 
                 if contador % lote_tamano == 0:
-                    insert_sql = f"""
-                        INSERT INTO {nombretabla} (
-                            hora_prisma,nombre_prisma,este_target, norte_target, elevacion_target,altura_reflector, altura_instrumento,
-                            state_prisma,este_estacion, norte_estacion, altura_estacion,medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,perfil_prisma,
-                            distancia_horizontal, diferencia_atipica,desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos,
-                            angulo_horizontal,angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, presion_prisma,temperatura_prisma, constante_prisma
-                        ) VALUES ({', '.join(['?'] * len(fila))})
-                    """
-                    cursor.executemany(insert_sql, lote_registros)
+                    cursor.executemany(sql_insert, lote_registros)
                     lote_registros = []
-            
+
             if lote_registros:
-                insert_sql = f"""
-                    INSERT INTO {nombretabla} (
-                        hora_prisma,nombre_prisma,este_target, norte_target, elevacion_target,altura_reflector, altura_instrumento,
-                        state_prisma,este_estacion, norte_estacion, altura_estacion,medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,perfil_prisma,
-                        distancia_horizontal, diferencia_atipica,desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos,
-                        angulo_horizontal,angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, presion_prisma,temperatura_prisma, constante_prisma
-                    ) VALUES ({', '.join(['?'] * len(fila))})
-                """
-                cursor.executemany(insert_sql, lote_registros)
-            
+                cursor.executemany(sql_insert, lote_registros)
+
             conn.commit()
         except Exception as e:
-            print(f"Error al reemplazar datos prismas cinco: {e}")
-            if conn: conn.rollback()
+            print(f"Error detallado Reemplazar CINCO: {e}")
             respuesta = False
+            if conn: conn.rollback()
         finally:
             if conn: conn.close()
         return respuesta
     
-    
-    
-#############################################################################################################
-
     @staticmethod
     def mdlRegistrarInclinometro(idproyecto, datos):
         conn = None
@@ -1731,9 +1596,7 @@ class DatosModel:
 
             # Verificar si el nombre ya existe
             query_verificar = """
-            SELECT COUNT(*)
-            FROM inclinometros
-            WHERE nombre_inclinometro = ? AND id_proyecto = ?
+            SELECT COUNT(*) FROM inclinometros WHERE nombre_inclinometro = ? AND id_proyecto = ?
             """
             cur.execute(query_verificar, (datos['nombre'], idproyecto))
             count = cur.fetchone()[0]
@@ -1743,14 +1606,16 @@ class DatosModel:
                 return False
 
             # Insertar en la tabla inclinometros y obtener ID
+            # USO DE SET NOCOUNT ON PARA EVITAR PROBLEMAS CON PYODBC Y SCOPE_IDENTITY
             query_inclinometro = """
+            SET NOCOUNT ON;
             INSERT INTO inclinometros (
                 id_proyecto, tipo_inclinometro, nombre_inclinometro, codigo_inclinometro,
                 norte_inclinometro, este_inclinometro, elevacion_inclinometro,
                 profundidad_inclinometro, inclinacion_inclinometro, azimut_inclinometro,
                 comentario_inclinometro
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-            SELECT SCOPE_IDENTITY();
+            SELECT CAST(SCOPE_IDENTITY() AS INT);
             """
             cur.execute(query_inclinometro, (
                 idproyecto, datos['tipoEquipo'], datos['nombre'], datos['codigo'],
@@ -1779,7 +1644,7 @@ class DatosModel:
             conn.commit()
             return True
         except Exception as e:
-            print("Error:", e)
+            print("Error al registrar inclinómetro:", e)
             if conn: conn.rollback()
             return False
         finally:
@@ -1818,11 +1683,8 @@ class DatosModel:
     def mdlObtenerPrismaDataPositivaFechas(tabla, idzona, tipoequipo, prisma, fechaini, fechafin):
         params = [idzona] + [tipoequipo] + [prisma] + [fechaini] + [fechafin]
         
-        # LOGICA SQL SERVER:
-        # DATE(hora) -> CAST(hora AS DATE)
-        # TIME(hora) -> CAST(hora AS TIME)
-        # JULIANDAY -> DATEDIFF
-        
+        # SQL SERVER: DATEDIFF(SECOND, ...) / 86400.0 para días fraccionarios
+        # hora_prisma es DATETIME
         sql = f"""WITH cte_prisma AS (
             SELECT p.nombre_prisma, p.hora_prisma, ROUND(p.este_target, 3) AS este_target,
                 ROUND(p.norte_target, 3) AS norte_target, ROUND(p.elevacion_target, 3) AS elevacion_target, p.distancia_prisma,
@@ -1838,7 +1700,8 @@ class DatosModel:
             FROM {tabla} AS p 
             INNER JOIN instrumentacion AS it ON it.nombre_equipo = p.nombre_prisma
             INNER JOIN componentes AS co ON co.id_componente = it.id_componente
-            WHERE co.id_componente = ? AND it.tipo_equipo = ? AND it.nombre_equipo = ? AND p.hora_prisma BETWEEN ? AND ?
+            WHERE co.id_componente = ? AND it.tipo_equipo = ? AND it.nombre_equipo = ? 
+            AND p.hora_prisma BETWEEN ? AND ?
             AND p.state_prisma = 1 AND p.estado_prisma = 1
         )
         SELECT nombre_prisma, CAST(hora_prisma AS DATE) AS fecha, CAST(hora_prisma AS TIME) AS hora, este_target,
@@ -1908,7 +1771,8 @@ class DatosModel:
                 ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS row_num
             FROM {tabla} AS p INNER JOIN instrumentacion AS it ON it.nombre_equipo = p.nombre_prisma
             INNER JOIN componentes AS co ON co.id_componente = it.id_componente
-            WHERE co.id_componente = ? AND it.tipo_equipo = ? AND it.nombre_equipo = ? AND p.hora_prisma BETWEEN ? AND ?
+            WHERE co.id_componente = ? AND it.tipo_equipo = ? AND it.nombre_equipo = ? 
+            AND p.hora_prisma BETWEEN ? AND ?
             AND p.state_prisma = 1 AND p.estado_prisma = 1
         ),
         cte_distancias AS (
@@ -1944,6 +1808,7 @@ class DatosModel:
                     DA3D / NULLIF(DATEDIFF(SECOND, tiempo_inicial, tiempo_actual) / 86400.0, 0)
             END AS VA3D
         FROM cte_distancias ORDER BY nombre_prisma, hora_prisma;"""
+        
         conn = None
         try:
             conn = Connection.connectionDB()
@@ -1983,13 +1848,16 @@ class DatosModel:
         placeholders = ', '.join(['?' for _ in nameprismas])
         params = [fechaini] + [fechafin] + nameprismas
         conn = None
-        # FORMAT para fechas
+        
+        # Exportar fecha formateada (SQL Server)
         sql = f"""SELECT state_prisma, nombre_prisma, perfil_prisma, FORMAT(hora_prisma, 'dd-MM-yyyy HH:mm:ss') AS hora_prisma,
         angulo_horizontal, angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, presion_prisma, temperatura_prisma,
         constante_prisma, este_target, norte_target, elevacion_target, altura_reflector, altura_instrumento, este_estacion,
         norte_estacion, altura_estacion, medicion_prisma, diferencia_tiempocorto, diferencia_tiempolargo,
         diferencia_limitevelocidad, distancia_horizontal, diferencia_atipica, desplaza_longitudinal, desplaza_transversal,
-        desplaza_altura, grupo_puntos FROM {tabla} WHERE hora_prisma BETWEEN ? AND ? AND nombre_prisma IN ({placeholders});"""
+        desplaza_altura, grupo_puntos 
+        FROM {tabla} 
+        WHERE hora_prisma BETWEEN ? AND ? AND nombre_prisma IN ({placeholders});"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -2058,7 +1926,7 @@ class DatosModel:
     
     @staticmethod
     def mdlDataExportarPiezometrosCuerda(idproyecto, idcomponente, idinstrumento, fechaini, fechafin):
-        # FORMAT, TIME, TOP 1
+        # SQL Server FORMAT y TOP 1
         sql = f"""SELECT FORMAT(d.fecha_cuerda, 'dd/MM/yyyy') AS fecha, CAST(d.fecha_cuerda AS TIME) AS hora, d.frecuencia_cuerda,
         d.temperatura_cuerda, d.presion_barometrica,
         CASE 
@@ -2097,7 +1965,7 @@ class DatosModel:
     
     @staticmethod
     def mdlDataExportarPiezometrosManual(idproyecto, idcomponente, idinstrumento, fechaini, fechafin):
-        # FORMAT, TIME, TOP 1
+        # SQL Server FORMAT y TOP 1
         sql = f"""WITH cte_cota AS (
             SELECT it.tipo_equipo, p.nombre_piezometro, p.tipo_piezometro, d.fecha_piezometro, d.medida_piezometro,
             d.observacion_detalle, p.stickup_piezometro, p.elevacion_piezometro AS instalacion, p.fundacion_piezometro,
@@ -2201,7 +2069,7 @@ class DatosModel:
     @staticmethod
     def mdlDataExportarCeldaAsentamiento(idproyecto, idcomponente, idinstrumento, fechaini, fechafin):
         conn = None
-        # FORMAT, TIME, TOP 1
+        # SQL Server FORMAT y TOP 1
         sql = f"""SELECT FORMAT(cd.fecha_detalle, 'dd/MM/yyyy') AS fecha, CAST(cd.fecha_detalle AS TIME) AS hora, cd.frecuencia_digits,
         cd.frecuencia_hz, cd.temperatura_detalle, cd.medida_calculada,
 		ca.instalacion_celda - abs(cd.medida_calculada) AS cota_piezometrica,

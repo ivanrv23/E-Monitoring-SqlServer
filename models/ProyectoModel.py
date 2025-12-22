@@ -9,12 +9,23 @@ class ProyectoModel:
         conn = None
         try:
             conn = Connection.connectionDB()
-            sql = """INSERT INTO proyectos (nombre_proyecto, fecha_proyecto, descripcion_proyecto) VALUES (?, ?, ?);"""
             cur = conn.cursor()
+            
+            # CORRECCIÓN: 
+            # 1. Usamos SET NOCOUNT ON para evitar que el mensaje "1 row affected" interfiera.
+            # 2. Combinamos el INSERT y el SELECT en una sola cadena.
+            # 3. Hacemos un CAST a INT para asegurar que Python reciba un número entero limpio.
+            sql = """
+            SET NOCOUNT ON;
+            INSERT INTO proyectos (nombre_proyecto, fecha_proyecto, descripcion_proyecto) 
+            VALUES (?, ?, ?);
+            SELECT CAST(SCOPE_IDENTITY() AS INT);
+            """
+            
+            # Ejecutamos una sola vez pasando los parámetros
             cur.execute(sql, (nombre, fecha, comentario))
             
-            # Obtener el id_proyecto recién insertado en SQL Server
-            cur.execute("SELECT SCOPE_IDENTITY();")
+            # Obtenemos el resultado
             row_id = cur.fetchone()
             
             if row_id and row_id[0]:
@@ -23,11 +34,14 @@ class ProyectoModel:
                 return True, idproyecto
             else:
                 conn.rollback()
+                print("No se pudo obtener el ID del proyecto.")
                 return False, 0
+                
         except Exception as e:
             if conn:
                 conn.rollback()
-            print("Error al registrar proyecto:", e)
+            # IMPORTANTE: Mira la consola de tu editor (terminal) para ver este error exacto
+            print("Error al registrar proyecto (Excepción):", e)
             return False, 0
         finally:
             if conn:
