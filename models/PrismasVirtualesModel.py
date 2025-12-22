@@ -1,12 +1,13 @@
-from sqlite3 import Error
 from services.security.apis.conexiones.conexion import Connection
 
 class PrismasVirtualesModel:
     
+    @staticmethod
     def mdlListarPrismasVirtualesProyecto(proyecto, idcomponente, idequipo):
         sql = f"""SELECT c.id_componente, p.* FROM prismas_virtuales p INNER JOIN instrumentacion t
         ON p.id_prisma_virtual = t.id_equipo INNER JOIN componentes c ON t.id_componente = c.id_componente
         WHERE c.id_proyecto = ? AND t.id_equipo = ? AND c.id_componente = ?;"""
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -16,18 +17,23 @@ class PrismasVirtualesModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar equipo adicional: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
                 
+    @staticmethod
     def mdlPrismasVirtuales(ids):
         # Convertir IDs a enteros y eliminar duplicados
         ids = list(set(int(id) for id in ids))
         
         # Construir la consulta SQL dinámicamente
+        if not ids:
+            return None
+            
+        placeholders = ','.join(['?' for _ in ids])
         sql = f"""
             SELECT
                 p.nombre_prisma_virtual, 
@@ -42,10 +48,10 @@ class PrismasVirtualesModel:
             ON 
                 p.id_prisma_virtual = i.id_equipo
             WHERE 
-                i.id_equipo IN ({','.join(['?'] * len(ids))})
+                i.id_equipo IN ({placeholders})
                 AND i.tipo_equipo = 'PRISMAVIRTUAL';
         """
-        
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -56,11 +62,9 @@ class PrismasVirtualesModel:
                 return rows
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar datos: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
-    

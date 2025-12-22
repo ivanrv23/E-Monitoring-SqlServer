@@ -1,9 +1,10 @@
 from services.security.apis.conexiones.conexion import Connection
-from sqlite3 import Error
 
 class InterfazModel:
     
+    @staticmethod
     def mdlListarProyectos():
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """SELECT * FROM proyectos ORDER BY id_proyecto DESC;"""
@@ -14,14 +15,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener proyectos:", e)
             return None  
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarComponentesProyecto(idproyecto):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """SELECT * FROM componentes WHERE id_proyecto = ? AND estado_componente = 1;"""
@@ -32,14 +35,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener componentes:", e)
             return None  
         finally:
             if conn:
                 conn.close()
                 
+    @staticmethod
     def mdlListarInclinometrosProyecto(idproyecto):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """SELECT id_inclinometro, id_proyecto,nombre_inclinometro FROM inclinometros WHERE id_proyecto = ? AND estado_inclinometro = 1;"""
@@ -50,14 +55,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener inclinometros:", e)
             return None  
         finally:
             if conn:
                 conn.close()
 
+    @staticmethod
     def mdlListarPiezometrosProyecto(idproyecto, tabla, tipo):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = f"""SELECT id_piezometro, nombre_piezometro, '{tipo}' AS tipo FROM {tabla} WHERE id_proyecto = ?
@@ -69,14 +76,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener piezometros:", e)
             return None  
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarCeldasProyecto(idproyecto):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = f"""SELECT id_celda, id_proyecto, nombre_celda FROM celdas WHERE id_proyecto = ?;"""
@@ -87,17 +96,19 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener celdas:", e)
             return None  
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarTopografiasComponente(idzona, tipo, estado):
+        conn = None
         try:
             conn = Connection.connectionDB()
-            sql = f"""SELECT DISTINCT * FROM instrumentacion i INNER JOIN topografias t ON i.id_equipo = t.id_topografia
+            sql = f"""SELECT DISTINCT i.* FROM instrumentacion i INNER JOIN topografias t ON i.id_equipo = t.id_topografia
             WHERE i.id_componente = ? AND i.tipo_equipo = ? AND i.estado_instrumentacion = ? ORDER BY i.nombre_equipo;"""
             cur = conn.cursor()
             cur.execute(sql, (idzona, tipo, estado))
@@ -106,14 +117,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener topografias:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarPrismasComponente(idzona, tipo, estado):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """SELECT id_instrumentacion, id_componente, tipo_equipo, nombre_equipo, tabla_equipo, estado_instrumentacion
@@ -125,16 +138,18 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener Prismas:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarPrismasAutoNuevosComponente(idzona, tipo, prismas):
         placeholders = ', '.join(['?' for _ in prismas])
         params = [idzona] + [tipo] + prismas
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = f"""SELECT id_instrumentacion, id_componente, tipo_equipo, nombre_equipo, tabla_equipo, estado_instrumentacion
@@ -147,16 +162,19 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener nuevos prismas:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarInclinometrosComponente(idzona, tipo, estado):
+        conn = None
         try:
             conn = Connection.connectionDB()
+            # En SQL Server DISTINCT aplica a todo el SELECT. i.* es correcto.
             sql = """SELECT DISTINCT i.* FROM instrumentacion i INNER JOIN inclinometro_encabezado d ON i.id_equipo = d.id_inclinometro
             WHERE i.id_componente = ? AND i.tipo_equipo = ? AND i.estado_instrumentacion = ? ORDER BY i.nombre_equipo;"""
             cur = conn.cursor()
@@ -166,14 +184,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener inclinometros:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarPiezometrosCuerdaComponente(idproyecto, idzona, tipo, estado):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = f"""SELECT DISTINCT i.* FROM instrumentacion i INNER JOIN piezometrocuerda_detalle{idproyecto} d
@@ -185,14 +205,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener cuerdas:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarPiezometrosManualComponente(idproyecto, idzona, tipo, estado):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = f"""SELECT DISTINCT i.* FROM instrumentacion i INNER JOIN piezometromanual_detalle{idproyecto} d
@@ -204,14 +226,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener casagrande:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarPluviometrosComponente(idproyecto, idzona, tipo, estado):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = f"""SELECT DISTINCT i.* FROM instrumentacion i INNER JOIN pluviometro_detalle{idproyecto} d
@@ -223,14 +247,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener pluviometros:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarAcelerografosComponente(idproyecto, idzona, tipo, estado):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = f"""SELECT DISTINCT i.* FROM instrumentacion i INNER JOIN acelerografo_detalle{idproyecto} d
@@ -242,14 +268,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener acelerografos:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarEquiposTipoComponente(idcomponente, tipo):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """SELECT * FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = ? AND estado_instrumentacion = 1 ORDER BY nombre_equipo;"""
@@ -260,14 +288,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener equipos componente:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlValidarAcelerografoComponente(idproyecto, idacelero, tipo):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = f"""SELECT COUNT(*) FROM instrumentacion i INNER JOIN acelerografo_detalle{idproyecto} d
@@ -276,14 +306,16 @@ class InterfazModel:
             cur.execute(sql, (idacelero, tipo))
             count = cur.fetchone()[0]
             return count > 0
-        except Error as e:
+        except Exception as e:
             print("Error al validar acelerografo:", e)
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarCeldasComponente(idproyecto, idzona, tipo, estado):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = f"""SELECT DISTINCT i.* FROM instrumentacion i INNER JOIN celda_detalle{idproyecto} d
@@ -295,14 +327,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener celdas:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarCotasTerrenoComponente(idproyecto, idzona, tipo, estado):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = f"""SELECT DISTINCT i.* FROM instrumentacion i INNER JOIN cotaterreno_detalle{idproyecto} d
@@ -314,14 +348,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener cotas terreno:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarSondajestdrComponente(idproyecto, idzona, tipo, estado):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = f"""SELECT DISTINCT i.* FROM instrumentacion i INNER JOIN sondajetdr_detalle{idproyecto} d
@@ -333,14 +369,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener sondajes tdr:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarEquiposComponente(idzona, tipo, estado):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = f"""SELECT DISTINCT i.* FROM instrumentacion i INNER JOIN equipos e ON i.id_equipo = e.id_equipo
@@ -352,14 +390,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener equipos adicionales:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarPrismasVirtualesComponente(idzona, tipo, estado):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = f"""SELECT DISTINCT i.* FROM instrumentacion i INNER JOIN prismas_virtuales p ON i.id_equipo = p.id_prisma_virtual
@@ -371,14 +411,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener prismas virtuales:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarComponenteEquipoTopografia(idinstrumento, tipo):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """SELECT DISTINCT * FROM instrumentacion i INNER JOIN topografias t ON i.id_equipo = t.id_topografia
@@ -390,14 +432,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener equipo topo:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarComponenteEquipo(idinstrumento, tipo):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """SELECT * FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = ?;"""
@@ -408,13 +452,14 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener equipo:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarFechasInclinometroCodigo(idcomponente, idinstrumento, proyectoid):
         params = [proyectoid, idinstrumento, idcomponente, proyectoid, idinstrumento, idcomponente, proyectoid, idinstrumento, idcomponente]
         sql = """WITH lecturas_validas AS (
@@ -452,6 +497,7 @@ class InterfazModel:
         UNION ALL
         SELECT * FROM lecturas_minimas
         WHERE NOT EXISTS (SELECT 1 FROM lecturas_validas) ORDER BY fecha_inclinometro;"""
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -461,14 +507,16 @@ class InterfazModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar fechas inclinometros: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarFechasPiezometros(idcomponente, idinstrumento, proyectoid):
+        conn = None
         sql = f"""SELECT * FROM inclinometro_encabezado e
             INNER JOIN inclinometros i ON i.id_inclinometro = e.id_inclinometro
             INNER JOIN instrumentacion t ON i.id_inclinometro = t.id_equipo
@@ -483,15 +531,16 @@ class InterfazModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar encabezado piezometros: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarFechasPiezometroCuerdaCodigo(idcomponente, idinstrumento, proyectoid):
-        conn = Connection.connectionDB()
+        conn = None
         sql = f"""SELECT d.fecha_cuerda FROM piezometrocuerda_detalle{proyectoid} d
         INNER JOIN piezometrocuerdas p ON d.id_piezometro = p.id_piezometro
         INNER JOIN instrumentacion t ON p.id_piezometro = t.id_equipo
@@ -499,6 +548,7 @@ class InterfazModel:
         WHERE c.id_proyecto = ? AND t.id_instrumentacion = ? AND c.id_componente = ? 
 		ORDER BY d.fecha_cuerda;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, idinstrumento, idcomponente))
             row = cur.fetchall()
@@ -506,15 +556,16 @@ class InterfazModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar fechas piezometros cuerda: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarFechasPiezometroManualCodigo(idcomponente, idinstrumento, proyectoid):
-        conn = Connection.connectionDB()
+        conn = None
         sql = f"""SELECT d.fecha_piezometro FROM piezometromanual_detalle{proyectoid} d
         INNER JOIN piezometromanuales p ON d.id_piezometro = p.id_piezometro
         INNER JOIN instrumentacion t ON p.id_piezometro = t.id_equipo
@@ -522,6 +573,7 @@ class InterfazModel:
         WHERE c.id_proyecto = ? AND t.id_instrumentacion = ? AND c.id_componente = ? 
 		ORDER BY d.fecha_piezometro;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, idinstrumento, idcomponente))
             row = cur.fetchall()
@@ -529,20 +581,23 @@ class InterfazModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar fechas piezometros manual: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarFechasSondajetdrCodigo(tabla, idcomponente, idinstrumento):
+        conn = None
+        # SQL Server requiere que todas las columnas no agregadas en el SELECT estén en el GROUP BY
         sql = f"""SELECT d.fecha_detalle, i.tipo_equipo, s.base_sondajetdr FROM {tabla} d
         INNER JOIN sondajestdr s ON d.id_sondajetdr = s.id_sondajetdr
 		INNER JOIN instrumentacion i ON s.id_sondajetdr = i.id_equipo
 		INNER JOIN componentes c ON i.id_componente = c.id_componente
         WHERE i.id_instrumentacion = ? AND c.id_componente = ?
-		GROUP BY d.fecha_detalle ORDER BY d.fecha_detalle;"""
+		GROUP BY d.fecha_detalle, i.tipo_equipo, s.base_sondajetdr ORDER BY d.fecha_detalle;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -552,14 +607,16 @@ class InterfazModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar fechas tdr: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarComponentePrisma(idinstrumento, estado):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """SELECT id_instrumentacion, id_componente, tipo_equipo, nombre_equipo, tabla_equipo, estado_instrumentacion
@@ -571,14 +628,16 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener equipo instrumentacion:", e)
             return None  
         finally:
             if conn:
                 conn.close()
                 
+    @staticmethod
     def mdlListarArchivosLidar(id_componente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = "SELECT t.nombre_topografia,t.archivo_topografia from topografias t INNER JOIN instrumentacion i ON t.id_topografia=i.id_equipo WHERE t.tipo_topografia='LAS' AND i.id_componente=? AND i.tabla_equipo='topografias'"
@@ -589,10 +648,9 @@ class InterfazModel:
                 return results
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al obtener equipo:", e)
             return None
         finally:
             if conn:
                 conn.close()
-    

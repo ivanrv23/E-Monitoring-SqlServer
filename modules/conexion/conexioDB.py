@@ -1,11 +1,11 @@
 import os
+import pyodbc # <--- AGREGADO: Usaremos pyodbc para la prueba
 from pathlib import Path
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, 
                                QLineEdit, QPushButton, QLabel, QGroupBox, 
                                QToolButton, QStyle, QFrame, QMessageBox)
-from PySide6.QtSql import QSqlDatabase
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QIntValidator, QFont
+from PySide6.QtGui import QIntValidator
 
 # Importamos las funciones para manejar el archivo .env
 from dotenv import set_key, dotenv_values
@@ -24,7 +24,7 @@ class ConexionDB:
         # --- CONFIGURACIÓN DE UI ---
         dialogo = QDialog()
         dialogo.setWindowTitle("Configuración del Servidor")
-        dialogo.setFixedSize(450, 520) # Aumenté un poco el alto para el aviso
+        dialogo.setFixedSize(450, 520)
         dialogo.setModal(True)
 
         # Estilos CSS
@@ -34,7 +34,6 @@ class ConexionDB:
             QLineEdit { border: 1px solid #ccc; border-radius: 4px; padding: 6px; background-color: #fff; }
             QPushButton { background-color: #3498db; color: white; border-radius: 4px; padding: 8px 15px; font-weight: bold; }
             QPushButton#btnCancelar { background-color: #e74c3c; }
-            /* Estilo específico para el aviso sutil */
             QLabel#lblAviso {
                 color: #7f8c8d;
                 font-size: 11px;
@@ -57,7 +56,7 @@ class ConexionDB:
         layout_grupo = QFormLayout(grupo)
         
         txt_server = QLineEdit()
-        txt_server.setPlaceholderText("Ej: 192.168.1.34")
+        txt_server.setPlaceholderText("Ej: 192.168.1.51")
         
         txt_port = QLineEdit()
         txt_port.setPlaceholderText("Ej: 1433")
@@ -89,20 +88,17 @@ class ConexionDB:
 
         layout_principal.addWidget(grupo)
         
-        # Label de estado de prueba (Conexión exitosa/fallida)
+        # Label de estado
         lbl_estado = QLabel("")
         lbl_estado.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout_principal.addWidget(lbl_estado)
 
-        # --- AQUI ESTÁ EL LABEL SUTIL ---
-        # Usamos un ícono de texto (⚠ o ℹ) y un color suave
+        # Aviso sutil
         lbl_aviso = QLabel("ℹ Nota: Para asegurar la estabilidad, reinicie el software tras guardar.")
-        lbl_aviso.setObjectName("lblAviso") # Para que tome el CSS de arriba
+        lbl_aviso.setObjectName("lblAviso")
         lbl_aviso.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_aviso.setWordWrap(True) # Si el texto es muy largo, baja de línea
-        
+        lbl_aviso.setWordWrap(True)
         layout_principal.addWidget(lbl_aviso)
-        # --------------------------------
 
         # Botones
         layout_botones = QHBoxLayout()
@@ -132,32 +128,51 @@ class ConexionDB:
             else:
                 txt_password.setEchoMode(QLineEdit.EchoMode.Password)
 
+        # ==============================================================
+        # MODIFICACIÓN CLAVE: Usar pyodbc en lugar de QSqlDatabase
+        # ==============================================================
         def probar():
-            lbl_estado.setText("Probando...")
+            lbl_estado.setText("Probando conexión...")
             lbl_estado.setStyleSheet("color: blue;")
             lbl_estado.repaint()
 
-            conn_string = (
-                f"DRIVER={{SQL Server}};"
-                f"SERVER={txt_server.text()},{txt_port.text() or '1433'};"
-                f"DATABASE={txt_database.text()};"
-                f"UID={txt_user.text()};"
-                f"PWD={txt_password.text()};"
-                "Trusted_Connection=no;"
-            )
+            # Driver moderno (mismo que usamos en las otras partes del sistema)
+            driver = '{ODBC Driver 17 for SQL Server}' 
             
-            conn_name = "TestConnEnv"
-            if QSqlDatabase.contains(conn_name): QSqlDatabase.removeDatabase(conn_name)
-            db = QSqlDatabase.addDatabase("QODBC", conn_name)
-            db.setDatabaseName(conn_string)
+            # String de conexión estilo pyodbc
+            conn_str = (
+                f'DRIVER={driver};'
+                f'SERVER={txt_server.text()},{txt_port.text() or "1433"};'
+                f'DATABASE={txt_database.text()};'
+                f'UID={txt_user.text()};'
+                f'PWD={txt_password.text()};'
+                'TrustServerCertificate=yes;' # Vital para redes locales
+                'Connection Timeout=3;'       # Para no congelar la UI mucho tiempo
+            )
 
-            if db.open():
+            try:
+                # Intentamos conectar con la librería real
+                conn = pyodbc.connect(conn_str)
+                conn.close()
+                
                 lbl_estado.setText("✔ Conexión Exitosa")
-                lbl_estado.setStyleSheet("background-color: #d4edda; color: #155724; border-radius: 4px; padding: 4px;")
-                db.close()
-            else:
-                lbl_estado.setText("✖ Falló la Conexión")
-                lbl_estado.setStyleSheet("background-color: #f8d7da; color: #721c24; border-radius: 4px; padding: 4px;")
+                lbl_estado.setStyleSheet("background-color: #d4edda; color: #155724; border-radius: 4px; padding: 6px;")
+            
+            except Exception as e:
+                # Mostramos el error resumido
+                error_msg = str(e)
+                if "Login failed" in error_msg:
+                    texto_error = "✖ Error: Usuario o Contraseña incorrectos"
+                elif "server was not found" in error_msg or "timeout" in error_msg:
+                    texto_error = "✖ Error: No se encuentra el Servidor (IP/Puerto)"
+                elif "Cannot open database" in error_msg:
+                    texto_error = f"✖ Error: La base de datos '{txt_database.text()}' no existe"
+                else:
+                    texto_error = "✖ Falló la Conexión (Ver consola)"
+                    print(error_msg)
+
+                lbl_estado.setText(texto_error)
+                lbl_estado.setStyleSheet("background-color: #f8d7da; color: #721c24; border-radius: 4px; padding: 6px;")
 
         def guardar():
             try:
@@ -167,12 +182,11 @@ class ConexionDB:
                 set_key(env_path, "SQL_USER", txt_user.text().strip())
                 set_key(env_path, "SQL_PASSWORD", txt_password.text())
 
-                # Mensaje final reforzando el aviso
                 QMessageBox.information(
                     dialogo, 
                     "Configuración Guardada", 
                     "Los datos se han actualizado correctamente.\n\n"
-                    "Por favor, cierre y vuelva a abrir la aplicación para aplicar los cambios."
+                    "Reinicie la aplicación para aplicar los cambios."
                 )
                 dialogo.accept()
 

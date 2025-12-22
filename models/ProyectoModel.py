@@ -1,28 +1,41 @@
 from services.security.apis.conexiones.conexion import Connection
-from sqlite3 import Error
 from utils.common.rutasarchivos import resource_path
 import os
+
 class ProyectoModel:
     
     @staticmethod
     def mdlRegistarProyecto(nombre, fecha, comentario):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """INSERT INTO proyectos (nombre_proyecto, fecha_proyecto, descripcion_proyecto) VALUES (?, ?, ?);"""
             cur = conn.cursor()
             cur.execute(sql, (nombre, fecha, comentario))
-            conn.commit()
-            # Obtener el id_proyecto recién insertado
-            idproyecto = cur.lastrowid
-            return True, idproyecto
-        except Error as e:
+            
+            # Obtener el id_proyecto recién insertado en SQL Server
+            cur.execute("SELECT SCOPE_IDENTITY();")
+            row_id = cur.fetchone()
+            
+            if row_id and row_id[0]:
+                idproyecto = int(row_id[0])
+                conn.commit()
+                return True, idproyecto
+            else:
+                conn.rollback()
+                return False, 0
+        except Exception as e:
+            if conn:
+                conn.rollback()
             print("Error al registrar proyecto:", e)
             return False, 0
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlRegistarComponente(proyecto_id, nombre_componente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """INSERT INTO componentes (id_proyecto, nombre_componente) VALUES (?, ?);"""
@@ -30,14 +43,16 @@ class ProyectoModel:
             cur.execute(sql, (proyecto_id, nombre_componente))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al registrar componente:", e)
             return False  
         finally:
             if conn:
                 conn.close()
 
+    @staticmethod
     def mdlObtenerInfoProyecto(idproyecto):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -48,29 +63,33 @@ class ProyectoModel:
                 return resultado
             else:
                 return None 
-        except Error as e:
+        except Exception as e:
             print("Error al obtener info proyecto:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlActualizarProyecto(nombre, fecha, comentario, idproyecto):
         sql = """UPDATE proyectos SET nombre_proyecto = ?, fecha_proyecto = ?, descripcion_proyecto = ? WHERE id_proyecto = ?;"""
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (nombre, fecha, comentario, idproyecto))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al actualizar proyecto:", e)
             return False  
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerComponentesProyecto(idproyecto):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -81,31 +100,35 @@ class ProyectoModel:
                 return resultado
             else:
                 return None 
-        except Error as e:
+        except Exception as e:
             print("Error al obtener componentes:", e)
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlActualizarComponente(nombre, idcomponente):
         sql = """UPDATE componentes SET nombre_componente = ? WHERE id_componente = ?;"""
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (nombre, idcomponente))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al actualizar componente:", e)
             return False  
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlEliminarComponente(idproyecto, idcomponente):
         sql_count = """SELECT COUNT(*) FROM componentes WHERE id_proyecto = ? AND estado_componente = 1;"""
         sql = """UPDATE componentes SET estado_componente = 0 WHERE id_componente = ?;"""
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -118,36 +141,39 @@ class ProyectoModel:
             cur.execute(sql, (idcomponente,))
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al eliminar componente:", e)
             return False  
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlEliminarProyecto(idproyecto):
-        # Consultas SQL para eliminar registros
+        # Consultas SQL para eliminar registros adaptadas a T-SQL
+        # DROP TABLE IF EXISTS se cambia por IF OBJECT_ID(...) IS NOT NULL DROP TABLE
+        
         sql_queries = [
             "DELETE FROM acelerografos WHERE id_proyecto = ?;",
-            f"DROP TABLE IF EXISTS acelerografo_detalle{idproyecto};",
+            f"IF OBJECT_ID('acelerografo_detalle{idproyecto}', 'U') IS NOT NULL DROP TABLE acelerografo_detalle{idproyecto};",
             "DELETE FROM cotas_celdas WHERE id_celda IN (SELECT id_celda FROM celdas WHERE id_proyecto = ?);",
             "DELETE FROM celdas WHERE id_proyecto = ?;",
-            f"DROP TABLE IF EXISTS celda_detalle{idproyecto};",
+            f"IF OBJECT_ID('celda_detalle{idproyecto}', 'U') IS NOT NULL DROP TABLE celda_detalle{idproyecto};",
             "DELETE FROM cotas_piezometricas WHERE tipo_piezometro = 'PCV' AND id_piezometro IN (SELECT id_piezometro FROM piezometrocuerdas WHERE id_proyecto = ?);",
             "DELETE FROM piezometrocuerdas WHERE id_proyecto = ?;",
-            f"DROP TABLE IF EXISTS piezometrocuerda_detalle{idproyecto};",
+            f"IF OBJECT_ID('piezometrocuerda_detalle{idproyecto}', 'U') IS NOT NULL DROP TABLE piezometrocuerda_detalle{idproyecto};",
             "DELETE FROM cotas_piezometricas WHERE tipo_piezometro = 'PVC' AND  id_piezometro IN (SELECT id_piezometro FROM piezometromanuales WHERE id_proyecto = ?);",
             "DELETE FROM piezometromanuales WHERE id_proyecto = ?;",
-            f"DROP TABLE IF EXISTS piezometromanual_detalle{idproyecto};",
-            f"DROP TABLE IF EXISTS prismas{idproyecto};",
+            f"IF OBJECT_ID('piezometromanual_detalle{idproyecto}', 'U') IS NOT NULL DROP TABLE piezometromanual_detalle{idproyecto};",
+            f"IF OBJECT_ID('prismas{idproyecto}', 'U') IS NOT NULL DROP TABLE prismas{idproyecto};",
             "DELETE FROM prismas_virtuales WHERE id_prisma_virtual IN (SELECT inst.id_equipo FROM instrumentacion inst INNER JOIN componentes c ON inst.id_componente=c.id_componente WHERE c.id_proyecto = ?);",
             "DELETE FROM pluviometros WHERE id_proyecto = ?;",
-            f"DROP TABLE IF EXISTS pluviometro_detalle{idproyecto};",
+            f"IF OBJECT_ID('pluviometro_detalle{idproyecto}', 'U') IS NOT NULL DROP TABLE pluviometro_detalle{idproyecto};",
             "DELETE FROM cotasterreno WHERE id_proyecto = ?;",
-            f"DROP TABLE IF EXISTS cotasterreno_detalle{idproyecto};",
+            f"IF OBJECT_ID('cotasterreno_detalle{idproyecto}', 'U') IS NOT NULL DROP TABLE cotasterreno_detalle{idproyecto};",
             "DELETE FROM sondajestdr_puntos WHERE id_sondajetdr IN (SELECT id_sondajetdr FROM sondajestdr WHERE id_proyecto = ?);",
             "DELETE FROM sondajestdr WHERE id_proyecto = ?;",
-            f"DROP TABLE IF EXISTS sondajestdr_detalle{idproyecto};",
+            f"IF OBJECT_ID('sondajestdr_detalle{idproyecto}', 'U') IS NOT NULL DROP TABLE sondajestdr_detalle{idproyecto};",
             "DELETE FROM umbral_acelerografo WHERE id_proyecto = ?;",
             "DELETE FROM umbral_celda WHERE id_proyecto = ?;",
             "DELETE FROM umbral_inclinometro WHERE id_proyecto = ?;",
@@ -162,19 +188,19 @@ class ProyectoModel:
             "DELETE FROM graficos_reporte WHERE id_componente IN (SELECT id_componente FROM componentes WHERE id_proyecto = ?);",
             "DELETE FROM inclinometro_encabezado WHERE id_inclinometro IN (SELECT id_inclinometro FROM inclinometros WHERE id_proyecto = ?);",
             "DELETE FROM inclinometros WHERE id_proyecto = ?;",
-            f"DROP TABLE IF EXISTS inclinometro_detalle{idproyecto};",
+            f"IF OBJECT_ID('inclinometro_detalle{idproyecto}', 'U') IS NOT NULL DROP TABLE inclinometro_detalle{idproyecto};",
             "DELETE FROM control_parametros_anexo1 WHERE id_componente IN (SELECT id_componente FROM componentes WHERE id_proyecto = ?);",
             "DELETE FROM instrumentacion WHERE id_componente IN (SELECT id_componente FROM componentes WHERE id_proyecto = ?);",
             "DELETE FROM componentes WHERE id_proyecto = ?;",
             "DELETE FROM proyectos WHERE id_proyecto = ?;"
         ]
 
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
 
-            # Iniciar transacción
-            conn.execute("BEGIN;")
+            # En pyodbc la transaccion es implicita, no se usa BEGIN
 
             # Ejecutar consultas SQL
             for query in sql_queries:
@@ -200,15 +226,18 @@ class ProyectoModel:
             # Confirmar transacción
             conn.commit()
             return True
-        except Error as e:
+        except Exception as e:
             print("Error al eliminar proyecto:", e)
-            conn.rollback()
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerHistorialCambios():
+        conn = None
         sql = """SELECT p.nombre_proyecto, h.fecha, h.accion, h.tabla, h.usuario, h.cambios, h.nombres
         FROM historial h INNER JOIN proyectos p ON h.idproyecto = p.id_proyecto ORDER BY h.fecha DESC;"""
         try:
@@ -220,16 +249,19 @@ class ProyectoModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar historial: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerAjustesCambios():
+        conn = None
+        # SQL Server usa + para concatenar strings. Se castean los valores numéricos a VARCHAR.
         sql = """SELECT p.nombre_proyecto, r.fecha_cambio, 'update' AS accion, r.tabla_modificada, r.usuario_cambio,
-        r.columna_modificada || '(' || r.numero_fila || '): ' || r.valor_anterior || ' -> ' || r.nuevo_valor AS cambios, r.nombres_cambio
+        r.columna_modificada + '(' + CAST(r.numero_fila AS VARCHAR) + '): ' + CAST(r.valor_anterior AS VARCHAR) + ' -> ' + CAST(r.nuevo_valor AS VARCHAR) AS cambios, r.nombres_cambio
         FROM registro_ajuste_coordenadas r INNER JOIN proyectos p ON r.id_proyecto = p.id_proyecto ORDER BY r.fecha_cambio DESC;"""
         try:
             conn = Connection.connectionDB()
@@ -240,10 +272,9 @@ class ProyectoModel:
                 return row
             else:
                 return None
-        except Error as e:
+        except Exception as e:
             print("Error al consultar cambios: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
