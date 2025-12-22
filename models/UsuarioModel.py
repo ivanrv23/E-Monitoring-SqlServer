@@ -1,14 +1,14 @@
 import requests
-from services.security.apis.conexiones.conexion import Connection
+from sqlite3 import Error
+from services.security.apis.conexiones.conexion import Conexion
 
 class UsuarioModel:
     
     @staticmethod
     def mdlObtenerCodigoEmpresa():
-        conn = Connection.connectionDB()
-        # SQL Server: TOP 1 en lugar de LIMIT 1
-        sql = """SELECT TOP 1 codigo_empresa, codigo_venta FROM licencias;"""
+        sql = """SELECT codigo_empresa, codigo_venta FROM licencias;"""
         try:
+            conn = Conexion.conexionDB()
             cur = conn.cursor()
             cur.execute(sql)
             row = cur.fetchone()
@@ -16,7 +16,7 @@ class UsuarioModel:
                 return row
             else:
                 return None
-        except Exception as e:
+        except Error as e:
             print("Error al obtener idempresa: " + str(e))
             return None
         finally:
@@ -50,22 +50,6 @@ class UsuarioModel:
             return False, {"error": "No se pudo conectar al servidor. Verifique su conexión a internet."}
         except requests.exceptions.RequestException:
             return False, {"error": "Error en la solicitud: No se pudo obtener usuarios."}
-    
-    @staticmethod
-    def mdlEliminarUsuario(idusuario):
-        sql = """UPDATE usuarios SET estado_usuario = 0 WHERE id_usuario = ?;"""
-        try:
-            conn = Connection.connectionDB()
-            cur = conn.cursor()
-            cur.execute(sql, (idusuario,))
-            conn.commit()
-            return True
-        except Exception as e:
-            print("Error al eliminar usuario: " + str(e))
-            return False
-        finally:
-            if conn:
-                conn.close()
     
     @staticmethod
     def mdlGuardarUsuario(documento, nombres, apellidos, username, contraseña, rol, idventa):
@@ -217,3 +201,4 @@ class UsuarioModel:
             return False, {"error": "No se pudo conectar al servidor. Verifique su conexión a internet."}
         except requests.exceptions.RequestException:
             return False, {"error": "Error al validar usuario y contraseña."}
+    

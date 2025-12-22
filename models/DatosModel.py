@@ -1,6 +1,6 @@
 import pandas as pd
 import pyodbc
-from services.security.apis.conexiones.conexion import Connection
+from services.security.apis.conexiones.connection import Connection
 from datetime import datetime
 
 class DatosModel:

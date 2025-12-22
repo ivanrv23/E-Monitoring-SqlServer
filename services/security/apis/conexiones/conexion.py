@@ -1,50 +1,23 @@
+import sqlite3
+from sqlite3 import Error
 import os
-import pyodbc
-from dotenv import load_dotenv
+from utils.common.rutasarchivos import resource_path
 
-# Carga las variables del archivo .env al iniciar este script
-# Asegúrate de que el archivo .env esté en la raíz de tu proyecto
-load_dotenv()
-
-class Connection:
+class Conexion:
 
     @staticmethod
-    def connectionDB():
+    def conexionDB():
         try:
-            # 1. Recuperar credenciales del archivo .env
-            server = os.getenv("SQL_SERVER")
-            port = os.getenv("SQL_PORT", "1433")
-            database = os.getenv("SQL_DATABASE")
-            username = os.getenv("SQL_USER")
-            password = os.getenv("SQL_PASSWORD")
-
-            # Validación simple: si no hay servidor o base de datos definida, retornamos None
-            if not server or not database:
-                print("Error: No se encontraron las variables de entorno para SQL Server.")
+            # Usar resource_path para obtener la ruta de la base de datos
+            db_path = resource_path('services/database/databaseeigha.db')
+            # Verificar si la base de datos existe
+            if not os.path.exists(db_path):
                 return None
-
-            # 2. Definir el Driver (asegúrate de tener instalado el ODBC Driver 17)
-            driver = '{ODBC Driver 17 for SQL Server}'
-
-            # 3. Construir la cadena de conexión
-            # Nota: SQL Server usa coma para separar IP y Puerto (IP,Puerto)
-            connection_string = (
-                f'DRIVER={driver};'
-                f'SERVER={server},{port};'
-                f'DATABASE={database};'
-                f'UID={username};'
-                f'PWD={password};'
-                'TrustServerCertificate=yes;' # Importante para evitar errores SSL locales
-            )
-
-            # 4. Intentar conectar
-            conn = pyodbc.connect(connection_string, timeout=3)
+            # Conectar a la base de datos SQLite usando la ruta completa
+            conn = sqlite3.connect(db_path)
             return conn
-
-        except pyodbc.Error as e:
-            # Puedes imprimir el error en consola para depurar si falla
-            print(f"Error de conexión SQL Server: {e}")
+        except Error as e:
             return None
         except Exception as e:
-            print(f"Error general: {e}")
             return None
+    
