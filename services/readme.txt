@@ -1,0 +1,1 @@
+Aquí van los servicios que interactúan con APIs, bases de datos, o servicios externos.

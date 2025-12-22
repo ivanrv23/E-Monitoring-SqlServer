@@ -1,0 +1,14 @@
+# Ignorar archivos generados
+__pycache__/
+*.pyc
+*.db
+*.dxf
+*.las
+*.vtp
+*.sql
+*.csv
+*.pdf
+*.docx
+*.log
+*.xml
+resources/workspace/ACELEROGRAFOS/

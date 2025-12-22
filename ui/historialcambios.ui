@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>widget</class>
+ <widget class="QWidget" name="widget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>900</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>900</width>
+    <height>600</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLabel" name="label">
+     <property name="styleSheet">
+      <string notr="true">font: 75 12pt &quot;MS Shell Dlg 2&quot;;</string>
+     </property>
+     <property name="text">
+      <string>Historial de Cambios Database</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTabWidget" name="tab_tablas">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tab_cambios_datos">
+      <attribute name="title">
+       <string>Cambios Vista Datos</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <item>
+        <widget class="QTableWidget" name="table_historial_datos">
+         <property name="styleSheet">
+          <string notr="true">background-color: rgb(196, 196, 196);</string>
+         </property>
+         <column>
+          <property name="text">
+           <string>Proyecto</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Fecha</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Acción</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Tabla</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Usuario</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Cambios</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Nombres</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_cambios_analisis">
+      <attribute name="title">
+       <string>Cambios Vista Análisis</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QTableWidget" name="table_historial_analisis">
+         <property name="styleSheet">
+          <string notr="true">background-color: rgb(196, 196, 196);</string>
+         </property>
+         <column>
+          <property name="text">
+           <string>Proyecto</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Fecha</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Acción</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Tabla</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Usuario</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Cambios</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Nombres</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QFrame" name="frame_pie">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <property name="spacing">
+       <number>0</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QPushButton" name="btn_aceptar">
+        <property name="text">
+         <string>Aceptar</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>142</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

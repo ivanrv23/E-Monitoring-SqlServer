@@ -1,0 +1,1560 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>370</width>
+    <height>510</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>370</width>
+    <height>510</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>370</width>
+    <height>510</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true"/>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>REGISTRO DE LECTURAS</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QGridLayout" name="gridLayout_3">
+     <item row="0" column="1">
+      <widget class="QComboBox" name="cb_lista_sondajes"/>
+     </item>
+     <item row="0" column="0">
+      <widget class="QLabel" name="label_5">
+       <property name="text">
+        <string>Sondaje:</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QGridLayout" name="gridLayout_2">
+     <item row="0" column="1">
+      <widget class="QLabel" name="label_3">
+       <property name="minimumSize">
+        <size>
+         <width>75</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Profundidad</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="2">
+      <widget class="QLabel" name="label_4">
+       <property name="minimumSize">
+        <size>
+         <width>38</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Color</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="3">
+      <widget class="QLabel" name="label_6">
+       <property name="minimumSize">
+        <size>
+         <width>38</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Eliminar</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <widget class="QLabel" name="label_2">
+       <property name="minimumSize">
+        <size>
+         <width>122</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>122</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Tipo</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QScrollArea" name="scrollArea">
+     <property name="widgetResizable">
+      <bool>true</bool>
+     </property>
+     <widget class="QWidget" name="scrollAreaWidgetContents">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>325</width>
+        <height>729</height>
+       </rect>
+      </property>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="0" column="0">
+        <widget class="QLineEdit" name="input_tipo1">
+         <property name="minimumSize">
+          <size>
+           <width>115</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_1">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+         <property name="value">
+          <double>0.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="2">
+        <widget class="QPushButton" name="btn_color_1">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="3">
+        <widget class="QPushButton" name="btn_eliminar_1">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLineEdit" name="input_tipo2">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_2">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2">
+        <widget class="QPushButton" name="btn_color_2">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="3">
+        <widget class="QPushButton" name="btn_eliminar_2">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLineEdit" name="input_tipo3">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_3">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="2">
+        <widget class="QPushButton" name="btn_color_3">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="3">
+        <widget class="QPushButton" name="btn_eliminar_3">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLineEdit" name="input_tipo4">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_4">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="2">
+        <widget class="QPushButton" name="btn_color_4">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="3">
+        <widget class="QPushButton" name="btn_eliminar_4">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLineEdit" name="input_tipo5">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_5">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="2">
+        <widget class="QPushButton" name="btn_color_5">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="3">
+        <widget class="QPushButton" name="btn_eliminar_5">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLineEdit" name="input_tipo6">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_6">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="2">
+        <widget class="QPushButton" name="btn_color_6">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="3">
+        <widget class="QPushButton" name="btn_eliminar_6">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="0">
+        <widget class="QLineEdit" name="input_tipo7">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_7">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="2">
+        <widget class="QPushButton" name="btn_color_7">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="3" rowspan="2">
+        <widget class="QPushButton" name="btn_eliminar_7">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="2" rowspan="2">
+        <widget class="QPushButton" name="btn_color_8">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="0">
+        <widget class="QLineEdit" name="input_tipo8">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_8">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="3">
+        <widget class="QPushButton" name="btn_eliminar_8">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="9" column="0">
+        <widget class="QLineEdit" name="input_tipo9">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="9" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_9">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+         <property name="value">
+          <double>0.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="9" column="2">
+        <widget class="QPushButton" name="btn_color_9">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="9" column="3">
+        <widget class="QPushButton" name="btn_eliminar_9">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="10" column="0">
+        <widget class="QLineEdit" name="input_tipo10">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="10" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_10">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="10" column="2">
+        <widget class="QPushButton" name="btn_color_10">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="10" column="3">
+        <widget class="QPushButton" name="btn_eliminar_10">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="11" column="0">
+        <widget class="QLineEdit" name="input_tipo11">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="11" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_11">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="11" column="2">
+        <widget class="QPushButton" name="btn_color_11">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="11" column="3">
+        <widget class="QPushButton" name="btn_eliminar_11">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="12" column="0">
+        <widget class="QLineEdit" name="input_tipo12">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="12" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_12">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="12" column="2">
+        <widget class="QPushButton" name="btn_color_12">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="12" column="3">
+        <widget class="QPushButton" name="btn_eliminar_12">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="13" column="0">
+        <widget class="QLineEdit" name="input_tipo13">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="13" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_13">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="13" column="2">
+        <widget class="QPushButton" name="btn_color_13">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="13" column="3">
+        <widget class="QPushButton" name="btn_eliminar_13">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="14" column="0">
+        <widget class="QLineEdit" name="input_tipo14">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="14" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_14">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="14" column="2">
+        <widget class="QPushButton" name="btn_color_14">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="14" column="3">
+        <widget class="QPushButton" name="btn_eliminar_14">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="15" column="0">
+        <widget class="QLineEdit" name="input_tipo15">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="15" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_15">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="15" column="2">
+        <widget class="QPushButton" name="btn_color_15">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="15" column="3">
+        <widget class="QPushButton" name="btn_eliminar_15">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="16" column="0">
+        <widget class="QLineEdit" name="input_tipo16">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="16" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_16">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="16" column="2">
+        <widget class="QPushButton" name="btn_color_16">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="16" column="3">
+        <widget class="QPushButton" name="btn_eliminar_16">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="17" column="0">
+        <widget class="QLineEdit" name="input_tipo17">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="17" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_17">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="17" column="2">
+        <widget class="QPushButton" name="btn_color_17">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="17" column="3" rowspan="2">
+        <widget class="QPushButton" name="btn_eliminar_17">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="18" column="0" rowspan="2">
+        <widget class="QLineEdit" name="input_tipo18">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="18" column="1" rowspan="2">
+        <widget class="QDoubleSpinBox" name="dsp_18">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="19" column="2">
+        <widget class="QPushButton" name="btn_color_18">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="19" column="3">
+        <widget class="QPushButton" name="btn_eliminar_18">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="20" column="0">
+        <widget class="QLineEdit" name="input_tipo19">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="20" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_19">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="20" column="2">
+        <widget class="QPushButton" name="btn_color_19">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="20" column="3">
+        <widget class="QPushButton" name="btn_eliminar_19">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="21" column="0">
+        <widget class="QLineEdit" name="input_tipo20">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="21" column="1">
+        <widget class="QDoubleSpinBox" name="dsp_20">
+         <property name="maximumSize">
+          <size>
+           <width>70</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>-99999.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>99999.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="21" column="2">
+        <widget class="QPushButton" name="btn_color_20">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="21" column="3">
+        <widget class="QPushButton" name="btn_eliminar_20">
+         <property name="minimumSize">
+          <size>
+           <width>32</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>32</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <layout class="QGridLayout" name="gridLayout_4">
+     <item row="0" column="0">
+      <widget class="QPushButton" name="btn_cancelar">
+       <property name="text">
+        <string>CANCELAR</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>138</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item row="0" column="2">
+      <widget class="QPushButton" name="btn_guardar">
+       <property name="text">
+        <string>GUARDAR</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

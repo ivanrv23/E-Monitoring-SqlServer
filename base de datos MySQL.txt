@@ -1,0 +1,502 @@
+###############TABLAS DE BASE DE DATOS MYSQL#########################
+
+CREATE TABLE proyectos (
+  id_proyecto INT NOT NULL AUTO_INCREMENT,
+  nombre_proyecto VARCHAR(500) NOT NULL,
+  fecha_proyecto DATE,
+  descripcion_proyecto TEXT,
+  estado_proyecto TINYINT DEFAULT 1,
+  PRIMARY KEY (id_proyecto)
+);
+
+CREATE TABLE instrumentacion (
+  id_instrumentacion INT NOT NULL AUTO_INCREMENT,
+  id_componente INT NOT NULL,
+  tipo_equipo VARCHAR(100),
+  nombre_equipo VARCHAR(500),
+  id_equipo INT,
+  tabla_equipo VARCHAR(100),
+  estado_instrumentacion TINYINT DEFAULT 1,
+  PRIMARY KEY (id_instrumentacion)
+);
+
+CREATE TABLE componentes (
+  id_componente INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  nombre_componente VARCHAR(500) NOT NULL,
+  estado_componente TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id_componente)
+);
+
+CREATE TABLE piezometrocuerdas (
+  id_piezometro INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  id_formula INT NOT NULL DEFAULT 0,
+  nombre_piezometro VARCHAR(500) NOT NULL,
+  serie_sensor VARCHAR(100),
+  este_piezometro DOUBLE,
+  norte_piezometro DOUBLE,
+  elevacion_piezometro DOUBLE,
+  fundacion_piezometro DOUBLE,
+  inclinacion_piezometro DOUBLE,
+  azimut_piezometro DOUBLE,
+  factor_calibracion DOUBLE,
+  temperatura_correccion DOUBLE,
+  frecuencia_inicial DOUBLE,
+  temperatura_inicial DOUBLE,
+  presion_inicial DOUBLE,
+  unidad_lectura VARCHAR(10),
+  constante_a DOUBLE,
+  constante_b DOUBLE,
+  constante_c DOUBLE,
+  factor_conversion DOUBLE,
+  comentario_piezometro TEXT,
+  tipo_piezometro TINYINT NOT NULL DEFAULT 1,
+  estado_piezometro TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id_piezometro)
+);
+
+CREATE TABLE piezometrocuerda_detalle1 (
+  id_cuerda INT NOT NULL AUTO_INCREMENT,
+  id_piezometro INT NOT NULL,
+  fecha_cuerda DATETIME NOT NULL,
+  frecuencia_cuerda DOUBLE NOT NULL,
+  temperatura_cuerda DOUBLE NOT NULL,
+  presion_barometrica DOUBLE,
+  medida_calculada DOUBLE,
+  observacion_cuerda TEXT,
+  estado_cuerda TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id_cuerda)
+);
+
+CREATE TABLE cotas_piezometricas (
+  id_cota INT NOT NULL AUTO_INCREMENT,
+  id_piezometro INT NOT NULL,
+  tipo_piezometro VARCHAR(50),
+  fecha_cota DATETIME,
+  nivel_cota DOUBLE,
+  PRIMARY KEY (id_cota)
+);
+
+CREATE TABLE piezometromanuales (
+  id_piezometro INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  nombre_piezometro VARCHAR(500) NOT NULL,
+  codigo_piezometro VARCHAR(100),
+  este_piezometro DOUBLE,
+  norte_piezometro DOUBLE,
+  elevacion_piezometro DOUBLE,
+  fundacion_piezometro DOUBLE,
+  inclinacion_piezometro DOUBLE,
+  azimut_piezometro DOUBLE,
+  stickup_piezometro DOUBLE,
+  comentario_piezometro TEXT,
+  tipo_piezometro TINYINT NOT NULL DEFAULT 1,
+  estado_piezometro TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id_piezometro)
+);
+
+CREATE TABLE piezometromanual_detalle1 (
+  id_detalle INT NOT NULL AUTO_INCREMENT,
+  id_piezometro INT NOT NULL,
+  fecha_piezometro DATETIME NOT NULL,
+  medida_piezometro DOUBLE,
+  observacion_detalle TEXT,
+  estado_manual TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id_detalle)
+);
+
+CREATE TABLE pluviometros (
+  id_pluviometro INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  nombre_pluviometro VARCHAR(500) NOT NULL,
+  codigo_pluviometro VARCHAR(100),
+  este_pluviometro DOUBLE,
+  norte_pluviometro DOUBLE,
+  elevacion_pluviometro DOUBLE,
+  comentario_pluviometro TEXT,
+  estado_pluviometro TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id_pluviometro)
+);
+
+CREATE TABLE pluviometro_detalle1 (
+  id_detalle INT NOT NULL AUTO_INCREMENT,
+  id_pluviometro INT NOT NULL,
+  fecha_pluviometro DATETIME NOT NULL,
+  medida_pluviometro DOUBLE NOT NULL,
+  observacion_pluviometro TEXT,
+  PRIMARY KEY (id_detalle)
+);
+
+CREATE TABLE cotasterreno (
+  id_terreno INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  nombre_terreno VARCHAR(500) NOT NULL,
+  comentario_terreno TEXT,
+  estado_terreno TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id_terreno)
+);
+
+CREATE TABLE cotaterreno_detalle1 (
+  id_detalle INT NOT NULL AUTO_INCREMENT,
+  id_terreno INT NOT NULL,
+  fecha_detalle DATETIME NOT NULL,
+  nivel_detalle DOUBLE NOT NULL,
+  observacion_detalle TEXT,
+  estado_detalle TINYINT DEFAULT 1,
+  PRIMARY KEY (id_detalle)
+);
+
+CREATE TABLE celdas (
+  id_celda INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  nombre_celda VARCHAR(500) NOT NULL,
+  marca_celda VARCHAR(100),
+  modelo_celda VARCHAR(100),
+  serie_celda VARCHAR(100),
+  rango_celda DOUBLE,
+  este_celda DOUBLE,
+  norte_celda DOUBLE,
+  instalacion_celda DOUBLE,
+  fundacion_celda DOUBLE,
+  frecuencia_inicial DOUBLE,
+  temperatura_inicial DOUBLE,
+  cf_celda DOUBLE,
+  tk_celda DOUBLE,
+  PRIMARY KEY (id_celda)
+);
+
+CREATE TABLE celda_detalle1 (
+  id_detalle INT NOT NULL AUTO_INCREMENT,
+  id_celda INT NOT NULL,
+  fecha_detalle DATETIME NOT NULL,
+  frecuencia_digits DOUBLE,
+  frecuencia_hz DOUBLE,
+  temperatura_detalle DOUBLE,
+  medida_calculada DOUBLE,
+  observacion_detalle TEXT,
+  estado_detalle TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id_detalle)
+);
+
+CREATE TABLE acelerografos (
+  id_acelerografo INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  nombre_acelerografo VARCHAR(500) NOT NULL,
+  este_acelerografo DOUBLE,
+  norte_acelerografo DOUBLE,
+  elevacion_acelerografo DOUBLE,
+  PRIMARY KEY (id_acelerografo)
+);
+
+CREATE TABLE acelerografo_detalle1 (
+  id_detalle INT NOT NULL AUTO_INCREMENT,
+  id_acelerografo INT NOT NULL,
+  fecha_detalle DATETIME NOT NULL,
+  magnitud_detalle DOUBLE NOT NULL,
+  distancia_detalle DOUBLE NOT NULL,
+  observacion_detalle TEXT,
+  PRIMARY KEY (id_detalle)
+);
+
+CREATE TABLE cotas_celdas (
+  id_cota INT NOT NULL AUTO_INCREMENT,
+  id_celda INT NOT NULL,
+  fecha_cota DATETIME,
+  nivel_cota DOUBLE,
+  PRIMARY KEY (id_cota)
+);
+
+CREATE TABLE historial (
+  idproyecto INT NOT NULL,
+  fecha DATETIME NOT NULL,
+  accion VARCHAR(100) NOT NULL,
+  tabla VARCHAR(100) NOT NULL,
+  cambios TEXT,
+  usuario VARCHAR(100) NOT NULL,
+  nombres VARCHAR(500)
+);
+
+CREATE TABLE inclinometros (
+  id_inclinometro INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  tipo_inclinometro VARCHAR(100) NOT NULL,
+  nombre_inclinometro VARCHAR(500) NOT NULL,
+  codigo_inclinometro VARCHAR(100),
+  este_inclinometro DOUBLE,
+  norte_inclinometro DOUBLE,
+  elevacion_inclinometro DOUBLE,
+  profundidad_inclinometro DOUBLE,
+  inclinacion_inclinometro DOUBLE,
+  azimut_inclinometro DOUBLE,
+  comentario_inclinometro TEXT,
+  estado_inclinometro TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id_inclinometro)
+);
+
+CREATE TABLE inclinometro_encabezado (
+  id_encabezado INT NOT NULL AUTO_INCREMENT,
+  id_inclinometro INT NOT NULL,
+  fecha_inclinometro DATETIME NOT NULL,
+  estado_base TINYINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (id_encabezado)
+);
+
+CREATE TABLE inclinometro_detalle1 (
+  id_detalle INT NOT NULL AUTO_INCREMENT,
+  id_encabezado INT NOT NULL,
+  profundidad_detalle DOUBLE NOT NULL,
+  apositivo_detalle DOUBLE NOT NULL,
+  anegativo_detalle DOUBLE NOT NULL,
+  bpositivo_detalle DOUBLE NOT NULL,
+  bnegativo_detalle DOUBLE NOT NULL,
+  PRIMARY KEY (id_detalle)
+);
+
+CREATE TABLE sondajestdr (
+  id_sondajetdr INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  nombre_sondajetdr VARCHAR(500) NOT NULL,
+  este_sondajetdr DOUBLE NOT NULL,
+  norte_sondajetdr DOUBLE NOT NULL,
+  elevacion_sondajetdr DOUBLE NOT NULL,
+  profundidad_sondajetdr DOUBLE NOT NULL,
+  inclinacion_sondajetdr DOUBLE,
+  azimut_sondajetdr DOUBLE,
+  comentario_sondajetdr TEXT,
+  base_sondajetdr DATE,
+  estado_sondajetdr INT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id_sondajetdr)
+);
+
+CREATE TABLE sondajetdr_detalle1 (
+  id_detalle INT NOT NULL AUTO_INCREMENT,
+  id_sondajetdr INT NOT NULL,
+  profundidad_detalle DOUBLE NOT NULL,
+  fecha_detalle DATETIME NOT NULL,
+  impedancia_detalle DOUBLE NOT NULL,
+  observacion_detalle TEXT,
+  PRIMARY KEY (id_detalle)
+);
+
+CREATE TABLE equipos (
+  id_equipo INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  nombre_equipo VARCHAR(500) NOT NULL,
+  tipo_equipo TEXT,
+  este_equipo DOUBLE NOT NULL,
+  norte_equipo DOUBLE NOT NULL,
+  elevacion_equipo DOUBLE NOT NULL,
+  figura_equipo TEXT NOT NULL,
+  color_equipo TEXT NOT NULL,
+  tamanio_equipo INT NOT NULL,
+  descripcion_equipo TEXT,
+  PRIMARY KEY (id_equipo)
+);
+
+CREATE TABLE prismas1 (
+  id_prisma INT NOT NULL AUTO_INCREMENT,
+  state_prisma TINYINT NOT NULL DEFAULT 1,
+  estado_prisma TINYINT NOT NULL DEFAULT 1,
+  nombre_prisma VARCHAR(500) NOT NULL,
+  perfil_prisma TEXT,
+  hora_prisma DATETIME NOT NULL,
+  angulo_horizontal TEXT,
+  angulo_vertical TEXT,
+  distancia_prisma DOUBLE DEFAULT 0,
+  tipoppm_prisma TEXT,
+  ppm_prisma DOUBLE DEFAULT 0,
+  presion_prisma DOUBLE DEFAULT 0,
+  temperatura_prisma DOUBLE DEFAULT 0,
+  constante_prisma DOUBLE DEFAULT 0,
+  este_target DOUBLE NOT NULL,
+  norte_target DOUBLE NOT NULL,
+  elevacion_target DOUBLE NOT NULL,
+  altura_reflector DOUBLE DEFAULT 0,
+  altura_instrumento DOUBLE DEFAULT 0,
+  este_estacion DOUBLE DEFAULT 0,
+  norte_estacion DOUBLE DEFAULT 0,
+  altura_estacion DOUBLE DEFAULT 0,
+  medicion_prisma DOUBLE DEFAULT 0,
+  diferencia_tiempocorto DOUBLE DEFAULT 0,
+  diferencia_tiempolargo DOUBLE DEFAULT 0,
+  diferencia_limitevelocidad DOUBLE DEFAULT 0,
+  distancia_horizontal DOUBLE DEFAULT 0,
+  diferencia_atipica DOUBLE DEFAULT 0,
+  desplaza_longitudinal DOUBLE DEFAULT 0,
+  desplaza_transversal DOUBLE DEFAULT 0,
+  desplaza_altura DOUBLE DEFAULT 0,
+  grupo_puntos TEXT,
+  PRIMARY KEY (id_prisma)
+);
+
+CREATE TABLE prismas_virtuales (
+  id_prisma_virtual INT NOT NULL AUTO_INCREMENT,
+  nombre_prisma_virtual VARCHAR(500) NOT NULL,
+  coordenada_x DOUBLE,
+  coordenada_y DOUBLE,
+  coordenada_z DOUBLE,
+  radio_prisma_virtual DOUBLE,
+  color_prisma VARCHAR(100),
+  PRIMARY KEY (id_prisma_virtual)
+);
+
+CREATE TABLE topografias (
+  id_topografia INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  nombre_topografia VARCHAR(500) NOT NULL,
+  tipo_topografia VARCHAR(100) NOT NULL,
+  archivo_topografia TEXT NOT NULL,
+  comentario_topografia TEXT,
+  estado_topografia TINYINT NOT NULL DEFAULT 1,
+  fecha_topografia DATETIME,
+  PRIMARY KEY (id_topografia)
+);
+
+CREATE TABLE umbral_celda (
+  id_umbral INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  id_celda INT NOT NULL,
+  condicion_umbral VARCHAR(500),
+  color_umbral VARCHAR(100),
+  riesgo_umbral VARCHAR(500),
+  rango_umbral DOUBLE,
+  acciones_umbral TEXT,
+  tipo_umbral VARCHAR(100),
+  PRIMARY KEY (id_umbral)
+);
+
+CREATE TABLE umbral_inclinometro (
+  id_umbral INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  id_inclinometro INT NOT NULL,
+  condicion_umbral VARCHAR(500),
+  color_umbral VARCHAR(100),
+  riesgo_umbral VARCHAR(500),
+  rango_umbral DOUBLE,
+  acciones_umbral TEXT,
+  tipo_umbral VARCHAR(100),
+  PRIMARY KEY (id_umbral)
+);
+
+CREATE TABLE umbral_piezometro (
+  id_umbral INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT,
+  id_piezometro INT NOT NULL,
+  condicion_umbral VARCHAR(500),
+  color_umbral VARCHAR(100),
+  riesgo_umbral VARCHAR(500),
+  rango_umbral DOUBLE,
+  acciones_umbral TEXT,
+  tipo_umbral VARCHAR(100),
+  tipo_piezometro VARCHAR(100),
+  PRIMARY KEY (id_umbral)
+);
+
+CREATE TABLE umbral_prisma (
+  id_umbral INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT,
+  id_componente INT NOT NULL,
+  condicion_umbral VARCHAR(500),
+  color_umbral VARCHAR(100),
+  riesgo_umbral VARCHAR(500),
+  rango_umbral DOUBLE,
+  acciones_umbral TEXT,
+  tipo_umbral VARCHAR(100),
+  PRIMARY KEY (id_umbral)
+);
+
+CREATE TABLE estratos_instrumentacion (
+  id_estrato INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  id_componente INT NOT NULL,
+  nombre_estrato VARCHAR(500),
+  color_estrato VARCHAR(100),
+  rango_min DOUBLE,
+  rango_max DOUBLE,
+  PRIMARY KEY (id_estrato)
+);
+
+CREATE TABLE umbral_acelerografo (
+  id_umbral INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT,
+  id_componente INT,
+  condicion_umbral VARCHAR(500),
+  color_umbral VARCHAR(100),
+  riesgo_umbral VARCHAR(500),
+  rango_umbral DOUBLE,
+  magnitud_umbral DOUBLE,
+  acciones_umbral TEXT,
+  tipo_umbral VARCHAR(100),
+  PRIMARY KEY (id_umbral)
+);
+
+CREATE TABLE estereografias (
+  id_estereografia INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  nombre_estereografia VARCHAR(500),
+  inclinacion_estereografia DOUBLE,
+  direccion_estereografia DOUBLE,
+  codigo_estereografia INT,
+  PRIMARY KEY (id_estereografia)
+);
+
+CREATE TABLE registro_ajuste_coordenadas (
+  id_ajuste INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT NOT NULL,
+  tabla_modificada VARCHAR(100) NOT NULL,
+  nombre_equipo VARCHAR(500),
+  columna_modificada VARCHAR(100),
+  numero_fila INT,
+  valor_anterior DOUBLE,
+  nuevo_valor DOUBLE,
+  fecha_cambio DATETIME,
+  usuario_cambio VARCHAR(100) NOT NULL,
+  nombres_cambio VARCHAR(500),
+  PRIMARY KEY (id_ajuste)
+);
+
+CREATE TABLE desviaciones (
+  id_desviacion INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT,
+  nombre_prisma VARCHAR(500),
+  centro_este DOUBLE,
+  desviacion_este DOUBLE,
+  centro_norte DOUBLE,
+  desviacion_norte DOUBLE,
+  centro_cota DOUBLE,
+  desviacion_cota DOUBLE,
+  fecha_calculo DATETIME,
+  PRIMARY KEY (id_desviacion)
+);
+
+CREATE TABLE formulas_piezometros (
+  id_formula INT NOT NULL AUTO_INCREMENT,
+  formula TEXT NOT NULL,
+  sentencia TEXT NOT NULL,
+  PRIMARY KEY (id_formula)
+);
+
+CREATE TABLE registro_cambios_prismas (
+  id_registro INT NOT NULL AUTO_INCREMENT,
+  nombre_equipo VARCHAR(500),
+  indice_lectura INT,
+  tabla_equipo VARCHAR(100),
+  fecha_equipo DATETIME,
+  coordenada_este DOUBLE,
+  coordenada_norte DOUBLE,
+  coordenada_cota DOUBLE,
+  distancia_inclinada DOUBLE,
+  fecha_modificacion DATETIME,
+  PRIMARY KEY (id_registro)
+);
+
+CREATE TABLE registro_limpieza_desviaciones (
+  id_registro INT NOT NULL AUTO_INCREMENT,
+  id_proyecto INT,
+  id_componente INT,
+  equipo VARCHAR(500),
+  tipo_equipo VARCHAR(100),
+  ultima_fecha_modificada DATETIME,
+  PRIMARY KEY (id_registro)
+);

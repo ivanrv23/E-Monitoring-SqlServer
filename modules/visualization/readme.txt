@@ -1,0 +1,1 @@
+Aquí va el código para la visualización 2D/3D con VTK, Matplotlib, etc.

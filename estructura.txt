@@ -1,0 +1,11 @@
+Estructura esperada:
+ui/basic_ui: Para los archivos .ui generados con Qt Designer.
+ui/compiled_ui: Para los archivos .py compilados a partir de los .ui para producción.
+resources: Para imágenes, archivos de audio, etc.
+controllers: Para la lógica de los controladores.
+models: Para la lógica de los modelos.
+views: Para las vistas que integran la interfaz de usuario.
+services: Para los servicios externos como APIs y bases de datos.
+modules/data: Para manipulación de datos y conexión a bases de datos.
+modules/visualization: Para la visualización con VTK, Matplotlib, etc.
+tests: Para los scripts de pruebas unitarias.

@@ -1,0 +1,811 @@
+user: lasadatabase
+pass: Lasa2025
+###############TABLAS DE BASE DE DATOS#########################
+
+CREATE TABLE "licencias" (
+	"id_licencia"	INTEGER NOT NULL UNIQUE,
+	"serial_licencia"	TEXT NOT NULL,
+	"inicio_licencia"	TEXT NOT NULL,
+	"final_licencia"	TEXT NOT NULL,
+	"dispositivo_licencia"	TEXT NOT NULL,
+	"estado_licencia"	INTEGER NOT NULL,
+	"documento_licencia"	TEXT NOT NULL,
+	"cliente_licencia"	TEXT NOT NULL,
+	"telefono_licencia"	TEXT NOT NULL,
+	"email_licencia"	TEXT NOT NULL,
+	"contacto_licencia"	TEXT NOT NULL,
+	"cargo_licencia"	TEXT NOT NULL,
+	"codigo_empresa"	INTEGER NOT NULL,
+	"codigo_venta"	INTEGER NOT NULL,
+	PRIMARY KEY("id_licencia" AUTOINCREMENT)
+);
+
+CREATE TABLE "proyectos" (
+	"id_proyecto"	INTEGER NOT NULL UNIQUE,
+	"nombre_proyecto"	TEXT NOT NULL,
+	"fecha_proyecto"	TEXT,
+	"descripcion_proyecto"	TEXT,
+	"estado_proyecto"	INTEGER DEFAULT 1,
+	PRIMARY KEY("id_proyecto" AUTOINCREMENT)
+);
+
+CREATE TABLE "instrumentacion" (
+	"id_instrumentacion"	INTEGER NOT NULL UNIQUE,
+	"id_componente"	INTEGER NOT NULL,
+	"tipo_equipo"	TEXT,
+	"nombre_equipo"	TEXT,
+	"id_equipo"	INTEGER,
+	"tabla_equipo"	TEXT,
+	"estado_instrumentacion"	INTEGER DEFAULT 1,
+	PRIMARY KEY("id_instrumentacion" AUTOINCREMENT)
+);
+
+CREATE TABLE "componentes" (
+	"id_componente"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"nombre_componente"	TEXT NOT NULL,
+	"estado_componente"	INTEGER NOT NULL DEFAULT 1,
+	PRIMARY KEY("id_componente" AUTOINCREMENT)
+);
+
+CREATE TABLE "piezometrocuerdas" (
+	"id_piezometro"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"id_formula"	INTEGER NOT NULL DEFAULT 0,
+	"nombre_piezometro"	TEXT NOT NULL,
+	"serie_sensor"	TEXT,
+	"este_piezometro"	NUMERIC,
+	"norte_piezometro"	NUMERIC,
+	"elevacion_piezometro"	NUMERIC,
+	"fundacion_piezometro"	NUMERIC,
+	"inclinacion_piezometro"	NUMERIC,
+	"azimut_piezometro"	NUMERIC,
+	"factor_calibracion"	NUMERIC,
+	"temperatura_correccion"	NUMERIC,
+	"frecuencia_inicial"	NUMERIC,
+	"temperatura_inicial"	NUMERIC,
+	"presion_inicial"	NUMERIC,
+	"unidad_lectura"	TEXT,
+	"constante_a"	NUMERIC,
+	"constante_b"	NUMERIC,
+	"constante_c"	NUMERIC,
+	"factor_conversion"	NUMERIC,
+	"comentario_piezometro"	TEXT,
+	"tipo_piezometro"	INTEGER NOT NULL DEFAULT 1,
+	"estado_piezometro"	INTEGER NOT NULL DEFAULT 1,
+	PRIMARY KEY("id_piezometro" AUTOINCREMENT)
+);
+
+CREATE TABLE "piezometrocuerda_detalle1" (
+	"id_cuerda"	INTEGER NOT NULL UNIQUE,
+	"id_piezometro"	INTEGER NOT NULL,
+	"fecha_cuerda"	TEXT NOT NULL,
+	"frecuencia_cuerda"	NUMERIC NOT NULL,
+	"temperatura_cuerda"	NUMERIC NOT NULL,
+	"presion_barometrica"	NUMERIC,
+	"medida_calculada"	NUMERIC,
+	"observacion_cuerda"	TEXT,
+	"estado_cuerda"	INTEGER NOT NULL DEFAULT 1,
+	PRIMARY KEY("id_cuerda" AUTOINCREMENT)
+);
+
+CREATE TABLE "cotas_piezometricas" (
+	"id_cota"	INTEGER NOT NULL UNIQUE,
+	"id_piezometro"	INTEGER NOT NULL,
+	"tipo_piezometro"	TEXT,
+	"fecha_cota"	TEXT,
+	"nivel_cota"	NUMERIC,
+	PRIMARY KEY("id_cota" AUTOINCREMENT)
+);
+
+CREATE TABLE "piezometromanuales" (
+	"id_piezometro"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"nombre_piezometro"	TEXT NOT NULL,
+	"codigo_piezometro"	TEXT,
+	"este_piezometro"	NUMERIC,
+	"norte_piezometro"	NUMERIC,
+	"elevacion_piezometro"	NUMERIC,
+	"fundacion_piezometro"	NUMERIC,
+	"inclinacion_piezometro"	NUMERIC,
+	"azimut_piezometro"	NUMERIC,
+	"stickup_piezometro"	NUMERIC,
+	"comentario_piezometro"	TEXT,
+	"tipo_piezometro"	INTEGER NOT NULL DEFAULT 1,
+	"estado_piezometro"	INTEGER NOT NULL DEFAULT 1,
+	PRIMARY KEY("id_piezometro" AUTOINCREMENT)
+);
+
+CREATE TABLE "piezometromanual_detalle1" (
+	"id_detalle"	INTEGER NOT NULL UNIQUE,
+	"id_piezometro"	INTEGER NOT NULL,
+	"fecha_piezometro"	TEXT NOT NULL,
+	"medida_piezometro"	NUMERIC,
+	"observacion_detalle"	TEXT,
+	"estado_manual"	INTEGER NOT NULL DEFAULT 1,
+	PRIMARY KEY("id_detalle" AUTOINCREMENT)
+);
+
+CREATE TABLE "pluviometros" (
+	"id_pluviometro"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"nombre_pluviometro"	TEXT NOT NULL,
+	"codigo_pluviometro"	TEXT,
+	"este_pluviometro"	NUMERIC,
+	"norte_pluviometro"	NUMERIC,
+	"elevacion_pluviometro"	NUMERIC,
+	"comentario_pluviometro"	TEXT,
+	"estado_pluviometro"	INTEGER NOT NULL DEFAULT 1,
+	PRIMARY KEY("id_pluviometro" AUTOINCREMENT)
+);
+
+CREATE TABLE "pluviometro_detalle1" (
+	"id_detalle"	INTEGER NOT NULL UNIQUE,
+	"id_pluviometro"	INTEGER NOT NULL,
+	"fecha_pluviometro"	TEXT NOT NULL,
+	"medida_pluviometro"	NUMERIC NOT NULL,
+	"observacion_pluviometro"	TEXT,
+	PRIMARY KEY("id_detalle" AUTOINCREMENT)
+);
+
+CREATE TABLE "cotasterreno" (
+	"id_terreno"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"nombre_terreno"	TEXT NOT NULL,
+	"comentario_terreno"	TEXT,
+	"estado_terreno"	INTEGER NOT NULL DEFAULT 1,
+	PRIMARY KEY("id_terreno" AUTOINCREMENT)
+);
+
+CREATE TABLE "cotaterreno_detalle1" (
+	"id_detalle"	INTEGER NOT NULL UNIQUE,
+	"id_terreno"	INTEGER NOT NULL,
+	"fecha_detalle"	TEXT NOT NULL,
+	"nivel_detalle"	NUMERIC NOT NULL,
+	"observacion_detalle"	TEXT,
+	"estado_detalle"	INTEGER DEFAULT 1,
+	PRIMARY KEY("id_detalle" AUTOINCREMENT)
+);
+
+CREATE TABLE "celdas" (
+	"id_celda"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"nombre_celda"	TEXT NOT NULL,
+	"marca_celda"	TEXT,
+	"modelo_celda"	TEXT,
+	"serie_celda"	TEXT,
+	"rango_celda"	NUMERIC,
+	"este_celda"	NUMERIC,
+	"norte_celda"	NUMERIC,
+	"instalacion_celda"	NUMERIC,
+	"fundacion_celda"	NUMERIC,
+	"frecuencia_inicial"	NUMERIC,
+	"temperatura_inicial"	NUMERIC,
+	"cf_celda"	NUMERIC,
+	"tk_celda"	NUMERIC,
+	PRIMARY KEY("id_celda" AUTOINCREMENT)
+);
+
+CREATE TABLE "celda_detalle1" (
+	"id_detalle"	INTEGER NOT NULL UNIQUE,
+	"id_celda"	INTEGER NOT NULL,
+	"fecha_detalle"	TEXT NOT NULL,
+	"frecuencia_digits"	NUMERIC,
+	"frecuencia_hz"	NUMERIC,
+	"temperatura_detalle"	NUMERIC,
+	"medida_calculada"	NUMERIC,
+	"observacion_detalle"	TEXT,
+	"estado_detalle"	INTEGER NOT NULL DEFAULT 1,
+	PRIMARY KEY("id_detalle" AUTOINCREMENT)
+);
+
+CREATE TABLE "acelerografos" (
+	"id_acelerografo"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"nombre_acelerografo"	TEXT NOT NULL,
+	"este_acelerografo"	NUMERIC,
+	"norte_acelerografo"	NUMERIC,
+	"elevacion_acelerografo"	NUMERIC,
+	PRIMARY KEY("id_acelerografo" AUTOINCREMENT)
+);
+
+CREATE TABLE "acelerografo_detalle1" (
+	"id_detalle"	INTEGER NOT NULL UNIQUE,
+	"id_acelerografo"	INTEGER NOT NULL,
+	"fecha_detalle"	TEXT NOT NULL,
+	"magnitud_detalle"	NUMERIC NOT NULL,
+	"distancia_detalle"	NUMERIC NOT NULL,
+	"observacion_detalle"	TEXT,
+	PRIMARY KEY("id_detalle" AUTOINCREMENT)
+);
+
+
+CREATE TABLE "cotas_celdas" (
+	"id_cota"	INTEGER NOT NULL UNIQUE,
+	"id_celda"	INTEGER NOT NULL,
+	"fecha_cota"	TEXT,
+	"nivel_cota"	NUMERIC,
+	PRIMARY KEY("id_cota" AUTOINCREMENT)
+);
+
+CREATE TABLE "historial" (
+	"idproyecto"	INTEGER NOT NULL,
+	"fecha"	TEXT NOT NULL,
+	"accion"	TEXT NOT NULL,
+	"tabla"	TEXT NOT NULL,
+	"cambios"	TEXT,
+	"usuario"	TEXT NOT NULL,
+	"nombres"	TEXT
+);
+
+CREATE TABLE "inclinometros" (
+	"id_inclinometro"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"tipo_inclinometro"	TEXT NOT NULL,
+	"nombre_inclinometro"	TEXT NOT NULL,
+	"codigo_inclinometro"	TEXT,
+	"este_inclinometro"	NUMERIC,
+	"norte_inclinometro"	NUMERIC,
+	"elevacion_inclinometro"	NUMERIC,
+	"profundidad_inclinometro"	NUMERIC,
+	"inclinacion_inclinometro"	NUMERIC,
+	"azimut_inclinometro"	NUMERIC,
+	"comentario_inclinometro"	TEXT,
+	"estado_inclinometro"	INTEGER NOT NULL DEFAULT 1,
+	PRIMARY KEY("id_inclinometro" AUTOINCREMENT)
+);
+
+CREATE TABLE "inclinometro_encabezado" (
+	"id_encabezado"	INTEGER NOT NULL UNIQUE,
+	"id_inclinometro"	INTEGER NOT NULL,
+	"fecha_inclinometro"	TEXT NOT NULL,
+	"estado_base"	INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY("id_encabezado" AUTOINCREMENT)
+);
+
+CREATE TABLE "inclinometro_detalle4" (
+	"id_detalle"	INTEGER NOT NULL UNIQUE,
+	"id_encabezado"	INTEGER NOT NULL,
+	"profundidad_detalle"	NUMERIC NOT NULL,
+	"apositivo_detalle"	NUMERIC NOT NULL,
+	"anegativo_detalle"	NUMERIC NOT NULL,
+	"bpositivo_detalle"	NUMERIC NOT NULL,
+	"bnegativo_detalle"	NUMERIC NOT NULL,
+	PRIMARY KEY("id_detalle" AUTOINCREMENT)
+);
+
+CREATE TABLE "empresa" (
+	"id_empresa"	INTEGER NOT NULL UNIQUE,
+	"nombre_empresa"	TEXT,
+	"ruc_empresa"	TEXT,
+	"telefono_empresa"	TEXT,
+	"correo_empresa"	TEXT,
+	"logo_empresa"	BLOB,
+	PRIMARY KEY("id_empresa" AUTOINCREMENT)
+);
+
+CREATE TABLE "reporte_general" (
+	"id_reporte"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER,
+	"encabezado_reporte"	TEXT,
+	"pie_reporte"	TEXT,
+	"titulo_reporte"	TEXT,
+	"lugar_reporte"	TEXT,
+	"fecha_reporte"	TEXT,
+	"para_reporte"	TEXT,
+	"de_reporte"	TEXT,
+	"cc_reporte"	TEXT,
+	"asunto_reporte"	TEXT,
+	"descripcion_reporte"	TEXT,
+	"conclusiones_reporte"	TEXT,
+	"recomendaciones_reporte"	TEXT,
+	"componente_reporte"	BLOB,
+	PRIMARY KEY("id_reporte" AUTOINCREMENT)
+);
+
+CREATE TABLE "sondajestdr" (
+	"id_sondajetdr"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"nombre_sondajetdr"	TEXT NOT NULL,
+	"este_sondajetdr"	NUMERIC NOT NULL,
+	"norte_sondajetdr"	NUMERIC NOT NULL,
+	"elevacion_sondajetdr"	NUMERIC NOT NULL,
+	"profundidad_sondajetdr"	NUMERIC NOT NULL,
+	"inclinacion_sondajetdr"	NUMERIC,
+	"azimut_sondajetdr"	NUMERIC,
+	"comentario_sondajetdr"	TEXT,
+	"base_sondajetdr"	TEXT,
+	"estado_sondajetdr"	INTEGER NOT NULL DEFAULT 1,
+	PRIMARY KEY("id_sondajetdr" AUTOINCREMENT)
+);
+
+CREATE TABLE "sondajetdr_detalle4" (
+	"id_detalle"	INTEGER NOT NULL UNIQUE,
+	"id_sondajetdr"	INTEGER NOT NULL,
+	"profundidad_detalle"	NUMERIC NOT NULL,
+	"fecha_detalle"	TEXT NOT NULL,
+	"impedancia_detalle"	NUMERIC NOT NULL,
+	"observacion_detalle"	TEXT,
+	PRIMARY KEY("id_detalle" AUTOINCREMENT)
+);
+
+CREATE TABLE "equipos" (
+	"id_equipo"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"nombre_equipo"	TEXT NOT NULL,
+	"tipo_equipo"	TEXT,
+	"este_equipo"	NUMERIC NOT NULL,
+	"norte_equipo"	NUMERIC NOT NULL,
+	"elevacion_equipo"	NUMERIC NOT NULL,
+	"figura_equipo"	TEXT NOT NULL,
+	"color_equipo"	TEXT NOT NULL,
+	"tamanio_equipo"	INTEGER NOT NULL,
+	"descripcion_equipo"	TEXT,
+	PRIMARY KEY("id_equipo" AUTOINCREMENT)
+);
+
+CREATE TABLE "prismas1" (
+	"id_prisma"	INTEGER NOT NULL UNIQUE,
+	"state_prisma"	INTEGER NOT NULL DEFAULT 1,
+	"estado_prisma"	INTEGER NOT NULL DEFAULT 1,
+	"nombre_prisma"	TEXT NOT NULL,
+	"perfil_prisma"	TEXT,
+	"hora_prisma"	TEXT NOT NULL,
+	"angulo_horizontal"	TEXT,
+	"angulo_vertical"	TEXT,
+	"distancia_prisma"	NUMERIC DEFAULT 0,
+	"tipoppm_prisma"	TEXT,
+	"ppm_prisma"	NUMERIC DEFAULT 0,
+	"presion_prisma"	NUMERIC DEFAULT 0,
+	"temperatura_prisma"	NUMERIC DEFAULT 0,
+	"constante_prisma"	NUMERIC DEFAULT 0,
+	"este_target"	NUMERIC NOT NULL,
+	"norte_target"	NUMERIC NOT NULL,
+	"elevacion_target"	NUMERIC NOT NULL,
+	"altura_reflector"	NUMERIC DEFAULT 0,
+	"altura_instrumento"	NUMERIC DEFAULT 0,
+	"este_estacion"	NUMERIC DEFAULT 0,
+	"norte_estacion"	NUMERIC DEFAULT 0,
+	"altura_estacion"	NUMERIC DEFAULT 0,
+	"medicion_prisma"	NUMERIC DEFAULT 0,
+	"diferencia_tiempocorto"	NUMERIC DEFAULT 0,
+	"diferencia_tiempolargo"	NUMERIC DEFAULT 0,
+	"diferencia_limitevelocidad"	NUMERIC DEFAULT 0,
+	"distancia_horizontal"	NUMERIC DEFAULT 0,
+	"diferencia_atipica"	NUMERIC DEFAULT 0,
+	"desplaza_longitudinal"	NUMERIC DEFAULT 0,
+	"desplaza_transversal"	NUMERIC DEFAULT 0,
+	"desplaza_altura"	NUMERIC DEFAULT 0,
+	"grupo_puntos"	TEXT,
+	PRIMARY KEY("id_prisma" AUTOINCREMENT)
+);
+
+CREATE TABLE "firmas" (
+	"id_firma"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER,
+	"responsable"	TEXT,
+	"cargo"	TEXT,
+	"dni"	TEXT,
+	"cip"	INTEGER,
+	"firma"	BLOB,
+	"tipo"	INTEGER DEFAULT 1,
+	PRIMARY KEY("id_firma" AUTOINCREMENT)
+);
+
+CREATE TABLE "graficos_reporte" (
+	"id_reporte"	INTEGER NOT NULL UNIQUE,
+	"id_componente"	INTEGER NOT NULL,
+	"vista_reporte"	TEXT NOT NULL,
+	"tipo_grafico"	TEXT,
+	"imagen_grafica"	BLOB NOT NULL,
+	"titulo_grafica"	TEXT,
+	"descripcion_grafica"	TEXT,
+	"tipo_reporte"	TEXT,
+	"tipo_equipo"	TEXT,
+	PRIMARY KEY("id_reporte" AUTOINCREMENT)
+);
+
+CREATE TABLE "ejes" (
+	"id_ejes"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"modulo_ejes"	TEXT NOT NULL,
+	"tipo_ejes"	TEXT NOT NULL,
+	"yinferior_ejes"	NUMERIC DEFAULT 0,
+	"ysuperior_ejes"	NUMERIC DEFAULT 0,
+	"yprincipal_ejes"	NUMERIC DEFAULT 0,
+	"ysecundario_ejes"	NUMERIC DEFAULT 0,
+	"xintervalo_ejes"	NUMERIC DEFAULT 0,
+	PRIMARY KEY("id_ejes" AUTOINCREMENT)
+);
+
+CREATE TABLE "configuraciongrafica" (
+	"id_configuracion"	INTEGER NOT NULL UNIQUE,
+	"titulo_grafica"	NUMERIC,
+	"ejes_grafica"	NUMERIC,
+	"etiquetas_grafica"	NUMERIC,
+	"leyenda_grafica"	NUMERIC,
+	"cota_grafica"	NUMERIC,
+	"mostrarcota_grafica"	INTEGER,
+	"mostrar_vertices"	INTEGER,
+	"tipo_tendencia"	TEXT,
+	"grosor_tendencia"	NUMERIC,
+	"color_tendencia"	TEXT,
+	"fuente_grafica"	TEXT,
+	"transparencia_grafica"	NUMERIC,
+	"grosor_lineas"	NUMERIC,
+	"grosor_vertices"	INTEGER,
+	"cantidad_decimal"	INTEGER,
+	"velocidad_grafica"	INTEGER,
+	"filtrado_grafica"	INTEGER,
+	"lluvia_grafica"	INTEGER,
+	"mostrar_lluvia"	INTEGER,
+	"celda_grafica"	INTEGER,
+	PRIMARY KEY("id_configuracion" AUTOINCREMENT)
+);
+
+CREATE TABLE "estilos" (
+	"id_estilo"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"id_equipo"	INTEGER NOT NULL,
+	"tipo_linea"	TEXT,
+	"grosor_linea"	NUMERIC,
+	"color_linea"	TEXT,
+	"tipo_equipo"	INTEGER DEFAULT 0,
+	PRIMARY KEY("id_estilo" AUTOINCREMENT)
+);
+
+CREATE TABLE "prismas_virtuales" (
+	"id_prisma_virtual"	INTEGER NOT NULL UNIQUE,
+	"nombre_prisma_virtual"	TEXT,
+	"coordenada_x"	NUMERIC,
+	"coordenada_y"	NUMERIC,
+	"coordenada_z"	NUMERIC,
+	"radio_prisma_virtual"	NUMERIC,
+	"color_prisma"	TEXT,
+	PRIMARY KEY("id_prisma_virtual" AUTOINCREMENT)
+);
+
+CREATE TABLE "topografias" (
+	"id_topografia"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"nombre_topografia"	TEXT NOT NULL,
+	"tipo_topografia"	TEXT NOT NULL,
+	"archivo_topografia"	TEXT NOT NULL,
+	"comentario_topografia"	TEXT,
+	"estado_topografia"	INTEGER NOT NULL DEFAULT 1,
+	"fecha_topografia"	TEXT,
+	PRIMARY KEY("id_topografia" AUTOINCREMENT)
+);
+
+CREATE TABLE "umbral_celda" (
+	"id_umbral"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"id_celda"	INTEGER NOT NULL,
+	"condicion_umbral"	TEXT,
+	"color_umbral"	TEXT,
+	"riesgo_umbral"	TEXT,
+	"rango_umbral"	NUMERIC,
+	"acciones_umbral"	TEXT,
+	"tipo_umbral"	TEXT,
+	PRIMARY KEY("id_umbral" AUTOINCREMENT)
+);
+
+CREATE TABLE "umbral_inclinometro" (
+	"id_umbral"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER,
+	"id_inclinometro"	INTEGER NOT NULL,
+	"condicion_umbral"	TEXT,
+	"color_umbral"	TEXT,
+	"riesgo_umbral"	TEXT,
+	"rango_umbral"	NUMERIC,
+	"acciones_umbral"	TEXT,
+	"tipo_umbral"	TEXT,
+	PRIMARY KEY("id_umbral" AUTOINCREMENT)
+);
+
+CREATE TABLE "umbral_piezometro" (
+	"id_umbral"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER,
+	"id_piezometro"	INTEGER NOT NULL,
+	"condicion_umbral"	TEXT,
+	"color_umbral"	TEXT,
+	"riesgo_umbral"	TEXT,
+	"rango_umbral"	NUMERIC,
+	"acciones_umbral"	TEXT,
+	"tipo_umbral"	TEXT,
+	"tipo_piezometro"	TEXT,
+	PRIMARY KEY("id_umbral" AUTOINCREMENT)
+);
+
+CREATE TABLE "umbral_prisma" (
+	"id_umbral"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER,
+	"id_componente"	INTEGER NOT NULL,
+	"condicion_umbral"	TEXT,
+	"color_umbral"	TEXT,
+	"riesgo_umbral"	TEXT,
+	"rango_umbral"	NUMERIC,
+	"acciones_umbral"	TEXT,
+	"tipo_umbral"	TEXT,
+	PRIMARY KEY("id_umbral" AUTOINCREMENT)
+);
+
+CREATE TABLE "estratos_instrumentacion" (
+	"id_estrato"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"id_componente"	INTEGER NOT NULL,
+	"nombre_estrato"	TEXT,
+	"color_estrato"	TEXT,
+	"rango_min"	NUMERIC,
+	"rango_max"	NUMERIC,
+	PRIMARY KEY("id_estrato" AUTOINCREMENT)
+);
+
+CREATE TABLE "umbral_acelerografo" (
+	"id_umbral"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER,
+	"id_componente"	INTEGER,
+	"condicion_umbral"	TEXT,
+	"color_umbral"	TEXT,
+	"riesgo_umbral"	TEXT,
+	"rango_umbral"	NUMERIC,
+	"magnitud_umbral"	NUMERIC,
+	"acciones_umbral"	TEXT,
+	"tipo_umbral"	TEXT,
+	PRIMARY KEY("id_umbral" AUTOINCREMENT)
+);
+
+CREATE TABLE "estereografias" (
+	"id_estereografia"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"nombre_estereografia"	TEXT,
+	"inclinacion_estereografia"	NUMERIC,
+	"direccion_estereografia"	NUMERIC,
+	"codigo_estereografia"	INTEGER,
+	PRIMARY KEY("id_estereografia" AUTOINCREMENT)
+);
+
+CREATE TABLE "ejestdr" (
+	"id_eje"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"xminimo_eje"	NUMERIC,
+	"xmaximo_eje"	NUMERIC,
+	"interxprima_eje"	NUMERIC,
+	"interxsecu_eje"	INTEGER,
+	"yminimo_eje"	INTEGER,
+	"ymaximo_eje"	INTEGER,
+	"interyprima_eje"	INTEGER,
+	"interysecu_eje"	INTEGER,
+	PRIMARY KEY("id_eje" AUTOINCREMENT)
+);
+
+CREATE TABLE "reporte_anexos" (
+	"id_reporte"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"titulo_portada"	TEXT,
+	"subtitulo_portada"	TEXT,
+	"lugar_portada"	TEXT,
+	"autor_portada"	TEXT,
+	"tipo_documento"	TEXT,
+	"codigo_reporte"	TEXT,
+	"destinatario_reporte"	TEXT,
+	"remitente_reporte"	TEXT,
+	"asunto_reporte"	TEXT,
+	"descripcion_reporte"	TEXT,
+	"tipo_reporte"	TEXT,
+	"componente_reporte"	TEXT,
+	"imagen_componente"	BLOB,
+	"objetivo_reporte"	TEXT,
+	"finalidad_reporte"	TEXT,
+	"ambito_aplicacion_reporte"	TEXT,
+	"detalle_reporte"	TEXT,
+	"titulo_anexo"	TEXT,
+	"tipo_anexo"	TEXT,
+	PRIMARY KEY("id_reporte" AUTOINCREMENT)
+);
+
+CREATE TABLE "resumen_ejecutivo_anexo1" (
+	"id_resumen"	INTEGER NOT NULL UNIQUE,
+	"id_componente"	INTEGER NOT NULL,
+	"descripcion_anexo"	TEXT,
+	"componente_encabezado"	TEXT,
+	"valor_componente_encabezado"	TEXT,
+	"autorizacion_encabezado"	TEXT,
+	"valor_autorizacion_encabezado"	TEXT,
+	"fecha_encabezado"	TEXT,
+	"valor_fecha_encabezado"	TEXT,
+	"expediente_control"	TEXT,
+	"valor_expediente_control"	TEXT,
+	"inspeccion_control"	TEXT,
+	"valor_inspeccion_control"	TEXT,
+	PRIMARY KEY("id_resumen" AUTOINCREMENT)
+);
+
+CREATE TABLE "resumen_ejecutivo_anexo2" (
+	"id_resumen"	INTEGER NOT NULL UNIQUE,
+	"id_componente"	INTEGER NOT NULL,
+	"descripcion_anexo"	TEXT,
+	"componente_encabezado"	TEXT,
+	"valor_componente_encabezado"	TEXT,
+	"periodo_encabezado"	TEXT,
+	"valor_periodo_encabezado"	TEXT,
+	"interpretacion_monitoreo"	TEXT,
+	"valor_interpretacion"	TEXT,
+	PRIMARY KEY("id_resumen" AUTOINCREMENT)
+);
+
+CREATE TABLE "control_parametros_anexo1" (
+	"id_control"	INTEGER NOT NULL UNIQUE,
+	"id_componente"	INTEGER NOT NULL,
+	"descripcion_parametro"	TEXT,
+	"valor_parametro"	TEXT,
+	"unidad_parametro"	TEXT,
+	"condicion_parametro"	TEXT,
+	"comentario_parametro"	TEXT,
+	PRIMARY KEY("id_control" AUTOINCREMENT)
+);
+
+CREATE TABLE "condiciones_fisicas_anexo1" (
+	"id_condicion"	INTEGER NOT NULL UNIQUE,
+	"id_componente"	INTEGER NOT NULL,
+	"condicion_talud"	TEXT,
+	"estado_condicion"	TEXT,
+	"comentario"	TEXT,
+	"tipo_condicion"	INTEGER,
+	PRIMARY KEY("id_condicion" AUTOINCREMENT)
+);
+
+CREATE TABLE "operatividad_equipos_anexo1" (
+	"id_operatividad"	INTEGER NOT NULL UNIQUE,
+	"id_componente"	INTEGER NOT NULL,
+	"instrumentacion"	TEXT,
+	"condicion_actual"	TEXT,
+	"cantidad"	TEXT,
+	"operatividad"	TEXT,
+	"comentario"	TEXT,
+	PRIMARY KEY("id_operatividad" AUTOINCREMENT)
+);
+
+CREATE TABLE "observaciones_medidas_anexo1" (
+	"id_observacion"	INTEGER NOT NULL UNIQUE,
+	"id_componente"	INTEGER NOT NULL,
+	"descripcion"	TEXT,
+	"condicion_actual"	TEXT,
+	"medidas"	TEXT,
+	"plazo"	TEXT,
+	"comentario"	TEXT,
+	"responsable"	TEXT,
+	"tipo"	INTEGER,
+	PRIMARY KEY("id_observacion" AUTOINCREMENT)
+);
+
+CREATE TABLE "instrumentacion_geotecnica_anexo2" (
+	"id_instrumentacion"	INTEGER NOT NULL UNIQUE,
+	"id_componente"	INTEGER NOT NULL,
+	"instrumentacion"	TEXT,
+	"cantidad_autorizado"	TEXT,
+	"operatividad_autorizado"	TEXT,
+	"cantidad_adicional"	TEXT,
+	"operatividad_adicional"	TEXT,
+	"total_intrumentacion"	TEXT,
+	"frecuencia_monitoreo"	TEXT,
+	PRIMARY KEY("id_instrumentacion" AUTOINCREMENT)
+);
+
+CREATE TABLE "ubicaciones_instrumentacion_anexo2" (
+	"id_ubicacion"	INTEGER NOT NULL UNIQUE,
+	"id_componente"	INTEGER NOT NULL,
+	"instrumento"	TEXT,
+	"ubicacion_imagen"	BLOB,
+	"tipo_instrumentacion"	INTEGER,
+	PRIMARY KEY("id_ubicacion" AUTOINCREMENT)
+);
+
+CREATE TABLE "observaciones_medidas_anexo2" (
+	"id_observacion"	INTEGER NOT NULL UNIQUE,
+	"id_componente"	INTEGER NOT NULL,
+	"descripcion"	TEXT,
+	"condicion_actual"	TEXT,
+	"medidas"	TEXT,
+	"plazo"	TEXT,
+	"comentario"	TEXT,
+	"responsable"	TEXT,
+	"tipo"	INTEGER,
+	PRIMARY KEY("id_observacion" AUTOINCREMENT)
+);
+
+CREATE TABLE "configuracionvisor" (
+	"id_configuracion"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"color_fondo"	TEXT,
+	"tamanio_texto"	NUMERIC,
+	"color_texto"	TEXT,
+	"tamanio_prisma"	NUMERIC,
+	"color_prisma"	TEXT,
+	"tamanio_inclinometro"	NUMERIC,
+	"color_inclinometro"	TEXT,
+	"tamanio_piezometro"	NUMERIC,
+	"color_piezometro"	TEXT,
+	"tamanio_pluviometro"	NUMERIC,
+	"color_pluviometro"	TEXT,
+	"tamanio_celda"	NUMERIC,
+	"color_celda"	TEXT,
+	"tamanio_acelerografo"	NUMERIC,
+	"color_acelerografo"	TEXT,
+	"tamanio_tdr"	NUMERIC,
+	"color_tdr"	TEXT,
+	"tamanio_vector"	NUMERIC,
+	PRIMARY KEY("id_configuracion" AUTOINCREMENT)
+);
+
+CREATE TABLE "registro_ajuste_coordenadas" (
+	"id_ajuste"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER NOT NULL,
+	"tabla_modificada"	TEXT NOT NULL,
+	"nombre_equipo"	TEXT,
+	"columna_modificada"	TEXT,
+	"numero_fila"	INTEGER,
+	"valor_anterior"	NUMERIC,
+	"nuevo_valor"	NUMERIC,
+	"fecha_cambio"	TEXT,
+	"usuario_cambio"	TEXT NOT NULL,
+	"nombres_cambio"	TEXT,
+	PRIMARY KEY("id_ajuste" AUTOINCREMENT)
+);
+
+CREATE TABLE "desviaciones" (
+	"id_desviacion"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER,
+	"nombre_prisma"	TEXT,
+	"centro_este"	NUMERIC,
+	"desviacion_este"	NUMERIC,
+	"centro_norte"	NUMERIC,
+	"desviacion_norte"	NUMERIC,
+	"centro_cota"	NUMERIC,
+	"desviacion_cota"	NUMERIC,
+	"fecha_calculo"	TEXT,
+	PRIMARY KEY("id_desviacion" AUTOINCREMENT)
+);
+
+CREATE TABLE "formulas_piezometros" (
+	"id_formula"	INTEGER NOT NULL UNIQUE,
+	"formula"	TEXT NOT NULL,
+	"sentencia"	TEXT,
+	PRIMARY KEY("id_formula" AUTOINCREMENT)
+);
+
+CREATE TABLE "registro_cambios_prismas" (
+	"id_registro"	INTEGER NOT NULL UNIQUE,
+	"nombre_equipo"	TEXT,
+	"indice_lectura"	INTEGER,
+	"tabla_equipo"	TEXT,
+	"fecha_equipo"	TEXT,
+	"coordenada_este"	NUMERIC,
+	"coordenada_norte"	NUMERIC,
+	"coordenada_cota"	NUMERIC,
+	"distancia_inclinada"	NUMERIC,
+	"fecha_modificacion"	TEXT,
+	PRIMARY KEY("id_registro" AUTOINCREMENT)
+);
+
+CREATE TABLE "registro_limpieza_desviaciones" (
+	"id_registro"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER,
+	"id_componente"	INTEGER,
+	"equipo"	TEXT,
+	"tipo_equipo"	TEXT,
+	"ultima_fecha_modificada"	TEXT,
+	PRIMARY KEY("id_registro" AUTOINCREMENT)
+);
+
+CREATE TABLE "umbral_personalizado" (
+	"id_umbral"	INTEGER NOT NULL UNIQUE,
+	"id_proyecto"	INTEGER,
+	"condicion_umbral"	TEXT,
+	"color_umbral"	TEXT,
+	"riesgo_umbral"	TEXT,
+	"rango_umbral"	NUMERIC,
+	"acciones_umbral"	TEXT,
+	"nombre_umbral"	TEXT,
+	PRIMARY KEY("id_umbral" AUTOINCREMENT)
+);

@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1000</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>1000</width>
+    <height>600</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true"/>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_2" stretch="1,20">
+   <item>
+    <widget class="QFrame" name="contenedor_encabezado">
+     <property name="styleSheet">
+      <string notr="true">QFrame#contenedor_encabezado {
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 5px; /* Radio de 5 píxeles para bordes redondeados */
+}</string>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QFrame" name="frame">
+        <property name="styleSheet">
+         <string notr="true">QFrame {
+    border: none; /* Elimina el borde */
+    outline: none; /* Elimina el contorno */
+}</string>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_3">
+         <item>
+          <layout class="QGridLayout" name="gridLayout">
+           <item row="1" column="0">
+            <widget class="QComboBox" name="combo_tipo_grafica">
+             <property name="toolTip">
+              <string>Tipo de Gráfica</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0" colspan="14">
+            <widget class="QLabel" name="label_titulo">
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Análisis a Profundidad</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="5">
+            <widget class="QLabel" name="label_2">
+             <property name="text">
+              <string>Profundidad (m):</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="6">
+            <widget class="QDoubleSpinBox" name="spin_profundidad">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>22</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>Profundidad</string>
+             </property>
+             <property name="minimum">
+              <double>-999999.000000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>999999.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="10">
+            <widget class="QComboBox" name="combo_tiempo">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>22</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>Unidades de Tiempo</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="7">
+            <widget class="QPushButton" name="btn_graficar">
+             <property name="toolTip">
+              <string>Graficar</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset>
+               <normaloff>assets/icons/animar.png</normaloff>assets/icons/animar.png</iconset>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="11">
+            <widget class="QComboBox" name="combo_tendencias">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>22</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>Tipo de Tendencias</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="8">
+            <spacer name="horizontalSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>303</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="1" column="13">
+            <widget class="QPushButton" name="btn_exportar">
+             <property name="toolTip">
+              <string>Exportar Data</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset>
+               <normaloff>assets/icons/sobresalir.png</normaloff>assets/icons/sobresalir.png</iconset>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="12">
+            <widget class="QSpinBox" name="spin_grado">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>22</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>Grado</string>
+             </property>
+             <property name="minimum">
+              <number>2</number>
+             </property>
+             <property name="maximum">
+              <number>6</number>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QPushButton" name="btn_imagen_general">
+             <property name="toolTip">
+              <string>Imagen a Reporte General</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QPushButton" name="btn_reporte_imagen">
+             <property name="toolTip">
+              <string>Agregar a Reporte Anexos</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset>
+               <normaloff>assets/icons/salvar.png</normaloff>assets/icons/salvar.png</iconset>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="3" colspan="2">
+            <widget class="QPushButton" name="btn_umbral">
+             <property name="toolTip">
+              <string>Aplicar Umbral</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset>
+               <normaloff>assets/icons/curva.png</normaloff>assets/icons/curva.png</iconset>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="9">
+            <widget class="QComboBox" name="combo_unidades"/>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QFrame" name="frame_ecuacion">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>33</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QFrame {
+    border: none; /* Elimina el borde */
+    outline: none; /* Elimina el contorno */
+}</string>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <property name="spacing">
+          <number>0</number>
+         </property>
+         <property name="leftMargin">
+          <number>9</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="label_ecuacion">
+           <property name="text">
+            <string>Ecuación:</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="widget_desplazamiento" native="true">
+     <property name="minimumSize">
+      <size>
+       <width>846</width>
+       <height>380</height>
+      </size>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QWidget#widget_desplazamiento {
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 5px; /* Radio de 5 píxeles para bordes redondeados */
+}</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

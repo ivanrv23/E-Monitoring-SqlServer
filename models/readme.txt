@@ -1,0 +1,1 @@
+Aquí van los modelos que representan la estructura de los datos y la lógica de negocio.

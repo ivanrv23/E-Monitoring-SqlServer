@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>774</width>
+    <height>717</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="1" column="0">
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>188</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>Seleccione Celda:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="2">
+      <widget class="QComboBox" name="combo_celdas">
+       <property name="minimumSize">
+        <size>
+         <width>160</width>
+         <height>0</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0" colspan="3">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Celdas de Asentamiento</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0" colspan="3">
+      <widget class="QTableWidget" name="table_celdas_calculo">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>400</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">background-color: rgb(196, 196, 196);</string>
+       </property>
+       <property name="sizeAdjustPolicy">
+        <enum>QAbstractScrollArea::AdjustToContents</enum>
+       </property>
+       <column>
+        <property name="text">
+         <string>Fecha</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Hora</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Frecuencia (Digits)</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Frecuencia (Hz)</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Temperatura (°C)</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Desplazamiento (m)</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Observación</string>
+        </property>
+       </column>
+      </widget>
+     </item>
+     <item row="4" column="2">
+      <widget class="QPushButton" name="btn_guardar_data_celda">
+       <property name="text">
+        <string>GUARDAR</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0" colspan="3">
+      <widget class="QLabel" name="label_mensaje_estado">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>400</width>
+    <height>393</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true"/>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="8" column="1">
+      <widget class="QTextEdit" name="input_comentario"/>
+     </item>
+     <item row="1" column="1">
+      <widget class="QComboBox" name="cb_lista_componentes"/>
+     </item>
+     <item row="10" column="0" colspan="2">
+      <widget class="QFrame" name="frame_piepagina">
+       <property name="styleSheet">
+        <string notr="true">QFrame {
+    border: none;
+    outline: none;
+}
+</string>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::StyledPanel</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Raised</enum>
+       </property>
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>129</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btn_registrar">
+          <property name="text">
+           <string>Guardar</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_6">
+       <property name="text">
+        <string>Componente:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QDoubleSpinBox" name="input_norte">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="maximum">
+        <double>9999999999.999000549316406</double>
+       </property>
+       <property name="value">
+        <double>0.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1">
+      <widget class="QDoubleSpinBox" name="input_nivel">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="minimum">
+        <double>-500.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>9999.998999999999796</double>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="0">
+      <widget class="QLabel" name="label_5">
+       <property name="text">
+        <string>Comentario:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0">
+      <widget class="QLabel" name="label_8">
+       <property name="text">
+        <string>Elevación (m):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QLineEdit" name="input_nombre"/>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Nombre del equipo:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>Código:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0" colspan="2">
+      <widget class="QLabel" name="label_7">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Registro de Pluviómetros</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="9" column="0" colspan="2">
+      <widget class="QLabel" name="label_mensaje">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLineEdit" name="input_codigo"/>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Norte (m):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Este (m):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QDoubleSpinBox" name="input_este">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="maximum">
+        <double>999999999.998999953269958</double>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

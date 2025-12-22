@@ -1,0 +1,1 @@
+Aquí van los recursos como imágenes, archivos de audio, etc.

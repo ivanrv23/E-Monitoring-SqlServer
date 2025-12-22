@@ -1,0 +1,1 @@
+Aquí van los archivos .ui generados en Qt Designer.

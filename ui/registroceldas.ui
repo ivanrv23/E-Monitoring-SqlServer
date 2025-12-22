@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>627</width>
+    <height>301</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="2" column="1">
+      <widget class="QLineEdit" name="nombre_celda"/>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>Nombre de Celda:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="2">
+      <widget class="QLabel" name="label_7">
+       <property name="text">
+        <string>Cota de Superficie:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLineEdit" name="marca_celda"/>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Marca:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="2">
+      <widget class="QLabel" name="label_8">
+       <property name="text">
+        <string>Cota de Fundación:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Modelo/Serie:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="2">
+      <widget class="QLabel" name="label_9">
+       <property name="text">
+        <string>Coordenada Este:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="label_5">
+       <property name="text">
+        <string>Rango (m):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="2">
+      <widget class="QLabel" name="label_10">
+       <property name="text">
+        <string>Coordenada Norte:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1">
+      <widget class="QDoubleSpinBox" name="dsb_frecuencia_inicial_celda">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="minimum">
+        <double>-999999999.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>999999999.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QLabel" name="label_11">
+       <property name="text">
+        <string>Frecuencia Inicial (Digits):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="2">
+      <widget class="QLabel" name="label_6">
+       <property name="text">
+        <string>Cota de Instalación:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="2">
+      <widget class="QLabel" name="label_14">
+       <property name="text">
+        <string>TK (Mpa/°C):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0">
+      <widget class="QLabel" name="label_13">
+       <property name="text">
+        <string>CF (MPa/Bunit):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1">
+      <widget class="QDoubleSpinBox" name="dsb_cf_celda">
+       <property name="decimals">
+        <number>8</number>
+       </property>
+       <property name="minimum">
+        <double>-999999999.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>999999999.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="2">
+      <widget class="QLabel" name="label_12">
+       <property name="text">
+        <string>Temperatura Inicial °C:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QLineEdit" name="modelo_celda"/>
+     </item>
+     <item row="1" column="1">
+      <widget class="QComboBox" name="combo_componente"/>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_15">
+       <property name="text">
+        <string>Componente:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0" colspan="5">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Registrar Celda de Asentamiento</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="0" colspan="5">
+      <widget class="QLabel" name="label_mensaje">
+       <property name="font">
+        <font>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="9" column="0">
+      <widget class="QPushButton" name="btn_guardar_celda">
+       <property name="text">
+        <string>Guardar</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="3" colspan="2">
+      <widget class="QDoubleSpinBox" name="dsb_cota_superficie_celda">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="minimum">
+        <double>-999999.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>999999.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="3" colspan="2">
+      <widget class="QDoubleSpinBox" name="dsb_cota_fundacion_celda">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="minimum">
+        <double>-999999.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>999999.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="3" colspan="2">
+      <widget class="QDoubleSpinBox" name="dsb_coordenada_este_celda">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="minimum">
+        <double>-999999999.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>999999999.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="3" colspan="2">
+      <widget class="QDoubleSpinBox" name="dsb_coordenada_norte_celda">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="minimum">
+        <double>-999999999.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>999999999.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="3" colspan="2">
+      <widget class="QDoubleSpinBox" name="dsb_temperatura_inicial_celda">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="minimum">
+        <double>-999999999.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>999999999.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="3" colspan="2">
+      <widget class="QDoubleSpinBox" name="dsb_tk_celda">
+       <property name="decimals">
+        <number>8</number>
+       </property>
+       <property name="minimum">
+        <double>-999999999.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>999999999.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QDoubleSpinBox" name="dsb_rango_celda">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="minimum">
+        <double>-999999999.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>999999999.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="3" colspan="2">
+      <widget class="QDoubleSpinBox" name="dsb_cota_instalacion_celda">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="minimum">
+        <double>-999999.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>999999.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
