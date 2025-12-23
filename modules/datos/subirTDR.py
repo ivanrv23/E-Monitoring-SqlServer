@@ -471,7 +471,7 @@ class SubirTDR:
                             hora = row['hora']
                             profundidad = row['profundidad']
                             impedancia = row['impedancia']
-                            observa = row['observacion']
+                            observacion = row['observacion']
                             if pd.isna(fecha) or pd.isna(profundidad) or pd.isna(impedancia):
                                 continue
                             # Manejo de la columna 'fecha'
@@ -502,6 +502,7 @@ class SubirTDR:
                                 impedancia = float(impedancia)
                             except (ValueError, TypeError):
                                 continue
+                            observa = observacion if not pd.isna(observacion) else ""
                             data.append((idsondaje, fecha, hora, profundidad, impedancia, observa))
                         if data:
                             respon = TDRController.ctrlGuardarDataSondajesTDR(proyectoid, data)

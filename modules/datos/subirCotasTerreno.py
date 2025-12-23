@@ -352,7 +352,7 @@ class SubirCotasTerreno:
                         fecha = row['fecha']
                         hora = row['hora']
                         cota = row['cota']
-                        observa = row['observacion']
+                        observacion = row['observacion']
                         if pd.isna(fecha) or pd.isna(cota):
                             continue
                         # Manejo de la columna 'fecha'
@@ -379,6 +379,7 @@ class SubirCotasTerreno:
                             cota = float(cota)
                         except (ValueError, TypeError):
                             continue
+                        observa = observacion if not pd.isna(observacion) else ""
                         data.append((idterreno, fecha, hora, cota, observa))
                     if data:
                         respon = TerrenoController.ctrlGuardarDataCotaTerreno(proyectoid, data)

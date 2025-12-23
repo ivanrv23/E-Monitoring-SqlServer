@@ -339,7 +339,7 @@ class SubirAcelerografos:
                         hora = row['hora']
                         magnitud = row['magnitud']
                         distancia = row['distancia']
-                        observa = row['observacion']
+                        observacion = row['observacion']
                         if pd.isna(fecha) or pd.isna(magnitud) or pd.isna(distancia):
                             continue
                         # Manejo de la columna 'fecha'
@@ -370,6 +370,7 @@ class SubirAcelerografos:
                             distancia = float(distancia)
                         except (ValueError, TypeError):
                             continue
+                        observa = observacion if not pd.isna(observacion) else ""
                         data.append((idacelerografo, fecha, hora, magnitud, distancia, observa))
                     if data:
                         respon = AcelerografoController.ctrlRegistrarDataAcelerografo(proyectoid, data)
