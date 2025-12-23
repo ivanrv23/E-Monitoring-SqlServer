@@ -9,39 +9,22 @@ class ProyectoModel:
         conn = None
         try:
             conn = Connection.connectionDB()
+            # Uso de OUTPUT INSERTED.id_proyecto para obtener el ID en SQL Server
+            sql = """INSERT INTO proyectos (nombre_proyecto, fecha_proyecto, descripcion_proyecto) 
+                     OUTPUT INSERTED.id_proyecto 
+                     VALUES (?, ?, ?);"""
             cur = conn.cursor()
-            
-            # CORRECCIÓN: 
-            # 1. Usamos SET NOCOUNT ON para evitar que el mensaje "1 row affected" interfiera.
-            # 2. Combinamos el INSERT y el SELECT en una sola cadena.
-            # 3. Hacemos un CAST a INT para asegurar que Python reciba un número entero limpio.
-            sql = """
-            SET NOCOUNT ON;
-            INSERT INTO proyectos (nombre_proyecto, fecha_proyecto, descripcion_proyecto) 
-            VALUES (?, ?, ?);
-            SELECT CAST(SCOPE_IDENTITY() AS INT);
-            """
-            
-            # Ejecutamos una sola vez pasando los parámetros
             cur.execute(sql, (nombre, fecha, comentario))
             
-            # Obtenemos el resultado
-            row_id = cur.fetchone()
+            # Obtener el id inmediatamente
+            idproyecto = cur.fetchone()[0]
             
-            if row_id and row_id[0]:
-                idproyecto = int(row_id[0])
-                conn.commit()
-                return True, idproyecto
-            else:
-                conn.rollback()
-                print("No se pudo obtener el ID del proyecto.")
-                return False, 0
-                
+            conn.commit()
+            return True, idproyecto
         except Exception as e:
+            print("Error al registrar proyecto:", e)
             if conn:
                 conn.rollback()
-            # IMPORTANTE: Mira la consola de tu editor (terminal) para ver este error exacto
-            print("Error al registrar proyecto (Excepción):", e)
             return False, 0
         finally:
             if conn:
@@ -59,6 +42,8 @@ class ProyectoModel:
             return True
         except Exception as e:
             print("Error al registrar componente:", e)
+            if conn:
+                conn.rollback()
             return False  
         finally:
             if conn:
@@ -74,7 +59,7 @@ class ProyectoModel:
             cur.execute(sql, (idproyecto,))
             resultado = cur.fetchone()
             if resultado:
-                return resultado
+                return tuple(resultado)
             else:
                 return None 
         except Exception as e:
@@ -86,8 +71,8 @@ class ProyectoModel:
     
     @staticmethod
     def mdlActualizarProyecto(nombre, fecha, comentario, idproyecto):
-        sql = """UPDATE proyectos SET nombre_proyecto = ?, fecha_proyecto = ?, descripcion_proyecto = ? WHERE id_proyecto = ?;"""
         conn = None
+        sql = """UPDATE proyectos SET nombre_proyecto = ?, fecha_proyecto = ?, descripcion_proyecto = ? WHERE id_proyecto = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -96,6 +81,8 @@ class ProyectoModel:
             return True
         except Exception as e:
             print("Error al actualizar proyecto:", e)
+            if conn:
+                conn.rollback()
             return False  
         finally:
             if conn:
@@ -109,9 +96,10 @@ class ProyectoModel:
             cur = conn.cursor()
             sql = "SELECT * FROM componentes WHERE id_proyecto = ? AND estado_componente = 1;"
             cur.execute(sql, (idproyecto,))
-            resultado = cur.fetchall()
-            if resultado:
-                return resultado
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None 
         except Exception as e:
@@ -123,8 +111,8 @@ class ProyectoModel:
     
     @staticmethod
     def mdlActualizarComponente(nombre, idcomponente):
-        sql = """UPDATE componentes SET nombre_componente = ? WHERE id_componente = ?;"""
         conn = None
+        sql = """UPDATE componentes SET nombre_componente = ? WHERE id_componente = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -133,6 +121,8 @@ class ProyectoModel:
             return True
         except Exception as e:
             print("Error al actualizar componente:", e)
+            if conn:
+                conn.rollback()
             return False  
         finally:
             if conn:
@@ -140,9 +130,9 @@ class ProyectoModel:
     
     @staticmethod
     def mdlEliminarComponente(idproyecto, idcomponente):
+        conn = None
         sql_count = """SELECT COUNT(*) FROM componentes WHERE id_proyecto = ? AND estado_componente = 1;"""
         sql = """UPDATE componentes SET estado_componente = 0 WHERE id_componente = ?;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -157,6 +147,8 @@ class ProyectoModel:
             return True
         except Exception as e:
             print("Error al eliminar componente:", e)
+            if conn:
+                conn.rollback()
             return False  
         finally:
             if conn:
@@ -164,9 +156,9 @@ class ProyectoModel:
     
     @staticmethod
     def mdlEliminarProyecto(idproyecto):
-        # Consultas SQL para eliminar registros adaptadas a T-SQL
-        # DROP TABLE IF EXISTS se cambia por IF OBJECT_ID(...) IS NOT NULL DROP TABLE
-        
+        conn = None
+        # Consultas SQL para eliminar registros
+        # Sintaxis T-SQL para DROP TABLE IF EXISTS
         sql_queries = [
             "DELETE FROM acelerografos WHERE id_proyecto = ?;",
             f"IF OBJECT_ID('acelerografo_detalle{idproyecto}', 'U') IS NOT NULL DROP TABLE acelerografo_detalle{idproyecto};",
@@ -209,13 +201,13 @@ class ProyectoModel:
             "DELETE FROM proyectos WHERE id_proyecto = ?;"
         ]
 
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
 
-            # En pyodbc la transaccion es implicita, no se usa BEGIN
-
+            # En pyodbc con SQL Server no se usa conn.execute("BEGIN;").
+            # Las transacciones se manejan implicitamente y se confirman con conn.commit()
+            
             # Ejecutar consultas SQL
             for query in sql_queries:
                 if '?' in query:
@@ -227,6 +219,7 @@ class ProyectoModel:
             cur.execute("SELECT archivo_topografia FROM topografias WHERE id_proyecto = ?;", (idproyecto,))
             rutas_topografias = cur.fetchall()
             for ruta in rutas_topografias:
+                # ruta[0] es lo que necesitamos
                 archivo_path = resource_path(ruta[0])
                 try:
                     if os.path.exists(archivo_path):
@@ -258,9 +251,10 @@ class ProyectoModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql)
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -273,7 +267,7 @@ class ProyectoModel:
     @staticmethod
     def mdlObtenerAjustesCambios():
         conn = None
-        # SQL Server usa + para concatenar strings. Se castean los valores numéricos a VARCHAR.
+        # Corrección SQL Server: Operador de concatenación es '+' en lugar de '||'
         sql = """SELECT p.nombre_proyecto, r.fecha_cambio, 'update' AS accion, r.tabla_modificada, r.usuario_cambio,
         r.columna_modificada + '(' + CAST(r.numero_fila AS VARCHAR) + '): ' + CAST(r.valor_anterior AS VARCHAR) + ' -> ' + CAST(r.nuevo_valor AS VARCHAR) AS cambios, r.nombres_cambio
         FROM registro_ajuste_coordenadas r INNER JOIN proyectos p ON r.id_proyecto = p.id_proyecto ORDER BY r.fecha_cambio DESC;"""
@@ -281,9 +275,10 @@ class ProyectoModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql)
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:

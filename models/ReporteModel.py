@@ -1,17 +1,20 @@
 from services.security.apis.conexiones.connection import Connection
+from sqlite3 import Error
 
 class ReporteModel:
     
     # Comprobar si existe gráfica
+    @staticmethod
     def mdlTraerNombreEquipoReporte(proyectoid, idequipo):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT nombre_inclinometro FROM inclinometros WHERE id_proyecto = ? AND id_inclinometro = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, idequipo))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -21,47 +24,60 @@ class ReporteModel:
             if conn:
                 conn.close()
                 
+    @staticmethod
     def mdlActualizarDatosReporte(ruta, texto_titulo, texto_descripcion, proyectoid, tipo, orden):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """UPDATE graficos_reporte SET imagen_grafica = ?, titulo_grafica = ?, descripcion_grafica = ? WHERE id_proyecto = ? AND vista_reporte = ?
         AND posicion_grafica = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (ruta, texto_titulo, texto_descripcion, proyectoid, tipo, orden))
             conn.commit()
             return True
         except Exception as e:
             print("Error al actualizar reporte: " + str(e))
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarDatosReporte(imagen_blob, texto_titulo, texto_descripcion, proyectoid, tipo, orden, equipo, anexo):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """INSERT INTO graficos_reporte (id_proyecto, vista_reporte, imagen_grafica, titulo_grafica, descripcion_grafica, posicion_grafica, equipo_grafica, anexo_reporte) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
+        VALUES (?, ?, ?, ?, ?, ?, ?,?);"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
+            # imagen_blob debe ser bytes para pyodbc VARBINARY
             cur.execute(sql, (proyectoid, tipo, imagen_blob, texto_titulo, texto_descripcion, orden, equipo, anexo))
             conn.commit()
             return True
         except Exception as e:
             print("Error al guardar reporte: " + str(e))
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
 
+    @staticmethod
     def mdlObtenerTotalGraficas(proyecto, tipo):
-        conn = Connection.connectionDB()
+        conn = None
+        # Corrección SQL: ORDER BY posicion_grafica AND id_reporte no es estándar. Debe ser coma.
         sql = """SELECT * FROM graficos_reporte WHERE id_proyecto = ? AND vista_reporte = ? ORDER BY posicion_grafica, id_reporte"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyecto, tipo))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -71,15 +87,18 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerlistaGraficosAnexos(proyecto):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT id_reporte, imagen_grafica FROM graficos_reporte WHERE id_proyecto = ?"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyecto,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -87,17 +106,20 @@ class ReporteModel:
             return None
         finally:
             if conn:
-                conn.close()
+                    conn.close()
     
+    @staticmethod
     def mdlObtenerlistaUmbralPrismasAnexos(proyecto):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT id_umbral, nombre_umbral, 'Prismas' AS equipo, 'umbral_prisma' AS tabla FROM umbral_prisma WHERE id_proyecto = ? AND nombre_umbral = 'VI3D';"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyecto,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -105,17 +127,20 @@ class ReporteModel:
             return None
         finally:
             if conn:
-                conn.close()
+                    conn.close()
     
+    @staticmethod
     def mdlObtenerlistaUmbralPiezometrosAnexos(proyecto):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT id_umbral, nombre_umbral, 'Piezómetros' AS equipo, 'umbral_piezometro' AS tabla FROM umbral_piezometro WHERE id_proyecto = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyecto,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -123,17 +148,20 @@ class ReporteModel:
             return None
         finally:
             if conn:
-                conn.close()
+                    conn.close()
     
+    @staticmethod
     def mdlObtenerlistaUmbralesInclinometrosAnexos(proyecto):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT id_umbral, nombre_umbral, 'Inclinómetros' AS equipo, 'umbral_inclinometro' AS tabla FROM umbral_inclinometro WHERE id_proyecto = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyecto,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -141,17 +169,20 @@ class ReporteModel:
             return None
         finally:
             if conn:
-                conn.close()
+                    conn.close()
     
+    @staticmethod
     def mdlObtenerlistaUmbralCeldasAnexos(proyecto):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT id_umbral, nombre_umbral, 'Celdas' AS equipo, 'umbral_celda' AS tabla FROM umbral_celda WHERE id_proyecto = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyecto,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -159,48 +190,59 @@ class ReporteModel:
             return None
         finally:
             if conn:
-                conn.close()
+                    conn.close()
                    
     # En el modelo se agrega la consulta SQL para eliminar el gráfico
+    @staticmethod
     def mdlEliminarGrafica(img_id):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """DELETE FROM graficos_reporte WHERE id_reporte = ?"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (img_id,))
             conn.commit()
             return True
         except Exception as e:
             print(f"Error al eliminar gráfico: {e}")
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlEliminarUmbralReporte(id, tabla):
-        conn = Connection.connectionDB()
+        conn = None
         sql = f"""DELETE FROM {tabla} WHERE id_umbral = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (id,))
             conn.commit()
             return True
         except Exception as e:
             print(f"Error al eliminar umbral: {e}")
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
             
+    @staticmethod
     def mdlObtenerTiposGraficas(proyecto):
-        conn = Connection.connectionDB()
-        sql = """SELECT DISTINCT vista_reporte FROM graficos_reporte WHERE id_proyecto = ? ORDER BY vista_reporte;"""
+        conn = None
+        sql = """SELECT DISTINCT vista_reporte FROM graficos_reporte WHERE id_proyecto = ? ORDER BY posicion_grafica;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyecto,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -210,7 +252,9 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarDatosReporteGeneral(idproyecto):
+        conn = None
         sql = """SELECT * FROM reporte_general WHERE id_proyecto = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -218,7 +262,7 @@ class ReporteModel:
             cur.execute(sql, (idproyecto,))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -228,50 +272,60 @@ class ReporteModel:
             if conn:
                 conn.close()
 
+    @staticmethod
     def mdlRegistroNuevoReporte(proyectoid, encabezado, titulo, lugar, para, de, cc, fecha, asunto, texto, comentario, conclusiones, recomendacion):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """INSERT INTO reporte (id_proyecto, encabezado_reporte, titulo_reporte, lugar_reporte, para_reporte, de_reporte, copia_reporte, fecha_reporte,
         asunto_reporte, texto_reporte, comentario_reporte, conclusiones_reporte, recomendaciones_reporte) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, encabezado, titulo, lugar, para, de, cc, fecha, asunto, texto, comentario, conclusiones, recomendacion))
             conn.commit()
             return True
         except Exception as e:
             print("Error al guardar reporte: " + str(e))
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlActualizarReporte(proyectoid, encabezado, titulo, lugar, para, de, cc, fecha, asunto, texto, comentario, conclusiones, recomendacion):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """UPDATE reporte SET encabezado_reporte = ?, titulo_reporte = ?, lugar_reporte = ?, para_reporte = ?, de_reporte = ?, copia_reporte = ?, fecha_reporte = ?,
         asunto_reporte = ?, texto_reporte = ?, comentario_reporte = ?, conclusiones_reporte = ?, recomendaciones_reporte = ? WHERE id_proyecto = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (encabezado, titulo, lugar, para, de, cc, fecha, asunto, texto, comentario, conclusiones, recomendacion, proyectoid))
             conn.commit()
             return True
         except Exception as e:
             print("Error al actualizar reporte: " + str(e))
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerDataAnexos(proyectoid):
-        conn = Connection.connectionDB()
-        sql = """SELECT (SELECT COUNT(*) FROM inclinometros WHERE id_proyecto = ?) AS canti_inclino,
-        (SELECT COUNT(*) FROM piezometros WHERE id_proyecto = ? AND estado_piezometro = '1') AS canti_piezohidra,
-        (SELECT COUNT(*) FROM piezometrocuerdas WHERE id_proyecto = ?) AS canti_piezocuerda,
-        (SELECT COUNT(*) FROM celdas WHERE id_proyecto = ?) AS canti_celdas;"""
+        conn = None
+        sql = """SELECT (SELECT count(*) FROM inclinometros WHERE id_proyecto = ?) AS canti_inclino,
+        (SELECT count(*) FROM piezometros WHERE id_proyecto = ? AND estado_piezometro = '1') AS canti_piezohidra,
+        (SELECT count(*) FROM piezometrocuerdas WHERE id_proyecto = ?) AS canti_piezocuerda,
+        (SELECT count(*) FROM celdas WHERE id_proyecto = ?) AS canti_celdas;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, proyectoid, proyectoid, proyectoid))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -281,11 +335,14 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerInfoPrismasAutoAnexos(proyectoid):
+        conn = None
         tabla = "prismas" + str(proyectoid)
-        conn = Connection.connectionDB()
+        # Nota: Asegurar que tabla existe. COUNT(DISTINCT col) es valido en SQL Server
         sql = f"""SELECT COUNT(DISTINCT nombre_prisma) AS cantidad_prismauto FROM {tabla} WHERE state_prisma = '1';"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql)
             row = cur.fetchone()
@@ -300,11 +357,13 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerInfoPrismasManualAnexos(proyectoid):
+        conn = None
         tabla = "prismas" + str(proyectoid)
-        conn = Connection.connectionDB()
         sql = f"""SELECT COUNT(DISTINCT nombre_prisma) AS cantidad_prismanual FROM {tabla} WHERE state_prisma = '1';"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql)
             row = cur.fetchone()
@@ -319,8 +378,9 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarDataReporteAnexo1(datos):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """INSERT INTO reporte_anexo1 (id_proyecto, fechaini_reporte, fechafin_reporte, codigo_reporte, resumejecu1_reporte, resumejecu2_reporte,
         cotamaxima_reporte, comencotamaxima_reporte, alturabanco_reporte, comenalturabanco_reporte, anchobanco_reporte, comenanchobanco_reporte, taludbanco_reporte,
         comentaludbanco_reporte, totalapila_reporte, comentotalapila_reporte, desmonte_reporte, comendesmonte_reporte, areaocupada_reporte, comenareaocupada_reporte,
@@ -334,26 +394,31 @@ class ReporteModel:
         afectacion_reporte, comenafectacion_reporte) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, datos)
             conn.commit()
             return True
         except Exception as e:
             print("Error al guardar anexo 1: " + str(e))
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerDataAnexo2(proyectoid):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT * FROM reporte_anexo2 WHERE id_proyecto = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid,))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -363,8 +428,9 @@ class ReporteModel:
             if conn:
                 conn.close()
                 
+    @staticmethod
     def mdlGuardarDataReporteAnexo2(datos):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """INSERT INTO reporte_anexo2 (id_proyecto, componente_reporte, descripcompo_reporte, fechaini_reporte, fechafin_reporte, codigo_reporte,
         resumejecu_reporte, cantiinclino_reporte, operainclino_reporte, adicantiinclino_reporte, adioperainclino_reporte, frecuenciainclino_reporte,
         cantipiezohidra_reporte, operapiezohidra_reporte, adicantipiezohidra_reporte, adioperapiezohidra_reporte, frecuenciapiezohidra_reporte, cantipiezocuerda_reporte,
@@ -374,26 +440,32 @@ class ReporteModel:
         frecuenciasatelital_reporte, cantiacelero_reporte, operaacelero_reporte, adicantiacelero_reporte, adioperaacelero_reporte, frecuenciaacelero_reporte)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, datos)
             conn.commit()
             return True
         except Exception as e:
             print("Error al guardar anexo 2: " + str(e))
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerGraficasReporteTipo(proyectoid, tipo, anexo):
-        conn = Connection.connectionDB()
-        sql = """SELECT * FROM graficos_reporte WHERE id_proyecto = ? AND vista_reporte = ? AND anexo_reporte = ?;"""
+        conn = None
+        sql = """SELECT * FROM graficos_reporte WHERE id_proyecto = ? AND vista_reporte = ? AND anexo_reporte=?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, tipo, anexo))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -404,15 +476,18 @@ class ReporteModel:
                 conn.close()
                                                                 
     # Obtener jefes firma
+    @staticmethod
     def mdlObtenerResponsables():
-        conn = Connection.connectionDB()
-        sql = """SELECT * FROM personal_empresa WHERE tipo = ?"""
+        conn = None
+        sql = """SELECT * FROM personal_empresa WHERE tipo=?"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (0,))
             rows = cur.fetchall()
-            if rows:
-                return rows
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -422,272 +497,271 @@ class ReporteModel:
             if conn:
                 conn.close()
     
-    # MODELO PARA GUARDAR RESPONSABLES (SQL Server usando MERGE)
+    # MODELO PARA GUARDAR RESPONSABLES
+    @staticmethod
     def mdlGuardarResponsables(datos_guardados):
+        conn = None
         try:
-            conexion = Connection.connectionDB()
-            cursor = conexion.cursor()
-            # Recorrer cada fila de datos
+            conn = Connection.connectionDB()
+            cursor = conn.cursor()
+            
+            # Reemplazo de INSERT OR REPLACE por MERGE o IF EXISTS en SQL Server
+            # Lógica: Si existe actualiza, sino inserta.
+            sql = '''
+            MERGE personal_empresa AS target
+            USING (VALUES (?, ?, ?, ?, ?)) AS source (id, supervision, responsable, comentario, firma)
+            ON target.id = source.id
+            WHEN MATCHED THEN
+                UPDATE SET supervision = source.supervision,
+                           responsable = source.responsable,
+                           comentario = source.comentario,
+                           firma = source.firma
+            WHEN NOT MATCHED THEN
+                INSERT (id, supervision, responsable, comentario, firma)
+                VALUES (source.id, source.supervision, source.responsable, source.comentario, source.firma);
+            '''
+            
+            # Recorrer cada fila de datos y ejecutar la lógica
             for datos in datos_guardados:
-                # Verificar si existe el registro
-                cursor.execute("SELECT COUNT(*) FROM personal_empresa WHERE id = ?", (datos['id'],))
-                existe = cursor.fetchone()[0]
-                
-                if existe > 0:
-                    # Actualizar
-                    sql = '''UPDATE personal_empresa SET supervision = ?, responsable = ?, comentario = ?, firma = ?
-                            WHERE id = ?'''
-                    cursor.execute(sql, (
-                        datos['supervision'],
-                        datos['responsable'],
-                        datos['comentarios'],
-                        datos['imagen'],
-                        datos['id']
-                    ))
-                else:
-                    # Insertar
-                    sql = '''INSERT INTO personal_empresa (id, supervision, responsable, comentario, firma)
-                            VALUES (?, ?, ?, ?, ?)'''
-                    cursor.execute(sql, (
-                        datos['id'],
-                        datos['supervision'],
-                        datos['responsable'],
-                        datos['comentarios'],
-                        datos['imagen']
-                    ))
+                cursor.execute(sql, (
+                    datos['id'],
+                    datos['supervision'],
+                    datos['responsable'],
+                    datos['comentarios'],
+                    datos['imagen']
+                ))
+            
             # Guardar los cambios en la base de datos
-            conexion.commit()
+            conn.commit()
             return "Datos guardados correctamente"
         except Exception as e:
-            conexion.rollback()  # Revertir cambios en caso de error
+            if conn:
+                conn.rollback()  # Revertir cambios en caso de error
             return f"Error al guardar los datos: {str(e)}"
         finally:
-            # Cerrar la conexión
-            cursor.close()
-            conexion.close()
+            if conn:
+                conn.close()
     
+    @staticmethod
     def mdlObtenerCoordenadasEquipos(proyecto, tipo):
+        # 1: prismas
+        # 2: prismas manuales
+        # 3: piezometros manual
+        # 4: piezometros Cuerda
+        # 5: inclinometros
+        # 6: celdas 
         conn = None
-        cur = None
+        sql = ""
+        params = ()
+        
+        # En SQL Server no existe rowid. Usamos ROW_NUMBER() para filtrar duplicados.
         try:
-            if tipo == 1:
+            if tipo == 1 or tipo == 2:
                 tabla = f'prismas{proyecto}'
+                # Se selecciona la primera ocurrencia basada en algun orden (ej. ordenamiento por defecto)
+                # Como no hay rowid, usamos CTE con ROW_NUMBER
                 sql = f"""
-                    WITH RankedPrismas AS (
+                    WITH CTE AS (
                         SELECT nombre_prisma, este_target, norte_target, elevacion_target,
-                            ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY (SELECT NULL)) AS rn
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY (SELECT NULL)) as rn
                         FROM {tabla}
                     )
                     SELECT nombre_prisma, este_target, norte_target, elevacion_target
-                    FROM RankedPrismas
-                    WHERE rn = 1;
+                    FROM CTE WHERE rn = 1;
                 """
-            elif tipo == 2:
-                tabla = f'prismas{proyecto}'
-                sql = f"""
-                    WITH RankedPrismas AS (
-                        SELECT nombre_prisma, este_target, norte_target, elevacion_target,
-                            ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY (SELECT NULL)) AS rn
-                        FROM {tabla}
-                    )
-                    SELECT nombre_prisma, este_target, norte_target, elevacion_target
-                    FROM RankedPrismas
-                    WHERE rn = 1;
-                """
+                params = ()
             elif tipo == 3:
+                tabla = 'piezometros'
                 sql = """
                     SELECT nombre_piezometro, este_piezometro, norte_piezometro, elevacion_piezometro
                     FROM piezometros
                     WHERE id_proyecto = ?;
                 """
+                params = (proyecto,)
             elif tipo == 4:
+                tabla = 'piezometrocuerdas'
                 sql = """
                     SELECT nombre_piezometro, este_piezometro, norte_piezometro, elevacion_piezometro
                     FROM piezometrocuerdas
                     WHERE id_proyecto = ?;
                 """
+                params = (proyecto,)
             elif tipo == 5:
+                tabla = 'inclinometros'
                 sql = """
                     SELECT nombre_inclinometro, este_inclinometro, norte_inclinometro, elevacion_inclinometro
                     FROM inclinometros
                     WHERE id_proyecto = ?;
                 """
+                params = (proyecto,)
             elif tipo == 6:
+                tabla = 'celdas'
                 sql = """
                     SELECT nombre_celda, coordenada_este_celda, coordenada_norte_celda, cota_instalacion_celda
                     FROM celdas
                     WHERE id_proyecto = ?;
                 """
+                params = (proyecto,)
+            
             # realizar consulta
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            if tipo in [3, 4, 5, 6]:
-                cur.execute(sql, (proyecto,))
-            else:
-                cur.execute(sql)
+            cur.execute(sql, params)
             rows = cur.fetchall()
-            return rows if rows else None
+            results = [tuple(row) for row in rows]
+            return results if results else None
         except Exception as e:
             print(f"Error al comprobar reporte: {str(e)}")
             return None
         finally:
-            if cur:
-                cur.close()
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlEliminardatatabla(tabla):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
             # Elimina los datos de la tabla
             cursor.execute(f"DELETE FROM {tabla}")
-            # Reiniciar el contador de identidad (SQL Server)
-            cursor.execute(f"DBCC CHECKIDENT ('{tabla}', RESEED, 0)")
-            conn.commit()  # Confirma la transacción
-            return True  # Si todo fue bien, retorna True
+            
+            # Reinicia los índices de la tabla (Para SQL Server: DBCC CHECKIDENT)
+            # Solo funciona si la tabla tiene columna IDENTITY
+            try:
+                cursor.execute(f"DBCC CHECKIDENT ('{tabla}', RESEED, 0);")
+            except Exception:
+                # Si la tabla no tiene IDENTITY, esto fallará pero no es crítico si solo queríamos borrar datos
+                pass
+                
+            conn.commit()
+            return True 
         except Exception as e:
             print(f"Ocurrió un error: {e}")
-            conn.rollback()  # Revertir en caso de error
-            return False  # Si ocurre un error, retorna False
+            if conn:
+                conn.rollback()
+            return False
         finally:
-            cursor.close()
-            conn.close()
+            if conn:
+                conn.close()
     
+    @staticmethod
     def mdlGuardarUmbralesEqupisTipo(datos):
+        conn = None
         try:
-            # Conexión a la base de datos
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
-            # Verificar si el equipo ya existe en la tabla para ese proyecto
-            cursor.execute("""
-                SELECT id FROM umbrales_alerta_equipos 
-                WHERE proyecto_id = ? AND id_equipo = ?
-            """, (datos['proyectoID'], datos['equipo_id']))
             
-            resultado = cursor.fetchone()
-            if resultado:
-                # Si el equipo ya existe, actualizar los valores
-                cursor.execute("""
-                    UPDATE umbrales_alerta_equipos
-                    SET 
+            # Transpilación a MERGE (Upsert)
+            sql = """
+                MERGE umbrales_alerta_equipos AS target
+                USING (VALUES (?, ?)) AS source (proyecto_id, id_equipo)
+                ON target.proyecto_id = source.proyecto_id AND target.id_equipo = source.id_equipo
+                WHEN MATCHED THEN
+                    UPDATE SET 
                         descripcion_normal = ?, 
                         descripcion_seguimiento = ?, 
                         descripcion_modo_proactivo = ?, 
                         descripcion_modo_reactivo = ?, 
                         descripcion_detencion_operaciones = ?
-                    WHERE proyecto_id = ? AND id_equipo = ?
-                """, (
-                    datos['umbral_normal'], 
-                    datos['umbral_seguimiento'], 
-                    datos['umbral_proactivo'], 
-                    datos['umbral_reactivo'], 
-                    datos['umbral_deteccion_operacion'],
-                    datos['proyectoID'], 
-                    datos['equipo_id']
-                ))
-            else:
-                # Si el equipo no existe, insertar un nuevo registro
-                cursor.execute("""
-                    INSERT INTO umbrales_alerta_equipos (
-                        proyecto_id, 
-                        id_equipo, 
-                        descripcion_normal, 
-                        descripcion_seguimiento, 
-                        descripcion_modo_proactivo, 
-                        descripcion_modo_reactivo, 
-                        descripcion_detencion_operaciones
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    datos['proyectoID'], 
-                    datos['equipo_id'], 
-                    datos['umbral_normal'], 
-                    datos['umbral_seguimiento'], 
-                    datos['umbral_proactivo'], 
-                    datos['umbral_reactivo'], 
-                    datos['umbral_deteccion_operacion']
-                ))
-            # Confirmar los cambios en la base de datos
+                WHEN NOT MATCHED THEN
+                    INSERT (proyecto_id, id_equipo, descripcion_normal, descripcion_seguimiento, 
+                            descripcion_modo_proactivo, descripcion_modo_reactivo, descripcion_detencion_operaciones)
+                    VALUES (?, ?, ?, ?, ?, ?, ?);
+            """
+            
+            # Parametros ordenados para MERGE
+            # 1. Source (PKs)
+            # 2. Update Values
+            # 3. Insert Values (PKs + Values)
+            params = (
+                datos['proyectoID'], datos['equipo_id'], # Source
+                datos['umbral_normal'], datos['umbral_seguimiento'], datos['umbral_proactivo'], datos['umbral_reactivo'], datos['umbral_deteccion_operacion'], # Update
+                datos['proyectoID'], datos['equipo_id'], datos['umbral_normal'], datos['umbral_seguimiento'], datos['umbral_proactivo'], datos['umbral_reactivo'], datos['umbral_deteccion_operacion'] # Insert
+            )
+            
+            cursor.execute(sql, params)
             conexion.commit()
             return True
         except Exception as e:
-            # Si ocurre un error, hacer rollback y devolver False
-            conexion.rollback()
+            if conexion:
+                conexion.rollback()
             print(f"Error al guardar los umbrales: {e}")
             return False
         finally:
-            # Cerrar la conexión a la base de datos
-            cursor.close()
-            conexion.close()
+            if conexion:
+                conexion.close()
     
+    @staticmethod
     def mdlObtenerUmbralesEquiposTipo(proyectoID, id_equipo):
+        conn = None
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
-            # Consulta SQL usando SELECT * para obtener todas las columnas
             query = """SELECT *
             FROM umbrales_alerta_equipos
-            WHERE proyecto_id = ? AND id_equipo = ?
+            WHERE proyecto_id = ? AND id_equipo=?
             """
-            # Ejecutar la consulta
             cursor.execute(query, (proyectoID, id_equipo))
-            # Obtener todos los resultados
             resultados = cursor.fetchone()
-            # Verificar si hay datos y retornarlos
             if resultados:
-                return resultados
+                return tuple(resultados)
             else:
-                return None  # Retorna None si no se encuentran datos
+                return None
         except Exception as e:
             print(f"Error al obtener umbrales de equipos para el proyecto {proyectoID}: {e}")
             return None
         finally:
-            # Cerrar cursor y conexión
-            cursor.close()
-            conexion.close()
+            if conexion:
+                conexion.close()
     
+    @staticmethod
     def mdlGuardarInformacionReporte(data):
+        conn = None
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
-            # Verificar si ya existe una imagen asociada al reporte
+            
+            # Upsert logic manual o MERGE. Aquí manual:
             cursor.execute("SELECT componente_reporte FROM reporte_general WHERE id_proyecto = ?", (data[0],))
             existing_image = cursor.fetchone()
+            
             if existing_image:
-                # Si ya existe una imagen, actualizamos el registro
                 cursor.execute("""
                     UPDATE reporte_general
                     SET encabezado_reporte = ?, pie_reporte = ?, titulo_reporte = ?,
-                        lugar_reporte = ?, fecha_reporte = ?, para_reporte = ?, de_reporte = ?, cc_reporte = ?,
+                        lugar_reporte = ?,fecha_reporte = ?, para_reporte = ?, de_reporte = ?, cc_reporte = ?,
                         asunto_reporte = ?, descripcion_reporte = ?, conclusiones_reporte = ?,
                         recomendaciones_reporte = ?, componente_reporte = ?
                     WHERE id_proyecto = ?
                 """, (data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[0]))
             else:
-                # Si no existe una imagen, insertamos un nuevo registro
                 cursor.execute("""
                     INSERT INTO reporte_general (id_proyecto, encabezado_reporte, pie_reporte, titulo_reporte,
-                                                lugar_reporte, fecha_reporte, para_reporte, de_reporte, cc_reporte, asunto_reporte,
+                                                lugar_reporte,fecha_reporte, para_reporte, de_reporte, cc_reporte, asunto_reporte,
                                                 descripcion_reporte, conclusiones_reporte, recomendaciones_reporte, componente_reporte)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, data)
             conexion.commit()
         except Exception as e:
-            conexion.rollback()
+            if conexion:
+                conexion.rollback()
             print(f"Error al guardar la información del reporte: {e}")
         finally:
-            cursor.close()
-            conexion.close()
+            if conexion:
+                conexion.close()
     
+    @staticmethod
     def mdlObtenerDatosFirma(proyectoid):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT * FROM firmas WHERE id_proyecto = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, (proyectoid,))
+            cur.execute(sql,(proyectoid,))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -697,13 +771,15 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlRegistrarFirma(proyectoid, data):
+        conn = None
         responsable, cargo, dni, cip, firma_reporte = data
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
             # Verificar si ya existe algún registro en la tabla
-            cursor.execute("SELECT COUNT(*) FROM firmas WHERE id_proyecto = ?", (proyectoid,))
+            cursor.execute("SELECT COUNT(*) FROM firmas WHERE id_proyecto=?", (proyectoid,))
             count = cursor.fetchone()[0]
             if count > 0:
                 # Actualizar el registro existente
@@ -728,14 +804,17 @@ class ReporteModel:
             conexion.commit()
             return True
         except Exception as e:
-            conexion.rollback()
+            if conexion:
+                conexion.rollback()
             print(f"Error al guardar firma del reporte: {e}")
             return False
         finally:
-            cursor.close()
-            conexion.close()
+            if conexion:
+                conexion.close()
     
+    @staticmethod
     def mdlGuardarImagenReporte(data):
+        conn = None
         query = """INSERT INTO graficos_reporte (id_componente, vista_reporte, tipo_grafico, imagen_grafica, titulo_grafica,
         descripcion_grafica, tipo_reporte, tipo_equipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
         try:
@@ -746,17 +825,21 @@ class ReporteModel:
             conexion.commit()
             return True
         except Exception as e:
-            conexion.rollback()
+            if conexion:
+                conexion.rollback()
             print(f"Error al guardar la imagen del reporte: {e}")
             return False
         finally:
-            cursor.close()
-            conexion.close()
+            if conexion:
+                conexion.close()
     
+    @staticmethod
     def mdlObtenerListaPrismas(tabla, tipo, id_componente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
+            # ROW_NUMBER() es compatible con SQL Server 2008+
             sql = f"""
             SELECT
                 subquery.nombre_prisma,
@@ -779,7 +862,7 @@ class ReporteModel:
                 INNER JOIN
                     componentes com ON ins.id_componente = com.id_componente
                 WHERE
-                    ins.estado_instrumentacion = 1 AND ins.tipo_equipo = ? AND ins.id_componente = ?
+                    ins.estado_instrumentacion = 1 AND ins.tipo_equipo = ? AND ins.id_componente=?
             ) AS subquery
             WHERE
                 subquery.rn = 1
@@ -788,7 +871,8 @@ class ReporteModel:
             """
             cursor.execute(sql, (tipo, id_componente))
             rows = cursor.fetchall()
-            return rows if rows else None
+            results = [tuple(row) for row in rows]
+            return results if results else None
         except Exception as e:
             print("Error al traer lista prismas reporte: ", e)
             return None
@@ -796,7 +880,9 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerListaInclinometros(proyectoid, id_componente):
+        conn = None
         sql = """SELECT 
                     incl.nombre_inclinometro,
                     incl.este_inclinometro,
@@ -810,15 +896,16 @@ class ReporteModel:
                 INNER JOIN 
                     componentes com ON ins.id_componente = com.id_componente
                 WHERE 
-                    incl.id_proyecto = ? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo = 'INCLINOMETRO' AND ins.id_componente = ?
+                    incl.id_proyecto=? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo= 'INCLINOMETRO' AND ins.id_componente=?
                 """
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, id_componente))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -828,7 +915,9 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerListaPiezometros(proyecto, tabla, tipo, id_componente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
@@ -846,11 +935,12 @@ class ReporteModel:
             INNER JOIN 
                 componentes com ON ins.id_componente = com.id_componente
             WHERE 
-                pz.id_proyecto = ? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo = ? AND ins.id_componente = ?
+                pz.id_proyecto=? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo= ? AND ins.id_componente=?
             """
             cursor.execute(sql, (proyecto, tipo, id_componente))
             rows = cursor.fetchall()
-            return rows if rows else None
+            results = [tuple(row) for row in rows]
+            return results if results else None
         except Exception as e:
             print("Error al traer lista prismas reporte: ", e)
             return None
@@ -858,7 +948,9 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerListaCeldas(proyectoid, id_componente):
+        conn = None
         sql = """SELECT 
                     cld.nombre_celda,
                     cld.este_celda,
@@ -872,25 +964,28 @@ class ReporteModel:
                 INNER JOIN 
                     componentes com ON ins.id_componente = com.id_componente
                 WHERE 
-                    cld.id_proyecto = ? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo = 'CELDA' AND ins.id_componente = ?
+                    cld.id_proyecto=? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo= 'CELDA' AND ins.id_componente=?
                 """
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, id_componente))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
-            print("Error al traer lista celdas reporte: " + str(e))
+            print("Error al traer lista inclinómetros reporte: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerListaAcelerografos(proyectoid, id_componente):
+        conn = None
         sql = """SELECT 
             acel.nombre_acelerografo,
             acel.este_acelerografo,
@@ -904,25 +999,28 @@ class ReporteModel:
         INNER JOIN
             componentes com ON ins.id_componente = com.id_componente
         WHERE 
-            acel.id_proyecto = ? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo = 'ACELEROGRAFO' AND ins.id_componente = ?
+            acel.id_proyecto=? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo= 'ACELEROGRAFO' AND ins.id_componente=?
                 """
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, id_componente))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
-            print("Error al traer lista acelerografos reporte: " + str(e))
+            print("Error al traer lista inclinómetros reporte: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerListaSondajesTDR(proyectoid, id_componente):
+        conn = None
         sql = """SELECT 
             stdr.nombre_sondajetdr,
             stdr.este_sondajetdr,
@@ -936,33 +1034,36 @@ class ReporteModel:
         INNER JOIN
             componentes com ON ins.id_componente = com.id_componente
         WHERE 
-            stdr.id_proyecto = ? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo = 'TDR' AND ins.id_componente = ?
+            stdr.id_proyecto=? AND ins.estado_instrumentacion = 1 AND ins.tipo_equipo= 'TDR' AND ins.id_componente=?
                 """
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, id_componente))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
-            print("Error al traer lista sondajes TDR reporte: " + str(e))
+            print("Error al traer lista inclinómetros reporte: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
+    @staticmethod
     def mdlObtenerListaImagenesReporte(id_componente):
+        conn = None
         sql = """SELECT * FROM graficos_reporte WHERE id_componente = ? AND tipo_reporte = 'GENERAL';"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (id_componente,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -972,15 +1073,18 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerControlParametrosA1(idcomponente):
+        conn = None
         sql = """SELECT * FROM control_parametros_anexo1 WHERE id_componente = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idcomponente,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -990,15 +1094,18 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerCondicionesFisicasA1(idcomponente):
+        conn = None
         sql = """SELECT * FROM condiciones_fisicas_anexo1 WHERE id_componente = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idcomponente,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1008,15 +1115,18 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerOperatividadEquiposA1(idcomponente):
+        conn = None
         sql = """SELECT * FROM operatividad_equipos_anexo1 WHERE id_componente = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idcomponente,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1026,15 +1136,18 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerObservacionesA1(idcomponente):
+        conn = None
         sql = """SELECT * FROM observaciones_medidas_anexo1 WHERE id_componente = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idcomponente,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1044,15 +1157,17 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerAnexo2(proyectoid):
-        sql = """SELECT * FROM anexos2 WHERE proyecto_id = ?"""
+        conn = None
+        sql = """SELECT * FROM anexos2 WHERE proyecto_id=?"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid,))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -1062,15 +1177,18 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerUbicacionInstrumentacionGeotecnica(idcomponente):
+        conn = None
         sql = """SELECT * FROM ubicaciones_instrumentacion_anexo2 WHERE id_componente = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idcomponente,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1080,15 +1198,18 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerInstrumentacionGeotecnica(idcomponente):
+        conn = None
         sql = """SELECT * FROM instrumentacion_geotecnica_anexo2 WHERE id_componente = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idcomponente,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1098,15 +1219,18 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerObservacionesA2(idcomponente):
+        conn = None
         sql = """SELECT * FROM observaciones_medidas_anexo2 WHERE id_componente = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idcomponente,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1116,15 +1240,18 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerObtenerComponentes(proyecto_id):
-        sql = """SELECT * FROM componentes WHERE id_proyecto = ? AND estado_componente = 1;"""
+        conn = None
+        sql = """SELECT * FROM componentes  WHERE id_proyecto = ? AND estado_componente = 1;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyecto_id,))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1134,15 +1261,17 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerResumenEjecutivoAnexo1(idcomponente):
-        sql = """SELECT * FROM resumen_ejecutivo_anexo1 WHERE id_componente = ?;"""
+        conn = None
+        sql = f"""SELECT * FROM resumen_ejecutivo_anexo1 WHERE id_componente = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idcomponente,))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -1152,7 +1281,13 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerTablaResumenEjecutivoAnexo1(idcomponentes):
+        conn = None
+        # Validación de lista
+        if not isinstance(idcomponentes, list):
+            idcomponentes = [idcomponentes] if idcomponentes is not None else []
+            
         placeholders = ', '.join(['?' for _ in idcomponentes])
         sql = f"""SELECT c.nombre_componente, r.* FROM resumen_ejecutivo_anexo1 r INNER JOIN componentes c
         ON r.id_componente = c.id_componente WHERE r.id_componente IN ({placeholders});"""
@@ -1160,9 +1295,10 @@ class ReporteModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, idcomponentes)
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1172,7 +1308,13 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerParametrosAnexo1(idcomponentes):
+        conn = None
+        # Validación de lista
+        if not isinstance(idcomponentes, list):
+            idcomponentes = [idcomponentes] if idcomponentes is not None else []
+
         placeholders = ', '.join(['?' for _ in idcomponentes])
         sql = f"""SELECT c.nombre_componente, p.* FROM control_parametros_anexo1 p INNER JOIN componentes c
         ON c.id_componente = p.id_componente WHERE p.id_componente IN ({placeholders});"""
@@ -1180,9 +1322,10 @@ class ReporteModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, idcomponentes)
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1192,7 +1335,13 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerCondicionesFisicasAnexo1(idcomponentes):
+        conn = None
+        # Validación de lista
+        if not isinstance(idcomponentes, list):
+            idcomponentes = [idcomponentes] if idcomponentes is not None else []
+
         placeholders = ', '.join(['?' for _ in idcomponentes])
         sql = f"""SELECT c.nombre_componente, f.* FROM componentes c INNER JOIN condiciones_fisicas_anexo1 f
         ON c.id_componente = f.id_componente WHERE f.id_componente IN ({placeholders});"""
@@ -1200,9 +1349,10 @@ class ReporteModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, idcomponentes)
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1212,7 +1362,13 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerOperatividadEquipos(idcomponentes):
+        conn = None
+        # Validación de lista
+        if not isinstance(idcomponentes, list):
+            idcomponentes = [idcomponentes] if idcomponentes is not None else []
+
         placeholders = ', '.join(['?' for _ in idcomponentes])
         sql = f"""SELECT c.nombre_componente, o.* FROM componentes c INNER JOIN operatividad_equipos_anexo1 o
         ON c.id_componente = o.id_componente WHERE o.id_componente IN ({placeholders});"""
@@ -1220,9 +1376,10 @@ class ReporteModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, idcomponentes)
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1232,7 +1389,13 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerObservacionesAnexo1(idcomponentes):
+        conn = None
+        # Validación de lista
+        if not isinstance(idcomponentes, list):
+            idcomponentes = [idcomponentes] if idcomponentes is not None else []
+
         placeholders = ', '.join(['?' for _ in idcomponentes])
         sql = f"""SELECT c.nombre_componente, o.* FROM componentes c INNER JOIN observaciones_medidas_anexo1 o
         ON c.id_componente = o.id_componente WHERE o.id_componente IN ({placeholders});"""
@@ -1240,9 +1403,10 @@ class ReporteModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, idcomponentes)
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1252,7 +1416,9 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerResumenEjecutivoAnexo2(idcomponente):
+        conn = None
         sql = """SELECT * FROM resumen_ejecutivo_anexo2 WHERE id_componente = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -1260,7 +1426,7 @@ class ReporteModel:
             cur.execute(sql, (idcomponente,))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -1270,7 +1436,13 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerTablaResumenEjecutivoAnexo2(idcomponentes):
+        conn = None
+        # Validación de lista
+        if not isinstance(idcomponentes, list):
+            idcomponentes = [idcomponentes] if idcomponentes is not None else []
+
         placeholders = ', '.join(['?' for _ in idcomponentes])
         sql = f"""SELECT c.nombre_componente, r.* FROM resumen_ejecutivo_anexo2 r INNER JOIN componentes c
         ON r.id_componente = c.id_componente WHERE r.id_componente IN ({placeholders});"""
@@ -1278,9 +1450,10 @@ class ReporteModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, idcomponentes)
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1290,7 +1463,13 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerInstrumentacionAnexo2(idcomponentes):
+        conn = None
+        # Validación de lista
+        if not isinstance(idcomponentes, list):
+            idcomponentes = [idcomponentes] if idcomponentes is not None else []
+
         placeholders = ', '.join(['?' for _ in idcomponentes])
         sql = f"""SELECT c.nombre_componente, i.* FROM componentes c INNER JOIN instrumentacion_geotecnica_anexo2 i
         ON c.id_componente = i.id_componente WHERE i.id_componente IN ({placeholders});"""
@@ -1298,9 +1477,10 @@ class ReporteModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, idcomponentes)
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1310,7 +1490,9 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerInterpretacionValoresA2(instrumento, idcompo):
+        conn = None
         sql = """SELECT c.nombre_componente, u.* FROM componentes c INNER JOIN ubicaciones_instrumentacion_anexo2 u
         ON c.id_componente = u.id_componente WHERE u.id_componente = ? AND u.tipo_instrumentacion = ?;"""
         try:
@@ -1318,8 +1500,9 @@ class ReporteModel:
             cur = conn.cursor()
             cur.execute(sql, (idcompo, instrumento))
             rows = cur.fetchall()
-            if rows:
-                return rows
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1328,21 +1511,27 @@ class ReporteModel:
         finally:
             if conn:
                 conn.close()
-    
+    @staticmethod
     def mdlDatosVI3DPositivas(idcomponente, tabla, tipo_prisma):
-        validacion = "SELECT nombre_equipo FROM instrumentacion WHERE tipo_equipo = 'PRISMAS' AND id_componente = ?;"
+        conn = None
+        validacion = "SELECT nombre_equipo FROM instrumentacion WHERE tipo_equipo = 'PRISMAS' AND id_componente=?;"
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Ejecutar la consulta de validación para obtener los nombres de los equipos
+            
+            # 1. Obtener nombres de equipos
             cur.execute(validacion, (idcomponente,))
             filtro_rows = cur.fetchall()
-            # Si no hay equipos filtrados, retornar None
+            
             if not filtro_rows:
                 return None
-            # Extraer los nombres de los equipos filtrados
+            
             nombres_equipos = [row[0] for row in filtro_rows]
-            # Consulta SQL con filtro por nombres de equipos (SQL Server)
+            placeholders = ','.join(['?' for _ in nombres_equipos])
+            
+            # 2. Transpilación T-SQL compleja
+            # - JULIANDAY(x) - JULIANDAY(y)  ->  DATEDIFF(SECOND, y, x) / 86400.0
+            # - POWER, SQRT, LAG, FIRST_VALUE, ROW_NUMBER son compatibles
             sql = f"""
             WITH PrismasCTE AS (
                 SELECT
@@ -1351,40 +1540,43 @@ class ReporteModel:
                     este_target,
                     norte_target,
                     elevacion_target,
-                    CAST(DATEDIFF(SECOND, FIRST_VALUE(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                    CAST(DATEDIFF(SECOND, first_value(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), hora_prisma) AS FLOAT) / 86400.0 AS dias,
                     CASE
-                        WHEN ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma) = 1 THEN 0
+                        WHEN row_number() OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma) = 1 THEN 0
                         ELSE
                             SQRT(
-                                POWER(este_target - LAG(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2) +
-                                POWER(norte_target - LAG(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2) +
-                                POWER(elevacion_target - LAG(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2)
+                                POWER(este_target - lag(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2) +
+                                POWER(norte_target - lag(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2) +
+                                POWER(elevacion_target - lag(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2)
                             )
                     END AS tresD2
                 FROM {tabla}
-                WHERE state_prisma = 1 AND estado_prisma = 1 AND nombre_prisma IN ({','.join(['?']*len(nombres_equipos))})
+                WHERE state_prisma = 1 AND estado_prisma = 1 AND nombre_prisma IN ({placeholders})
             )
             SELECT
                 nombre_prisma,
                 hora_prisma AS FECHAS,
                 dias AS DIAS,
-                dias * 24 AS HORAS,
+                dias*24 AS HORAS,
                 CASE
-                    WHEN ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) = 1 THEN 0
+                    WHEN row_number() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) = 1 THEN 0
                     ELSE
-                        CASE
-                            WHEN DATEDIFF(SECOND, LAG(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), hora_prisma) = 0 THEN 0
-                            ELSE (tresD2 * 100) / (CAST(DATEDIFF(SECOND, LAG(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), hora_prisma) AS FLOAT) / 86400.0)
-                        END
+                        (tresD2*100) / 
+                        NULLIF((CAST(DATEDIFF(SECOND, LAG(hora_prisma, 1, hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), hora_prisma) AS FLOAT) / 86400.0), 0)
                 END AS VI3D2,
                 ? AS tipo_prisma
             FROM PrismasCTE;
             """
-            # Ejecutar la consulta principal con los parámetros adicionales
-            cur.execute(sql, (*nombres_equipos, tipo_prisma))
-            row = cur.fetchall()
-            if row:
-                return row
+            
+            # Parametros: Lista de nombres para el IN + tipo_prisma para el SELECT final
+            params = nombres_equipos + [tipo_prisma]
+            
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1394,7 +1586,12 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerObservacionesAnexo2(idcomponentes):
+        conn = None
+        if not isinstance(idcomponentes, list):
+            idcomponentes = [idcomponentes] if idcomponentes is not None else []
+            
         placeholders = ', '.join(['?' for _ in idcomponentes])
         sql = f"""SELECT c.nombre_componente, o.* FROM componentes c INNER JOIN observaciones_medidas_anexo2 o
         ON c.id_componente = o.id_componente WHERE o.id_componente IN ({placeholders});"""
@@ -1402,9 +1599,10 @@ class ReporteModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, idcomponentes)
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1414,21 +1612,27 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarDataGeneralAnexos(datos, idproyecto, tiporeporte):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute("SELECT id_reporte FROM reporte_anexos WHERE id_proyecto = ? AND tipo_anexo = ?;", (idproyecto, tiporeporte))
             registro_existente = cur.fetchone()
+            
             if registro_existente:
-                datos.insert(13, datos[12])  # duplicar imagen
-                # Actualizar solo los campos necesarios
+                # datos es una lista, insertamos el valor en la posicion 13 (imagen_componente)
+                datos.insert(13, datos[12]) 
+                
+                # Actualizar
                 sql_update = """UPDATE reporte_anexos SET titulo_portada = ?, subtitulo_portada = ?, lugar_portada = ?,
                 autor_portada = ?, tipo_documento = ?, codigo_reporte = ?, destinatario_reporte = ?, remitente_reporte = ?,
                 asunto_reporte = ?, descripcion_reporte = ?, tipo_reporte = ?, componente_reporte = ?,
                 imagen_componente = CASE WHEN ? IS NOT NULL THEN ? ELSE imagen_componente END, objetivo_reporte = ?,
                 finalidad_reporte = ?, ambito_aplicacion_reporte = ?, detalle_reporte = ?, titulo_anexo = ?, tipo_anexo = ?
                 WHERE id_reporte = ?;"""
+                
                 params = datos + [registro_existente[0]]
                 cur.execute(sql_update, params)
             else:
@@ -1438,18 +1642,24 @@ class ReporteModel:
                 descripcion_reporte, tipo_reporte, componente_reporte, imagen_componente, objetivo_reporte, finalidad_reporte,
                 ambito_aplicacion_reporte, detalle_reporte, titulo_anexo, tipo_anexo)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+                
                 params = [idproyecto] + datos
                 cur.execute(sql_insert, params)
+                
             conn.commit()
             return True
         except Exception as e:
             print("Error al guardar o actualizar data general anexo: " + str(e))
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarDatosGeneralAnexos(idproyecto, tipoanexo):
+        conn = None
         sql = """SELECT * FROM reporte_anexos WHERE id_proyecto = ? AND tipo_anexo = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -1457,7 +1667,7 @@ class ReporteModel:
             cur.execute(sql, (idproyecto, tipoanexo))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -1467,15 +1677,17 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarResumenEjecutivoAnexo1(valores, idcomponente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             sql_check = """SELECT COUNT(*) FROM resumen_ejecutivo_anexo1 WHERE id_componente = ?;"""
             cur.execute(sql_check, (idcomponente,))
             result = cur.fetchone()
+            
             if result[0] > 0:
-                # Si existe, realizar una actualización
                 sql_update = """UPDATE resumen_ejecutivo_anexo1 SET descripcion_anexo = ?,
                 componente_encabezado = ?, valor_componente_encabezado = ?, autorizacion_encabezado = ?,
                 valor_autorizacion_encabezado = ?, fecha_encabezado = ?, valor_fecha_encabezado = ?, expediente_control = ?,
@@ -1483,34 +1695,37 @@ class ReporteModel:
                 params = valores + [idcomponente]
                 cur.execute(sql_update, params)
             else:
-                # Si no existe, insertar una nueva fila
                 sql_insert = """INSERT INTO resumen_ejecutivo_anexo1 (id_componente, descripcion_anexo,
                 componente_encabezado, valor_componente_encabezado, autorizacion_encabezado, valor_autorizacion_encabezado,
                 fecha_encabezado, valor_fecha_encabezado, expediente_control, valor_expediente_control, inspeccion_control,
                 valor_inspeccion_control) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
                 params = [idcomponente] + valores
                 cur.execute(sql_insert, params)
-            # Confirmar los cambios en la base de datos
+                
             conn.commit()
             return True
         except Exception as e:
             print("Error al guardar resumen ejecutivo a1: " + str(e))
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlObtenerImagenesGraficasReporte(idcomponente, tipo_equipo, anexo):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT * FROM graficos_reporte WHERE id_componente = ? AND tipo_reporte = ? AND tipo_equipo = ?;"""
         params = (idcomponente, anexo, tipo_equipo)
-            
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, params)
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1520,46 +1735,52 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarResumenEjecutivoAnexo2(valores, idcomponente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             sql_check = """SELECT COUNT(*) FROM resumen_ejecutivo_anexo2 WHERE id_componente = ?;"""
             cur.execute(sql_check, (idcomponente,))
             result = cur.fetchone()
+            
             if result[0] > 0:
-                # Si existe, realizar una actualización
                 sql_update = """UPDATE resumen_ejecutivo_anexo2 SET descripcion_anexo = ?, componente_encabezado = ?,
                 valor_componente_encabezado = ?, periodo_encabezado = ?, valor_periodo_encabezado = ?,
                 interpretacion_monitoreo = ?, valor_interpretacion = ? WHERE id_componente = ?;"""
                 params = valores + [idcomponente]
                 cur.execute(sql_update, params)
             else:
-                # Si no existe, insertar una nueva fila
                 sql_insert = """INSERT INTO resumen_ejecutivo_anexo2 (id_componente, descripcion_anexo,
                 componente_encabezado, valor_componente_encabezado, periodo_encabezado, valor_periodo_encabezado,
                 interpretacion_monitoreo, valor_interpretacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
                 params = [idcomponente] + valores
                 cur.execute(sql_insert, params)
-            # Confirmar los cambios en la base de datos
+                
             conn.commit()
             return True
         except Exception as e:
             print("Error al guardar resumen ejecutivo a2: " + str(e))
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlListarImagenesReportes(idcomponente, tiporeporte):
+        conn = None
         sql = """SELECT * FROM graficos_reporte WHERE id_componente = ? AND tipo_reporte = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idcomponente, tiporeporte))
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -1569,7 +1790,9 @@ class ReporteModel:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlEliminarGraficaReporte(idimagen):
+        conn = None
         sql = """DELETE FROM graficos_reporte WHERE id_reporte = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -1579,195 +1802,223 @@ class ReporteModel:
             return True
         except Exception as e:
             print(f"Error al eliminar imagen reporte: {e}")
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarParametrosAnexo1(parametros, idcomponente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Borrar registros anteriores con el mismo anexo1_id y id_componente
+            cur.fast_executemany = True  # Optimización SQL Server
+            
             delete_sql = """DELETE FROM control_parametros_anexo1 WHERE id_componente = ?;"""
             cur.execute(delete_sql, (idcomponente,))
-            # Consulta SQL para insertar los datos
+            
             insert_sql = """INSERT INTO control_parametros_anexo1 (id_componente, descripcion_parametro, valor_parametro,
             unidad_parametro, condicion_parametro, comentario_parametro) VALUES (?, ?, ?, ?, ?, ?);"""
-            # Ejecutar el insert en bloque
             cur.executemany(insert_sql, parametros)
-            # Confirmar los cambios
+            
             conn.commit()
             return True
         except Exception as e:
             print(f"Error al guardar los parámetros a1: {e}")
-            conn.rollback()  # Revertir los cambios en caso de error
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarCondicionesAnexo1(condiciones, idcomponente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Borrar registros anteriores con el mismo anexo1_id y id_componente
+            cur.fast_executemany = True
+            
             delete_sql = """DELETE FROM condiciones_fisicas_anexo1 WHERE id_componente = ?;"""
             cur.execute(delete_sql, (idcomponente,))
-            # Consulta SQL para insertar los datos
+            
             insert_sql = """INSERT INTO condiciones_fisicas_anexo1 (id_componente, condicion_talud, estado_condicion, comentario,
             tipo_condicion) VALUES (?, ?, ?, ?, ?);"""
-            # Ejecutar el insert en bloque
             cur.executemany(insert_sql, condiciones)
-            # Confirmar los cambios
+            
             conn.commit()
             return True
         except Exception as e:
             print(f"Error al guardar condiciones fisicas a1: {e}")
-            conn.rollback()  # Revertir los cambios en caso de error
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarOperatividadAnexo1(operatividad, idcomponente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Borrar registros anteriores con el mismo anexo1_id y id_componente
+            cur.fast_executemany = True
+            
             delete_sql = """DELETE FROM operatividad_equipos_anexo1 WHERE id_componente = ?;"""
             cur.execute(delete_sql, (idcomponente,))
-            # Consulta SQL para insertar los datos
+            
             insert_sql = """INSERT INTO operatividad_equipos_anexo1 (id_componente, instrumentacion, condicion_actual, cantidad, 
             operatividad, comentario) VALUES (?, ?, ?, ?, ?, ?);"""
-            # Ejecutar el insert en bloque
             cur.executemany(insert_sql, operatividad)
-            # Confirmar los cambios
+            
             conn.commit()
             return True
         except Exception as e:
             print(f"Error al guardar operatividad a1: {e}")
-            conn.rollback()  # Revertir los cambios en caso de error
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarObservacionesAnexo1(observaciones, idcomponente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Borrar registros anteriores con el mismo anexo1_id y id_componente
+            cur.fast_executemany = True
+            
             delete_sql = """DELETE FROM observaciones_medidas_anexo1 WHERE id_componente = ?;"""
             cur.execute(delete_sql, (idcomponente,))
-            # Consulta SQL para insertar los datos
+            
             insert_sql = """INSERT INTO observaciones_medidas_anexo1 (id_componente, descripcion, condicion_actual, medidas,
             plazo, comentario, responsable, tipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
-            # Ejecutar el insert en bloque
             cur.executemany(insert_sql, observaciones)
-            # Confirmar los cambios
+            
             conn.commit()
             return True
         except Exception as e:
             print(f"Error al guardar observaciones a1: {e}")
-            conn.rollback()  # Revertir los cambios en caso de error
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarInstrumentacionAnexo2(instrumentacion, idcomponente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Eliminar registros existentes con el mismo anexo2_id y id_componente
+            cur.fast_executemany = True
+            
             sql_delete = """DELETE FROM instrumentacion_geotecnica_anexo2 WHERE id_componente = ?;"""
             cur.execute(sql_delete, (idcomponente,))
-            # Consulta SQL para insertar los datos
+            
             sql_insert = """INSERT INTO instrumentacion_geotecnica_anexo2 (id_componente, instrumentacion, cantidad_autorizado, 
             operatividad_autorizado, cantidad_adicional, operatividad_adicional, total_intrumentacion, frecuencia_monitoreo)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
-            # Ejecutar el insert en bloque
             cur.executemany(sql_insert, instrumentacion)
-            # Confirmar los cambios
+            
             conn.commit()
             return True
         except Exception as e:
             print(f"Error al guardar los instrumentacion a2: {e}")
-            conn.rollback()  # Revertir los cambios en caso de error
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarUbicacionesInstrumentacion(instrumentacion, idcomponente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Obtener todos los IDs existentes en la base de datos para el anexo2_id e id_componente
+            
+            # Obtener IDs existentes
             select_sql = """SELECT id_ubicacion FROM ubicaciones_instrumentacion_anexo2 WHERE id_componente = ?;"""
             cur.execute(select_sql, (idcomponente,))
             existing_ids = {row[0] for row in cur.fetchall()}
-            # Obtener los IDs de los datos proporcionados
+            
+            # Obtener IDs nuevos
             new_ids = {item[0] for item in instrumentacion if item[0] is not None}
-            # Eliminar los registros que ya no están presentes en la lista de datos
-            ids_to_delete = existing_ids - new_ids
+            
+            # Identificar IDs a borrar
+            ids_to_delete = list(existing_ids - new_ids)
+            
             if ids_to_delete:
-                delete_sql = """DELETE FROM ubicaciones_instrumentacion_anexo2 WHERE id_ubicacion IN ({})""".format(','.join('?' * len(ids_to_delete)))
-                cur.execute(delete_sql, tuple(ids_to_delete))
-            # Insertar o actualizar los registros según los datos proporcionados
+                placeholders = ', '.join(['?' for _ in ids_to_delete])
+                delete_sql = f"""DELETE FROM ubicaciones_instrumentacion_anexo2 WHERE id_ubicacion IN ({placeholders})"""
+                cur.execute(delete_sql, ids_to_delete)
+                
+            # Insertar o actualizar
             for item in instrumentacion:
                 row_id = item[0]
-                id_componente = item[1]
+                # item[1] es id_componente (ya lo tenemos en argumento pero iteramos item)
+                id_comp_item = item[1]
                 instrumento = item[2]
                 imagen_blob = item[3]
                 tipo_instrumentacion = item[4]
+                
                 if row_id is not None:
                     if imagen_blob:
-                        # Actualizar tanto el nombre como la imagen
                         update_sql = """UPDATE ubicaciones_instrumentacion_anexo2 SET instrumento = ?, ubicacion_imagen = ?,
                         tipo_instrumentacion = ? WHERE id_ubicacion = ?;"""
                         cur.execute(update_sql, (instrumento, imagen_blob, tipo_instrumentacion, row_id))
                     else:
-                        # Actualizar solo el nombre y el tipo de instrumentación
                         update_sql = """UPDATE ubicaciones_instrumentacion_anexo2 SET instrumento = ?, tipo_instrumentacion = ?
                         WHERE id_ubicacion = ?;"""
                         cur.execute(update_sql, (instrumento, tipo_instrumentacion, row_id))
                 else:
-                    # Insertar un nuevo registro
                     insert_sql = """INSERT INTO ubicaciones_instrumentacion_anexo2 (id_componente, instrumento, ubicacion_imagen,
                     tipo_instrumentacion) VALUES (?, ?, ?, ?);"""
-                    cur.execute(insert_sql, (id_componente, instrumento, imagen_blob, tipo_instrumentacion))
-            # Confirmar los cambios
+                    cur.execute(insert_sql, (id_comp_item, instrumento, imagen_blob, tipo_instrumentacion))
+            
             conn.commit()
             return True
         except Exception as e:
             print(f"Error al atualizar ubicaciones: {e}")
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
+    @staticmethod
     def mdlGuardarObservacionesAnexo2(observaciones, idcomponente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Eliminar registros existentes con el mismo anexo2_id y id_componente
+            cur.fast_executemany = True
+            
             sql_delete = """DELETE FROM observaciones_medidas_anexo2 WHERE id_componente = ?;"""
             cur.execute(sql_delete, (idcomponente,))
-            # Consulta SQL para insertar los datos
+            
             sql_insert = """INSERT INTO observaciones_medidas_anexo2 (id_componente, descripcion, condicion_actual, medidas,
             plazo, comentario, responsable, tipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
-            # Ejecutar el insert en bloque
             cur.executemany(sql_insert, observaciones)
-            # Confirmar los cambios
+            
             conn.commit()
             return True
         except Exception as e:
             print(f"Error al guardar observaciones a2: {e}")
-            conn.rollback()  # Revertir los cambios en caso de error
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
-    
