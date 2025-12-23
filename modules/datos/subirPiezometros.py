@@ -365,7 +365,7 @@ class SubirPiezometros:
                         fecha = row['fecha']
                         hora = row['hora']
                         mca = row['mca']
-                        observa = row['observacion']
+                        observacion = row['observacion']
                         if pd.isna(fecha) or pd.isna(mca):
                             continue
                         # Manejo de la columna 'fecha'
@@ -395,6 +395,7 @@ class SubirPiezometros:
                         frecu = float(row['frecuencia']) if not pd.isna(row['frecuencia']) else 0
                         tempe = float(row['temperatura']) if not pd.isna(row['temperatura']) else 0
                         presio = float(row['presion']) if not pd.isna(row['presion']) else 0
+                        observa = observacion if not pd.isna(observacion) else ""
                         data.append((idpiezometro, fecha, hora, frecu, tempe, presio, mca, observa))
                     if data:
                         respon = PiezometroController.ctrlGuardarPiezometrosCuerdaCalculada(proyectoid, data, False)
@@ -910,7 +911,7 @@ class SubirPiezometros:
                         fecha = row['fecha']
                         hora = row['hora']
                         nivel = row['nivel']
-                        observa = row['observacion']
+                        observacion = row['observacion']
                         if pd.isna(fecha) or pd.isna(nivel):
                             continue
                         # Manejo de la columna 'fecha'
@@ -937,6 +938,7 @@ class SubirPiezometros:
                             nivel = float(nivel)
                         except (ValueError, TypeError):
                             continue
+                        observa = observacion if not pd.isna(observacion) else ""
                         data.append((idpiezometro, fecha, hora, nivel, observa))
                     if data:
                         respon = PiezometroController.ctrlGuardarPiezometrosManualesTabla(proyectoid, data)
