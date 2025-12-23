@@ -1,28 +1,36 @@
 from services.security.apis.conexiones.connection import Connection
 
 class EmpresaModel:
-       
+
+    @staticmethod
     def mdlRegistrarActualizarInformacionEmpresa(datos):
+        conexion = None
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
-            # Verificar si la empresa ya existe (SQL Server)
+
+            # SQL Server: Usa TOP 1 en lugar de LIMIT 1
             cursor.execute("SELECT TOP 1 id_empresa FROM empresa")
             empresa_existente = cursor.fetchone()
+
             campos = ["nombre_empresa = ?", "ruc_empresa = ?", "telefono_empresa = ?", "correo_empresa = ?"]
             valores = [datos['nombre_empresa'], datos['codigo_ruc'], datos['numero_contacto'], datos['correo_electronico']]
+
             if 'logo' in datos and datos['logo'] is not None:
                 campos.append("logo_empresa = ?")
                 valores.append(datos['logo'])
+
             if empresa_existente:
                 # Actualizar la información de la empresa
+                # empresa_existente es un objeto Row, accedemos por índice [0]
                 sql = f"UPDATE empresa SET {', '.join(campos)} WHERE id_empresa = ?"
                 valores.append(empresa_existente[0])
             else:
                 # Insertar una nueva empresa
-                sql = "INSERT INTO empresa (nombre_empresa, ruc_empresa, telefono_empresa, correo_empresa, logo_empresa) VALUES (?, ?, ?, ?, ?)"
+                sql = f"INSERT INTO empresa (nombre_empresa, ruc_empresa, telefono_empresa, correo_empresa, logo_empresa) VALUES (?, ?, ?, ?, ?)"
                 if 'logo' not in datos or datos['logo'] is None:
-                    valores.append(None)  # Asegurarse de que el logo sea None si no se proporciona
+                    valores.append(None)
+
             cursor.execute(sql, valores)
             conexion.commit()
             return True
@@ -33,29 +41,40 @@ class EmpresaModel:
             if conexion:
                 conexion.close()
 
+    @staticmethod
     def mdlRegistrarResponsableEmpresa(datos, proyectoid):
+        conexion = None
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
+
             # Construir la consulta SQL dinámicamente
             campos = ["responsable = ?", "cargo = ?", "dni = ?", "cip = ?"]
             valores = [datos['nombre_responsable'], datos['cargo'], datos['dni'], datos['cip']]
+
             if 'firma' in datos and datos['firma'] is not None:
                 campos.append("firma = ?")
                 valores.append(datos['firma'])
+
             # Verificar si ya existe un registro
             cursor.execute("SELECT COUNT(*) FROM personal_empresa WHERE id_proyecto = ?", (proyectoid,))
             resultado = cursor.fetchone()
+
             if resultado[0] > 0:
-                # Si existe, hacer un UPDATE dinámico
+                # UPDATE
                 sql = f"UPDATE personal_empresa SET {', '.join(campos)} WHERE id_proyecto = ?"
                 valores.append(proyectoid)
             else:
-                # Si no existe, hacer un INSERT
+                # INSERT
                 columnas = [campo.split('=')[0].strip() for campo in campos]
                 columnas.append('id_proyecto')
-                sql = f"INSERT INTO personal_empresa ({', '.join(columnas)}) VALUES ({', '.join(['?' for _ in range(len(valores) + 1)])})"
+                
+                # Generar placeholders ? dinámicos para pyodbc
+                placeholders = ', '.join(['?' for _ in range(len(valores) + 1)])
+                
+                sql = f"INSERT INTO personal_empresa ({', '.join(columnas)}) VALUES ({placeholders})"
                 valores.append(proyectoid)
+
             cursor.execute(sql, valores)
             conexion.commit()
             return True
@@ -65,16 +84,19 @@ class EmpresaModel:
         finally:
             if conexion:
                 conexion.close()
-    
+
+    @staticmethod
     def mdlObtenerDatosEmpresa():
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT * FROM empresa"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql)
             row = cur.fetchone()
+            # Conversión explícita a tupla para compatibilidad con Frontend
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -83,16 +105,19 @@ class EmpresaModel:
         finally:
             if conn:
                 conn.close()
-    
+
+    @staticmethod
     def mdlObtenerDatosLicencia():
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """SELECT * FROM licencias;"""
             cur = conn.cursor()
             cur.execute(sql)
             row = cur.fetchone()
+            # Conversión explícita a tupla
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -101,16 +126,19 @@ class EmpresaModel:
         finally:
             if conn:
                 conn.close()
-    
+
+    @staticmethod
     def mdlObtenerDatosConfiguracionSoftware():
+        conn = None
         sql = """SELECT * FROM configuraciongrafica"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql)
             row = cur.fetchone()
+            # Conversión explícita a tupla
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -119,16 +147,19 @@ class EmpresaModel:
         finally:
             if conn:
                 conn.close()
-    
+
+    @staticmethod
     def mdlObtenerDatosConfiguracionEmpresa():
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT * FROM empresa;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql)
             row = cur.fetchone()
+            # Conversión explícita a tupla
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -137,32 +168,37 @@ class EmpresaModel:
         finally:
             if conn:
                 conn.close()
-                
+
+    @staticmethod
     def mdlObtenerDatosConfiguracionResponsable(proyectoid):
+        conn = None
         try:
-            # Establecer la conexión con la base de datos
             conn = Connection.connectionDB()
             sql = """SELECT * FROM firmas WHERE id_proyecto = ?;"""
             cur = conn.cursor()
             cur.execute(sql, (proyectoid,))
             row = cur.fetchone()
-            return row if row else None
+            # Conversión explícita a tupla
+            return tuple(row) if row else None
         except Exception as e:
             print(f"Error al obtener configuración del responsable: {e}")
             return None
         finally:
             if conn:
                 conn.close()
-    
+
+    @staticmethod
     def mdlListarResponsablesFirma():
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT * FROM personal_empresa WHERE tipo = 0;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql)
-            row = cur.fetchall()
-            if row:
-                return row
+            rows = cur.fetchall()
+            # Conversión explícita a lista de tuplas
+            if rows:
+                return [tuple(row) for row in rows]
             else:
                 return None
         except Exception as e:
@@ -171,8 +207,10 @@ class EmpresaModel:
         finally:
             if conn:
                 conn.close()
-    
+
+    @staticmethod
     def mdlGuardarNuevoResponsable(responsable, supervision, comentario, firma):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = "INSERT INTO personal_empresa (supervision, responsable, comentario, firma) VALUES (?, ?, ?, ?);"
@@ -187,11 +225,13 @@ class EmpresaModel:
         finally:
             if conn:
                 conn.close()
-           
+
+    @staticmethod
     def mdlEliminarFirmaResponsable(id):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """DELETE FROM personal_empresa WHERE id = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (id,))
             conn.commit()
@@ -204,33 +244,39 @@ class EmpresaModel:
             return False
         finally:
             if conn:
-                conn.close() 
-                
+                conn.close()
+
+    @staticmethod
     def mdlObtenerResponsables():
+        conn = None
         try:
-            # Establecer la conexión con la base de datos
             conn = Connection.connectionDB()
             sql = """SELECT * FROM personal_empresa WHERE tipo = ?"""
+
             cur = conn.cursor()
             cur.execute(sql, (0,))
-            row = cur.fetchall()
-            # Retornar la fila si existe, de lo contrario retornar None
-            return row if row else None
+            rows = cur.fetchall()
+
+            # Conversión explícita a lista de tuplas para evitar pyodbc.Row en frontend
+            return [tuple(row) for row in rows] if rows else None
+
         except Exception as e:
             print(f"Error al obtener configuración del responsable: {e}")
             return None
         finally:
-            # Asegurarse de cerrar la conexión si fue creada
             if conn:
                 conn.close()
-    
+
+    @staticmethod
     def mdlRegistrarActualizarAjustesSoftware(datos):
+        conexion = None
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
             # Verificar si existe algún registro
             cursor.execute("SELECT COUNT(*) FROM configuraciongrafica")
             resultado = cursor.fetchone()
+            
             campos = [
                 "titulo_grafica", "ejes_grafica", "etiquetas_grafica", "leyenda_grafica",
                 "cota_grafica", "mostrarcota_grafica", "mostrar_vertices", "tipo_tendencia",
@@ -244,14 +290,16 @@ class EmpresaModel:
                 datos['cantidecimales'], datos['velocidad_prisma'], datos['filtrofecha'], datos['precipitacion'],
                 datos['mostrarlluvia'], datos['velocidad_celda']
             ]
+
             if resultado[0] > 0:
-                # Si existe, actualizar el registro (SQL Server)
                 set_clause = ', '.join([f"{campo} = ?" for campo in campos])
+                # SQL Server: Subconsulta con TOP 1 para el UPDATE
                 sql = f"UPDATE configuraciongrafica SET {set_clause} WHERE id_configuracion = (SELECT TOP 1 id_configuracion FROM configuraciongrafica)"
             else:
-                # Si no existe, inserta un nuevo registro
+                # Insertar un nuevo registro
                 placeholders = ', '.join(['?' for _ in campos])
                 sql = f"INSERT INTO configuraciongrafica ({', '.join(campos)}) VALUES ({placeholders})"
+            
             cursor.execute(sql, valores)
             conexion.commit()
             return True
@@ -261,4 +309,3 @@ class EmpresaModel:
         finally:
             if conexion:
                 conexion.close()
-    

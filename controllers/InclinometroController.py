@@ -1,10 +1,70 @@
 import ast
+# Importamos el módulo completo con un alias para usarlo en 'eval'
+import datetime as dt_module 
+from datetime import datetime
 from models.InclinometroModel import InclinometroModel
 from models.InterfazModel import InterfazModel
-from datetime import datetime
 
 class InclinometroController:
     
+    # --- FUNCIÓN CORREGIDA PARA FECHAS ---
+    @staticmethod
+    def procesar_lista_fechas(fechas_raw):
+        if not fechas_raw:
+            return []
+        
+        if "datetime.datetime" in fechas_raw:
+            try:
+                # CORRECCIÓN: Pasamos el módulo 'datetime' (dt_module) al contexto de eval
+                lista_objetos = eval(fechas_raw, {"datetime": dt_module})
+                
+                lista_strings = []
+                for dt in lista_objetos:
+                    if isinstance(dt, datetime):
+                        lista_strings.append(dt.strftime('%Y-%m-%d %H:%M:%S'))
+                    else:
+                        lista_strings.append(str(dt))
+                return lista_strings
+            except Exception as e:
+                print(f"Error procesando fechas SQL Server: {e}")
+                return []
+
+        try:
+            return ast.literal_eval(fechas_raw)
+        except:
+            return []
+
+    # --- FUNCIÓN MEJORADA: Convertir Decimal a Float (Incluyendo Profundidad) ---
+    @staticmethod
+    def convertir_decimal_a_float(datos):
+        """
+        Convierte los valores numéricos (Profundidad, Desp A, Desp B) de Decimal a Float.
+        Esto es OBLIGATORIO para que matplotlib no falle.
+        """
+        if not datos:
+            return None
+        
+        datos_float = []
+        for fila in datos:
+            item = list(fila)
+            
+            # 1. Convertir Profundidad (Índice 2) - ESTO FALTABA
+            if len(item) >= 3:
+                if item[2] is not None: item[2] = float(item[2])
+                else: item[2] = 0.0
+
+            # 2. Convertir Desplazamientos (Índices 3 y 4)
+            if len(item) >= 5:
+                if item[3] is not None: item[3] = float(item[3])
+                else: item[3] = 0.0
+                
+                if item[4] is not None: item[4] = float(item[4])
+                else: item[4] = 0.0
+            
+            datos_float.append(tuple(item))
+        return datos_float
+    # -----------------------------------------------
+
     def ctrlListarInclinometrosProyecto(idproyecto, inclinometrosmarcados):
         inclinometros = []
         for componente, listainclinometros in inclinometrosmarcados:
@@ -30,7 +90,8 @@ class InclinometroController:
             datos = InclinometroModel.mdlObtenerDIAB_RST(tabla, idcomponente, idinstru, fechitas, unidadmedida)
         else:
             datos = InclinometroModel.mdlObtenerDIAB_GKN(tabla, idcomponente, idinstru, fechitas, medida, anguzz, mrint)
-        return datos
+        
+        return InclinometroController.convertir_decimal_a_float(datos)
     
     def ctrlObtenerDIAB(idproyecto, inclinomarcados, unidadmedida, azimuth, anguzz, rint):
         if unidadmedida == 1:
@@ -50,12 +111,16 @@ class InclinometroController:
                 tipo = InclinometroModel.mdlObtenerInclinometroTipo(idproyecto, idcomponente, idinstru)
                 if tipo:
                     tabla = f"inclinometro_detalle{idproyecto}"
-                    fechitas = ast.literal_eval(fechas)
+                    fechitas = InclinometroController.procesar_lista_fechas(fechas)
+                    
+                    if not fechitas: return None
+
                     if tipo[0] == 'RST':
                         datos = InclinometroModel.mdlObtenerDIAB_RST(tabla, idcomponente, idinstru, fechitas, unidadmedida)
                     else:
                         datos = InclinometroModel.mdlObtenerDIAB_GKN(tabla, idcomponente, idinstru, fechitas, medida, anguzz, mrint)
-                    return datos
+                    
+                    return InclinometroController.convertir_decimal_a_float(datos)
                 else:
                     return None
     
@@ -71,7 +136,8 @@ class InclinometroController:
             datos = InclinometroModel.mdlObtenerDINE_RST(tabla, idcomponente, idinstru, fechitas, unidadmedida, alfa)
         else:
             datos = InclinometroModel.mdlObtenerDINE_GKN(tabla, idcomponente, idinstru, fechitas, medida, alfa, mrint)
-        return datos
+        
+        return InclinometroController.convertir_decimal_a_float(datos)
     
     def ctrlObtenerDINE(idproyecto, inclinomarcados, unidadmedida, azimuth, anguzz, rint):
         if unidadmedida == 1:
@@ -92,12 +158,16 @@ class InclinometroController:
                 tipo = InclinometroModel.mdlObtenerInclinometroTipo(idproyecto, idcomponente, idinstru)
                 if tipo:
                     tabla = f"inclinometro_detalle{idproyecto}"
-                    fechitas = ast.literal_eval(fechas)
+                    fechitas = InclinometroController.procesar_lista_fechas(fechas)
+                    
+                    if not fechitas: return None
+
                     if tipo[0] == 'RST':
                         datos = InclinometroModel.mdlObtenerDINE_RST(tabla, idcomponente, idinstru, fechitas, unidadmedida, alfa)
                     else:
                         datos = InclinometroModel.mdlObtenerDINE_GKN(tabla, idcomponente, idinstru, fechitas, medida, alfa, mrint)
-                    return datos
+                    
+                    return InclinometroController.convertir_decimal_a_float(datos)
                 else:
                     return None
     
@@ -112,7 +182,8 @@ class InclinometroController:
             datos = InclinometroModel.mdlObtenerDAAB_RST(tabla, idcomponente, idinstru, fechitas, unidadmedida)
         else:
             datos = InclinometroModel.mdlObtenerDAAB_GKN(tabla, idcomponente, idinstru, fechitas, medida)
-        return datos
+        
+        return InclinometroController.convertir_decimal_a_float(datos)
     
     def ctrlObtenerDAAB(idproyecto, inclinomarcados, unidadmedida, azimuth, anguzz, rint):
         if unidadmedida == 1:
@@ -127,12 +198,16 @@ class InclinometroController:
                 tipo = InclinometroModel.mdlObtenerInclinometroTipo(idproyecto, idcomponente, idinstru)
                 if tipo:
                     tabla = f"inclinometro_detalle{idproyecto}"
-                    fechitas = ast.literal_eval(fechas)
+                    fechitas = InclinometroController.procesar_lista_fechas(fechas)
+                    
+                    if not fechitas: return None
+
                     if tipo[0] == 'RST':
                         datos = InclinometroModel.mdlObtenerDAAB_RST(tabla, idcomponente, idinstru, fechitas, unidadmedida)
                     else:
                         datos = InclinometroModel.mdlObtenerDAAB_GKN(tabla, idcomponente, idinstru, fechitas, medida)
-                    return datos
+                    
+                    return InclinometroController.convertir_decimal_a_float(datos)
                 else:
                     return None
     
@@ -148,7 +223,8 @@ class InclinometroController:
             datos = InclinometroModel.mdlObtenerDANE_RST(tabla, idcomponente, idinstru, fechitas, unidadmedida, alfa)
         else:
             datos = InclinometroModel.mdlObtenerDANE_GKN(tabla, idcomponente, idinstru, fechitas, medida, alfa, mrint, anguzz)
-        return datos
+        
+        return InclinometroController.convertir_decimal_a_float(datos)
     
     def ctrlObtenerDANE(idproyecto, inclinomarcados, unidadmedida, azimuth, anguzz, rint):
         if unidadmedida == 1:
@@ -169,12 +245,16 @@ class InclinometroController:
                 tipo = InclinometroModel.mdlObtenerInclinometroTipo(idproyecto, idcomponente, idinstru)
                 if tipo:
                     tabla = f"inclinometro_detalle{idproyecto}"
-                    fechitas = ast.literal_eval(fechas)
+                    fechitas = InclinometroController.procesar_lista_fechas(fechas)
+                    
+                    if not fechitas: return None
+
                     if tipo[0] == 'RST':
                         datos = InclinometroModel.mdlObtenerDANE_RST(tabla, idcomponente, idinstru, fechitas, unidadmedida, alfa)
                     else:
                         datos = InclinometroModel.mdlObtenerDANE_GKN(tabla, idcomponente, idinstru, fechitas, medida, alfa, mrint, anguzz)
-                    return datos
+                    
+                    return InclinometroController.convertir_decimal_a_float(datos)
                 else:
                     return None
     
@@ -186,7 +266,12 @@ class InclinometroController:
             datos = InclinometroModel.mdlObtenerDANEvisor_GKN(idproyecto, idinclino, fechas, este, norte, nivel, escala)
         if datos:
             for nombre, fecha, profundidad, dac, dax in datos:
-                datos_tupla = (nombre, profundidad, dac, dax)
+                # Convertir Decimal a float si aplica (Profundidad, dac, dax)
+                val_prof = float(profundidad) if profundidad is not None else 0.0
+                val_dac = float(dac) if dac is not None else 0.0
+                val_dax = float(dax) if dax is not None else 0.0
+                
+                datos_tupla = (nombre, val_prof, val_dac, val_dax)
                 if fecha in datos_por_fecha:
                     datos_por_fecha[fecha].append(datos_tupla)
                 else:
@@ -204,7 +289,8 @@ class InclinometroController:
             datos = InclinometroModel.mdlObtenerPAAB_RST(tabla, idcomponente, idinstru, fechitas, unidadmedida)
         else:
             datos = InclinometroModel.mdlObtenerPAAB_GKN(tabla, idcomponente, idinstru, fechitas, medida, mrint)
-        return datos
+        
+        return InclinometroController.convertir_decimal_a_float(datos)
     
     def ctrlObtenerPAAB(idproyecto, inclinomarcados, unidadmedida, azimuth, anguzz, rint):
         if unidadmedida == 1:
@@ -224,12 +310,16 @@ class InclinometroController:
                 tipo = InclinometroModel.mdlObtenerInclinometroTipo(idproyecto, idcomponente, idinstru)
                 if tipo:
                     tabla = f"inclinometro_detalle{idproyecto}"
-                    fechitas = ast.literal_eval(fechas)
+                    fechitas = InclinometroController.procesar_lista_fechas(fechas)
+                    
+                    if not fechitas: return None
+
                     if tipo[0] == 'RST':
                         datos = InclinometroModel.mdlObtenerPAAB_RST(tabla, idcomponente, idinstru, fechitas, unidadmedida)
                     else:
                         datos = InclinometroModel.mdlObtenerPAAB_GKN(tabla, idcomponente, idinstru, fechitas, medida, mrint)
-                    return datos
+                    
+                    return InclinometroController.convertir_decimal_a_float(datos)
                 else:
                     return None
     
@@ -245,7 +335,8 @@ class InclinometroController:
             datos = InclinometroModel.mdlObtenerPANE_RST(tabla, idcomponente, idinstru, fechitas, unidadmedida, alfa)
         else:
             datos = InclinometroModel.mdlObtenerPANE_GKN(tabla, idcomponente, idinstru, fechitas, medida, alfa, mrint)
-        return datos
+        
+        return InclinometroController.convertir_decimal_a_float(datos)
     
     def ctrlObtenerPANE(idproyecto, inclinomarcados, unidadmedida, azimuth, anguzz, rint):
         if unidadmedida == 1:
@@ -266,12 +357,16 @@ class InclinometroController:
                 tipo = InclinometroModel.mdlObtenerInclinometroTipo(idproyecto, idcomponente, idinstru)
                 if tipo:
                     tabla = f"inclinometro_detalle{idproyecto}"
-                    fechitas = ast.literal_eval(fechas)
+                    fechitas = InclinometroController.procesar_lista_fechas(fechas)
+                    
+                    if not fechitas: return None
+
                     if tipo[0] == 'RST':
                         datos = InclinometroModel.mdlObtenerPANE_RST(tabla, idcomponente, idinstru, fechitas, unidadmedida, alfa)
                     else:
                         datos = InclinometroModel.mdlObtenerPANE_GKN(tabla, idcomponente, idinstru, fechitas, medida, alfa, mrint)
-                    return datos
+                    
+                    return InclinometroController.convertir_decimal_a_float(datos)
                 else:
                     return None
                 
@@ -282,12 +377,16 @@ class InclinometroController:
                 tipo = InclinometroModel.mdlObtenerInclinometroTipo(idproyecto, idcomponente, idinstru)
                 if tipo:
                     tabla = f"inclinometro_detalle{idproyecto}"
-                    fechitas = ast.literal_eval(fechas)
+                    fechitas = InclinometroController.procesar_lista_fechas(fechas)
+                    
+                    if not fechitas: return None
+
                     if tipo[0] == 'RST':
                         datos = InclinometroModel.mdlObtenerCSAB_RST(tabla, idcomponente, idinstru, fechitas, unidadmedida)
                     else:
                         datos = None
-                    return datos
+                    
+                    return InclinometroController.convertir_decimal_a_float(datos)
                 else:
                     return None
     
@@ -379,16 +478,27 @@ class InclinometroController:
         if tipos:
             tabla = f"inclinometro_detalle{idproyecto}"
             # Convertir las fechas a objetos datetime para facilitar la comparación
-            fecha_inicial = datetime.strptime(fecha_inicial, '%Y-%m-%d %H:%M:%S')
-            fecha_final = datetime.strptime(fecha_final, '%Y-%m-%d %H:%M:%S')
+            if isinstance(fecha_inicial, str):
+                fecha_inicial = datetime.strptime(fecha_inicial, '%Y-%m-%d %H:%M:%S')
+            if isinstance(fecha_final, str):
+                fecha_final = datetime.strptime(fecha_final, '%Y-%m-%d %H:%M:%S')
+                
             for id_inclinometro,nombre_equipo, tipo_equipo in tipos:
                 if tipo_equipo == 'RST':
                     datos = InclinometroModel.mdlObtenerDAA_RST(tabla, id_inclinometro, unidadmedida)
                 else:
                     datos = InclinometroModel.mdlObtenerDAA_GKN(tabla, id_inclinometro, medida)
+                
+                # Convertir Decimal a float para cálculos en Python si es necesario
                 if datos:
+                    # Como convertir_decimal_a_float asume 5 cols y aca pueden ser 4, hacemos manual para asegurar:
+                    datos_limpios = []
+                    for d in datos:
+                        val = float(d[3]) if d[3] is not None else 0.0
+                        datos_limpios.append((d[0], d[1], d[2], val))
+                    
                     # Filtrar datos entre las fechas dadas
-                    datos_filtrados = [d for d in datos if fecha_inicial <= datetime.strptime(d[1], '%Y-%m-%d %H:%M:%S') <= fecha_final]
+                    datos_filtrados = [d for d in datos_limpios if fecha_inicial <= datetime.strptime(str(d[1]), '%Y-%m-%d %H:%M:%S') <= fecha_final]
                     if datos_filtrados:
                         # Calcular el mayor desplazamiento
                         mayor_desplazamiento = max(datos_filtrados, key=lambda x: x[3])[3]
@@ -402,4 +512,3 @@ class InclinometroController:
     def ctrlTraerDataInclinometro(idinclinometro):
         respuesta = InclinometroModel.mdlTraerDataInclinometro(idinclinometro)
         return respuesta
-    

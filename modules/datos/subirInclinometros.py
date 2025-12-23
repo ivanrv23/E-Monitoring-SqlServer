@@ -527,7 +527,9 @@ class SubirInclinometros:
         if listafechas:
             idinclinometro = listafechas[0][4]
             if estado == Qt.Checked and fechasmarcadas is not None:
-                fechaselegidos = ast.literal_eval(fechasmarcadas)
+                # CAMBIO IMPORTANTE: Usamos la función robusta del controlador
+                fechaselegidos = InclinometroController.procesar_lista_fechas(fechasmarcadas)
+                
                 parent = QTreeWidgetItem(treefechas)
                 parent.setText(0, nombreinclino)
                 parent.setText(1, "1")
@@ -539,7 +541,11 @@ class SubirInclinometros:
                 parent.setExpanded(True)
                 for fechas in listafechas:
                     item = QTreeWidgetItem(parent)
-                    item.setText(0, fechas[0])
+                    
+                    # CORRECCIÓN: Aseguramos que la fecha DB (que puede ser datetime) sea String para mostrar y comparar
+                    fecha_db_str = str(fechas[0])
+                    
+                    item.setText(0, fecha_db_str)
                     item.setText(1, "fecha")
                     item.setText(2, str(fechas[3])) # id encabezado
                     item.setText(3, str(fechas[4])) # id incli
@@ -548,7 +554,8 @@ class SubirInclinometros:
                     if fechas[2] == 1: # es base
                         item.setForeground(0, QBrush(QColor("red")))
                     for fechita in fechaselegidos:
-                        if fechas[2] != 2 and fechas[0] == fechita:
+                        # Comparamos Strings vs Strings
+                        if fechas[2] != 2 and fecha_db_str == fechita:
                             item.setCheckState(0, Qt.Checked)
             else:
                 parent = QTreeWidgetItem(treefechas)
@@ -559,7 +566,8 @@ class SubirInclinometros:
                 parent.setExpanded(True)
                 for fechas in listafechas:
                     item = QTreeWidgetItem(parent)
-                    item.setText(0, fechas[0])
+                    # CORRECCIÓN: Convertir a string para visualización
+                    item.setText(0, str(fechas[0]))
                     item.setText(1, "fecha")
                     item.setText(2, str(fechas[3]))
                     item.setText(3, str(fechas[4]))
@@ -719,4 +727,3 @@ class SubirInclinometros:
         # Mostrar el diálogo
         dialog.setLayout(layout)
         dialog.exec()
-    
