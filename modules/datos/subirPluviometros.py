@@ -370,7 +370,7 @@ class SubirPluviometros:
                         fecha = row['fecha']
                         hora = row['hora']
                         precipitacion = row['precipitacion']
-                        observa = row['observacion']
+                        observacion = row['observacion']
 
                         if pd.isna(fecha) or pd.isna(precipitacion):
                             continue
@@ -401,7 +401,7 @@ class SubirPluviometros:
                             precipitacion = abs(float(precipitacion))
                         except (ValueError, TypeError):
                             continue
-
+                        observa = observacion if not pd.isna(observacion) else ""
                         data.append((idpluviometro, fecha, hora, precipitacion, observa))
 
                     # Guardado de datos

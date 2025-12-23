@@ -330,7 +330,6 @@ class SubirCeldas:
                     if float(coordeste)!=0 and float(coordnorte)!=0:
                         # Llamar al método para guardar en la base de datos
                         rpt = CeldaController.ctrlActualizarCeldaExcel(celda_data)
-                    
                 else:
                     if pd.isna(superficie):
                         continue
@@ -402,7 +401,7 @@ class SubirCeldas:
                         fecha = row['fecha']
                         hora = row['hora']
                         desplaza = row['desplaza']
-                        observa = row['observacion']
+                        observacion = row['observacion']
                         if pd.isna(fecha) or pd.isna(desplaza):
                             continue
                         # Manejo de la columna 'fecha'
@@ -432,6 +431,8 @@ class SubirCeldas:
                         frecuen = float(row['frecuen']) if not pd.isna(row['frecuen']) else 0
                         frecu = float(row['frecuencia']) if not pd.isna(row['frecuencia']) else 0
                         tempe = float(row['temperatura']) if not pd.isna(row['temperatura']) else 0
+                        tempe = float(row['temperatura']) if not pd.isna(row['temperatura']) else 0
+                        observa = observacion if not pd.isna(observacion) else ""
                         data.append((idcelda, fecha, hora, frecuen, frecu, tempe, desplaza, observa))
                     if data:
                         respon = CeldaController.ctrlRegistrarDataCelda(proyectoid, data)
