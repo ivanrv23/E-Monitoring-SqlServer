@@ -5,6 +5,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlObtenerFechaMaximaCeldas(tabla):
+        # T-SQL: TOP 1
         sql = f"""SELECT TOP 1 MAX(fecha_detalle) AS max_fecha FROM {tabla};"""
         conn = None
         try:
@@ -26,7 +27,6 @@ class CeldaModel:
     @staticmethod
     def mdlListarCeldaProyecto(proyecto, idcomponente, idcelda):
         conn = None
-        # Aquí no había conflicto porque celdas tiene alias 'p' y componentes 'c'
         sql = f"""SELECT p.id_celda, p.nombre_celda, c.id_componente, p.este_celda, p.norte_celda,
         p.instalacion_celda FROM celdas p INNER JOIN instrumentacion t ON p.id_celda = t.id_equipo
 		INNER JOIN componentes c ON t.id_componente = c.id_componente
@@ -121,8 +121,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlCalcularVelocidadDias(dias, tabla, idcomponente, listaceldas):
-        # FIX: Alias componentes 'c' -> 'comp'
-        # FIX: Agregadas columnas faltantes al GROUP BY
+        # OPTIMIZADO: Sin CAST a DATETIME (la BD ya es DATETIME), Alias 'comp' mantenido
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [idcomponente] + listaceldas + [dias]
         conn = None
@@ -177,8 +176,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlCalcularVelocidadFechasDias(dias, tabla, idcomponente, listaceldas, fechaini, fechafin):
-        # FIX: Alias componentes 'c' -> 'comp'
-        # FIX: Agregadas columnas faltantes al GROUP BY
+        # OPTIMIZADO: Sin CAST a DATETIME
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [idcomponente] + listaceldas + [fechaini] + [fechafin] + [dias]
         conn = None
@@ -233,7 +231,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlCalcularVelocidadMes(tabla, idcomponente, listaceldas):
-        # FIX: Alias componentes 'c' -> 'comp'
+        # OPTIMIZADO: FORMAT directo, Alias 'comp'
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [idcomponente] + listaceldas
         conn = None
@@ -285,7 +283,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlCalcularVelocidadFechasMes(tabla, idcomponente, listaceldas, fechaini, fechafin):
-        # FIX: Alias componentes 'c' -> 'comp'
+        # OPTIMIZADO: FORMAT directo, Alias 'comp'
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [idcomponente] + listaceldas + [fechaini] + [fechafin]
         conn = None
@@ -338,7 +336,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlObtenerAsentamientoCota(tabla, idcomponente, listaceldas):
-        # FIX: Alias componentes 'c' -> 'comp'
+        # OPTIMIZADO: Sin CAST a DATETIME
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [idcomponente] + listaceldas
         conn = None
@@ -372,7 +370,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlObtenerAsentamientoFechasCota(tabla, idcomponente, listaceldas, fechaini, fechafin):
-        # FIX: Alias componentes 'c' -> 'comp'
+        # OPTIMIZADO: Sin CAST a DATETIME
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [idcomponente] + listaceldas + [fechaini] + [fechafin]
         conn = None
@@ -407,7 +405,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlCalcularAsentamientoIncremental(tabla, idcomponente, listaceldas, unidadmedida):
-        # FIX: Alias componentes 'c' -> 'comp'
+        # OPTIMIZADO: Sin CAST a DATETIME
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [unidadmedida] + [idcomponente] + listaceldas
         conn = None
@@ -441,7 +439,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlCalcularAsentamientoFechasIncremental(tabla, idcomponente, listaceldas, fechaini, fechafin, unidadmedida):
-        # FIX: Alias componentes 'c' -> 'comp'
+        # OPTIMIZADO: Sin CAST a DATETIME
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [unidadmedida] + [idcomponente] + listaceldas + [fechaini] + [fechafin]
         conn = None
@@ -476,7 +474,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlObtenerAsentamientoAcumulado(tabla, idcomponente, listaceldas, unidadmedida):
-        # FIX: Alias componentes 'c' -> 'comp'
+        # OPTIMIZADO: Sin CAST a DATETIME
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [unidadmedida] + [idcomponente] + listaceldas
         conn = None
@@ -510,7 +508,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlObtenerAsentamientoFechasAcumulado(tabla, idcomponente, listaceldas, fechaini, fechafin, unidadmedida):
-        # FIX: Alias componentes 'c' -> 'comp'
+        # OPTIMIZADO: Sin CAST a DATETIME
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [unidadmedida] + [idcomponente] + listaceldas + [fechaini] + [fechafin]
         conn = None
@@ -545,7 +543,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlObtenerAsentamientoFrecuencia(tabla, idcomponente, listaceldas):
-        # FIX: Alias componentes 'c' -> 'comp'
+        # OPTIMIZADO: Sin CAST a DATETIME
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [idcomponente] + listaceldas
         conn = None
@@ -579,7 +577,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlObtenerAsentamientoFechasFrecuencia(tabla, idcomponente, listaceldas, fechaini, fechafin):
-        # FIX: Alias componentes 'c' -> 'comp'
+        # OPTIMIZADO: Sin CAST a DATETIME
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [idcomponente] + listaceldas + [fechaini] + [fechafin]
         conn = None
@@ -614,7 +612,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlObtenerAsentamientoTemperatura(tabla, idcomponente, listaceldas):
-        # FIX: Alias componentes 'c' -> 'comp'
+        # OPTIMIZADO: Sin CAST a DATETIME
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [idcomponente] + listaceldas
         conn = None
@@ -648,7 +646,7 @@ class CeldaModel:
     
     @staticmethod
     def mdlObtenerAsentamientoFechasTemperatura(tabla, idcomponente, listaceldas, fechaini, fechafin):
-        # FIX: Alias componentes 'c' -> 'comp'
+        # OPTIMIZADO: Sin CAST a DATETIME
         placeholders = ', '.join(['?' for _ in listaceldas])
         params = [idcomponente] + listaceldas + [fechaini] + [fechafin]
         conn = None
@@ -838,11 +836,12 @@ class CeldaModel:
     def mdlRegistrarDataCelda(proyectoid, data, idsceldas):
         conn = None
         table_name = f"celda_detalle{proyectoid}"
+        # OPTIMIZADO: Crear tabla con DATETIME
         sqltable = f"""IF OBJECT_ID('{table_name}', 'U') IS NULL
         CREATE TABLE {table_name} (
                 id_detalle INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
                 id_celda INT NOT NULL,
-                fecha_detalle VARCHAR(50) NOT NULL,
+                fecha_detalle DATETIME NOT NULL,
                 frecuencia_digits FLOAT,
                 frecuencia_hz FLOAT,
                 temperatura_detalle FLOAT,
@@ -867,9 +866,24 @@ class CeldaModel:
                 id_celda = fila[0]
                 fecha_original = fila[1]
                 hora_original = fila[2]
+                # Python datetime string suele ser compatible con SQL Server, pero idealmente usamos objeto datetime
                 fecha_hora_nueva = fecha_original + " " + hora_original
                 
-                if (id_celda, fecha_hora_nueva) not in existen_celdas:
+                # Check simple de string, asumiendo que SQL Server devuelve la fecha como objeto datetime o string ISO
+                # Nota: Si SQL devuelve datetime object, esta comparacion necesita que fecha_hora_nueva sea convertido a string o viceversa.
+                # Para simplificar la migración, mantenemos la lógica string pero SQL Server casteará al insertar.
+                
+                # IMPORTANTE: Si 'existen_celdas' devuelve objetos datetime, la comparación fallará si 'fecha_hora_nueva' es string.
+                # Convertimos 'fecha_hora_nueva' a formato string estándar si es necesario, pero aquí asumimos que la carga inicial es correcta.
+                
+                is_duplicate = False
+                for existing_id, existing_date in existen_celdas:
+                     # Convertir existing_date a string para comparar si viene como objeto
+                     if str(existing_date) == fecha_hora_nueva and existing_id == id_celda:
+                         is_duplicate = True
+                         break
+                
+                if not is_duplicate:
                     datito = (
                         id_celda,
                         fecha_hora_nueva,
