@@ -227,8 +227,6 @@ class AcelerografoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # PyODBC maneja transacciones automáticamente, pero usaremos commit/rollback explícito
-            
             # Verificar si el equipo ya existe
             sql_check = """SELECT 1 FROM instrumentacion WHERE id_componente = ? AND nombre_equipo = ? AND tipo_equipo = 'ACELEROGRAFO';"""
             cur.execute(sql_check, (datos[4], datos[0]))
@@ -238,18 +236,13 @@ class AcelerografoModel:
             
             # Insertar el nuevo acelerógrafo
             sql_insert = """INSERT INTO acelerografos (id_proyecto, nombre_acelerografo, este_acelerografo, norte_acelerografo,
-            elevacion_acelerografo) VALUES (?, ?, ?, ?, ?);"""
+            elevacion_acelerografo) OUTPUT INSERTED.id_acelerografo VALUES (?, ?, ?, ?, ?);"""
             cur.execute(sql_insert, (proyecto_id, datos[0], datos[1], datos[2], datos[3]))
-            
-            # T-SQL: Obtener el ID insertado (Equivalente a lastrowid)
-            cur.execute("SELECT CAST(SCOPE_IDENTITY() AS INT)")
-            acelerografo_id = cur.fetchval()
-            
+            acelerografo_id = cur.fetchone()[0]
             # Insertar en la tabla instrumentacion
             sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo,
             tabla_equipo) VALUES (?, ?, ?, ?, ?);"""
             cur.execute(sql_insert_instrumentacion, (datos[4], 'ACELEROGRAFO', datos[0], acelerografo_id, 'acelerografos'))
-            
             # Confirmar la transacción
             conn.commit()
             return "SI", acelerografo_id
@@ -271,13 +264,9 @@ class AcelerografoModel:
             
             # Insertar el nuevo acelerógrafo
             sql_insert = """INSERT INTO acelerografos (id_proyecto, nombre_acelerografo, este_acelerografo, norte_acelerografo,
-            elevacion_acelerografo) VALUES (?, ?, ?, ?, ?);"""
+            elevacion_acelerografo) OUTPUT INSERTED.id_acelerografo VALUES (?, ?, ?, ?, ?);"""
             cur.execute(sql_insert, (proyecto_id, datos[0], datos[1], datos[2], datos[3]))
-            
-            # T-SQL: Obtener el ID insertado
-            cur.execute("SELECT CAST(SCOPE_IDENTITY() AS INT)")
-            acelerografo_id = cur.fetchval()
-            
+            acelerografo_id = cur.fetchone()[0]
             # Insertar en la tabla instrumentacion
             sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo,
             tabla_equipo) VALUES (?, ?, ?, ?, ?);"""

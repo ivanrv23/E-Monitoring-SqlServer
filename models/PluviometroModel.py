@@ -4,7 +4,6 @@ from datetime import datetime
 class PluviometroModel:
     
     # LISTAR LOS PLUVIOMETRO POR PROYECTO    
-    @staticmethod
     def mdlListarPluviometroProyecto(proyecto, idcomponente, idpluvio):
         conn = None
         sql = f"""SELECT p.id_pluviometro, p.nombre_pluviometro, c.id_componente, p.este_pluviometro, p.norte_pluviometro,
@@ -17,7 +16,7 @@ class PluviometroModel:
             cur.execute(sql, (proyecto, idpluvio, idcomponente))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -28,40 +27,29 @@ class PluviometroModel:
                 conn.close()
     
     # GUARDAR NUEVO PLUVIOMETRO           
-    @staticmethod
     def mdlGuardarNuevoPluviometro(proyecto_id, datos):
         conn = None
         try:
             conn = Connection.connectionDB()
+            if not conn:
+                return False
             cur = conn.cursor()
-            
             # Verificar si el equipo ya existe en la tabla instrumentacion
-            # SQL Server: Usar TOP 1
-            sql_check = """SELECT TOP 1 1 FROM instrumentacion WHERE id_componente = ? AND nombre_equipo = ? AND tipo_equipo = 'PLUVIOMETRO';"""
+            sql_check = """SELECT 1 FROM instrumentacion WHERE id_componente = ? AND nombre_equipo = ? AND tipo_equipo = 'PLUVIOMETRO';"""
             cur.execute(sql_check, (datos[6], datos[0]))
             if cur.fetchone():
                 print("El equipo ya existe en la tabla instrumentacion.")
                 return "NO"
-            
-            # Insertar el nuevo pluviometro
+            # Insertar el nuevo pluviometro con OUTPUT para obtener el ID
             sql_insert = """INSERT INTO pluviometros (id_proyecto, nombre_pluviometro, codigo_pluviometro, norte_pluviometro, este_pluviometro, 
-                            elevacion_pluviometro, comentario_pluviometro) VALUES (?, ?, ?, ?, ?, ?, ?)"""
+                            elevacion_pluviometro, comentario_pluviometro) OUTPUT INSERTED.id_pluviometro VALUES (?, ?, ?, ?, ?, ?, ?)"""
             cur.execute(sql_insert, (proyecto_id, datos[0], datos[1], datos[2], datos[3], datos[4], datos[5]))
-            
             # Obtener el ID del pluvio recién insertado
-            cur.execute("SELECT SCOPE_IDENTITY();")
-            row_id = cur.fetchone()
-            if row_id and row_id[0]:
-                pluviometro_id = int(row_id[0])
-            else:
-                conn.rollback()
-                return False
-
+            pluviometro_id = cur.fetchone()[0]
             # Insertar en la tabla instrumentacion
             sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo)
                                             VALUES (?, ?, ?, ?, ?);"""
             cur.execute(sql_insert_instrumentacion, (datos[6], 'PLUVIOMETRO', datos[0], pluviometro_id, 'pluviometros'))
-            
             # Confirmar la transacción
             conn.commit()
             return True
@@ -75,31 +63,21 @@ class PluviometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlRegistrarFormatoPluviometro(proyecto_id, datos):
         conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Insertar el nuevo pluviometro
+            # Insertar el nuevo pluviometro con OUTPUT para obtener el ID
             sql_insert = """INSERT INTO pluviometros (id_proyecto, nombre_pluviometro, codigo_pluviometro, norte_pluviometro, este_pluviometro, 
-                            elevacion_pluviometro, comentario_pluviometro) VALUES (?, ?, ?, ?, ?, ?, ?)"""
+                            elevacion_pluviometro, comentario_pluviometro) OUTPUT INSERTED.id_pluviometro VALUES (?, ?, ?, ?, ?, ?, ?)"""
             cur.execute(sql_insert, (proyecto_id, datos[0], datos[1], datos[2], datos[3], datos[4], datos[5]))
-            
             # Obtener el ID del pluvio recién insertado
-            cur.execute("SELECT SCOPE_IDENTITY();")
-            row_id = cur.fetchone()
-            if row_id and row_id[0]:
-                pluviometro_id = int(row_id[0])
-            else:
-                conn.rollback()
-                return None
-
+            pluviometro_id = cur.fetchone()[0]
             # Insertar en la tabla instrumentacion
             sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo)
                                             VALUES (?, ?, ?, ?, ?);"""
             cur.execute(sql_insert_instrumentacion, (datos[6], 'PLUVIOMETRO', datos[0], pluviometro_id, 'pluviometros'))
-            
             # Confirmar la transacción
             conn.commit()
             return pluviometro_id
@@ -114,17 +92,16 @@ class PluviometroModel:
                 conn.close()
     
     # Validar si existe pluviometro con el mismo nombre
-    @staticmethod
     def mdlComprobarExisteNombrePluviometro(proyecto, nombre):
-        sql = """SELECT * FROM pluviometros WHERE id_proyecto = ? AND nombre_pluviometro = ?;"""
         conn = None
+        sql = """SELECT * FROM pluviometros WHERE id_proyecto = ? AND nombre_pluviometro = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyecto, nombre))
             row = cur.fetchone()
             if row:
-                return True, row
+                return True, tuple(row)
             else:
                 return False, None
         except Exception as e:
@@ -135,38 +112,32 @@ class PluviometroModel:
                 conn.close()
     
     # REGISTRAR PLUVIOMETROS DESDE LA TABLA   
-    @staticmethod
     def mdlGuardarPluviometrosTabla(idproyecto, data):
-        tabla = f"pluviometro_detalle{idproyecto}"
         conn = None
+        tabla = f"pluviometro_detalle{idproyecto}"
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            
-            # SQL Server Create Table Syntax
+            # Verificar si la tabla existe y crearla si no existe (SQL Server)
             cursor.execute(f"""
-            IF OBJECT_ID('{tabla}', 'U') IS NULL
-            BEGIN
-                CREATE TABLE "{tabla}" (
-                    "id_detalle" INT IDENTITY(1,1) PRIMARY KEY,
-                    "id_pluviometro" INT NOT NULL,
-                    "fecha_pluviometro" VARCHAR(50) NOT NULL,
-                    "medida_pluviometro" DECIMAL(18, 5) NOT NULL,
-                    "observacion_pluviometro" NVARCHAR(MAX)
-                );
-            END""")
-            
-            # Eliminar PRAGMAS de SQLite (no necesarios ni válidos en SQL Server)
-            
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '{tabla}')
+                BEGIN
+                    CREATE TABLE {tabla} (
+                        id_detalle INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                        id_pluviometro INT NOT NULL,
+                        fecha_pluviometro DATETIME NOT NULL,
+                        medida_pluviometro DECIMAL(18,6) NOT NULL,
+                        observacion_pluviometro VARCHAR(500)
+                    )
+                END
+            """)
+            conn.commit()
             # Crear un conjunto de tuplas con los valores de fecha y hora para comparar los registros existentes
             idpluvio = data[0][0]
-            
-            # Obtener fechas existentes
-            cursor.execute(f"SELECT fecha_pluviometro FROM {tabla} WHERE id_pluviometro = ?", (idpluvio,))
-            existen_pluviometros = set([row[0] for row in cursor.fetchall()])
-            
+            cursor.execute(f"SELECT fecha_pluviometro FROM {tabla} WHERE id_pluviometro = ?;", (idpluvio,))
+            existen_pluviometros = set([tuple(row)[0] for row in cursor.fetchall()])
             lote_registros = []
-            
+            contador = 0
             for fila in data:
                 fecha_original = fila[1]
                 hora_original = fila[2]
@@ -177,34 +148,30 @@ class PluviometroModel:
                     datito = []
                     datito.append(fila[0])
                     datito.append(fecha_hora_nueva)
-                    datito.append(abs(float(fila[3]))) # siempre positivo la medida
+                    datito.append(abs(float(fila[3])))  # siempre positivo la medida
                     datito.append(fila[4])
                     lote_registros.append(datito)
-            
-            # Insertar en lotes si hay registros nuevos
+                    contador += 1
+                    
+                if contador % 1000 == 0 and lote_registros:
+                    cursor.executemany(f"""INSERT INTO {tabla} (id_pluviometro, fecha_pluviometro, medida_pluviometro, observacion_pluviometro) VALUES (?, ?, ?, ?);""", lote_registros)
+                    lote_registros = []
+
             if lote_registros:
-                # SQL Server soporta inserción masiva eficiente con executemany
-                insert_query = f"""INSERT INTO {tabla} (id_pluviometro, fecha_pluviometro, medida_pluviometro, observacion_pluviometro) VALUES (?, ?, ?, ?);"""
-                
-                # Insertar en bloques para no saturar si son demasiados, aunque executemany de pyodbc lo maneja bien
-                chunk_size = 1000
-                for i in range(0, len(lote_registros), chunk_size):
-                    chunk = lote_registros[i:i + chunk_size]
-                    cursor.executemany(insert_query, chunk)
+                cursor.executemany(f"""INSERT INTO {tabla} (id_pluviometro, fecha_pluviometro, medida_pluviometro, observacion_pluviometro) VALUES (?, ?, ?, ?);""", lote_registros)
                     
             conn.commit()
             return True
         except Exception as e:
+            print("Error al guardar data pluviómetros: " + str(e))
             if conn:
                 conn.rollback()
-            print("Error al guardar data pluviómetros: " + str(e))
             return False
         finally:
             if conn:
                 conn.close()
     
     # LISTAR DATA PLUVIÓMETROS DETALLE POR ID    
-    @staticmethod
     def mdlObtenerDataPluviometrosDetalle(idpluvio):
         conn = None
         sql = """SELECT p.nombre_pluviometro, d.fecha_pluviometro, d.medida_pluviometro 
@@ -213,9 +180,9 @@ class PluviometroModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idpluvio,))
-            row = cur.fetchall()
-            if row:
-                return row
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -226,11 +193,10 @@ class PluviometroModel:
                 conn.close()
     
     # ACTUALIZAR PLUVIOMETRO       
-    @staticmethod
     def mdlActualizarPluviometro(datos, data):
+        conn = None
         sql = """UPDATE pluviometros SET nombre_pluviometro = ?, codigo_pluviometro = ?, norte_pluviometro = ?, este_pluviometro = ?, 
         elevacion_pluviometro = ?, comentario_pluviometro = ? WHERE id_pluviometro = ?;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -248,7 +214,6 @@ class PluviometroModel:
                 conn.close()
                 
     # LISTAR LOS PLUVIÓMETROS POR PROYECTO    
-    @staticmethod
     def mdlListarPluviometrosCombo(proyecto):
         conn = None
         sql = """SELECT * FROM pluviometros WHERE id_proyecto = ? AND estado_pluviometro = 1;"""
@@ -256,9 +221,9 @@ class PluviometroModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyecto,))
-            row = cur.fetchall()
-            if row:
-                return row
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -268,22 +233,21 @@ class PluviometroModel:
             if conn:
                 conn.close()
                 
-    @staticmethod
     def mdlActualizarLecturaPluviometro(tabla, datos, idproyecto, username, nombres):
-        sql = f"""UPDATE {tabla} SET fecha_pluviometro = ?, medida_pluviometro = ?, observacion_pluviometro = ? WHERE id_detalle = ?;"""
         conn = None
+        sql = f"""UPDATE {tabla} SET fecha_pluviometro = ?, medida_pluviometro = ?, observacion_pluviometro = ? WHERE id_detalle = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             # guardar en historial
             query_select = f"""SELECT fecha_pluviometro, medida_pluviometro, observacion_pluviometro, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
             cur.execute(query_select, (datos[-1],))
-            datos_anteriores = cur.fetchone()
+            row = cur.fetchone()
+            datos_anteriores = tuple(row) if row else None
             if datos_anteriores:
                 fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 accion = "update"
-                # tabla variable se sobreescribía en local variable
-                tabla_historial = "pluviometro_detalle" 
+                tabla_historial = "pluviometro_detalle"
                 cambios = f"Antiguos: {datos_anteriores}, Nuevos: {datos}"
                 query_historial = """INSERT INTO historial (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
                 VALUES (?, ?, ?, ?, ?, ?, ?);"""
@@ -299,17 +263,17 @@ class PluviometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarLecturaPluviometro(tabla, idpluviometro, idproyecto, username, nombres):
-        sql = f"""DELETE FROM {tabla} WHERE id_detalle = ?;"""
         conn = None
+        sql = f"""DELETE FROM {tabla} WHERE id_detalle = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             # guardar en historial
             query_select = f"""SELECT * FROM {tabla} WHERE id_detalle = ?;"""
             cur.execute(query_select, (idpluviometro,))
-            datos_anteriores = cur.fetchone()
+            row = cur.fetchone()
+            datos_anteriores = tuple(row) if row else None
             if datos_anteriores:
                 fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 accion = "delete"
@@ -331,22 +295,21 @@ class PluviometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarLecturasBloquePluviometro(tabla, iddetalles, idproyecto, username, nombres):
+        conn = None
         placeholders = ', '.join(['?' for _ in iddetalles])
         sql = f"""DELETE FROM {tabla} WHERE id_detalle IN ({placeholders});"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             # guardar en historial
             query_select = f"""SELECT * FROM {tabla} WHERE id_detalle IN ({placeholders});"""
             cur.execute(query_select, iddetalles)
-            datos_anteriores = cur.fetchall()
-            if datos_anteriores:
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
                 fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 accion = "delete"
-                cambios = f"Datos: {datos_anteriores}"
+                cambios = f"Datos: {results}"
                 query_historial = """INSERT INTO historial (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
                 VALUES (?, ?, ?, ?, ?, ?, ?);"""
                 cur.execute(query_historial, (idproyecto, fecha_cambio, accion, tabla, cambios, username, nombres))
@@ -364,21 +327,20 @@ class PluviometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlCambiarComponentePluviometros(idcomponente, nuevocomponente):
-        sql = """UPDATE instrumentacion SET id_componente = ? WHERE id_componente = ? AND tipo_equipo = 'PLUVIOMETRO';"""
         conn = None
+        sql = """UPDATE instrumentacion SET id_componente = ? WHERE id_componente = ? AND tipo_equipo = 'PLUVIOMETRO';"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             # guardar info
             query_select = """SELECT * FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PLUVIOMETRO';"""
             cur.execute(query_select, (idcomponente,))
-            dataincli = cur.fetchall()
-            if dataincli:
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
                 cur.execute(sql, (nuevocomponente, idcomponente))
                 conn.commit()
-                return dataincli
+                return results
             else:
                 return None
         except Exception as e:
@@ -388,7 +350,6 @@ class PluviometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarPluviometros(idcomponente):
         conn = None
         try:
@@ -397,13 +358,13 @@ class PluviometroModel:
             # obtener info
             query_select = """SELECT * FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PLUVIOMETRO';"""
             cursor.execute(query_select, (idcomponente,))
-            datapluvio = cursor.fetchall()
-            if datapluvio:
+            results = [tuple(row) for row in cursor.fetchall()]
+            if results:
                 query = """DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PLUVIOMETRO';"""
                 cursor.execute(query, (idcomponente,))
                 conn.commit()
                 if cursor.rowcount > 0:
-                    return datapluvio
+                    return results
                 else:
                     return None
             else:
@@ -415,10 +376,9 @@ class PluviometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarDataPluviometros(tabla, pluviometros):
-        placeholders = ','.join(['?' for _ in pluviometros])
         conn = None
+        placeholders = ','.join(['?' for _ in pluviometros])
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
@@ -426,12 +386,7 @@ class PluviometroModel:
             query_delete = f"""DELETE FROM {tabla} WHERE id_pluviometro IN ({placeholders});"""
             cursor.execute(query_delete, pluviometros)
             rows_data = cursor.rowcount
-            # En SQL Server, si no hay datos en la tabla detalle, aun así deberíamos intentar borrar el maestro
-            # pero mantengo la lógica original: si se borran datos, se borran equipos.
-            # OJO: Si la tabla detalle está vacía, no borrará los equipos. 
-            # Sugerencia: Normalmente se borran equipos si se solicita, independientemente de si hay detalles.
-            # Mantendré la lógica original adaptada:
-            if rows_data >= 0: # Cambiado a >= 0 para permitir borrar equipos sin data
+            if rows_data > 0:
                 query_delete_cuerdas = f"DELETE FROM pluviometros WHERE id_pluviometro IN ({placeholders});"
                 cursor.execute(query_delete_cuerdas, pluviometros)
                 rows_cuerdas = cursor.rowcount
@@ -447,17 +402,16 @@ class PluviometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlObtenerInfoPluviometro(idinstrumento):
-        sql = """SELECT p.* FROM pluviometros p INNER JOIN instrumentacion i ON p.id_pluviometro = i.id_equipo WHERE i.id_instrumentacion = ?;"""
         conn = None
+        sql = """SELECT p.* FROM pluviometros p INNER JOIN instrumentacion i ON p.id_pluviometro = i.id_equipo WHERE i.id_instrumentacion = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idinstrumento,))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -468,17 +422,16 @@ class PluviometroModel:
                 conn.close()
     
     # Eliminar pluviómetro
-    @staticmethod
     def mdlEliminarPluviometro(idinstrumento):
         conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
             # obtener info para eliminar data
-            # SQL Server: TOP 1
-            query_select = """SELECT TOP 1 * FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'PLUVIOMETRO';"""
+            query_select = """SELECT * FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'PLUVIOMETRO';"""
             cursor.execute(query_select, (idinstrumento,))
-            datapluvio = cursor.fetchone()
+            row = cursor.fetchone()
+            datapluvio = tuple(row) if row else None
             if datapluvio:
                 query = """DELETE FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'PLUVIOMETRO';"""
                 cursor.execute(query, (idinstrumento,))
@@ -496,7 +449,6 @@ class PluviometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarPluviometroData(tabla, idpluviometro):
         conn = None
         try:
@@ -506,8 +458,7 @@ class PluviometroModel:
             query_delete = f"""DELETE FROM {tabla} WHERE id_pluviometro = ?;"""
             cursor.execute(query_delete, (idpluviometro,))
             rows_data = cursor.rowcount
-            # Similar logic adjustment: allow delete master even if 0 details
-            if rows_data >= 0:
+            if rows_data > 0:
                 stmt_delete = "DELETE FROM pluviometros WHERE id_pluviometro = ?;"
                 cursor.execute(stmt_delete, (idpluviometro,))
                 rows_delete = cursor.rowcount
@@ -523,7 +474,6 @@ class PluviometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlObtenerPluviometros(tabla, idcomponente, idinstrumento, fechaini, fechafin):
         conn = None
         try:
@@ -536,7 +486,7 @@ class PluviometroModel:
             ORDER BY d.fecha_pluviometro;"""
             cur = conn.cursor()
             cur.execute(sql, (idcomponente, idinstrumento, fechaini, fechafin))
-            results = cur.fetchall()
+            results = [tuple(row) for row in cur.fetchall()]
             if results:
                 return results
             else:
@@ -548,19 +498,18 @@ class PluviometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlTraerDataPluviometro(idpluviometro):
+        conn = None
         sql = """SELECT i.id_instrumentacion, i.id_componente, c.nombre_componente FROM instrumentacion i
         INNER JOIN componentes c ON i.id_componente = c.id_componente
         WHERE i.id_equipo = ? AND i.tipo_equipo = 'PLUVIOMETRO';"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idpluviometro,))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -570,10 +519,9 @@ class PluviometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlCambiarPluviometroComponente(idinstrumento, nuevocomponente):
-        sql = """UPDATE instrumentacion SET id_componente = ? WHERE id_instrumentacion = ?;"""
         conn = None
+        sql = """UPDATE instrumentacion SET id_componente = ? WHERE id_instrumentacion = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -586,3 +534,4 @@ class PluviometroModel:
         finally:
             if conn:
                 conn.close()
+    

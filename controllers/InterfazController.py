@@ -141,7 +141,7 @@ class InterfazController:
         listaacelero = InterfazModel.mdlListarEquiposTipoComponente(idzona, "ACELEROGRAFO")
         if listaacelero:
             for data in listaacelero:
-                acelero = InterfazModel.mdlValidarAcelerografoComponente(idzona, data[0], "ACELEROGRAFO")
+                acelero = InterfazModel.mdlValidarAcelerografoComponente(idproyecto, data[0], "ACELEROGRAFO")
                 if acelero is False:
                     ruta = f"../../resources/workspace/ACELEROGRAFOS/proyecto{idproyecto}/{data[4]}"
                     respuesta = MetodosGenerales.existeArchivosRuta(ruta)
