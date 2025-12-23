@@ -649,7 +649,6 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoFechas3DA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
-        print(prismas)
         conn = None
         placeholders = ', '.join(['?' for _ in prismas])
         params = [unidad] + prismas + [idcomponente] + [fechaini] + [fechafin]
