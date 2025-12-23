@@ -1,4 +1,5 @@
 from services.security.apis.conexiones.connection import Connection
+from services.security.apis.conexiones.conexion import Conexion
 
 class EmpresaModel:
 
@@ -110,14 +111,13 @@ class EmpresaModel:
     def mdlObtenerDatosLicencia():
         conn = None
         try:
-            conn = Connection.connectionDB()
+            conn = Conexion.conexionDB()
             sql = """SELECT * FROM licencias;"""
             cur = conn.cursor()
             cur.execute(sql)
             row = cur.fetchone()
-            # Conversión explícita a tupla
             if row:
-                return tuple(row)
+                return row
             else:
                 return None
         except Exception as e:
