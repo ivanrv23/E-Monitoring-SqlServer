@@ -85,7 +85,7 @@ class CrearProyecto:
         proyecto = ProyectoController.ctrlObtenerInfoProyecto(idproyecto)
         if proyecto:
             nombre_proyecto.setText(proyecto[1])
-            fecha_qdate = QDate.fromString(proyecto[2], "yyyy-MM-dd")
+            fecha_qdate = proyecto[2]
             fecha_proyecto.setDate(fecha_qdate)
             comentario_proyecto.setPlainText(proyecto[3])
         # Conectar el botón "Guardar"
