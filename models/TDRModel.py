@@ -2,26 +2,22 @@ from services.security.apis.conexiones.connection import Connection
 from datetime import datetime
 
 class TDRModel:
-
-    @staticmethod
+    
     def mdlObtenerLecturasTDR(tabla, idcomponente, idinstrumento, unidadmedida, fechas):
+        conn = None
         placeholders = ', '.join(['?' for _ in fechas])
-        # Nota: pyodbc espera los parámetros en una lista o tupla plana
-        params = [unidadmedida, idcomponente, idinstrumento] + fechas
+        params = [unidadmedida] + [idcomponente] + [idinstrumento] + fechas
         try:
             conn = Connection.connectionDB()           
-            # SQL Server: INNER JOIN sintaxis estándar.
-            sql = f"""SELECT s.nombre_sondajetdr, s.base_sondajetdr, sd.fecha_detalle, 
-            sd.profundidad_detalle * ? AS profundidad, sd.impedancia_detalle 
-            FROM sondajestdr s 
-            INNER JOIN {tabla} sd ON s.id_sondajetdr = sd.id_sondajetdr
+            sql = f"""SELECT s.nombre_sondajetdr, s.base_sondajetdr, sd.fecha_detalle, sd.profundidad_detalle * ? AS profundidad,
+            sd.impedancia_detalle FROM sondajestdr s INNER JOIN {tabla} sd ON s.id_sondajetdr = sd.id_sondajetdr
             INNER JOIN instrumentacion t ON s.id_sondajetdr = t.id_equipo
             INNER JOIN componentes c ON t.id_componente = c.id_componente
             WHERE c.id_componente = ? AND t.id_instrumentacion = ? AND sd.fecha_detalle IN ({placeholders})
             ORDER BY sd.fecha_detalle ASC;"""
             cur = conn.cursor()
             cur.execute(sql, params)
-            results = cur.fetchall()
+            results = [tuple(row) for row in cur.fetchall()]
             if results:
                 return results
             else:
@@ -32,18 +28,17 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlObtenerFallasTDR(idcomponente, idinstrumento):
+        conn = None
         try:
             conn = Connection.connectionDB()           
-            sql = """SELECT s.* from sondajestdr_puntos s 
-            INNER JOIN instrumentacion t ON s.id_sondajetdr = t.id_equipo
+            sql = """SELECT s.* FROM sondajestdr_puntos s INNER JOIN instrumentacion t ON s.id_sondajetdr = t.id_equipo
             INNER JOIN componentes c ON t.id_componente = c.id_componente
             WHERE c.id_componente = ? AND t.id_instrumentacion = ?;"""
             cur = conn.cursor()
             cur.execute(sql, (idcomponente, idinstrumento))
-            results = cur.fetchall() 
+            results = [tuple(row) for row in cur.fetchall()]
             if results:
                 return results
             else:
@@ -54,9 +49,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlComprobarExisteNombreTDR(proyecto, nombre):
+        conn = None
         sql = """SELECT * FROM sondajestdr WHERE id_proyecto = ? AND nombre_sondajetdr = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -64,7 +59,7 @@ class TDRModel:
             cur.execute(sql, (proyecto, nombre))
             row = cur.fetchone()
             if row:
-                return True, row
+                return True, tuple(row)
             else:
                 return False, None
         except Exception as e:
@@ -73,9 +68,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlComprobarExisteFechasTDR(tabla, idsondaje, fecha):
+        conn = None
         sql = f"""SELECT * FROM {tabla} WHERE id_sondajetdr = ? AND fecha_detalle = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -89,89 +84,66 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlGuardarEquipoTDR(proyecto, data):
-        # En SQL Server SELECT 1 es válido
+        conn = None
         sql_check = """SELECT 1 FROM instrumentacion WHERE nombre_equipo = ? AND id_componente = ?;"""
         sql_insert_sondajestdr = """INSERT INTO sondajestdr (id_proyecto, nombre_sondajetdr, este_sondajetdr, norte_sondajetdr, elevacion_sondajetdr, azimut_sondajetdr,
-        inclinacion_sondajetdr, profundidad_sondajetdr) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
+        inclinacion_sondajetdr, profundidad_sondajetdr) OUTPUT INSERTED.id_sondajetdr VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
         sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo) VALUES (?, ?, ?, ?, ?);"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Pyodbc maneja transacciones implícitas, pero si se desea explicito:
-            # En SQL Server con pyodbc no es necesario "BEGIN TRANSACTION" explícito si se usa commit al final.
-            
             # Verificar si el nombre y el componente ya existen en la tabla instrumentacion
             cur.execute(sql_check, (data[0], data[7]))
             if cur.fetchone():
                 return "NO"
-            
-            # Insertar en la tabla sondajestdr
+            # Insertar en la tabla sondajestdr y obtener ID
             cur.execute(sql_insert_sondajestdr, (proyecto, data[0], data[1], data[2], data[3], data[4], data[5], data[6]))
-            
-            # Obtener el último ID insertado (Sintaxis T-SQL)
-            cur.execute("SELECT SCOPE_IDENTITY();")
-            row_id = cur.fetchone()
-            if row_id and row_id[0] is not None:
-                id_equipo = int(row_id[0])
-            else:
-                conn.rollback()
-                return False
-
+            id_equipo = cur.fetchone()[0]
             # Insertar en la tabla instrumentacion
             cur.execute(sql_insert_instrumentacion, (data[7], 'TDR', data[0], id_equipo, 'sondajestdr'))
-            
             # Confirmar la transacción
             conn.commit()
             return True
         except Exception as e:
             print("Error al guardar sondaje: " + str(e))
             # Deshacer la transacción en caso de error
-            conn.rollback()
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlRegistrarFormatoEquipoTDR(proyecto, data):
+        conn = None
         sql_insert_sondajestdr = """INSERT INTO sondajestdr (id_proyecto, nombre_sondajetdr, este_sondajetdr, norte_sondajetdr, elevacion_sondajetdr, azimut_sondajetdr,
-        inclinacion_sondajetdr, profundidad_sondajetdr) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
+        inclinacion_sondajetdr, profundidad_sondajetdr) OUTPUT INSERTED.id_sondajetdr VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
         sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo) VALUES (?, ?, ?, ?, ?);"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            
-            # Insertar en la tabla sondajestdr
+            # Insertar en la tabla sondajestdr y obtener ID
             cur.execute(sql_insert_sondajestdr, (proyecto, data[0], data[1], data[2], data[3], data[4], data[5], data[6]))
-            
-            # Obtener el último ID insertado
-            cur.execute("SELECT SCOPE_IDENTITY();")
-            row_id = cur.fetchone()
-            if row_id and row_id[0] is not None:
-                id_equipo = int(row_id[0])
-            else:
-                conn.rollback()
-                return None
-
+            id_equipo = cur.fetchone()[0]
             # Insertar en la tabla instrumentacion
             cur.execute(sql_insert_instrumentacion, (data[7], 'TDR', data[0], id_equipo, 'sondajestdr'))
-            
             # Confirmar la transacción
             conn.commit()
             return id_equipo
         except Exception as e:
             print("Error al guardar sondaje formato: " + str(e))
-            conn.rollback()
+            # Deshacer la transacción en caso de error
+            if conn:
+                conn.rollback()
             return None
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlActualizarLecturaSondajetdr(tabla, datos, idproyecto, username, nombres):
+        conn = None
         sql = f"""UPDATE {tabla} SET profundidad_detalle = ?, impedancia_detalle = ?, observacion_detalle = ? WHERE id_detalle = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -179,7 +151,8 @@ class TDRModel:
             # guardar en historial
             query_select = f"""SELECT profundidad_detalle, impedancia_detalle, observacion_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
             cur.execute(query_select, (datos[-1],))
-            datos_anteriores = cur.fetchone()
+            row = cur.fetchone()
+            datos_anteriores = tuple(row) if row else None
             if datos_anteriores:
                 fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 accion = "update"
@@ -197,10 +170,10 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlListarSondajetdrProyecto(proyecto, idcomponente, idtdr):
-        sql = """SELECT c.id_componente, p.* FROM sondajestdr p INNER JOIN instrumentacion t
+        conn = None
+        sql = f"""SELECT c.id_componente, p.* FROM sondajestdr p INNER JOIN instrumentacion t
         ON p.id_sondajetdr = t.id_equipo INNER JOIN componentes c ON t.id_componente = c.id_componente
         WHERE c.id_proyecto = ? AND t.id_equipo = ? AND c.id_componente = ?;"""
         try:
@@ -209,7 +182,7 @@ class TDRModel:
             cur.execute(sql, (proyecto, idtdr, idcomponente))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -218,58 +191,53 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlObtenerListaSondajes(proyecto):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """SELECT id_sondajetdr, nombre_sondajetdr FROM sondajestdr WHERE id_proyecto = ?"""
             cur = conn.cursor()
-            cur.execute(sql,(proyecto,))
-            row = cur.fetchall()  
-            if row:
-                return row
+            cur.execute(sql, (proyecto,))
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
             print("Error al obtener datos:", e)
-            return None 
+            return None
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlGuardarDataSondajesTDR(proyectoid, data):
+        conn = None
         tabla = f'sondajetdr_detalle{proyectoid}'
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            
-            # Verificar si la tabla existe y crearla si no existe (Sintaxis T-SQL)
-            # Se usa DECIMAL(18,5) para asegurar precisión en lugar de NUMERIC genérico
-            # IDENTITY(1,1) reemplaza a AUTOINCREMENT
+            # Verificar si la tabla existe y crearla si no existe (SQL Server)
             cursor.execute(f"""
-                IF OBJECT_ID('{tabla}', 'U') IS NULL
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '{tabla}')
                 BEGIN
                     CREATE TABLE {tabla} (
                         id_detalle INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
                         id_sondajetdr INT NOT NULL,
-                        profundidad_detalle DECIMAL(18,5),
-                        fecha_detalle NVARCHAR(50),
-                        impedancia_detalle DECIMAL(18,5),
+                        profundidad_detalle DECIMAL(18,6),
+                        fecha_detalle VARCHAR(50),
+                        impedancia_detalle DECIMAL(18,6),
                         observacion_detalle NVARCHAR(MAX)
                     )
                 END
             """)
-            
-            # Eliminados PRAGMAs de SQLite ya que no existen en SQL Server
-            
+            conn.commit()
             # Crear un conjunto de tuplas con los valores de fecha y hora para comparar los registros existentes
             idtdr = data[0][0]
-            existen_tdr = set([(row[0]) for row in cursor.execute(f"SELECT DISTINCT fecha_detalle FROM {tabla} WHERE id_sondajetdr = ?;", (idtdr,))])
+            cursor.execute(f"SELECT DISTINCT fecha_detalle FROM {tabla} WHERE id_sondajetdr = ?;", (idtdr,))
+            existen_tdr = set([tuple(row)[0] for row in cursor.fetchall()])
             lote_registros = []
             contador = 0
-            
             for fila in data:
                 fecha_original = fila[1]
                 hora_original = fila[2]
@@ -284,35 +252,32 @@ class TDRModel:
                     datito.append(fila[5])
                     lote_registros.append(datito)
                     contador += 1
-                
-                # Insertar en lotes
                 if contador % 1000 == 0 and lote_registros:
                     cursor.executemany(f"""INSERT INTO {tabla} (id_sondajetdr, fecha_detalle, profundidad_detalle, impedancia_detalle, observacion_detalle) VALUES (?, ?, ?, ?, ?)""", lote_registros)
                     lote_registros = []
-            
-            # Insertar remanentes
             if lote_registros:
                 cursor.executemany(f"""INSERT INTO {tabla} (id_sondajetdr, fecha_detalle, profundidad_detalle, impedancia_detalle, observacion_detalle) VALUES (?, ?, ?, ?, ?)""", lote_registros)
-            
             conn.commit()
             return True
         except Exception as e:
             print("Error al guardar la data tdr: " + str(e))
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+                
     def mdlMostrarLecturasSondajeTDR(idsondaje):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """SELECT * FROM sondajestdr_puntos WHERE id_sondajetdr = ?;"""
             cur = conn.cursor()
-            cur.execute(sql,(idsondaje,))
-            row = cur.fetchall()  
-            if row:
-                return row
+            cur.execute(sql, (idsondaje,))
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -321,9 +286,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+                
     def mdlEliminarPuntoSondajes(id_punto):
+        conn = None
         sql = """DELETE FROM sondajestdr_puntos WHERE id_detalle = ?"""
         try:
             conn = Connection.connectionDB()
@@ -337,9 +302,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+                
     def mdlRegistarMedidasSondaje(data):
+        conn = None
         sql = """INSERT INTO sondajestdr_puntos (id_sondajetdr, tipo_detalle, medida_detalle, color_detalle, orden_detalle)
                 VALUES (?, ?, ?, ?, ?);"""
         try:
@@ -354,9 +319,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlValidarExisteFallaTDR(idsondaje, posicion):
+        conn = None
         try:
             conn = Connection.connectionDB()
             sql = """SELECT COUNT(1) FROM sondajestdr_puntos WHERE id_sondajetdr = ? AND orden_detalle = ?;"""
@@ -370,9 +335,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlActualizarMedidasSondaje(data):
+        conn = None
         sql = """UPDATE sondajestdr_puntos SET tipo_detalle = ?, medida_detalle = ?, color_detalle = ?
         WHERE id_sondajetdr = ? AND orden_detalle = ?;"""
         try:
@@ -387,9 +352,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlCambiarComponenteSondajesTDR(idcomponente, nuevocomponente):
+        conn = None
         sql = """UPDATE instrumentacion SET id_componente = ? WHERE id_componente = ? AND tipo_equipo = 'TDR';"""
         try:
             conn = Connection.connectionDB()
@@ -397,11 +362,11 @@ class TDRModel:
             # guardar info
             query_select = """SELECT * FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'TDR';"""
             cur.execute(query_select, (idcomponente,))
-            datatdr = cur.fetchall()
-            if datatdr:
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
                 cur.execute(sql, (nuevocomponente, idcomponente))
                 conn.commit()
-                return datatdr
+                return results
             else:
                 return None
         except Exception as e:
@@ -410,24 +375,22 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlEliminarSondajesTDR(idcomponente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
             # obtener info
             query_select = """SELECT * FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'TDR';"""
             cursor.execute(query_select, (idcomponente,))
-            datatdr = cursor.fetchall()
-            if datatdr:
+            results = [tuple(row) for row in cursor.fetchall()]
+            if results:
                 query = """DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'TDR';"""
                 cursor.execute(query, (idcomponente,))
-                # En pyodbc rowcount devuelve las filas afectadas por el último execute
-                rows_affected = cursor.rowcount
                 conn.commit()
-                if rows_affected > 0:
-                    return datatdr
+                if cursor.rowcount > 0:
+                    return results
                 else:
                     return None
             else:
@@ -438,9 +401,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlEliminarDataSondajesTDR(tabla, sondajes):
+        conn = None
         placeholders = ','.join(['?' for _ in sondajes])
         try:
             conn = Connection.connectionDB()
@@ -464,9 +427,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlObtenerInfoSondajeTDR(idinstrumento):
+        conn = None
         sql = """SELECT s.* FROM sondajestdr s INNER JOIN instrumentacion i ON s.id_sondajetdr = i.id_equipo WHERE i.id_instrumentacion = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -474,7 +437,7 @@ class TDRModel:
             cur.execute(sql, (idinstrumento,))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -483,42 +446,42 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlActualizarSondajeTDR(datos, data):
+        conn = None
         query = """UPDATE sondajestdr SET nombre_sondajetdr = ?, este_sondajetdr = ?, norte_sondajetdr = ?, elevacion_sondajetdr = ?,
         profundidad_sondajetdr = ?, inclinacion_sondajetdr = ?, azimut_sondajetdr = ? WHERE id_sondajetdr = ?;"""
         try:
-            conexion = Connection.connectionDB()
-            cursor = conexion.cursor()
+            conn = Connection.connectionDB()
+            cursor = conn.cursor()
             cursor.execute(query, datos)
             query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?
             WHERE id_instrumentacion = ? AND tipo_equipo = 'TDR';"""
             cursor.execute(query_instrumentacion, data)
-            conexion.commit()
+            conn.commit()
             return True
         except Exception as e:
             print(f"Error al actualizar TDR: {e}")
             return False
         finally:
-            if conexion:
-                conexion.close()
-
-    @staticmethod
+            if conn:
+                conn.close()
+    
     def mdlEliminarSondajetdr(idinstrumento):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
             # obtener info para eliminar data
             query_select = """SELECT * FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'TDR';"""
             cursor.execute(query_select, (idinstrumento,))
-            datatdr = cursor.fetchone()
+            row = cursor.fetchone()
+            datatdr = tuple(row) if row else None
             if datatdr:
                 query = """DELETE FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'TDR';"""
                 cursor.execute(query, (idinstrumento,))
-                rows_affected = cursor.rowcount
                 conn.commit()
-                if rows_affected > 0:
+                if cursor.rowcount > 0:
                     return datatdr
                 else:
                     return None
@@ -530,9 +493,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlEliminarSondajetdrData(tabla, idtdr):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
@@ -555,10 +518,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlListarFechasSondajetdr(tabla, idcomponente, idinstrumento):
-        conn = Connection.connectionDB()
+        conn = None
         sql = f"""SELECT DISTINCT sd.fecha_detalle, s.base_sondajetdr, s.id_sondajetdr
         FROM sondajestdr s INNER JOIN {tabla} sd ON s.id_sondajetdr = sd.id_sondajetdr
         INNER JOIN instrumentacion t ON s.id_sondajetdr = t.id_equipo
@@ -566,11 +528,12 @@ class TDRModel:
         WHERE c.id_componente = ? AND t.id_instrumentacion = ?
         ORDER BY sd.fecha_detalle ASC;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idcomponente, idinstrumento))
-            row = cur.fetchall()
-            if row:
-                return row
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -579,9 +542,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlCambiarBaseSondajetdr(fecha, idsondaje):
+        conn = None
         sql = """UPDATE sondajestdr SET base_sondajetdr = ? WHERE id_sondajetdr = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -595,9 +558,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlTraerDataSondajetdr(idsondaje):
+        conn = None
         sql = """SELECT i.id_instrumentacion, i.id_componente, c.nombre_componente FROM instrumentacion i
         INNER JOIN componentes c ON i.id_componente = c.id_componente
         WHERE i.id_equipo = ? AND i.tipo_equipo = 'TDR';"""
@@ -607,7 +570,7 @@ class TDRModel:
             cur.execute(sql, (idsondaje,))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -616,9 +579,9 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
-
-    @staticmethod
+    
     def mdlCambiarSondajetdrComponente(idinstrumento, nuevocomponente):
+        conn = None
         sql = """UPDATE instrumentacion SET id_componente = ? WHERE id_instrumentacion = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -632,3 +595,4 @@ class TDRModel:
         finally:
             if conn:
                 conn.close()
+    
