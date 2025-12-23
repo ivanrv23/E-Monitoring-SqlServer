@@ -1,33 +1,23 @@
 from services.security.apis.conexiones.connection import Connection
 from datetime import datetime
 
+
 class TerrenoModel:
     
-    # GUARDAR NUEVA COTA DE TERRENO
-    @staticmethod
+    # GUARDAR NUEVA COTA DE TERRENO      
     def mdlGuardarNuevaCotaTerreno(proyecto_id, componente, nombre, comentario):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             # Verificar si existe un equipo con el mismo nombre en el mismo componente
-            # SQL Server permite SELECT 1
             cur.execute("SELECT 1 FROM instrumentacion WHERE id_componente = ? AND nombre_equipo = ? AND tipo_equipo = 'COTATERRENO';", (componente, nombre))
             if cur.fetchone():
                 return "NO"
-            
-            # Registrar la nueva cota de terreno
-            cur.execute("""INSERT INTO cotasterreno (id_proyecto, nombre_terreno, comentario_terreno) VALUES (?, ?, ?);""",
+            # Registrar la nueva cota de terreno con OUTPUT para obtener el ID
+            cur.execute("""INSERT INTO cotasterreno (id_proyecto, nombre_terreno, comentario_terreno) OUTPUT INSERTED.id_terreno VALUES (?, ?, ?);""",
                         (proyecto_id, nombre, comentario))
-            
-            # Obtener el ID insertado (Reemplazo de lastrowid)
-            cur.execute("SELECT SCOPE_IDENTITY();")
-            row_id = cur.fetchone()
-            if row_id and row_id[0] is not None:
-                id_equipo = int(row_id[0])
-            else:
-                conn.rollback()
-                return "ERROR"
-
+            id_equipo = cur.fetchone()[0]
             # Registrar la cota en la tabla instrumentacion
             cur.execute("""INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo) VALUES (?, ?, ?, ?, ?);""",
                         (componente, 'COTATERRENO', nombre, id_equipo, 'cotasterreno'))
@@ -35,23 +25,24 @@ class TerrenoModel:
             return "OK"
         except Exception as e:
             print("Error al guardar cota terreno: " + str(e))
-            conn.rollback()
+            if conn:
+                conn.rollback()
             return "ERROR"
         finally:
             if conn:
                 conn.close()
     
-    # LISTAR LAS COTAS POR PROYECTO
-    @staticmethod
+    # LISTAR LAS COTAS POR PROYECTO    
     def mdlListaCotasTerrenoProyecto(proyecto):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT * FROM cotasterreno WHERE id_proyecto = ? AND estado_terreno = 1;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyecto,))
-            row = cur.fetchall()
-            if row:
-                return row
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -62,37 +53,31 @@ class TerrenoModel:
                 conn.close()
     
     # REGISTRAR DATA COTA TERRENO DESDE TABLA
-    @staticmethod
     def mdlGuardarDataCotaTerreno(proyectoid, data):
+        conn = None
         table_name = f"cotaterreno_detalle{proyectoid}"
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            
-            # Crear la tabla si no existe (Sintaxis T-SQL)
-            # Se usa DECIMAL(18,5) para asegurar precisión y NVARCHAR para fechas/textos
-            create_table_sql = f"""
-            IF OBJECT_ID('{table_name}', 'U') IS NULL
-            BEGIN
-                CREATE TABLE {table_name} (
-                    id_detalle INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-                    id_terreno INT NOT NULL,
-                    fecha_detalle NVARCHAR(50) NOT NULL,
-                    nivel_detalle DECIMAL(18,5) NOT NULL,
-                    observacion_detalle NVARCHAR(MAX),
-                    estado_detalle INT DEFAULT 1
-                )
-            END;"""
-            
-            cursor.execute(create_table_sql)
-            
-            # Eliminados PRAGMA de SQLite
-            
-            # Verificar existentes
-            id_terreno = data[0][0]
-            # Nota: SQL Server maneja fechas en NVARCHAR implícitamente, pero es mejor asegurar el formato
-            existen_cotas = set([row[0] for row in cursor.execute(f"SELECT fecha_detalle FROM {table_name} WHERE id_terreno = ?;", (id_terreno,))])
-            
+            # Crear la tabla si no existe (SQL Server)
+            cursor.execute(f"""
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '{table_name}')
+                BEGIN
+                    CREATE TABLE {table_name} (
+                        id_detalle INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                        id_terreno INT NOT NULL,
+                        fecha_detalle DATETIME NOT NULL,
+                        nivel_detalle DECIMAL(18,6) NOT NULL,
+                        observacion_detalle VARCHAR(500),
+                        estado_detalle INT DEFAULT 1
+                    )
+                END
+            """)
+            conn.commit()
+            # Crear un conjunto de tuplas con los valores de fecha y hora para comparar los registros existentes
+            idcota = data[0][0]
+            cursor.execute(f"SELECT fecha_detalle FROM {table_name} WHERE id_terreno = ?;", (idcota,))
+            existen_cotas = set([tuple(row)[0] for row in cursor.fetchall()])
             lote_registros = []
             contador = 0
             for fila in data:
@@ -101,19 +86,14 @@ class TerrenoModel:
                 fecha_original = fila[1]
                 hora_original = fila[2]
                 fecha_hora_nueva = fecha_original + " " + hora_original
-                
                 # Verifica si el registro no existe en el conjunto
                 if fecha_hora_nueva not in existen_cotas:
                     datito = [fila[0], fecha_hora_nueva, fila[3], fila[4]]
                     lote_registros.append(datito)
                     contador += 1
-                
-                # Insertar en lotes
                 if contador % 1000 == 0 and lote_registros:
                     cursor.executemany(f"""INSERT INTO {table_name} (id_terreno, fecha_detalle, nivel_detalle, observacion_detalle) VALUES (?, ?, ?, ?)""", lote_registros)
                     lote_registros = []
-            
-            # Insertar remanentes
             if lote_registros:
                 cursor.executemany(f"""INSERT INTO {table_name} (id_terreno, fecha_detalle, nivel_detalle, observacion_detalle) VALUES (?, ?, ?, ?)""", lote_registros)
 
@@ -121,13 +101,15 @@ class TerrenoModel:
             return True
         except Exception as e:
             print("Error al guardar data terreno: " + str(e))
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlComprobarExisteNombreCotaTerreno(proyecto, nombre):
+        conn = None
         sql = """SELECT * FROM cotasterreno WHERE id_proyecto = ? AND nombre_terreno = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -135,7 +117,7 @@ class TerrenoModel:
             cur.execute(sql, (proyecto, nombre))
             row = cur.fetchone()
             if row:
-                return True, row
+                return True, tuple(row)
             else:
                 return False, None
         except Exception as e:
@@ -145,24 +127,15 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlRegistrarFormatoCotaTerreno(proyecto_id, componente, nombre, comentario):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Registrar la nueva cota de terreno
-            cur.execute("""INSERT INTO cotasterreno (id_proyecto, nombre_terreno, comentario_terreno) VALUES (?, ?, ?);""",
+            # Registrar la nueva cota de terreno con OUTPUT para obtener el ID
+            cur.execute("""INSERT INTO cotasterreno (id_proyecto, nombre_terreno, comentario_terreno) OUTPUT INSERTED.id_terreno VALUES (?, ?, ?);""",
                         (proyecto_id, nombre, comentario))
-            
-            # Obtener el ID insertado
-            cur.execute("SELECT SCOPE_IDENTITY();")
-            row_id = cur.fetchone()
-            if row_id and row_id[0] is not None:
-                id_equipo = int(row_id[0])
-            else:
-                conn.rollback()
-                return None
-
+            id_equipo = cur.fetchone()[0]
             # Registrar la cota en la tabla instrumentacion
             cur.execute("""INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo) VALUES (?, ?, ?, ?, ?);""",
                         (componente, 'COTATERRENO', nombre, id_equipo, 'cotasterreno'))
@@ -170,24 +143,25 @@ class TerrenoModel:
             return id_equipo
         except Exception as e:
             print("Error al guardar cota terreno: " + str(e))
-            conn.rollback()
+            if conn:
+                conn.rollback()
             return None
         finally:
             if conn:
                 conn.close()
 
-    # LISTAR DATA COTAS TERRENO DETALLE POR ID
-    @staticmethod
+    # LISTAR DATA COTAS TERRENO DETALLE POR ID    
     def mdlObtenerDataCotasTerrenoDetalle(idsuelo):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT s.nombre_terreno, d.fecha_detalle, d.nivel_detalle, d.id_detalle FROM cotaterreno_detalle d INNER JOIN cotasterreno s
         ON d.id_terreno = s.id_terreno WHERE d.id_terreno = ? ORDER BY d.fecha_detalle;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idsuelo,))
-            row = cur.fetchall()
-            if row:
-                return row
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -197,18 +171,18 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    # LISTAR DATA TERRENO DETALLE POR ID
-    @staticmethod
+    # LISTAR DATA TERRENO DETALLE POR ID    
     def mdlObtenerDataTerrenoDetalle(sueloid):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT d.*, t.nombre_terreno FROM cotaterreno_detalle d INNER JOIN cotasterreno t ON d.id_terreno = t.id_terreno
             WHERE d.id_terreno = ? ORDER BY d.fecha_detalle ASC;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (sueloid,))
-            row = cur.fetchall()
-            if row:
-                return row
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -219,16 +193,16 @@ class TerrenoModel:
                 conn.close()
     
     # Info de suelo fundacion por id
-    @staticmethod
     def mdlTraerInfoCotaTerreno(idsuelo):
+        conn = None
         sql = """SELECT * FROM cotasterreno WHERE id_terreno = ?;"""
-        conn = Connection.connectionDB()
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idsuelo,))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -238,12 +212,12 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    # ACTUALIZAR COTA DE TERRENO
-    @staticmethod
+    # ACTUALIZAR COTA DE TERRENO      
     def mdlActualizarCotaTerreno(idcota, nombre, comentario):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """UPDATE cotasterreno SET nombre_terreno = ?, comentario_terreno = ? WHERE id_terreno = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (nombre, comentario, idcota))
             conn.commit()
@@ -256,11 +230,11 @@ class TerrenoModel:
                 conn.close()
     
     # Eliminar el detalle del terreno
-    @staticmethod
     def mdlEliminarDetalleTerreno(idsuelo):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """DELETE FROM cotaterreno_detalle WHERE id_terreno = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idsuelo,))
             conn.commit()
@@ -272,14 +246,14 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    # COMPROBAR EXISTE REGISTRO DE COTA TERRENO
-    @staticmethod
+    # COMPROBAR EXISTE REGISTRO DE COTA TERRENO  
     def mdlComprobarExisteCotaTerreno(idpiezo, tipo, fecha, hora):
+        conn = None
         fecha_nueva = datetime.strptime(fecha, '%d/%m/%Y').strftime('%Y-%m-%d')
         fecha_hora = fecha_nueva + " " + hora
-        conn = Connection.connectionDB()
         sql = """SELECT * FROM cotasterreno WHERE id_piezometro = ? AND tipo_piezometro = ? AND fecha_cota = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idpiezo, tipo, fecha_hora))
             row = cur.fetchone()
@@ -294,14 +268,14 @@ class TerrenoModel:
             if conn:
                 conn.close()
                             
-    # REGISTRAR MEDIDA DE COTA TERRENO
-    @staticmethod
+    # REGISTRAR MEDIDA DE COTA TERRENO  
     def mdlGuardarDataCota(idcota, tipo, fecha, hora, nivel):
+        conn = None
         fecha_nueva = datetime.strptime(fecha, '%d/%m/%Y').strftime('%Y-%m-%d')
         fecha_hora_nueva = fecha_nueva + " " + hora
-        conn = Connection.connectionDB()
         sql = """INSERT INTO cotasterreno (id_piezometro, tipo_piezometro, fecha_cota, nivel_cota) VALUES (?, ?, ?, ?)"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idcota, tipo, fecha_hora_nueva, nivel))
             conn.commit()
@@ -313,18 +287,17 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    # REGISTRAR COTAS DE PIEZOMETROS DESDE LA TABLA
-    @staticmethod
+    # REGISTRAR COTAS DE PIEZOMETROS DESDE LA TABLA   
     def mdlGuardarLecturasCotaPiezometrica(data):
-        conn = Connection.connectionDB()
-        cursor = conn.cursor()
+        conn = None
         try:
-            # Eliminados PRAGMA
-            
+            conn = Connection.connectionDB()
+            cursor = conn.cursor()
             # Crear un conjunto de tuplas con los valores de fecha y hora para comparar los registros existentes
             idpiezo = data[0][0]
             tipo = data[0][1]
-            existen_piezometros = set([row[0] for row in cursor.execute("SELECT fecha_cota FROM cotas_piezometricas WHERE id_piezometro = ? AND tipo_piezometro = ?", (idpiezo, tipo))])
+            cursor.execute("SELECT fecha_cota FROM cotas_piezometricas WHERE id_piezometro = ? AND tipo_piezometro = ?", (idpiezo, tipo))
+            existen_piezometros = set([tuple(row)[0] for row in cursor.fetchall()])
             lote_registros = []
             contador = 0
             for fila in data:
@@ -349,15 +322,16 @@ class TerrenoModel:
             return True
         except Exception as e:
             print("Error al guardar las cotas piezometricas: " + str(e))
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
     
     # Obtener data de cotas piezometricas por proyecto id
-    @staticmethod
     def mdlObtenerDataCotasPiezometricas(proyecto):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT
             CASE 
                 WHEN c.tipo_piezometro = 'PCV' THEN pc.nombre_piezometro
@@ -375,11 +349,12 @@ class TerrenoModel:
             piezometros pm ON c.id_piezometro = pm.id_piezometro AND c.tipo_piezometro = 'PVC'
         WHERE (pc.id_proyecto = ? OR pm.id_proyecto = ?) ORDER BY c.fecha_cota;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyecto, proyecto))
-            row = cur.fetchall()
-            if row:
-                return row
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -389,17 +364,17 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    # LISTAR DATA COTAS DETALLE POR ID Y TIPO
-    @staticmethod
+    # LISTAR DATA COTAS DETALLE POR ID Y TIPO   
     def mdlObtenerDataCotaDetalle(idpiezo, tipopiezo):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """SELECT * FROM cotas_piezometricas WHERE id_piezometro = ? AND tipo_piezometro = ? ORDER BY fecha_cota ASC;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idpiezo, tipopiezo))
-            row = cur.fetchall()
-            if row:
-                return row
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
+                return results
             else:
                 return None
         except Exception as e:
@@ -409,35 +384,25 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlActualizarLecturaCotapiezometrica(idcota, fecha, nivel):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """UPDATE cotas_piezometricas SET fecha_cota = ?, nivel_cota = ? WHERE id_cota = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             # guardar en historial
             query_select = '''SELECT fecha_cota, nivel_cota, id_cota FROM cotas_piezometricas WHERE id_cota = ?;'''
             cur.execute(query_select, (idcota,))
-            datos_anteriores = cur.fetchone()
+            row = cur.fetchone()
+            datos_anteriores = tuple(row) if row else None
             if datos_anteriores:
                 fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 accion = "update"
                 tabla = "cotas_piezometricas"
-                # Formato de string para SQL Server
                 cambios = f"Antiguos: {datos_anteriores}, Nuevos: [{fecha}, {nivel}, {idcota}]"
                 query_historial = """INSERT INTO historial (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
                 VALUES (?, ?, ?, ?, ?, ?, ?);"""
-                # Para el historial, como no tenemos idproyecto, asumimos que la tabla permite NULL o la lógica no lo requiere aquí estricto
-                # NOTA: En la función original no pasaban idproyecto, así que lo mandaré como None o vacío.
-                # Sin embargo, el INSERT espera 7 valores. En el código original mandaban (fecha_cambio, accion, tabla, cambios) -> 4 valores para 7 placeholders?
-                # Revisando tu código original: `cur.execute(query_historial, (fecha_cambio, accion, tabla, cambios))` 
-                # ESTO ES UN BUG EN EL ORIGINAL (4 params para 7 ?). 
-                # Ajustaré para intentar evitar el crash, pero si la tabla historial requiere los otros campos, fallará.
-                # Asumiré que el original funcionaba porque tal vez la tabla historial tiene defaults o el trigger lo maneja.
-                # Pero pyodbc validará el número de parámetros.
-                # CORRECCIÓN: Mantendré la lógica original a pesar del bug potencial, pero llenando con None los faltantes para que pyodbc no falle por count.
-                cur.execute(query_historial, (None, fecha_cambio, accion, tabla, cambios, None, None))
-            
+                cur.execute(query_historial, (fecha_cambio, accion, tabla, cambios))
             # actualizar cota piezometro
             cur.execute(sql, (fecha, nivel, idcota))
             conn.commit()
@@ -449,11 +414,11 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlComprobarUltimaCotapiezometrica(idpiezo, tipopiezo):
+        conn = None
         sql = """SELECT COUNT(*) FROM cotas_piezometricas WHERE id_piezometro = ? AND tipo_piezometro = ?;"""
-        conn = Connection.connectionDB()
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idpiezo, tipopiezo))
             row = cur.fetchone()
@@ -471,16 +436,17 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarLecturaCotapiezometrica(idcota):
-        conn = Connection.connectionDB()
+        conn = None
         sql = """DELETE FROM cotas_piezometricas WHERE id_cota = ?;"""
         try:
+            conn = Connection.connectionDB()
             cur = conn.cursor()
             # guardar en historial
-            query_select = f'''SELECT * FROM cotas_piezometricas WHERE id_cota = ?;'''
+            query_select = '''SELECT * FROM cotas_piezometricas WHERE id_cota = ?;'''
             cur.execute(query_select, (idcota,))
-            datos_anteriores = cur.fetchone()
+            row = cur.fetchone()
+            datos_anteriores = tuple(row) if row else None
             if datos_anteriores:
                 fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 accion = "delete"
@@ -488,8 +454,7 @@ class TerrenoModel:
                 cambios = f"Datos: {datos_anteriores}"
                 query_historial = """INSERT INTO historial (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
                 VALUES (?, ?, ?, ?, ?, ?, ?);"""
-                # Corrección de parámetros para pyodbc (7 placeholders)
-                cur.execute(query_historial, (None, fecha_cambio, accion, tabla, cambios, None, None))
+                cur.execute(query_historial, (fecha_cambio, accion, tabla, cambios))
             # eliminar lectura celda
             cur.execute(sql, (idcota,))
             conn.commit()
@@ -501,8 +466,8 @@ class TerrenoModel:
             if conn:
                 conn.close()            
             
-    @staticmethod
     def mdlActualizarLecturaCotaterreno(tabla, datos, idproyecto, username, nombres):
+        conn = None
         sql = f"""UPDATE {tabla} SET fecha_detalle = ?, nivel_detalle = ?, observacion_detalle = ? WHERE id_detalle = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -510,7 +475,8 @@ class TerrenoModel:
             # guardar en historial
             query_select = f"""SELECT fecha_detalle, nivel_detalle, observacion_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
             cur.execute(query_select, (datos[-1],))
-            datos_anteriores = cur.fetchone()
+            row = cur.fetchone()
+            datos_anteriores = tuple(row) if row else None
             if datos_anteriores:
                 fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 accion = "update"
@@ -529,8 +495,8 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarLecturaCotaterreno(tabla, iddetalle, idproyecto, username, nombres):
+        conn = None
         sql = f"""DELETE FROM {tabla} WHERE id_detalle = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -538,7 +504,8 @@ class TerrenoModel:
             # guardar en historial
             query_select = f"""SELECT * FROM {tabla} WHERE id_detalle = ?;"""
             cur.execute(query_select, (iddetalle,))
-            datos_anteriores = cur.fetchone()
+            row = cur.fetchone()
+            datos_anteriores = tuple(row) if row else None
             if datos_anteriores:
                 fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 accion = "delete"
@@ -548,9 +515,8 @@ class TerrenoModel:
                 cur.execute(query_historial, (idproyecto, fecha_cambio, accion, tabla, cambios, username, nombres))
             # eliminar lectura terreno
             cur.execute(sql, (iddetalle,))
-            rows_affected = cur.rowcount
             conn.commit()
-            if rows_affected > 0:
+            if cur.rowcount > 0:
                 return True
             else:
                 return False
@@ -561,8 +527,8 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarLecturasBloqueCotaterreno(tabla, iddetalles, idproyecto, username, nombres):
+        conn = None
         placeholders = ', '.join(['?' for _ in iddetalles])
         sql = f"""DELETE FROM {tabla} WHERE id_detalle IN ({placeholders});"""
         try:
@@ -571,19 +537,18 @@ class TerrenoModel:
             # guardar en historial
             query_select = f"""SELECT * FROM {tabla} WHERE id_detalle IN ({placeholders});"""
             cur.execute(query_select, iddetalles)
-            datos_anteriores = cur.fetchall()
-            if datos_anteriores:
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
                 fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 accion = "delete"
-                cambios = f"Datos: {datos_anteriores}"
+                cambios = f"Datos: {results}"
                 query_historial = """INSERT INTO historial (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
                 VALUES (?, ?, ?, ?, ?, ?, ?);"""
                 cur.execute(query_historial, (idproyecto, fecha_cambio, accion, tabla, cambios, username, nombres))
             # eliminar lecturas terreno
             cur.execute(sql, iddetalles)
-            rows_affected = cur.rowcount
             conn.commit()
-            if rows_affected > 0:
+            if cur.rowcount > 0:
                 return True
             else:
                 return False
@@ -594,8 +559,8 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlCambiarComponenteCotasTerreno(idcomponente, nuevocomponente):
+        conn = None
         sql = """UPDATE instrumentacion SET id_componente = ? WHERE id_componente = ? AND tipo_equipo = 'COTATERRENO';"""
         try:
             conn = Connection.connectionDB()
@@ -603,11 +568,11 @@ class TerrenoModel:
             # guardar info
             query_select = """SELECT * FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'COTATERRENO';"""
             cur.execute(query_select, (idcomponente,))
-            datacotas = cur.fetchall()
-            if datacotas:
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
                 cur.execute(sql, (nuevocomponente, idcomponente))
                 conn.commit()
-                return datacotas
+                return results
             else:
                 return None
         except Exception as e:
@@ -617,22 +582,21 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarCotasTerrenos(idcomponente):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
             # obtener info
             query_select = """SELECT * FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'COTATERRENO';"""
             cursor.execute(query_select, (idcomponente,))
-            datacota = cursor.fetchall()
-            if datacota:
+            results = [tuple(row) for row in cursor.fetchall()]
+            if results:
                 query = """DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'COTATERRENO';"""
                 cursor.execute(query, (idcomponente,))
-                rows_affected = cursor.rowcount
                 conn.commit()
-                if rows_affected > 0:
-                    return datacota
+                if cursor.rowcount > 0:
+                    return results
                 else:
                     return None
             else:
@@ -644,8 +608,8 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarDataCotasTerrenos(tabla, terrenos):
+        conn = None
         placeholders = ','.join(['?' for _ in terrenos])
         try:
             conn = Connection.connectionDB()
@@ -670,8 +634,8 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlObtenerInfoPluviometro(idinstrumento):
+        conn = None
         sql = """SELECT c.* FROM cotasterreno c INNER JOIN instrumentacion i ON c.id_terreno = i.id_equipo WHERE i.id_instrumentacion = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -679,7 +643,7 @@ class TerrenoModel:
             cur.execute(sql, (idinstrumento,))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -690,21 +654,21 @@ class TerrenoModel:
                 conn.close()
     
     # Eliminar cota terreno
-    @staticmethod
     def mdlEliminarCotaTerreno(idinstrumento):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
             # obtener info para eliminar data
             query_select = """SELECT * FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'COTATERRENO';"""
             cursor.execute(query_select, (idinstrumento,))
-            dataterreno = cursor.fetchone()
+            row = cursor.fetchone()
+            dataterreno = tuple(row) if row else None
             if dataterreno:
                 query = """DELETE FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'COTATERRENO';"""
                 cursor.execute(query, (idinstrumento,))
-                rows_affected = cursor.rowcount
                 conn.commit()
-                if rows_affected > 0:
+                if cursor.rowcount > 0:
                     return dataterreno
                 else:
                     return None
@@ -717,8 +681,8 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarCotaTerrenoData(tabla, idterreno):
+        conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
@@ -742,28 +706,23 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlObtenerCotasTerreno(tabla, idcomponente, idinstrumento, fechaini, fechafin):
+        conn = None
         try:
             conn = Connection.connectionDB()
-            # MIGRACIÓN CRÍTICA:
-            # JULIANDAY(fecha) - JULIANDAY(inicio) -> DATEDIFF(SECOND, inicio, fecha) / 86400.0
-            # Se usa CAST a DECIMAL(18,5) para mantener la precisión decimal.
-            # Se asume que fecha_detalle es convertible a DATETIME (SQL Server lo intentará implícitamente si es string 'yyyy-MM-dd HH:mm:ss').
-            
+            # SQL Server: usar DATEDIFF en lugar de julianday
             sql = f"""SELECT t.id_instrumentacion, p.nombre_terreno, d.fecha_detalle,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(CAST(d.fecha_detalle AS DATETIME)) OVER (PARTITION BY p.id_terreno ORDER BY d.fecha_detalle), CAST(d.fecha_detalle AS DATETIME)) / 86400.0 AS DECIMAL(18,5)) AS dias,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(CAST(d.fecha_detalle AS DATETIME)) OVER (PARTITION BY p.id_terreno ORDER BY d.fecha_detalle), CAST(d.fecha_detalle AS DATETIME)) / 86400.0 * 24.0 AS DECIMAL(18,5)) AS horas,
+                CAST(DATEDIFF(DAY, FIRST_VALUE(CAST(d.fecha_detalle AS DATETIME)) OVER (PARTITION BY p.id_terreno ORDER BY d.fecha_detalle), CAST(d.fecha_detalle AS DATETIME)) AS FLOAT) AS dias,
+                CAST(DATEDIFF(HOUR, FIRST_VALUE(CAST(d.fecha_detalle AS DATETIME)) OVER (PARTITION BY p.id_terreno ORDER BY d.fecha_detalle), CAST(d.fecha_detalle AS DATETIME)) AS FLOAT) AS horas,
                 d.nivel_detalle
             FROM {tabla} d INNER JOIN cotasterreno p ON d.id_terreno = p.id_terreno
             INNER JOIN instrumentacion t ON p.id_terreno = t.id_equipo
             INNER JOIN componentes c ON t.id_componente = c.id_componente
             WHERE c.id_componente = ? AND t.id_instrumentacion = ? AND d.fecha_detalle BETWEEN ? AND ?
             ORDER BY d.fecha_detalle;"""
-            
             cur = conn.cursor()
             cur.execute(sql, (idcomponente, idinstrumento, fechaini, fechafin))
-            results = cur.fetchall()
+            results = [tuple(row) for row in cur.fetchall()]
             if results:
                 return results
             else:
@@ -775,8 +734,8 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlTraerDataCotaTerreno(idterreno):
+        conn = None
         sql = """SELECT i.id_instrumentacion, i.id_componente, c.nombre_componente FROM instrumentacion i
         INNER JOIN componentes c ON i.id_componente = c.id_componente
         WHERE i.id_equipo = ? AND i.tipo_equipo = 'COTATERRENO';"""
@@ -786,7 +745,7 @@ class TerrenoModel:
             cur.execute(sql, (idterreno,))
             row = cur.fetchone()
             if row:
-                return row
+                return tuple(row)
             else:
                 return None
         except Exception as e:
@@ -796,8 +755,8 @@ class TerrenoModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlCambiarCotaterrenoComponente(idinstrumento, nuevocomponente):
+        conn = None
         sql = """UPDATE instrumentacion SET id_componente = ? WHERE id_instrumentacion = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -811,3 +770,4 @@ class TerrenoModel:
         finally:
             if conn:
                 conn.close()
+    

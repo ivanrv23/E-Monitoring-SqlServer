@@ -225,7 +225,7 @@ class TDRModel:
                         id_detalle INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
                         id_sondajetdr INT NOT NULL,
                         profundidad_detalle DECIMAL(18,6),
-                        fecha_detalle VARCHAR(50),
+                        fecha_detalle DATETIME,
                         impedancia_detalle DECIMAL(18,6),
                         observacion_detalle NVARCHAR(MAX)
                     )
