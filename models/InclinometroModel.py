@@ -3,13 +3,11 @@ from datetime import datetime
 
 class InclinometroModel:
      
-    @staticmethod
     def mdlObtenerInclinometroTipo(idproyecto, idcomponente, idinstru):
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            sql = """SELECT TOP 1 i.tipo_inclinometro FROM inclinometros i
+            sql = """SELECT i.tipo_inclinometro FROM inclinometros i
             INNER JOIN instrumentacion t ON i.id_inclinometro = t.id_equipo
             INNER JOIN componentes c ON t.id_componente = c.id_componente
             WHERE c.id_proyecto = ? AND c.id_componente = ? AND t.id_instrumentacion = ?;"""
@@ -26,17 +24,15 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlListarInclinometrosProyecto(idproyecto, idcomponente, idinstrumento):
         sql = """SELECT i.id_inclinometro, e.id_encabezado, i.nombre_inclinometro, c.id_componente, i.este_inclinometro,
         i.norte_inclinometro, i.elevacion_inclinometro, e.fecha_inclinometro, i.tipo_inclinometro, i.inclinacion_inclinometro,
         i.azimut_inclinometro, i.profundidad_inclinometro, i.estado_inclinometro FROM inclinometros i
         INNER JOIN inclinometro_encabezado e ON i.id_inclinometro = e.id_inclinometro
-		INNER JOIN instrumentacion t ON i.id_inclinometro = t.id_equipo
-		INNER JOIN componentes c ON t.id_componente = c.id_componente
+        INNER JOIN instrumentacion t ON i.id_inclinometro = t.id_equipo
+        INNER JOIN componentes c ON t.id_componente = c.id_componente
         WHERE c.id_proyecto = ? AND t.id_instrumentacion = ? AND c.id_componente = ? AND e.estado_base = 1
-		ORDER BY e.fecha_inclinometro;"""
-        conn = None
+        ORDER BY e.fecha_inclinometro;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -54,7 +50,6 @@ class InclinometroModel:
                 conn.close()
     
     # RST
-    @staticmethod
     def mdlObtenerDAAB_RST(tabla, idcomponente, idinstru, fechas, unidadmedida):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idcomponente] + [idinstru] + fechas
@@ -87,7 +82,6 @@ class InclinometroModel:
                 AND dc.profundidad_detalle = bv.profundidad_detalle
             WHERE dc.estado_base <> 1 AND dc.fecha_inclinometro >= bv.fecha_base
             ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle DESC;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -104,7 +98,6 @@ class InclinometroModel:
             if conn:
                 conn.close()
 
-    @staticmethod
     def mdlObtenerDIAB_RST(tabla, idcomponente, idinstru, fechas, unidadmedida):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idcomponente] + [idinstru] + fechas
@@ -139,7 +132,6 @@ class InclinometroModel:
             AND dc.profundidad_detalle = bv.profundidad_detalle
         WHERE dc.estado_base <> 1 AND dc.fecha_inclinometro >= bv.fecha_base
         ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle DESC;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -155,8 +147,7 @@ class InclinometroModel:
         finally:
             if conn:
                 conn.close()
-    
-    @staticmethod
+                
     def mdlObtenerDINE_RST(tabla, idcomponente, idinstru, fechas, unidadmedida, alfa):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idcomponente] + [idinstru] + fechas
@@ -188,7 +179,6 @@ class InclinometroModel:
             AND dc.profundidad_detalle = bv.profundidad_detalle
         WHERE dc.estado_base <> 1 AND dc.fecha_inclinometro >= bv.fecha_base
         ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle DESC;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -205,7 +195,6 @@ class InclinometroModel:
             if conn:
                 conn.close()
                 
-    @staticmethod
     def mdlObtenerDANE_RST(tabla, idcomponente, idinstru, fechas, unidadmedida, alfa):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idcomponente] + [idinstru] + fechas
@@ -241,7 +230,6 @@ class InclinometroModel:
             AND dc.profundidad_detalle = bv.profundidad_detalle
         WHERE dc.estado_base <> 1 AND dc.fecha_inclinometro >= bv.fecha_base
         ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle DESC;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -258,11 +246,10 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlObtenerDANEvisor_RST(idproyecto, idinclino, fechas, este, norte, nivel, escala):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idinclino] + fechas
-        conn = None
+        conn = Connection.connectionDB()
         sql = f"""WITH detalle_calculado AS (
                     SELECT
                         i.nombre_inclinometro,
@@ -295,7 +282,7 @@ class InclinometroModel:
                 SELECT
                     dc.nombre_inclinometro,
                     dc.fecha_inclinometro,
-                    {nivel}-abs(dc.profundidad_detalle) AS profundidad_detalle,
+                    {nivel} - ABS(dc.profundidad_detalle) AS profundidad_detalle,
                     SUM(COALESCE(dc.media_x - COALESCE(bv.media_x_base, dc.media_x), NULL)) 
                         OVER (PARTITION BY dc.nombre_inclinometro, dc.fecha_inclinometro 
                             ORDER BY dc.profundidad_detalle ASC) * {escala} + {este} AS Desplaz_Acumula_X,
@@ -315,7 +302,6 @@ class InclinometroModel:
                     dc.profundidad_detalle DESC;
                 """
         try:
-            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, params)
             rows = cur.fetchall()
@@ -330,7 +316,6 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlObtenerPAAB_RST(tabla, idcomponente, idinstru, fechas, unidadmedida):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idcomponente] + [idinstru] + fechas
@@ -352,7 +337,6 @@ class InclinometroModel:
             ORDER BY dc.profundidad_detalle ASC) * {unidadmedida} AS posicion_absoluta_b
         FROM detalle_calculado dc
         ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle DESC;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -369,7 +353,6 @@ class InclinometroModel:
             if conn:
                 conn.close()
                 
-    @staticmethod
     def mdlObtenerPANE_RST(tabla, idcomponente, idinstru, fechas, unidadmedida, alfa):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idcomponente] + [idinstru] + fechas
@@ -393,7 +376,6 @@ class InclinometroModel:
             ORDER BY dc.profundidad_detalle ASC) * {unidadmedida} AS posicion_absoluta_y
         FROM detalle_calculado dc
         ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle DESC;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -410,7 +392,6 @@ class InclinometroModel:
             if conn:
                 conn.close()
 
-    @staticmethod
     def mdlObtenerCSAB_RST(tabla, idcomponente, idinstru, fechas, unidadmedida):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idcomponente] + [idinstru] + fechas
@@ -433,7 +414,7 @@ class InclinometroModel:
         AND ie.fecha_inclinometro IN ({placeholders})
         ORDER BY ie.fecha_inclinometro ASC, id.profundidad_detalle DESC;
         """
-        conn = None
+
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -444,14 +425,13 @@ class InclinometroModel:
             else:
                 return None
         except Exception as e:
-            print("Error al consultar PANE: " + str(e))
+            print("Error al consultar CSAB: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
 
     # GKN
-    @staticmethod
     def mdlObtenerDAAB_GKN(tabla, idcomponente, idinstru, fechas, unidadmedida, zz=0, mrint=0.025):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idcomponente] + [idinstru] + fechas
@@ -493,7 +473,6 @@ class InclinometroModel:
             AND dc.profundidad_detalle = bv.profundidad_detalle
         WHERE dc.estado_base <> 1 AND dc.fecha_inclinometro >= bv.fecha_base
         ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle ASC;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -510,7 +489,6 @@ class InclinometroModel:
             if conn:
                 conn.close()
                 
-    @staticmethod
     def mdlObtenerDIAB_GKN(tabla, idcomponente, idinstru, fechas, unidadmedida, zz, mrint):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idcomponente] + [idinstru] + fechas
@@ -551,7 +529,6 @@ class InclinometroModel:
             AND dc.profundidad_detalle = bv.profundidad_detalle
         WHERE dc.estado_base <> 1 AND dc.fecha_inclinometro >= bv.fecha_base
         ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle ASC;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -568,7 +545,6 @@ class InclinometroModel:
             if conn:
                 conn.close()
                 
-    @staticmethod
     def mdlObtenerDINE_GKN(tabla, idcomponente, idinstru, fechas, unidadmedida, alfa, mrint):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idcomponente] + [idinstru] + fechas
@@ -601,7 +577,6 @@ class InclinometroModel:
             AND dc.profundidad_detalle = bv.profundidad_detalle
         WHERE dc.estado_base <> 1 AND dc.fecha_inclinometro >= bv.fecha_base
         ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle ASC;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -618,7 +593,6 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlObtenerDANE_GKN(tabla, idcomponente, idinstru, fechas, unidadmedida, alfa, mrint, zz):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idcomponente] + [idinstru] + fechas
@@ -671,7 +645,6 @@ class InclinometroModel:
             AND dc.profundidad_detalle = bv.profundidad_detalle
         WHERE dc.estado_base <> 1 AND dc.fecha_inclinometro >= bv.fecha_base
         ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle ASC;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -688,11 +661,10 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlObtenerDANEvisor_GKN(idproyecto, idinclino, fechas, este, norte, nivel, escala):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idinclino] + fechas
-        conn = None
+        conn = Connection.connectionDB()
         sql = f"""WITH detalle_calculado AS (
                     SELECT
                         i.nombre_inclinometro,
@@ -727,7 +699,7 @@ class InclinometroModel:
                 SELECT
                     dc.nombre_inclinometro,
                     dc.fecha_inclinometro,
-                    {nivel}-abs(dc.profundidad_detalle) AS profundidad_detalle,
+                    {nivel} - ABS(dc.profundidad_detalle) AS profundidad_detalle,
                     (
                         SUM(
                             ((0.05 * 0.5 * ((dc.apositivo_detalle - dc.anegativo_detalle) * 1.0 / 2 
@@ -769,7 +741,6 @@ class InclinometroModel:
                     dc.profundidad_detalle ASC;
                 """
         try:
-            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, params)
             rows = cur.fetchall()
@@ -784,7 +755,6 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlObtenerPAAB_GKN(tabla, idcomponente, idinstru, fechas, unidadmedida, mrint):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idcomponente] + [idinstru] + fechas
@@ -807,7 +777,6 @@ class InclinometroModel:
                 OVER (PARTITION BY dc.fecha_inclinometro ORDER BY dc.profundidad_detalle DESC) AS posicion_absoluta_b
         FROM detalle_calculado dc
         ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle ASC;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -824,7 +793,6 @@ class InclinometroModel:
             if conn:
                 conn.close()
                 
-    @staticmethod
     def mdlObtenerPANE_GKN(tabla, idcomponente, idinstru, fechas, unidadmedida, alfa, mrint):
         placeholders = ', '.join(['?' for _ in fechas])
         params = [idcomponente] + [idinstru] + fechas
@@ -851,7 +819,6 @@ class InclinometroModel:
                 OVER (PARTITION BY dc.fecha_inclinometro ORDER BY dc.profundidad_detalle DESC) * COS({alfa} * PI() / 180)) AS posicion_absoluta_y
         FROM detalle_calculado dc
         ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle ASC;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -869,10 +836,8 @@ class InclinometroModel:
                 conn.close()
     
     # LISTAR LOS NOMBRES DE LOS INCLINOMETROS POR PROYECTO    
-    @staticmethod
     def mdlListarInclinometrosNombreProyecto(proyecto):
         sql = """SELECT * FROM inclinometros WHERE id_proyecto = ?"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -888,65 +853,54 @@ class InclinometroModel:
         finally:
             if conn:
                 conn.close()
-    
-    @staticmethod
+                
     def mdlRegistrarDataInclinometro(proyectoid, id_inclinometro, fecha_hora, data):
-        conn = None
+        conn = Connection.connectionDB()
         try:
-            conn = Connection.connectionDB()
             cur = conn.cursor()
 
             # Verificar si ya existe un encabezado con la misma fecha y el mismo id_inclinometro
-            # SQL Server: SELECT TOP 1 1 ...
             sql_verificar = """
-            SELECT TOP 1 1 FROM inclinometro_encabezado
+            SELECT 1 FROM inclinometro_encabezado
             WHERE id_inclinometro = ? AND fecha_inclinometro = ?
             """
             cur.execute(sql_verificar, (id_inclinometro, fecha_hora))
             if cur.fetchone():
                 return "duplicado"
 
-            # Insertar en la tabla inclinometro_encabezado
+            # Insertar en la tabla inclinometro_encabezado y obtener el ID
             sql_encabezado = """
             INSERT INTO inclinometro_encabezado (id_inclinometro, fecha_inclinometro)
+            OUTPUT INSERTED.id_encabezado
             VALUES (?, ?)
             """
             cur.execute(sql_encabezado, (id_inclinometro, fecha_hora))
-            
-            # Obtener ID insertado en SQL Server
-            cur.execute("SELECT SCOPE_IDENTITY();")
-            row_id = cur.fetchone()
-            if row_id and row_id[0]:
-                id_encabezado = int(row_id[0])
-            else:
-                conn.rollback()
-                return "error"
+            id_encabezado = cur.fetchone()[0]
 
-            # Crear la tabla inclinometro_detalle si no existe
-            # SQL Server: Sintaxis IF OBJECT_ID IS NULL, IDENTITY(1,1), DECIMAL
+            # Crear la tabla inclinometro_detalle si no existe (SQL Server)
             tabla = f"inclinometro_detalle{proyectoid}"
             sqltable = f"""
-            IF OBJECT_ID('{tabla}', 'U') IS NULL
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '{tabla}')
             BEGIN
-                CREATE TABLE {tabla} (
-                    id_detalle INT IDENTITY(1,1) PRIMARY KEY,
-                    id_encabezado INT NOT NULL,
-                    profundidad_detalle DECIMAL(18, 5) NOT NULL,
-                    apositivo_detalle DECIMAL(18, 5) NOT NULL,
-                    anegativo_detalle DECIMAL(18, 5) NOT NULL,
-                    bpositivo_detalle DECIMAL(18, 5) NOT NULL,
-                    bnegativo_detalle DECIMAL(18, 5) NOT NULL
+                CREATE TABLE [{tabla}] (
+                    [id_detalle] INT IDENTITY(1,1) PRIMARY KEY,
+                    [id_encabezado] INT NOT NULL,
+                    [profundidad_detalle] DECIMAL(18,6) NOT NULL,
+                    [apositivo_detalle] DECIMAL(18,6) NOT NULL,
+                    [anegativo_detalle] DECIMAL(18,6) NOT NULL,
+                    [bpositivo_detalle] DECIMAL(18,6) NOT NULL,
+                    [bnegativo_detalle] DECIMAL(18,6) NOT NULL
                 );
             END
             """
             cur.execute(sqltable)
+            conn.commit()
 
             # Insertar los datos en la tabla inclinometro_detalle
             sql_detalle = f"""
             INSERT INTO {tabla} (id_encabezado, profundidad_detalle, apositivo_detalle, anegativo_detalle, bpositivo_detalle, bnegativo_detalle)
             VALUES (?, ?, ?, ?, ?, ?)
             """
-            # Insertar uno a uno (batch insert seria mejor pero esto mantiene logica original)
             for row in data:
                 cur.execute(sql_detalle, (id_encabezado, row[0], row[1], row[2], row[3], row[4]))
 
@@ -956,19 +910,16 @@ class InclinometroModel:
         except Exception as e:
             print("Error al registrar inclinometros: " + str(e))
             # Realizar rollback en caso de error
-            if conn:
-                conn.rollback()
+            conn.rollback()
             return "error"
         finally:
             if conn:
                 conn.close()
     
     # ACTUALIZAR LECTURA INCLINOMETRO DESDE TABLA      
-    @staticmethod
     def mdlActualizarLecturaInclinometro(tabla, datos, idproyecto, username, nombres):
         sql = f"""UPDATE {tabla} SET apositivo_detalle = ?, anegativo_detalle = ?, bpositivo_detalle = ?, 
         bnegativo_detalle = ? WHERE id_detalle = ?;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -995,9 +946,7 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarInclinometros(idcomponente):
-        conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
@@ -1022,44 +971,40 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarDataInclinometros(tabla, inclinometros):
         placeholders = ','.join(['?' for _ in inclinometros])
+        conn = None
         try:
-            # En pyodbc con 'with' se cierra la conexion, pero la transaccion depende de commit
-            with Connection.connectionDB() as conn:
-                cursor = conn.cursor()
-                query_select = f"""SELECT id_encabezado FROM inclinometro_encabezado WHERE id_inclinometro IN ({placeholders});"""
-                cursor.execute(query_select, tuple(inclinometros))
-                encabezados = [row[0] for row in cursor.fetchall()]
-                if not encabezados:
-                    # Aunque no haya data, eliminamos los equipos
-                    pass 
-                
-                # Eliminar data detalle si hay encabezados
-                if encabezados:
-                    placeholders_encabezados = ','.join(['?' for _ in encabezados])
-                    query_delete_data = f"""DELETE FROM {tabla} WHERE id_encabezado IN ({placeholders_encabezados});"""
-                    cursor.execute(query_delete_data, tuple(encabezados))
-                
-                # Eliminar encabezados
-                query_delete_headers = f"""DELETE FROM inclinometro_encabezado WHERE id_inclinometro IN ({placeholders});"""
-                cursor.execute(query_delete_headers, tuple(inclinometros))
-                
-                # Eliminar inclinómetros
-                query_delete_inclinometros = f"""DELETE FROM inclinometros WHERE id_inclinometro IN ({placeholders});"""
-                cursor.execute(query_delete_inclinometros, tuple(inclinometros))
-                
-                conn.commit()
-                return True
+            conn = Connection.connectionDB()
+            cursor = conn.cursor()
+            query_select = f"""SELECT id_encabezado FROM inclinometro_encabezado WHERE id_inclinometro IN ({placeholders});"""
+            cursor.execute(query_select, tuple(inclinometros))
+            encabezados = [row[0] for row in cursor.fetchall()]
+            if not encabezados:
+                return False
+            
+            placeholders_encabezados = ','.join(['?' for _ in encabezados])
+            query_delete_data = f"""DELETE FROM {tabla} WHERE id_encabezado IN ({placeholders_encabezados});"""
+            cursor.execute(query_delete_data, tuple(encabezados))
+            # Eliminar encabezados
+            query_delete_headers = f"""DELETE FROM inclinometro_encabezado WHERE id_inclinometro IN ({placeholders});"""
+            cursor.execute(query_delete_headers, tuple(inclinometros))
+            # Eliminar inclinómetros
+            query_delete_inclinometros = f"""DELETE FROM inclinometros WHERE id_inclinometro IN ({placeholders});"""
+            cursor.execute(query_delete_inclinometros, tuple(inclinometros))
+            conn.commit()
+            return True
         except Exception as e:
             print(f"Error al eliminar data de inclinometros: {str(e)}")
+            if conn:
+                conn.rollback()
             return False
+        finally:
+            if conn:
+                conn.close()
     
-    @staticmethod
     def mdlObtenerInfoInclinometro(idinstrumento):
         sql = """SELECT i.* FROM inclinometros i INNER JOIN instrumentacion t ON i.id_inclinometro = t.id_equipo WHERE t.id_instrumentacion = ?;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1076,7 +1021,6 @@ class InclinometroModel:
             if conn:
                 conn.close()
 
-    @staticmethod
     def mdlActualizarInclinometro(idproyecto, datos):
         conn = None
         try:
@@ -1131,10 +1075,9 @@ class InclinometroModel:
             if conn:
                 conn.close()
 
-    @staticmethod
+    
     def mdlCambiarComponenteInclinometros(idcomponente, nuevocomponente):
         sql = """UPDATE instrumentacion SET id_componente = ? WHERE id_componente = ? AND tipo_equipo = 'INCLINOMETRO';"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1158,10 +1101,8 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlCambiarInclinometroComponente(idinstrumento, nuevocomponente):
         sql = """UPDATE instrumentacion SET id_componente = ? WHERE id_instrumentacion = ?;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1175,15 +1116,12 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarInclinometroUnico(idinstrumento):
-        conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
             # guardar en historial
-            # SQL Server: TOP 1
-            query_select = """SELECT TOP 1 * FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'INCLINOMETRO';"""
+            query_select = """SELECT * FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'INCLINOMETRO';"""
             cursor.execute(query_select, (idinstrumento,))
             dataincli = cursor.fetchone()
             if dataincli:
@@ -1203,45 +1141,47 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarInclinometroData(tabla, idinstrumento):
+        conn = None
         try:
-            with Connection.connectionDB() as conn:
-                cursor = conn.cursor()
-                query_select = f"""SELECT id_encabezado FROM inclinometro_encabezado WHERE id_inclinometro = ?;"""
-                cursor.execute(query_select, (idinstrumento,))
-                encabezados = [row[0] for row in cursor.fetchall()]
-                
-                if encabezados:
-                    placeholders_encabezados = ','.join(['?' for _ in encabezados])
-                    query_delete_data = f"""DELETE FROM {tabla} WHERE id_encabezado IN ({placeholders_encabezados});"""
-                    cursor.execute(query_delete_data, tuple(encabezados))
-                
-                # Eliminar encabezados
-                query_delete_headers = f"""DELETE FROM inclinometro_encabezado WHERE id_inclinometro = ?;"""
-                cursor.execute(query_delete_headers, (idinstrumento,))
-                # Eliminar inclinómetros
-                query_delete_inclinometros = f"""DELETE FROM inclinometros WHERE id_inclinometro = ?;"""
-                cursor.execute(query_delete_inclinometros, (idinstrumento,))
-                
-                conn.commit()
-                return True
+            conn = Connection.connectionDB()
+            cursor = conn.cursor()
+            query_select = f"""SELECT id_encabezado FROM inclinometro_encabezado WHERE id_inclinometro = ?;"""
+            cursor.execute(query_select, (idinstrumento,))
+            encabezados = [row[0] for row in cursor.fetchall()]
+            if not encabezados:
+                return False
+            
+            placeholders_encabezados = ','.join(['?' for _ in encabezados])
+            query_delete_data = f"""DELETE FROM {tabla} WHERE id_encabezado IN ({placeholders_encabezados});"""
+            cursor.execute(query_delete_data, tuple(encabezados))
+            # Eliminar encabezados
+            query_delete_headers = """DELETE FROM inclinometro_encabezado WHERE id_inclinometro = ?;"""
+            cursor.execute(query_delete_headers, (idinstrumento,))
+            # Eliminar inclinómetros
+            query_delete_inclinometros = """DELETE FROM inclinometros WHERE id_inclinometro = ?;"""
+            cursor.execute(query_delete_inclinometros, (idinstrumento,))
+            conn.commit()
+            return True
         except Exception as e:
             print(f"Error al eliminar data de inclinometro: {str(e)}")
+            if conn:
+                conn.rollback()
             return False
+        finally:
+            if conn:
+                conn.close()
     
-    @staticmethod
     def mdlListarFechasInclinometro(idcomponente, idinstrumento, proyectoid):
-        conn = None
+        conn = Connection.connectionDB()
         sql = """SELECT e.fecha_inclinometro, i.tipo_inclinometro, e.estado_base, e.id_encabezado, e.id_inclinometro
         FROM inclinometro_encabezado e
         INNER JOIN inclinometros i ON i.id_inclinometro = e.id_inclinometro
-		INNER JOIN instrumentacion t ON i.id_inclinometro = t.id_equipo
-		INNER JOIN componentes c ON t.id_componente = c.id_componente
+        INNER JOIN instrumentacion t ON i.id_inclinometro = t.id_equipo
+        INNER JOIN componentes c ON t.id_componente = c.id_componente
         WHERE c.id_proyecto = ? AND t.id_instrumentacion = ? AND c.id_componente = ?
-		ORDER BY e.fecha_inclinometro;"""
+        ORDER BY e.fecha_inclinometro;"""
         try:
-            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (proyectoid, idinstrumento, idcomponente))
             row = cur.fetchall()
@@ -1256,10 +1196,8 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlCambiarBaseInclinometro(idencabezado, idinclinome):
         sql = """UPDATE inclinometro_encabezado SET estado_base = 1 WHERE id_encabezado = ?;"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1276,9 +1214,7 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlCambiarEstadoFechasInclinometro(iddesmarcadas, idinclinometro):
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1298,9 +1234,7 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlEliminarLecturaInclinometro(tabla, idproyecto, idencabezado, idinclinome, username, nombres):
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1328,17 +1262,15 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlObtenerIdIinclinometro(id_intrumentacion):
-        conn = None
-        sql = """SELECT id_equipo FROM instrumentacion WHERE id_instrumentacion=?"""
+        conn = Connection.connectionDB()
+        sql = """SELECT id_equipo FROM instrumentacion WHERE id_instrumentacion = ?"""
         try:
-            conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (id_intrumentacion,))
-            row = cur.fetchone()  # Usamos fetchone() para obtener una sola fila
+            row = cur.fetchone()
             if row:
-                return row[0]  # Devolvemos solo el valor de id_equipo
+                return row[0]
             else:
                 return None
         except Exception as e:
@@ -1349,7 +1281,6 @@ class InclinometroModel:
                 conn.close()
 
     #-----
-    @staticmethod
     def mdlObtenerDAA_RST(tabla, id_inclinometro, unidadmedida):
         sql = f"""
         WITH detalle_calculado AS (
@@ -1379,7 +1310,6 @@ class InclinometroModel:
         WHERE dc.estado_base <> 1 AND dc.fecha_inclinometro >= bv.fecha_base
         ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle DESC;
         """
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1396,7 +1326,6 @@ class InclinometroModel:
             if conn:
                 conn.close()
 
-    @staticmethod
     def mdlObtenerDAA_GKN(tabla, id_inclinometro, unidadmedida):
         sql = f"""
         WITH detalle_calculado AS (
@@ -1426,7 +1355,6 @@ class InclinometroModel:
         WHERE dc.estado_base <> 1 AND dc.fecha_inclinometro >= bv.fecha_base
         ORDER BY dc.fecha_inclinometro ASC, dc.profundidad_detalle DESC;
         """
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1443,13 +1371,12 @@ class InclinometroModel:
             if conn:
                 conn.close()
 
-    @staticmethod
+                
     def mdlObtener_datos_incli_reporte(idcomponente):
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            sql = """SELECT inst.id_equipo,inst.nombre_equipo,incl.tipo_inclinometro FROM instrumentacion inst INNER JOIN inclinometros incl ON inst.id_equipo=incl.id_inclinometro WHERE inst.tipo_equipo='INCLINOMETRO' and inst.id_componente=?"""
+            sql = """SELECT inst.id_equipo, inst.nombre_equipo, incl.tipo_inclinometro FROM instrumentacion inst INNER JOIN inclinometros incl ON inst.id_equipo = incl.id_inclinometro WHERE inst.tipo_equipo = 'INCLINOMETRO' AND inst.id_componente = ?"""
             cur.execute(sql, (idcomponente,))
             resultado = cur.fetchall()
             if resultado:
@@ -1463,12 +1390,10 @@ class InclinometroModel:
             if conn:
                 conn.close()
     
-    @staticmethod
     def mdlTraerDataInclinometro(idinclinometro):
         sql = """SELECT i.id_instrumentacion, i.id_componente, c.nombre_componente FROM instrumentacion i
         INNER JOIN componentes c ON i.id_componente = c.id_componente
         WHERE i.id_equipo = ? AND i.tipo_equipo = 'INCLINOMETRO';"""
-        conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1484,3 +1409,4 @@ class InclinometroModel:
         finally:
             if conn:
                 conn.close()
+    
