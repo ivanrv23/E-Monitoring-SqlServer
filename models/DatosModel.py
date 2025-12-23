@@ -111,7 +111,7 @@ class DatosModel:
     @staticmethod
     def mdlObtenerDataPrismasAmbas(tabla, idzona, tipoequipo, prismas, estado, decimales):
         placeholders = ', '.join(['?' for _ in prismas])
-        params = [idzona] + [tipoequipo] + prismas + [idzona] + [tipoequipo] + prismas
+        params = [idzona] + [tipoequipo] + prismas + [estado] + [idzona] + [tipoequipo] + prismas + [estado]
         
         sql = f"""WITH cte_prisma AS (
             SELECT it.tipo_equipo, p.id_prisma, p.nombre_prisma, p.hora_prisma, este_target, p.norte_target, p.elevacion_target,
@@ -128,7 +128,7 @@ class DatosModel:
             FROM {tabla} AS p INNER JOIN instrumentacion AS it ON it.nombre_equipo = p.nombre_prisma
             INNER JOIN componentes AS co ON co.id_componente = it.id_componente
             WHERE co.id_componente = ? AND it.tipo_equipo = ? AND it.nombre_equipo IN ({placeholders})
-            AND it.estado_instrumentacion = {estado} AND p.estado_prisma = 1
+            AND it.estado_instrumentacion = ? AND p.estado_prisma = 1
         ),
         cte_distancias AS (
             SELECT nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target, distancia_prisma,
@@ -150,31 +150,41 @@ class DatosModel:
                 tiempo_anterior, hora_prisma AS tiempo_actual, row_num
             FROM cte_prisma
         )
-        SELECT it.tipo_equipo, p.nombre_prisma, p.hora_prisma, ROUND(p.este_target, {decimales}) AS este_target,
-            ROUND(p.norte_target, {decimales}) AS norte_target, ROUND(p.elevacion_target, {decimales}) AS elevacion_target,
-            ROUND(p.distancia_prisma, {decimales}), '-' AS DI3D, '-' AS DA3D, '-' AS VI3D, '-' AS VA3D,
+        SELECT it.tipo_equipo, p.nombre_prisma, p.hora_prisma, 
+            ROUND(p.este_target, {decimales}) AS este_target,
+            ROUND(p.norte_target, {decimales}) AS norte_target, 
+            ROUND(p.elevacion_target, {decimales}) AS elevacion_target,
+            ROUND(p.distancia_prisma, {decimales}) AS distancia_prisma, 
+            '-' AS DI3D, '-' AS DA3D, '-' AS VI3D, '-' AS VA3D,
             p.angulo_horizontal, p.angulo_vertical, 'Omitido' AS modo, p.id_prisma
         FROM {tabla} AS p INNER JOIN instrumentacion AS it ON it.nombre_equipo = p.nombre_prisma
         INNER JOIN componentes AS co ON co.id_componente = it.id_componente
         WHERE co.id_componente = ? AND it.tipo_equipo = ? AND it.nombre_equipo IN ({placeholders})
-        AND it.estado_instrumentacion = {estado} AND p.estado_prisma = 0
+        AND it.estado_instrumentacion = ? AND p.estado_prisma = 0
 
         UNION ALL
 
-        SELECT tipo_equipo, nombre_prisma, hora_prisma, ROUND(este_target, {decimales}) AS este_target, ROUND(norte_target, {decimales}) AS norte_target,
-            ROUND(elevacion_target, {decimales}) AS elevacion_target, ROUND(distancia_prisma, {decimales}) AS distancia_prisma,
-            ROUND(DI3D, {decimales}) AS DI3D, ROUND(DA3D, {decimales}) AS DA3D,
-            CASE 
-                WHEN row_num = 1 THEN 0
-                ELSE 
-                    ROUND((DA3D - LAG(DA3D) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma))
-                    / NULLIF(DATEDIFF(SECOND, tiempo_anterior, tiempo_actual) / 86400.0, 0), {decimales})
-            END AS VI3D,
-            CASE
-                WHEN row_num = 1 THEN 0
-                ELSE 
-                    ROUND(DA3D / NULLIF(DATEDIFF(SECOND, tiempo_inicial, tiempo_actual) / 86400.0, 0) , {decimales})
-            END AS VA3D, angulo_horizontal, angulo_vertical, 'Activo' AS modo, id_prisma
+        SELECT tipo_equipo, nombre_prisma, hora_prisma, 
+            ROUND(este_target, {decimales}), ROUND(norte_target, {decimales}),
+            ROUND(elevacion_target, {decimales}), ROUND(distancia_prisma, {decimales}),
+            CAST(ROUND(DI3D, {decimales}) AS VARCHAR(50)) AS DI3D, 
+            CAST(ROUND(DA3D, {decimales}) AS VARCHAR(50)) AS DA3D,
+            CAST(
+                CASE 
+                    WHEN row_num = 1 THEN 0
+                    ELSE 
+                        ROUND((DA3D - LAG(DA3D) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma))
+                        / NULLIF(DATEDIFF(SECOND, tiempo_anterior, tiempo_actual) / 86400.0, 0), {decimales})
+                END 
+            AS VARCHAR(50)) AS VI3D,
+            CAST(
+                CASE
+                    WHEN row_num = 1 THEN 0
+                    ELSE 
+                        ROUND(DA3D / NULLIF(DATEDIFF(SECOND, tiempo_inicial, tiempo_actual) / 86400.0, 0), {decimales})
+                END 
+            AS VARCHAR(50)) AS VA3D, 
+            angulo_horizontal, angulo_vertical, 'Activo' AS modo, id_prisma
         FROM cte_distancias ORDER BY nombre_prisma, hora_prisma;"""
         
         conn = None
@@ -183,13 +193,17 @@ class DatosModel:
             cur = conn.cursor()
             cur.execute(sql, params)
             results = cur.fetchall()
-            return results if results else None
+            # CORRECCION AQUI: Convertir a tuplas para que Pandas lo entienda
+            if results:
+                return [tuple(row) for row in results]
+            else:
+                return None
         except Exception as e:
             print("Error al obtener data prismas ambas:", e)
             return None
         finally:
             if conn: conn.close()
-    
+
     @staticmethod
     def mdlObtenerInclinometros(proyecto_id, idzona, inclinometros, decimales):
         placeholders = ', '.join(['?' for _ in inclinometros])
@@ -1794,7 +1808,10 @@ class DatosModel:
                 tiempo_anterior, hora_prisma AS tiempo_actual, row_num
             FROM cte_prisma
         )
-        SELECT nombre_prisma, CAST(hora_prisma AS DATE) AS fecha, CAST(hora_prisma AS TIME) AS hora, este_target,
+        SELECT nombre_prisma, 
+            CAST(hora_prisma AS DATE) AS fecha, 
+            CAST(hora_prisma AS TIME) AS hora, 
+            este_target,
             norte_target, elevacion_target, distancia_prisma, DI3D, DA3D,
             CASE 
                 WHEN row_num = 1 THEN 0
@@ -1815,13 +1832,17 @@ class DatosModel:
             cur = conn.cursor()
             cur.execute(sql, params)
             results = cur.fetchall()
-            return results if results else None
+            # CORRECCION AQUI: Convertir a tuplas
+            if results:
+                return [tuple(row) for row in results]
+            else:
+                return None
         except Exception as e:
             print("Error al obtener data prismas ambas: ", e)
             return None
         finally:
             if conn: conn.close()
-    
+            
     @staticmethod
     def mdlObtenerInfoExportarInclinometro(idcomponente, tipoequipo, idinstrumento):
         conn = None
