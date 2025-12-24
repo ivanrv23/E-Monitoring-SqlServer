@@ -61,7 +61,7 @@ class DatosModel:
         SELECT tipo_equipo, nombre_prisma, hora_prisma, ROUND(este_target, {decimales}) AS este_target,
             ROUND(norte_target, {decimales}) AS norte_target, ROUND(elevacion_target, {decimales}) AS elevacion_target,
             ROUND(distancia_prisma, {decimales}) AS distancia_prisma,
-            CASE 
+            CAST(CASE 
                 WHEN row_num = 1 THEN 0 
                 ELSE 
                     ROUND(SQRT(
@@ -69,13 +69,15 @@ class DatosModel:
                         POWER(norte_target - norte_anterior, 2) +
                         POWER(elevacion_target - elevacion_anterior, 2)
                     ) * 100, {decimales})
-            END AS DI3D,
-            ROUND(SQRT(
+            END AS VARCHAR(50)) AS DI3D,
+            
+            CAST(ROUND(SQRT(
                 POWER(este_target - este_inicial, 2) +
                 POWER(norte_target - norte_inicial, 2) +
                 POWER(elevacion_target - elevacion_inicial, 2)
-            ) * 100, {decimales}) AS DA3D,
-            CASE 
+            ) * 100, {decimales}) AS VARCHAR(50)) AS DA3D,
+            
+            CAST(CASE 
                 WHEN row_num = 1 THEN 0 
                 ELSE 
                     ROUND(SQRT(
@@ -83,8 +85,9 @@ class DatosModel:
                         POWER(norte_target - norte_anterior, 2) +
                         POWER(elevacion_target - elevacion_anterior, 2)
                     ) * 100 / NULLIF(DATEDIFF(SECOND, tiempo_anterior, hora_prisma) / 86400.0, 0), {decimales})
-            END AS VI3D,
-            CASE 
+            END AS VARCHAR(50)) AS VI3D,
+            
+            CAST(CASE 
                 WHEN row_num = 1 THEN 0
                 ELSE 
                     ROUND((SQRT(
@@ -92,7 +95,9 @@ class DatosModel:
                         POWER(norte_target - norte_inicial, 2) +
                         POWER(elevacion_target - elevacion_inicial, 2)
                     ) * 100) / NULLIF(DATEDIFF(SECOND, tiempo_inicial, hora_prisma) / 86400.0, 0), {decimales})
-            END AS VA3D, angulo_horizontal, angulo_vertical, 'Activo' AS modo, id_prisma
+            END AS VARCHAR(50)) AS VA3D, 
+            
+            angulo_horizontal, angulo_vertical, 'Activo' AS modo, id_prisma
         FROM cte_prisma ORDER BY nombre_prisma, hora_prisma;"""
         
         conn = None
@@ -193,17 +198,13 @@ class DatosModel:
             cur = conn.cursor()
             cur.execute(sql, params)
             results = cur.fetchall()
-            # CORRECCION AQUI: Convertir a tuplas para que Pandas lo entienda
-            if results:
-                return [tuple(row) for row in results]
-            else:
-                return None
+            return results if results else None
         except Exception as e:
             print("Error al obtener data prismas ambas:", e)
             return None
         finally:
             if conn: conn.close()
-
+            
     @staticmethod
     def mdlObtenerInclinometros(proyecto_id, idzona, inclinometros, decimales):
         placeholders = ', '.join(['?' for _ in inclinometros])
@@ -255,24 +256,24 @@ class DatosModel:
             ROUND(d.temperatura_cuerda, {decimales}) AS temperatura_cuerda,
             CASE 
                 WHEN d.estado_cuerda = 1 THEN
-                    ROUND(d.presion_barometrica, {decimales})
+                    CAST(ROUND(d.presion_barometrica, {decimales}) AS VARCHAR(50))
                 ELSE '-'
             END AS presion_barometrica,
             CASE 
                 WHEN d.estado_cuerda = 1 THEN
-                    ROUND(CASE 
+                    CAST(ROUND(CASE 
                         WHEN p.tipo_piezometro = 1 THEN d.medida_calculada 
                         ELSE d.medida_calculada - p.elevacion_piezometro 
-                    END, {decimales})
+                    END, {decimales}) AS VARCHAR(50))
                 ELSE '-'
             END AS MCA,
             ROUND(p.elevacion_piezometro, {decimales}) AS instalacion,
             CASE 
                 WHEN d.estado_cuerda = 1 THEN
-                    ROUND(CASE 
+                    CAST(ROUND(CASE 
                         WHEN p.tipo_piezometro = 1 THEN p.elevacion_piezometro + d.medida_calculada
                         ELSE d.medida_calculada
-                    END, {decimales})
+                    END, {decimales}) AS VARCHAR(50))
                 ELSE '-'
             END AS nivel_agua, ROUND(p.este_piezometro, {decimales}) AS este_piezometro, ROUND(p.norte_piezometro, {decimales}) AS norte_piezometro,
             ROUND(COALESCE(
@@ -336,17 +337,17 @@ class DatosModel:
         SELECT tipo_equipo, nombre_piezometro, fecha_cuerda, frecuencia_cuerda, temperatura_cuerda,
             CASE 
                 WHEN estado_cuerda = 1 THEN
-                    ROUND(presion_barometrica, {decimales})
+                    CAST(ROUND(presion_barometrica, {decimales}) AS VARCHAR(50))
                 ELSE '-'
             END AS presion,
             CASE 
                 WHEN estado_cuerda = 1 THEN
-                    ROUND((presion_barometrica * factor_conversion), {decimales})
+                    CAST(ROUND((presion_barometrica * factor_conversion), {decimales}) AS VARCHAR(50))
                 ELSE '-'
             END AS MCA, instalacion,
             CASE 
                 WHEN estado_cuerda = 1 THEN
-                    ROUND((instalacion + (presion_barometrica * factor_conversion)), {decimales})
+                    CAST(ROUND((instalacion + (presion_barometrica * factor_conversion)), {decimales}) AS VARCHAR(50))
                 ELSE '-'
             END AS nivel_agua,
             este_piezometro, norte_piezometro, elevacion, fundacion_piezometro,
@@ -367,7 +368,7 @@ class DatosModel:
             return None
         finally:
             if conn: conn.close()
-    
+            
     @staticmethod
     def mdlObtenerPiezometrosManuales(proyecto_id, idzona, piezometros, decimales):
         placeholders = ', '.join(['?' for _ in piezometros])
@@ -401,10 +402,10 @@ class DatosModel:
             ROUND(stickup_piezometro + elevacion - instalacion, {decimales}) AS profundidad, ROUND(elevacion, {decimales}) AS elevacion,
             CASE
                 WHEN estado_manual = 1 THEN 
-                    ROUND(CASE
+                    CAST(ROUND(CASE
                         WHEN tipo_piezometro = 1 THEN stickup_piezometro + elevacion - medida_piezometro
                         ELSE medida_piezometro
-                    END, {decimales})
+                    END, {decimales}) AS VARCHAR(50))
                 ELSE '-'
             END AS nivel_agua, ROUND(stickup_piezometro, {decimales}) AS stickup_piezometro, ROUND(este_piezometro, {decimales}) AS este_piezometro,
             ROUND(norte_piezometro, {decimales}) AS norte_piezometro, ROUND(instalacion, {decimales}) AS instalacion,
@@ -426,7 +427,7 @@ class DatosModel:
             return None
         finally:
             if conn: conn.close()
-    
+            
     @staticmethod
     def mdlObtenerPluviometros(proyecto_id, idzona, pluviometros, decimales):
         placeholders = ', '.join(['?' for _ in pluviometros])
@@ -485,7 +486,8 @@ class DatosModel:
             ROUND(cd.frecuencia_hz, {decimales}) AS frecuencia_hz, ROUND(cd.temperatura_detalle, {decimales}) AS temperatura_detalle,
             ROUND(cd.medida_calculada, {decimales}) AS medida_calculada,
             CASE 
-                WHEN cd.estado_detalle = 1 THEN ROUND(ca.instalacion_celda - abs(cd.medida_calculada), {decimales})
+                WHEN cd.estado_detalle = 1 THEN 
+                    CAST(ROUND(ca.instalacion_celda - abs(cd.medida_calculada), {decimales}) AS VARCHAR(50))
                 ELSE '-'
             END AS cota_piezometrica, ROUND(ca.instalacion_celda, {decimales}) AS instalacion_celda, ROUND(ca.rango_celda, {decimales}) AS rango_celda,
             ROUND(ca.este_celda, {decimales}) AS este_celda, ROUND(ca.norte_celda, {decimales}) AS norte_celda, ROUND(ca.fundacion_celda, {decimales}) AS fundacion_celda,
@@ -516,7 +518,7 @@ class DatosModel:
             return None
         finally:
             if conn: conn.close()
-
+            
     @staticmethod
     def mdlObtenerAcelerografos(proyecto_id, idzona, acelerografos, decimales):
         placeholders = ', '.join(['?' for _ in acelerografos])

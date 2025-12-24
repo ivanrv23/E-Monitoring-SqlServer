@@ -376,6 +376,13 @@ class PiezometroController:
         return alturas_incrementales, alturas_acumuladas
     
     def ctrlCalcularCoordenadas3d(este, norte, nivel, inclinacion, azimuth, profundidad):
+        este = float(este)
+        norte = float(norte)
+        nivel = float(nivel)
+        profundidad = float(profundidad)
+        inclinacion = float(inclinacion)
+        azimuth = float(azimuth)
+        # 
         inclination_rad = inclinacion * np.pi / 180
         azimuth_rad = azimuth * np.pi / 180
         dir_x = np.cos(inclination_rad) * np.cos(azimuth_rad)

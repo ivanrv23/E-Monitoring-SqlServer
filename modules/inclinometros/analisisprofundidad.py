@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.dates as mdates
 from datetime import datetime, date
+import datetime as dt_module
 from matplotlib.dates import DateFormatter
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFileDialog, QLabel, QPushButton, QComboBox, QSpinBox, QWidget, QDoubleSpinBox)
 from utils.common.rutasarchivos import resource_path
@@ -109,7 +110,10 @@ class AnalisisProfundidad:
                     nombrecomponente, idcomponente, idproy = componente
                     for nombreincli, idinstru, fechas in listainclinometros:
                         tabla = f"inclinometro_detalle{idproyecto}"
-                        fechitas = ast.literal_eval(fechas)
+                        # fechitas = ast.literal_eval(fechas)
+                        contexto_seguro = {'datetime': dt_module}
+                        # Usamos eval porque ast.literal_eval no soporta objetos datetime
+                        fechitas = eval(fechas, {"__builtins__": None}, contexto_seguro)
                         if tipoincli == "RST":
                             if graficatipo == 'DIA':
                                 posicion = "CampoA"

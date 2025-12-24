@@ -2,6 +2,7 @@ import fitz  # PyMuPDF
 import os
 import shutil
 import win32com.client
+import pythoncom
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (QPushButton, QFrame, QWidget, QScrollArea, QVBoxLayout, QLabel, QLineEdit, QMessageBox,
                         QRadioButton, QFileDialog, QTabWidget, QComboBox, QDialog, QHBoxLayout, QDateEdit, QTextEdit, QPlainTextEdit)
@@ -332,40 +333,59 @@ class ReporteView:
             else:
                 print('Historial de Reportes')
 
+    @staticmethod
     def convertir_docx_a_pdf(input_file, output_file):
+        # 1. Inicializar COM para este hilo (OBLIGATORIO)
+        pythoncom.CoInitialize()
+
         input_path = os.path.abspath(resource_path(input_file))
         output_path = os.path.abspath(resource_path(output_file))
-
-        # Inicializar la aplicación de Word en segundo plano
-        word = win32com.client.Dispatch("Word.Application")
-        word.Visible = False  # Hacer que Word sea invisible
-        word.DisplayAlerts = False  # Desactivar alertas visuales
-
+        
+        word = None
         try:
+            # Inicializar Word
+            word = win32com.client.Dispatch("Word.Application")
+            
+            # 2. Protección contra el error de visibilidad
+            try:
+                word.Visible = False
+                word.DisplayAlerts = False
+            except Exception:
+                pass # Si falla ocultarse, ignoramos el error y seguimos
+
             # Abrir el archivo .docx
             doc = word.Documents.Open(input_path)
 
-            # Configurar la resolución de las imágenes para mantener la calidad
+            # Exportar a PDF
             doc.ExportAsFixedFormat(
                 OutputFileName=output_path,
-                ExportFormat=17,  # 17 es el formato PDF
+                ExportFormat=17,  # 17 es PDF
                 OpenAfterExport=False,
-                OptimizeFor=0,  # 0 es para calidad de impresión
-                Item=7,  # 7 es para exportar todo el documento
+                OptimizeFor=0,
+                Item=7,
                 IncludeDocProps=True,
                 KeepIRM=True,
-                CreateBookmarks=1,  # 1 es para crear marcadores
+                CreateBookmarks=1,
                 DocStructureTags=True,
                 BitmapMissingFonts=True,
                 UseISO19005_1=False
             )
             doc.Close(False)
             return True
+
         except Exception as e:
+            print(f"Error convirtiendo PDF: {e}")
             return False
+            
         finally:
-            # Asegurarse de cerrar la aplicación de Word
-            word.Quit()
+            # Asegurarse de cerrar Word si se abrió
+            if word:
+                try:
+                    word.Quit()
+                except Exception:
+                    pass
+            # 3. Liberar recursos COM del hilo (OBLIGATORIO)
+            pythoncom.CoUninitialize()
     
     def guardarReportesDatabase(main):
         if ReporteView.idproyecto:

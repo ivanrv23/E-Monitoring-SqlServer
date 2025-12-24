@@ -10,6 +10,7 @@ from PySide6.QtGui import QColor, QDoubleValidator
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from datetime import datetime
+import datetime as dt_module 
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QComboBox, QTreeWidget, QPushButton, QSlider, QStackedWidget,
                                QDialog, QGridLayout, QLineEdit, QLabel, QColorDialog, QHBoxLayout, QApplication)
@@ -1394,7 +1395,12 @@ class VisorView:
                     linea.SetVisibility(False)
                     for compon, inclinos in inclinometrofechasmarcados:
                         for nombreincli, idinstrume, fechas in inclinos:
-                            listafechas = ast.literal_eval(fechas)
+                            # listafechas = ast.literal_eval(fechas)
+                            # Le decimos a eval que cuando lea "datetime" en el texto, use el MÓDULO, no la clase.
+                            contexto_seguro = {'datetime': dt_module}
+                            
+                            # Convertimos el texto a objetos reales
+                            listafechas = eval(fechas, {"__builtins__": None}, contexto_seguro)
                             for fech in listafechas:
                                 if str(fecha) == str(fech) and str(idcomponen) == compon[1] and str(idinstru) == idinstrume:
                                     linea.SetVisibility(True)
@@ -1535,7 +1541,13 @@ class VisorView:
             ids_graficados = {codinstru for idcompo, codinstru, fecha, linea in VisorView.inclinometrolineas}
             for inclinome, fechitas, idinstru in listainclinometros:
                 if idinstru not in ids_graficados: # verificar si ya está graficado
-                    fechas = ast.literal_eval(fechitas)
+                    # fechas = ast.literal_eval(fechitas)
+                     # Le decimos a eval que cuando lea "datetime" en el texto, use el MÓDULO, no la clase.
+                    contexto_seguro = {'datetime': dt_module}
+                    
+                    # Convertimos el texto a objetos reales
+                    fechas = eval(fechitas, {"__builtins__": None}, contexto_seguro)
+                    
                     idinclino = inclinome[0]
                     idencabeza = inclinome[1]
                     nameincli = inclinome[2]
@@ -1681,7 +1693,7 @@ class VisorView:
                                     profundidad = distancia
                                     if lectura > 0: # tiene agua
                                         if distancia > lectura: # con agua y sin agua
-                                            depth = -(profundidad - lectura)
+                                            depth = -(float(profundidad) - float(lectura))
                                             xsinagua, ysinagua, zsinagua = PiezometroController.ctrlCalcularCoordenadas3d(estesup, nortesup, superficie, inclinacion, azimuth, depth)
                                         else: # solo agua
                                             dibujo = 2
