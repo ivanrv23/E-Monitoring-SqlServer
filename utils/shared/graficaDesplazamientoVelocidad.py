@@ -87,16 +87,24 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     ax = None
     ax2 = None
     avisolabels = False
+    
+    # --- CORRECCIÓN SQL SERVER: Validar tipo de dato antes de convertir ---
     if fecha_inicio:
-        fecha_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d %H:%M:%S')
-        fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d %H:%M:%S')
+        if isinstance(fecha_inicio, str):
+            fecha_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d %H:%M:%S')
+    if fecha_fin:
+        if isinstance(fecha_fin, str):
+            fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d %H:%M:%S')
+    # ----------------------------------------------------------------------
+
     # Crear el DataFrame con las columnas necesarias
     df = pd.DataFrame(data, columns=['col_' + str(i) for i in range(len(data[0]))])
     df = df[[df.columns[0], df.columns[idx_nombre], df.columns[2], df.columns[idx_fecha], df.columns[idx_lectura], df.columns[-1]]]
     df.columns = ['Instrumento', 'Equipo', 'Tiempo', 'Fecha', tipo, 'TipoPrisma']
 
     if tiempo == "FECHA":
-        df['Fecha'] = pd.to_datetime(df['Fecha'])
+        # pd.to_datetime maneja bien str y datetime, no necesita cambio
+        df['Fecha'] = pd.to_datetime(df['Fecha']) 
         if fecha_inicio is None:
             fecha_inicio = df['Fecha'].min()
             fecha_fin = df['Fecha'].max()
@@ -107,7 +115,14 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
             fecha_inicio = df['Fecha'].min()
             fecha_fin = df['Fecha'].max()
         else:
-            fechainiproyecto = datetime.strptime(df['Tiempo'].min(), '%Y-%m-%d %H:%M:%S')
+            # --- CORRECCIÓN SQL SERVER: La columna 'Tiempo' puede venir como objeto ---
+            val_min_tiempo = df['Tiempo'].min()
+            if isinstance(val_min_tiempo, str):
+                fechainiproyecto = datetime.strptime(val_min_tiempo, '%Y-%m-%d %H:%M:%S')
+            else:
+                fechainiproyecto = val_min_tiempo # Ya es datetime
+            # ------------------------------------------------------------------------
+            
             if tiempo == "HORA":
                 unidtiempo = 24
             else:
@@ -515,9 +530,16 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
     ax = None
     ax2 = None
     avisolabels = False
+    
+    # --- CORRECCIÓN SQL SERVER: Validar tipo de dato antes de convertir ---
     if fecha_inicio:
-        fecha_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d %H:%M:%S')
-        fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d %H:%M:%S')
+        if isinstance(fecha_inicio, str):
+            fecha_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d %H:%M:%S')
+    if fecha_fin:
+        if isinstance(fecha_fin, str):
+            fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d %H:%M:%S')
+    # ----------------------------------------------------------------------
+    
     # Convertir fechas a datetime y asignar valores por defecto
     ejeymin, ejeymax, ejeyprin, ejeysecu, intervalo_dias = 0, 0, 0, 0, 0
     if data:
@@ -538,7 +560,14 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                 fecha_inicio = df['Fecha'].min()
                 fecha_fin = df['Fecha'].max()
             else: # con zoom
-                fechainiproyecto = datetime.strptime(df['Tiempo'].min(), '%Y-%m-%d %H:%M:%S')
+                # --- CORRECCIÓN SQL SERVER: La columna 'Tiempo' puede venir como objeto ---
+                val_min_tiempo = df['Tiempo'].min()
+                if isinstance(val_min_tiempo, str):
+                    fechainiproyecto = datetime.strptime(val_min_tiempo, '%Y-%m-%d %H:%M:%S')
+                else:
+                    fechainiproyecto = val_min_tiempo
+                # ------------------------------------------------------------------------
+                
                 if tiempo == "HORA":
                     unidtiempo = 24
                 else:
@@ -804,7 +833,13 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                         fecha_inicio = df_terreno['Dias'].min()
                         fecha_fin = df_terreno['Dias'].max()
                     else: # con zoom
-                        fechainiproyecto = datetime.strptime(df_terreno['Dias'].min(), '%Y-%m-%d %H:%M:%S')
+                        # --- CORRECCIÓN SQL SERVER ---
+                        val_min_tiempo = df_terreno['Dias'].min()
+                        if isinstance(val_min_tiempo, str):
+                            fechainiproyecto = datetime.strptime(val_min_tiempo, '%Y-%m-%d %H:%M:%S')
+                        else:
+                            fechainiproyecto = val_min_tiempo
+                        # ----------------------------
                         unidtiempo = 1
                         difdiasini = fecha_inicio - fechainiproyecto
                         fecha_inicio = difdiasini.days * unidtiempo
@@ -817,7 +852,13 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                         fecha_inicio = df_terreno['Horas'].min()
                         fecha_fin = df_terreno['Horas'].max()
                     else: # con zoom
-                        fechainiproyecto = datetime.strptime(df_terreno['Horas'].min(), '%Y-%m-%d %H:%M:%S')
+                        # --- CORRECCIÓN SQL SERVER ---
+                        val_min_tiempo = df_terreno['Horas'].min()
+                        if isinstance(val_min_tiempo, str):
+                            fechainiproyecto = datetime.strptime(val_min_tiempo, '%Y-%m-%d %H:%M:%S')
+                        else:
+                            fechainiproyecto = val_min_tiempo
+                        # ----------------------------
                         unidtiempo = 24
                         difdiasini = fecha_inicio - fechainiproyecto
                         fecha_inicio = difdiasini.days * unidtiempo
@@ -1061,10 +1102,17 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
 
 def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, labelejex, labelejey, titulo, tiempo, tipo, idproyecto, fecha_inicio=None, fecha_fin=None):
     avisolabels = False
+    
+    # --- CORRECCIÓN SQL SERVER: Validar tipo de dato antes de convertir ---
     if tiempo == "FECHA":
         if fecha_inicio:
-            fecha_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d %H:%M:%S')
-            fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d %H:%M:%S')
+            if isinstance(fecha_inicio, str):
+                fecha_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d %H:%M:%S')
+        if fecha_fin:
+            if isinstance(fecha_fin, str):
+                fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d %H:%M:%S')
+    # ----------------------------------------------------------------------
+    
     # Convertir fechas a datetime y asignar valores por defecto
     df = pd.DataFrame(data, columns=['col_' + str(i) for i in range(len(data[0]))])
     df = df[[df.columns[0], df.columns[idx_nombre], df.columns[idx_fecha], df.columns[idx_lectura]]]
