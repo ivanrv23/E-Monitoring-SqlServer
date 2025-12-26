@@ -143,17 +143,12 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     if tiempo == "FECHA":
         total_dias = (fecha_fin - fecha_inicio).days
     else:
-        # Aquí total_dias ya está en Horas o Días según la conversión anterior
         total_dias = (fecha_fin - fecha_inicio)
-
-    # --- CORRECCIÓN APLICADA AQUÍ ---
     if intervalo_dias == 0:
         if tiempo == "HORA":
-            # Eliminado el (* 24) redundante porque total_dias ya está en horas
-            intervalo_dias = total_dias / 10 
+            intervalo_dias = (total_dias / 10) * 24
         else:
             intervalo_dias = total_dias / 10
-            
     limpiar_widget(widget)
 
     config = SoftwareConfiguracion.obtenerDataSoftware()
@@ -593,15 +588,11 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
         total_dias = (fecha_fin - fecha_inicio).days
     else:
         total_dias = (fecha_fin - fecha_inicio)
-        
-    # --- CORRECCIÓN APLICADA AQUÍ ---
     if intervalo_dias == 0:
         if tiempo == "HORA":
-            # Eliminado el (* 24) redundante porque total_dias ya está en horas
-            intervalo_dias = total_dias / 10
+            intervalo_dias = (total_dias / 10) * 24
         else:
             intervalo_dias = total_dias / 10
-
     # Limpiar el widget
     limpiar_widget(widget)
     config = SoftwareConfiguracion.obtenerDataSoftware()
