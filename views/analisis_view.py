@@ -4,7 +4,7 @@ from datetime import datetime
 from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox,
                                QScrollArea, QMessageBox, QStackedWidget,QFormLayout,QLineEdit,QHBoxLayout,QDialog,QVBoxLayout,QSplitter,QGroupBox,QRubberBand,QToolTip)
 from PySide6.QtCore import Qt,QPoint, QRect, QSize, QEvent, QPointF
-from PySide6.QtGui import QDoubleValidator
+from PySide6.QtGui import QDoubleValidator,QShortcut, QKeySequence
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from modules.analisis.graficarTrayectoriaEstereografia import GraficarEstereografiaTrayectoria
 from modules.analisis.registroestereografia import RegistroEstereografia
@@ -1986,12 +1986,23 @@ class TimeSeriesInspector(QDialog):
         self.setWindowTitle("Limpieza Manual de Series Temporales")
         self.resize(1000, 650)
 
+        # --- GESTIÓN DE ESTADO (DESHACER) ---
         self.marked_indices = set()
+        self.history_stack = []  # Pila para el historial
 
-        # Datos
+        # --- DATOS (Híbrido SQLite/SQLServer) ---
         self.data = data
         self.ids = [item[0] for item in self.data]
-        self.dates = [datetime.strptime(item[2], '%Y-%m-%d %H:%M:%S') for item in self.data]
+        
+        # Validación robusta de fechas (String vs Datetime)
+        self.dates = []
+        for item in self.data:
+            raw_date = item[2]
+            if isinstance(raw_date, str):
+                self.dates.append(datetime.strptime(raw_date, '%Y-%m-%d %H:%M:%S'))
+            else:
+                self.dates.append(raw_date)
+
         self.values = np.array([item[3] for item in self.data], dtype=float)
         self.timestamps = np.array([dt.timestamp() for dt in self.dates], dtype=float)
 
@@ -1999,9 +2010,13 @@ class TimeSeriesInspector(QDialog):
         layout = QVBoxLayout(self)
 
         # Ejes personalizados
-        date_axis = DateAxis(orientation='bottom')
-        decimal_axis = DecimalAxis(orientation='left')
-        self.plot_widget = pg.PlotWidget(axisItems={'bottom': date_axis, 'left': decimal_axis})
+        try:
+            date_axis = DateAxis(orientation='bottom')
+            decimal_axis = DecimalAxis(orientation='left')
+            self.plot_widget = pg.PlotWidget(axisItems={'bottom': date_axis, 'left': decimal_axis})
+        except NameError:
+            self.plot_widget = pg.PlotWidget(axisItems={'bottom': pg.DateAxisItem()})
+
         layout.addWidget(self.plot_widget)
 
         # Estilo gráfico
@@ -2020,37 +2035,46 @@ class TimeSeriesInspector(QDialog):
             name="Serie"
         )
 
-        # Puntos (sin omitir ninguno)
-        self.scatter = pg.ScatterPlotItem(
-            x=self.timestamps,
-            y=self.values,
-            pen=pg.mkPen(None),
-            brush=pg.mkBrush(0, 0, 255, 150),
-            size=8,
-            symbol='o'
-        )
+        # --- PUNTOS INTELIGENTES ---
+        self.scatter = pg.ScatterPlotItem(size=8, symbol='o', pen=pg.mkPen(None))
+        
+        points_data = []
+        base_brush = pg.mkBrush(0, 0, 255, 150)
+        
+        # Preparamos los puntos guardando su índice original en 'data' para precisión
+        for i, (ts, val) in enumerate(zip(self.timestamps, self.values)):
+            points_data.append({
+                'pos': (ts, val),
+                'data': i,  # Guardamos el índice real aquí
+                'brush': base_brush
+            })
+        self.scatter.addPoints(points_data)
         self.plot_widget.addItem(self.scatter)
 
-        # Controles inferiores
+        # --- ATAJOS DE TECLADO (Invisible) ---
+        # Ctrl+Z para deshacer (Requiere: from PyQt6.QtGui import QShortcut, QKeySequence)
+        self.undo_shortcut = QShortcut(QKeySequence("Ctrl+Z"), self)
+        self.undo_shortcut.activated.connect(self.undo_last_action)
+
+        # --- CONTROLES INFERIORES ---
         control_layout = QHBoxLayout()
         layout.addLayout(control_layout)
 
-        self.info_label = QLabel("Seleccione puntos con Ctrl+Click arrastrando o Click individual.")
+        self.info_label = QLabel("Seleccionados: 0 puntos")
         control_layout.addWidget(self.info_label)
 
+        # Instrucciones actualizadas
         self.instructions_label = QLabel(
-            "Instrucciones:\n"
-            "- Click individual para seleccionar o deseleccionar un punto.\n"
-            "- Ctrl + Click y arrastrar para seleccionar múltiples puntos."
+            "Instrucciones: Click para marcar. Ctrl+Arrastrar para área. (Ctrl+Z para deshacer)."
         )
-        self.instructions_label.setWordWrap(True)
+        self.instructions_label.setStyleSheet("color: gray; font-style: italic;")
         control_layout.addWidget(self.instructions_label)
-
+        
         btn_confirm = QPushButton("Confirmar")
         btn_confirm.clicked.connect(self.confirm_selection)
         control_layout.addWidget(btn_confirm)
 
-        # Selección múltiple con rectángulo
+        # Herramienta de selección (Rectángulo)
         self.rubberBand = QRubberBand(QRubberBand.Shape.Rectangle, self.plot_widget)
         self.origin = QPoint()
         self.selecting = False
@@ -2060,29 +2084,52 @@ class TimeSeriesInspector(QDialog):
         self.scatter.sigClicked.connect(self.on_point_clicked)
         self.plot_widget.scene().sigMouseMoved.connect(self.on_mouse_moved)
 
-    # --- Métodos principales ---
+    # --- LÓGICA DE DESHACER ---
+
+    def save_state(self):
+        """Guarda una copia de los índices marcados antes de modificar."""
+        self.history_stack.append(set(self.marked_indices))
+        if len(self.history_stack) > 20: # Límite de memoria
+            self.history_stack.pop(0)
+
+    def undo_last_action(self):
+        """Restaura el estado anterior."""
+        if not self.history_stack:
+            return
+        
+        prev_state = self.history_stack.pop()
+        self.marked_indices = prev_state
+        self.update_plot_colors()
+
+    # --- MÉTODOS PRINCIPALES ---
 
     def update_plot_colors(self):
-        """Optimizado: genera solo 2 brushes y los asigna por lote."""
+        """Actualiza los colores basado en los índices marcados."""
         brushes = np.full(len(self.timestamps), pg.mkBrush(0, 0, 255, 150), dtype=object)
         if self.marked_indices:
-            for idx in self.marked_indices:
-                brushes[idx] = pg.mkBrush(255, 0, 0)
+            indices = list(self.marked_indices)
+            brushes[indices] = pg.mkBrush(255, 0, 0) # Rojo para seleccionados
+        
         self.scatter.setBrush(brushes.tolist())
         self.info_label.setText(f"Seleccionados: {len(self.marked_indices)} puntos")
 
     def on_point_clicked(self, plot, points):
+        """Selección precisa usando el índice guardado en el punto."""
+        self.save_state() # Guardar para deshacer
+        changed = False
+        
         for pt in points:
-            idx_array = np.where(
-                (self.timestamps == pt.pos().x()) & (self.values == pt.pos().y())
-            )[0]
-            if len(idx_array) > 0:
-                idx = idx_array[0]
-                if idx in self.marked_indices:
-                    self.marked_indices.remove(idx)
-                else:
-                    self.marked_indices.add(idx)
-        self.update_plot_colors()
+            idx = pt.data() # Recuperamos el índice original
+            if idx is None: continue
+
+            if idx in self.marked_indices:
+                self.marked_indices.remove(idx)
+            else:
+                self.marked_indices.add(idx)
+            changed = True
+            
+        if changed:
+            self.update_plot_colors()
 
     def eventFilter(self, obj, event):
         if obj is self.plot_widget.viewport():
@@ -2108,35 +2155,61 @@ class TimeSeriesInspector(QDialog):
         return super().eventFilter(obj, event)
 
     def select_points_in_rect(self, rect):
+        """Selección rectangular corregida usando mapToScene (Precisión visual)."""
+        if rect.width() < 2 and rect.height() < 2: return
+
+        self.save_state() # Guardar para deshacer
         vb = self.plot_widget.getViewBox()
-        p1 = vb.mapToView(QPointF(rect.topLeft()))
-        p2 = vb.mapToView(QPointF(rect.bottomRight()))
+
+        # 1. Convertir Píxeles -> Escena
+        scene_tl = self.plot_widget.mapToScene(rect.topLeft())
+        scene_br = self.plot_widget.mapToScene(rect.bottomRight())
+
+        # 2. Convertir Escena -> Valores de los Ejes
+        p1 = vb.mapSceneToView(scene_tl)
+        p2 = vb.mapSceneToView(scene_br)
+
+        # 3. Ordenar coordenadas y buscar
         xmin, xmax = sorted([p1.x(), p2.x()])
         ymin, ymax = sorted([p1.y(), p2.y()])
 
-        for i, (x, y) in enumerate(zip(self.timestamps, self.values)):
-            if xmin <= x <= xmax and ymin <= y <= ymax:
-                if i in self.marked_indices:
-                    self.marked_indices.remove(i)
-                else:
-                    self.marked_indices.add(i)
+        mask = (self.timestamps >= xmin) & (self.timestamps <= xmax) & \
+               (self.values >= ymin) & (self.values <= ymax)
+        
+        indices_inside = np.where(mask)[0]
 
-        self.update_plot_colors()
+        if len(indices_inside) > 0:
+            self.marked_indices.update(indices_inside)
+            self.update_plot_colors()
 
     def on_mouse_moved(self, pos):
+        """Tooltip optimizado."""
         vb = self.plot_widget.getViewBox()
         mouse_point = vb.mapSceneToView(pos)
-        idx = int(np.argmin(np.abs(self.timestamps - mouse_point.x())))
+        
+        if len(self.timestamps) == 0: return
 
-        pos_in_scene = vb.mapViewToScene(QPointF(self.timestamps[idx], self.values[idx]))
-        graphics_view = vb.scene().views()[0]
-        pos_in_widget = graphics_view.mapFromScene(pos_in_scene)
-        pos_global = graphics_view.viewport().mapToGlobal(pos_in_widget)
+        # Búsqueda binaria
+        idx = np.searchsorted(self.timestamps, mouse_point.x())
+        if idx >= len(self.timestamps): idx = len(self.timestamps) - 1
+        
+        if idx > 0:
+            prev = idx - 1
+            if abs(self.timestamps[idx] - mouse_point.x()) > abs(self.timestamps[prev] - mouse_point.x()):
+                idx = prev
 
-        if (pos - pos_in_widget).manhattanLength() < 20:
+        # Validar distancia visual
+        point_scene = vb.mapViewToScene(QPointF(self.timestamps[idx], self.values[idx]))
+        dist_x = abs(point_scene.x() - pos.x())
+        dist_y = abs(point_scene.y() - pos.y())
+
+        if dist_x < 20 and dist_y < 20:
             dt = datetime.fromtimestamp(self.timestamps[idx])
             tooltip = f"Fecha: {dt.strftime('%Y-%m-%d %H:%M:%S')}\nValor: {self.values[idx]:.3f}"
-            QToolTip.showText(pos_global, tooltip)
+            
+            view = vb.scene().views()[0]
+            global_pos = view.viewport().mapToGlobal(view.mapFromScene(pos))
+            QToolTip.showText(global_pos, tooltip)
         else:
             QToolTip.hideText()
 
@@ -2146,11 +2219,14 @@ class TimeSeriesInspector(QDialog):
             QMessageBox.information(self, "Información", "No ha seleccionado ningún punto para limpiar.")
             return
 
-        # Aquí va tu lógica de controlador
-        respuesta = AnalisisController.ctrlOmitirLecturasRuido(AnalisisView.idproyecto, selected_ids)
+        try:
+            # Usamos la variable estática del padre como tenías originalmente
+            respuesta = AnalisisController.ctrlOmitirLecturasRuido(AnalisisView.idproyecto, selected_ids)
 
-        if respuesta:
-            QMessageBox.information(self, "Éxito", "Lecturas omitidas correctamente.")
-            self.accept()
-        else:
-            QMessageBox.warning(self, "Error", "No se pudo omitir las lecturas. Intente de nuevo.")
+            if respuesta:
+                QMessageBox.information(self, "Éxito", "Lecturas omitidas correctamente.")
+                self.accept()
+            else:
+                QMessageBox.warning(self, "Error", "No se pudo omitir las lecturas. Intente de nuevo.")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Ocurrió un error: {str(e)}")
