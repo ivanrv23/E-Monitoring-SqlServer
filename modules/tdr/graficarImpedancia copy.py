@@ -78,10 +78,6 @@ class GraficarImpedancia:
         # Agrupar por fecha de lectura y tipo de gráfico
         profundidad = data_filtrada['Profundidad']
         impedancia = data_filtrada['Impedancia']
-        
-        # Variables de control
-        es_grafico_IP = False 
-
         if tipo_grafico == 'PI':
             valores_x = 'Profundidad'
             valores_y = 'Impedancia'
@@ -103,10 +99,9 @@ class GraficarImpedancia:
             xlabel_bbox = ax.xaxis.label.get_window_extent(renderer=canvas.get_renderer())
             xlabel_bottom = xlabel_bbox.transformed(ax.transAxes.inverted()).y1
             # Ajustar la posición de la leyenda justo debajo del eje x
-            leyenda_bbox = (0.5, -0.15)  
+            leyenda_bbox = (0.5, -0.15)  # Ajustar la posición vertical según sea necesario
 
         elif tipo_grafico == 'IP':
-            es_grafico_IP = True
             valores_x = 'Impedancia'
             valores_y = 'Profundidad'
             x_label = 'Impedancia (Ω)'
@@ -124,11 +119,10 @@ class GraficarImpedancia:
             leyenda_bbox = (1.0, 0.5)
             ajuste_margenes = {'left': 0.31, 'right': 0.75, 'top': 0.95, 'bottom': 0.1}
             leyenda_ncol = 1
-            # Invertir el eje Y para que la profundidad comience desde arriba (por defecto sin limites manuales)
+            # Invertir el eje Y para que la profundidad comience desde arriba
             ax.invert_yaxis()
         else:
             raise ValueError("Tipo de gráfico no válido. Debe ser 'IP' o 'PI'.")
-        
         # Graficar datos
         lineas = []
         for fecha_lectura, datos_grupo in df.groupby('Fecha_Lectura'):
@@ -138,7 +132,6 @@ class GraficarImpedancia:
             else:
                 linea, = ax.plot(datos_grupo[valores_x], datos_grupo[valores_y], label=f'{fecha_lectura.date()}', linewidth=grosorlinea)
             lineas.append(linea)
-        
         # Graficar fallas
         if len(fallas) > 0:
             if data_filtrada.empty is False:
@@ -148,28 +141,18 @@ class GraficarImpedancia:
                     nombre = falla[2]
                     # Buscar la impedancia correspondiente a la profundidad de la falla
                     if valores_x == 'Profundidad':
-                        # Lógica para PI
-                        impedancia_val = data_filtrada.loc[data_filtrada['Profundidad'] == profundidad, 'Impedancia']
-                        if not impedancia_val.empty:
-                            impedancia = impedancia_val.values[0]
-                            punto = ax.scatter(profundidad, impedancia, color=color, label=f'Falla {nombre}: {profundidad} {tipomedida}', marker='o', edgecolors='black', s=30, zorder=5)
-                            lineas.append(punto)
+                        impedancia = data_filtrada.loc[data_filtrada['Profundidad'] == profundidad, 'Impedancia'].values[0]
+                        punto = ax.scatter(profundidad, impedancia, color=color, label=f'Falla {nombre}: {profundidad} {tipomedida}', marker='o', edgecolors='black', s=30, zorder=5)
                     else:
-                        # Lógica para IP
-                        impedancia_val = data_filtrada.loc[data_filtrada['Profundidad'] == profundidad, 'Impedancia']
-                        if not impedancia_val.empty:
-                            impedancia = impedancia_val.values[0]
-                            punto = ax.scatter(impedancia, profundidad, color=color, label=f'Falla {nombre}: {profundidad} {tipomedida}', marker='o', edgecolors='black', s=30, zorder=5)
-                            lineas.append(punto)
-        
-        # Ajustar limites manuales
+                        impedancia = data_filtrada.loc[data_filtrada['Profundidad'] == profundidad, 'Impedancia'].values[0]
+                        punto = ax.scatter(impedancia, profundidad, color=color, label=f'Falla {nombre}: {profundidad} {tipomedida}', marker='o', edgecolors='black', s=30, zorder=5)
+                    lineas.append(punto)
+        # Ajustar limites
         infoeje = ConfiguracionController.ctrlObtenerConfiguracionEjeTDR(idproyecto)
         if infoeje:
             if tipo_grafico == 'PI':
                 ejexmin, ejexmax, ejexprim, ejexsecu = infoeje[2], infoeje[3], infoeje[4], infoeje[5]
                 ejeymin, ejeymax, ejeyprim, ejeysecu = infoeje[6], infoeje[7], infoeje[8], infoeje[9]
-                
-                # PI: X es Profundidad, Y es Impedancia
                 if ejeymin != 0 or ejeymax != 0:
                     ax.set_xlim(ejeymin * unidadmedida, ejeymax * unidadmedida)
                     if ejeyprim > 0:
@@ -178,6 +161,7 @@ class GraficarImpedancia:
                             ax.set_xticks(tick_primarios)
                         else:
                             avisolabels = True
+                    # Calcula los intervalos secundarios
                     if ejeysecu > 0:
                         tick_secundarios = np.arange(ejeymin * unidadmedida, ejeymax * unidadmedida, ejeysecu * unidadmedida)
                         if len(tick_secundarios) > 2 and len(tick_secundarios) < 200:
@@ -185,7 +169,6 @@ class GraficarImpedancia:
                                 ax.axvline(x=tick, color='gray', linestyle='--', linewidth=0.5)
                         else:
                             avisolabels = True
-                            
                 if ejexmin != 0 or ejexmax != 0:
                     ax.set_ylim(ejexmin, ejexmax)
                     if ejexprim > 0:
@@ -194,6 +177,7 @@ class GraficarImpedancia:
                             ax.set_yticks(tick_primarios)
                         else:
                             avisolabels = True
+                    # Calcula los intervalos secundarios
                     if ejexsecu > 0:
                         tick_secundarios = np.arange(ejexmin, ejexmax, ejexsecu)
                         if len(tick_secundarios) > 2 and len(tick_secundarios) < 200:
@@ -202,10 +186,8 @@ class GraficarImpedancia:
                         else:
                             avisolabels = True
             else:
-                # CASO IP: X es Impedancia, Y es Profundidad
                 ejexmin, ejexmax, ejexprim, ejexsecu = infoeje[2], infoeje[3], infoeje[4], infoeje[5]
                 ejeymin, ejeymax, ejeyprim, ejeysecu = infoeje[6], infoeje[7], infoeje[8], infoeje[9]
-                
                 if ejexmin != 0 or ejexmax != 0:
                     ax.set_xlim(ejexmin, ejexmax)
                     if ejexprim > 0:
@@ -214,6 +196,7 @@ class GraficarImpedancia:
                             ax.set_xticks(tick_primarios)
                         else:
                             avisolabels = True
+                    # Calcula los intervalos secundarios
                     if ejexsecu > 0:
                         tick_secundarios = np.arange(ejexmin, ejexmax, ejexsecu)
                         if len(tick_secundarios) > 2 and len(tick_secundarios) < 200:
@@ -221,20 +204,15 @@ class GraficarImpedancia:
                                 ax.axvline(x=tick, color='gray', linestyle='--', linewidth=0.5)
                         else:
                             avisolabels = True
-                            
-                # --- AQUÍ ESTÁ EL AJUSTE PRINCIPAL ---
                 if ejeymin != 0 or ejeymax != 0:
-                    # Para invertir el eje Y manualmente: Primero MAX, luego MIN
-                    # Esto asegura que el valor bajo (ej. 0) esté arriba y el alto (ej. 200) abajo
-                    ax.set_ylim(ejeymax * unidadmedida, ejeymin * unidadmedida)
-                    
+                    ax.set_ylim(ejeymin * unidadmedida, ejeymax * unidadmedida)
                     if ejeyprim > 0:
-                        # Nota: np.arange siempre debe ser de menor a mayor matemáticamente para generar los ticks
                         tick_primarios = np.arange(ejeymin * unidadmedida, ejeymax * unidadmedida, ejeyprim * unidadmedida)
                         if len(tick_primarios) > 2 and len(tick_primarios) < 100:
                             ax.set_yticks(tick_primarios)
                         else:
                             avisolabels = True
+                    # Calcula los intervalos secundarios
                     if ejeysecu > 0:
                         tick_secundarios = np.arange(ejeymin * unidadmedida, ejeymax * unidadmedida, ejeysecu * unidadmedida)
                         if len(tick_secundarios) > 2 and len(tick_secundarios) < 200:
@@ -242,7 +220,6 @@ class GraficarImpedancia:
                                 ax.axhline(y=tick, color='gray', linestyle='--', linewidth=0.5)
                         else:
                             avisolabels = True
-                            
         # Configuración de ejes y etiquetas
         ax.set_title(f'Gráfico TDR {title}', fontsize=titulozise)
         ax.set_xlabel(x_label, fontsize=ejezise)
@@ -252,7 +229,6 @@ class GraficarImpedancia:
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
         plt.setp(ax.get_xticklabels(), rotation=90, ha="center", fontsize=etiquesize)
         plt.setp(ax.get_yticklabels(), fontsize=etiquesize)
-        
         # Configuración de leyenda paginada
         leyenda_elementos = lineas
         leyenda_labels = [line.get_label() for line in lineas]
@@ -263,15 +239,13 @@ class GraficarImpedancia:
         limite_caracteres = 45
         caracteres_por_pixel = limite_caracteres / 800
         total_caracteres = sum(len(nombre) for nombre in leyenda_labels)
-        # Evitar división por cero si no hay caracteres
-        promedio_caracteres_por_equipo = total_caracteres / filas_totales if filas_totales > 0 else 10
+        promedio_caracteres_por_equipo = total_caracteres / filas_totales
         columnas = max(1, int(ancho_pantalla * caracteres_por_pixel / promedio_caracteres_por_equipo))
         equipos_por_pagina = filas_max * columnas
         total_filas_leyenda = math.ceil(filas_totales / equipos_por_pagina)
 
         def actualizar_leyenda():
             nonlocal pagina_actual
-            if total_filas_leyenda == 0: return # Evitar errores si no hay leyenda
             inicio = pagina_actual * equipos_por_pagina
             fin = min(inicio + equipos_por_pagina, filas_totales)
             ax.legend(leyenda_elementos[inicio:fin], leyenda_labels[inicio:fin], loc=leyenda_posicion, bbox_to_anchor=leyenda_bbox, ncol=leyenda_ncol, frameon=False, prop={'size': leyendazise})
