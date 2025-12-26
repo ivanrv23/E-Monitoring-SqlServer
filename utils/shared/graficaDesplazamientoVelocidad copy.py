@@ -292,50 +292,58 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     if not escala:
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
-
-    # -----------------------------------------------------------------------------
-    # MEJORA VISUAL: CÁLCULO DE ETIQUETAS SIMÉTRICAS (LINSPACE)
-    # -----------------------------------------------------------------------------
-    if tiempo == "FECHA":
-        # Convertimos fechas a números de matplotlib
-        num_inicio = mdates.date2num(fecha_inicio)
-        num_fin = mdates.date2num(fecha_fin)
-        rango_total = num_fin - num_inicio
-        intervalo_num = intervalo_dias 
-    else:
-        # Ya son números (Días u Horas)
-        num_inicio = float(fecha_inicio)
-        num_fin = float(fecha_fin)
-        rango_total = num_fin - num_inicio
-        intervalo_num = intervalo_dias
-
-    # Calcular cantidad de etiquetas basada en el intervalo
-    if intervalo_num <= 0:
-        num_etiquetas = 10
-    else:
-        num_etiquetas = int(rango_total / intervalo_num) + 1
-
-    # Protección de saturación: Limitar a 15-20 etiquetas para que se vean bien
-    if num_etiquetas > 25: 
+    # método de calculo automático de etiquetas
+    def calcular_intervalo_automatico(total):
+        if total <= 0:
+            return 1
+        if total <= 10:
+            return max(1, total / 5)
+        elif total <= 30:
+            return max(2, total / 7)
+        elif total <= 100:
+            return max(5, total / 10)
+        elif total <= 365:
+            return max(15, total / 12)
+        else:
+            return max(30, total / 15)
+    # Configuración personalizada del rango de fechas en el eje x para incluir inicio y fin
+    intervalos_exactos = total_dias / intervalo_dias
+    num_etiquetas = math.ceil(intervalos_exactos) + 1
+    if num_etiquetas > 200:
         avisolabels = True
-        num_etiquetas = 15 # Forzar visualización limpia
-    elif num_etiquetas < 2:
-        num_etiquetas = 2
-
-    # Generación de puntos matemáticamente equidistantes (Simetría)
-    etiquetas_numericas = np.linspace(num_inicio, num_fin, num_etiquetas)
-    ax.set_xticks(etiquetas_numericas)
-
+        dias = total_dias
+        if tiempo == "HORA":
+            dias = total_dias / 24
+        num_etiquetas = int(calcular_intervalo_automatico(dias)) + 1
+    intervalo_real = total_dias / (num_etiquetas - 1)
+    etiquetas = []
+    if tiempo == "FECHA":
+        for i in range(num_etiquetas):
+            dias_a_sumar = i * intervalo_real
+            fecha_etiqueta = fecha_inicio + timedelta(days=dias_a_sumar)
+            if i == num_etiquetas - 1:
+                etiquetas.append(fecha_fin)
+            else:
+                etiquetas.append(fecha_etiqueta)
+    else:
+        # Para días/horas (valores numéricos)
+        for i in range(num_etiquetas):
+            dias_a_sumar = i * intervalo_real
+            fecha_etiqueta = fecha_inicio + dias_a_sumar
+            if i == num_etiquetas - 1:
+                etiquetas.append(fecha_fin)
+            else:
+                etiquetas.append(fecha_etiqueta)
+    ax.set_xticks(etiquetas)
     if escala:
         if escala == 'ESL':
             ax.set_yscale("log", base=10)
-            ax.set_xlim([num_inicio, num_fin])
+            ax.set_xlim([etiquetas[0], etiquetas[-1]])
         else:
             ax.set_xscale("log", base=10)
             ax.set_yscale("log", base=10)
     else:
-        ax.set_xlim([num_inicio, num_fin])
-    # -----------------------------------------------------------------------------
+        ax.set_xlim([etiquetas[0], etiquetas[-1]])
     
     plt.setp(ax.get_xticklabels(), rotation=90, ha="center", fontsize=etiquesize)
     plt.setp(ax.get_yticklabels(), fontsize=etiquesize)
@@ -671,9 +679,9 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], linestyle=estilo[3], linewidth=estilo[4], color=estilo[5], label=nombreequipo)
             else:
                 if vertices == 1:
-                    linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], marker='o', label=nombreequipo)
+                    linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], marker='o', markersize=grosorvertice, linewidth=grosorlinea, label=nombreequipo)
                 else:
-                    linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], label=nombreequipo)
+                    linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], linewidth=grosorlinea, label=nombreequipo)
             lineas.append(linea)
             # graficar cota piezometrica
             if tipo == "NF": # piezómetros
@@ -839,42 +847,51 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
         ax.xaxis.set_major_formatter(DateFormatter('%d/%m/%Y'))
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
-
-    # -----------------------------------------------------------------------------
-    # MEJORA VISUAL: CÁLCULO DE ETIQUETAS SIMÉTRICAS (LINSPACE)
-    # -----------------------------------------------------------------------------
-    if tiempo == "FECHA":
-        # Convertimos fechas a números de matplotlib
-        num_inicio = mdates.date2num(fecha_inicio)
-        num_fin = mdates.date2num(fecha_fin)
-        rango_total = num_fin - num_inicio
-        intervalo_num = intervalo_dias 
-    else:
-        # Ya son números (Días u Horas)
-        num_inicio = float(fecha_inicio)
-        num_fin = float(fecha_fin)
-        rango_total = num_fin - num_inicio
-        intervalo_num = intervalo_dias
-
-    # Calcular cantidad de etiquetas basada en el intervalo
-    if intervalo_num <= 0:
-        num_etiquetas = 10
-    else:
-        num_etiquetas = int(rango_total / intervalo_num) + 1
-
-    # Protección de saturación: Limitar a 15-20 etiquetas para que se vean bien
-    if num_etiquetas > 25: 
+    # método de calculo automático de etiquetas
+    def calcular_intervalo_automatico(total):
+        if total <= 0:
+            return 1
+        if total <= 10:
+            return max(1, total / 5)
+        elif total <= 30:
+            return max(2, total / 7)
+        elif total <= 100:
+            return max(5, total / 10)
+        elif total <= 365:
+            return max(15, total / 12)
+        else:
+            return max(30, total / 15)
+    # Configuración personalizada del rango de fechas en el eje x para incluir inicio y fin
+    intervalos_exactos = total_dias / intervalo_dias
+    num_etiquetas = math.ceil(intervalos_exactos) + 1
+    if num_etiquetas > 200:
         avisolabels = True
-        num_etiquetas = 15 # Forzar visualización limpia
-    elif num_etiquetas < 2:
-        num_etiquetas = 2
-
-    # Generación de puntos matemáticamente equidistantes (Simetría)
-    etiquetas_numericas = np.linspace(num_inicio, num_fin, num_etiquetas)
-    ax.set_xticks(etiquetas_numericas)
-    ax.set_xlim([num_inicio, num_fin])
-    # -----------------------------------------------------------------------------
-    
+        dias = total_dias
+        if tiempo == "HORA":
+            dias = total_dias / 24
+        num_etiquetas = int(calcular_intervalo_automatico(dias)) + 1
+    intervalo_real = total_dias / (num_etiquetas - 1)
+    etiquetas = []
+    if tiempo == "FECHA":
+        for i in range(num_etiquetas):
+            dias_a_sumar = i * intervalo_real
+            fecha_etiqueta = fecha_inicio + timedelta(days=dias_a_sumar)
+            if i == num_etiquetas - 1:
+                etiquetas.append(fecha_fin)
+            else:
+                etiquetas.append(fecha_etiqueta)
+    else:
+        # Para días/horas (valores numéricos)
+        for i in range(num_etiquetas):
+            dias_a_sumar = i * intervalo_real
+            fecha_etiqueta = fecha_inicio + dias_a_sumar
+            if i == num_etiquetas - 1:
+                etiquetas.append(fecha_fin)
+            else:
+                etiquetas.append(fecha_etiqueta)
+    ax.set_xticks(etiquetas)
+    ax.set_xlim([etiquetas[0], etiquetas[-1]])
+    # ajustar las etiquetas
     plt.setp(ax.get_xticklabels(), rotation=90, ha="center", fontsize=etiquesize)
     plt.setp(ax.get_yticklabels(), fontsize=etiquesize)
     if mostrarlluvia == 0: # siempre visible
@@ -1058,7 +1075,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
     plt.close(figure)
     if avisolabels:
         mostrar_mensaje("Ejes", "No se aplicó la configuración de ejes.", "advertencia")
-
+    
 def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, labelejex, labelejey, titulo, tiempo, tipo, idproyecto, fecha_inicio=None, fecha_fin=None):
     avisolabels = False
     if tiempo == "FECHA":
@@ -1146,37 +1163,47 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
-
-    # -----------------------------------------------------------------------------
-    # MEJORA VISUAL: CÁLCULO DE ETIQUETAS SIMÉTRICAS (ANÁLISIS)
-    # -----------------------------------------------------------------------------
-    if tiempo == "FECHA":
-        num_inicio = mdates.date2num(fecha_inicio)
-        num_fin = mdates.date2num(fecha_fin)
-        rango_total = num_fin - num_inicio
-        intervalo_num = intervalo_dias
-    else:
-        num_inicio = float(fecha_inicio)
-        num_fin = float(fecha_fin)
-        rango_total = num_fin - num_inicio
-        intervalo_num = intervalo_dias
-
-    if intervalo_num <= 0:
-        num_etiquetas = 10
-    else:
-        num_etiquetas = int(rango_total / intervalo_num) + 1
-
-    if num_etiquetas > 25:
+    # método de calculo automático de etiquetas
+    def calcular_intervalo_automatico(total):
+        if total <= 0:
+            return 1
+        if total <= 10:
+            return max(1, total / 5)
+        elif total <= 30:
+            return max(2, total / 7)
+        elif total <= 100:
+            return max(5, total / 10)
+        elif total <= 365:
+            return max(15, total / 12)
+        else:
+            return max(30, total / 15)
+    # Configuración personalizada del rango de fechas en el eje x para incluir inicio y fin
+    intervalos_exactos = total_dias / intervalo_dias
+    num_etiquetas = math.ceil(intervalos_exactos) + 1
+    if num_etiquetas > 200:
         avisolabels = True
-        num_etiquetas = 15
-    elif num_etiquetas < 2:
-        num_etiquetas = 2
-
-    etiquetas_numericas = np.linspace(num_inicio, num_fin, num_etiquetas)
-    ax.set_xticks(etiquetas_numericas)
-    ax.set_xlim([num_inicio, num_fin])
-    # -----------------------------------------------------------------------------
-
+        num_etiquetas = int(calcular_intervalo_automatico(total_dias)) + 1
+    intervalo_real = total_dias / (num_etiquetas - 1)
+    etiquetas = []
+    if tiempo == "FECHA":
+        for i in range(num_etiquetas):
+            dias_a_sumar = i * intervalo_real
+            fecha_etiqueta = fecha_inicio + timedelta(days=dias_a_sumar)
+            if i == num_etiquetas - 1:
+                etiquetas.append(fecha_fin)
+            else:
+                etiquetas.append(fecha_etiqueta)
+    else:
+        # Para días/horas (valores numéricos)
+        for i in range(num_etiquetas):
+            dias_a_sumar = i * intervalo_real
+            fecha_etiqueta = fecha_inicio + dias_a_sumar
+            if i == num_etiquetas - 1:
+                etiquetas.append(fecha_fin)
+            else:
+                etiquetas.append(fecha_etiqueta)
+    ax.set_xticks(etiquetas)
+    ax.set_xlim([etiquetas[0], etiquetas[-1]])
     # ajustar las etiquetas
     plt.setp(ax.get_xticklabels(), rotation=90, ha="center", fontsize=etiquesize)
     plt.setp(ax.get_yticklabels(), fontsize=etiquesize)
