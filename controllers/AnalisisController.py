@@ -159,10 +159,10 @@ class AnalisisController:
             if datosa:
                 datosprisma.extend(datosa)
             # Manual Prism Data
-            table_manual = "prismas" + str(proyectoid)
-            datosm = AnalisisModel.mdlResumenPrismas(table_manual,unidad)
-            if datosm:
-                datosprisma.extend(datosm)
+            # table_manual = "prismas" + str(proyectoid)
+            # datosm = AnalisisModel.mdlResumenPrismas(table_manual,unidad)
+            # if datosm:
+            #     datosprisma.extend(datosm)
         except Exception as e:
             print(f"Error: {e}")
         return datosprisma
