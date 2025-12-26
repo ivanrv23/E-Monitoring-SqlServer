@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt, QDateTime, QDate, QTime
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QTreeWidgetItem, QColorDialog, QLabel, QDateTimeEdit, QDateEdit, QTimeEdit,
                             QPushButton, QTreeWidget, QFrame, QComboBox, QSpinBox, QWidget, QHBoxLayout, QDoubleSpinBox, QCheckBox)
+from datetime import datetime, date, time 
 from utils.common.rutasarchivos import resource_path
 from utils.common.metodosGenerales import MetodosGenerales
 from controllers.ConfiguracionController import ConfiguracionController
@@ -34,9 +35,30 @@ class Personalizacion:
         datetimefinal = dialogo.findChild(QDateTimeEdit, "datetime_final")
         botonaceptar = dialogo.findChild(QPushButton, "btn_aceptar")
         formato = "yyyy-MM-dd HH:mm:ss" 
-        # cargar fechas actuales
-        datetime_inicial = QDateTime.fromString(fechainicial, formato)
-        datetime_final = QDateTime.fromString(fechafinal, formato)
+        
+        # --- CARGAR FECHAS ACTUALES (CORREGIDO PARA SQL SERVER/SQLITE) ---
+        
+        # 1. Validar Fecha Inicial
+        if isinstance(fechainicial, str):
+            datetime_inicial = QDateTime.fromString(fechainicial, formato)
+        elif isinstance(fechainicial, datetime):
+            # Convertimos objeto datetime de Python a QDateTime de Qt manualmente para evitar errores
+            datetime_inicial = QDateTime(fechainicial.year, fechainicial.month, fechainicial.day,
+                                         fechainicial.hour, fechainicial.minute, fechainicial.second)
+        else:
+            datetime_inicial = QDateTime() # Fecha inválida
+
+        # 2. Validar Fecha Final
+        if isinstance(fechafinal, str):
+            datetime_final = QDateTime.fromString(fechafinal, formato)
+        elif isinstance(fechafinal, datetime):
+            datetime_final = QDateTime(fechafinal.year, fechafinal.month, fechafinal.day,
+                                       fechafinal.hour, fechafinal.minute, fechafinal.second)
+        else:
+            datetime_final = QDateTime() # Fecha inválida
+
+        # -----------------------------------------------------------------
+
         if datetime_inicial.isValid() and datetime_final.isValid():
             datetimeinicio.setDateTime(datetime_inicial)
             datetimefinal.setDateTime(datetime_final)
@@ -47,6 +69,7 @@ class Personalizacion:
             botonaceptar.setEnabled(diferencia_segundos >= 60)
         else:
             fechaini, fechafin = MetodosGenerales.obtenerRangoFechas(365)
+            # Aquí asumimos que obtenerRangoFechas devuelve strings, si devuelve datetime también funcionaría el parseo
             datetime_inicial = QDateTime.fromString(fechaini, formato)
             datetime_final = QDateTime.fromString(fechafin, formato)
             datetimeinicio.setDateTime(datetime_inicial)
@@ -55,6 +78,7 @@ class Personalizacion:
             labeldias.setText(str(diferencia))
             diferencia_segundos = datetime_inicial.secsTo(datetime_final)
             botonaceptar.setEnabled(diferencia_segundos >= 60)
+            
         # Función para calcular y actualizar la diferencia en días
         def actualizarDiferencia():
             inicio = datetimeinicio.dateTime()
@@ -64,10 +88,12 @@ class Personalizacion:
             # Habilitar o deshabilitar el botón según la diferencia
             diferencia_segundos = inicio.secsTo(final)
             botonaceptar.setEnabled(diferencia_segundos >= 60)
+            
         def devolverFechas():
             Personalizacion.time_inicio = datetimeinicio.dateTime().toString(formato)
             Personalizacion.time_final = datetimefinal.dateTime().toString(formato)
             dialogo.close()
+            
         # Conectar las señales de cambio de valor a la función
         datetimeinicio.dateTimeChanged.connect(actualizarDiferencia)
         datetimefinal.dateTimeChanged.connect(actualizarDiferencia)
@@ -93,10 +119,39 @@ class Personalizacion:
         botonaceptar = dialogo.findChild(QPushButton, "btn_aceptar")
         formatofecha = "yyyy-MM-dd"
         formatohoras = "HH:mm:ss"
-        # Cargar fechas actuales
-        date_inicial = QDate.fromString(fecha, formatofecha)
-        time_inicial = QTime.fromString(horainicial, formatohoras)
-        time_final = QTime.fromString(horafinal, formatohoras)
+        
+        # --- CARGAR FECHAS Y HORAS ACTUALES (CORREGIDO) ---
+        
+        # 1. Validar Fecha (Date)
+        if isinstance(fecha, str):
+            date_inicial = QDate.fromString(fecha, formatofecha)
+        elif isinstance(fecha, (datetime, date)): 
+            # Si es datetime o date, extraemos componentes
+            date_inicial = QDate(fecha.year, fecha.month, fecha.day)
+        else:
+            date_inicial = QDate()
+
+        # 2. Validar Hora Inicial (Time)
+        # Nota: SQL Server a veces devuelve datetime completo, o timedelta, o time.
+        if isinstance(horainicial, str):
+            time_inicial = QTime.fromString(horainicial, formatohoras)
+        elif isinstance(horainicial, (datetime, time)):
+            # Si es un objeto de tiempo, extraemos componentes
+            # Nota: Si horainicial fuera un datetime completo, esto funciona si tiene atributos hour/minute/second
+            time_inicial = QTime(horainicial.hour, horainicial.minute, horainicial.second)
+        else:
+            time_inicial = QTime()
+
+        # 3. Validar Hora Final (Time)
+        if isinstance(horafinal, str):
+            time_final = QTime.fromString(horafinal, formatohoras)
+        elif isinstance(horafinal, (datetime, time)):
+            time_final = QTime(horafinal.hour, horafinal.minute, horafinal.second)
+        else:
+            time_final = QTime()
+            
+        # --------------------------------------------------
+
         if date_inicial.isValid() and time_inicial.isValid() and time_final.isValid():
             datefecha.setDate(date_inicial)
             timeinicio.setTime(time_inicial)
@@ -109,6 +164,7 @@ class Personalizacion:
             datefecha.setDate(date_inicial)
             timeinicio.setTime(time_inicial)
             timefinal.setTime(time_final)
+            
         # Función para calcular diferencia y habilitar el botón
         def actualizarDiferencia():
             inicio = timeinicio.time()
@@ -116,6 +172,7 @@ class Personalizacion:
             diferencia = inicio.secsTo(final)
             labeldias.setText(f"{diferencia // 60}" if diferencia >= 0 else "0")
             botonaceptar.setEnabled(diferencia >= 60)
+            
         # Función para devolver los valores (puedes retornar si deseas)
         def devolverFechas():
             nonlocal fechaini, horaini, horafin
@@ -123,6 +180,7 @@ class Personalizacion:
             horaini = timeinicio.time().toString(formatohoras)
             horafin = timefinal.time().toString(formatohoras)
             dialogo.close()
+            
         # Conectar señales
         timeinicio.timeChanged.connect(actualizarDiferencia)
         timefinal.timeChanged.connect(actualizarDiferencia)

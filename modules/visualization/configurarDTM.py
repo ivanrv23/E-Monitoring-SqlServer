@@ -61,7 +61,7 @@ class ConfigurarDTM:
                 nombreDinamico.setIcon(QIcon(activo_icon_path))
                 #nombreDinamico.setIconSize(QSize(20, 20))
                 nombreDinamico.setStyleSheet("border: none;")
-                nombreDinamico.clicked.connect(lambda _, id=f"{codcompon}_{codtopo}", nombreBoton=nombreDinamico: ConfigurarDTM.cambiarEstadoDTM(id, nombreBoton))
+                nombreDinamico.clicked.connect(lambda *args, id=f"{codcompon}_{codtopo}", nombreBoton=nombreDinamico: ConfigurarDTM.cambiarEstadoDTM(id, nombreBoton))
                 fila_layout.addWidget(nombreDinamico)
                 # agregar el boton para el color del sólido
                 nombrecolorbtn = f'botoncolor_{codcompon}_{codtopo}'
@@ -69,7 +69,7 @@ class ConfigurarDTM:
                 nombrecolorDinamico.setObjectName(nombrecolorbtn)
                 nombrecolorDinamico.setFixedSize(QSize(40, 28))
                 nombrecolorDinamico.setStyleSheet("background-color: %s" % colorsoli)
-                nombrecolorDinamico.clicked.connect(lambda _, idc=f"{codcompon}_{codtopo}", nombreBtnColor=nombrecolorDinamico: ConfigurarDTM.cambiarColorSolido(idc, nombreBtnColor))
+                nombrecolorDinamico.clicked.connect(lambda *args, idc=f"{codcompon}_{codtopo}", nombreBtnColor=nombrecolorDinamico: ConfigurarDTM.cambiarColorSolido(idc, nombreBtnColor))
                 fila_layout.addWidget(nombrecolorDinamico)
                 fila_layout.addWidget(etiqueta_nombre)
                 fila_layout.setContentsMargins(5, 0, 5, 0)

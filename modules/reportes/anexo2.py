@@ -110,7 +110,7 @@ class Anexo2:
             frame_layout.addWidget(image_label, i, 1, 1, 1)
             frame_layout.addWidget(actions_widget, i, 2, 1, 1)
             # Conectar el botón para cargar imagen
-            button_load.clicked.connect(lambda _, img_label=image_label: load_image(img_label))
+            button_load.clicked.connect(lambda *args, img_label=image_label: load_image(img_label))
         # Si se encuentran datos en 'ubicacion_intrumentacion_geotecnica', procesarlos
         if ubicacion_intrumentacion_geotecnica:
             for data in ubicacion_intrumentacion_geotecnica:

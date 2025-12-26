@@ -151,7 +151,7 @@ class UmbralView:
             color_button = QPushButton("Color")
             if color:  # Solo establecer color si se proporciona
                 color_button.setStyleSheet(f"background-color: {color};")
-            color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+            color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
             table.setCellWidget(row, 2, color_button)
             
             # Riesgo
@@ -559,7 +559,7 @@ class UmbralView:
                 table.setItem(row, 0, condicion_item)
                 # Botón de color
                 color_button = QPushButton()
-                color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                 table.setCellWidget(row, 1, color_button)
                 # Riesgo
                 riesgo_item = QTableWidgetItem("")
@@ -593,7 +593,7 @@ class UmbralView:
                     # Botón de color
                     color_button = QPushButton()
                     color_button.setStyleSheet(f"background-color: {umbral[4]};")  # Asumiendo que el color está en la posición 4
-                    color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                    color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                     table.setCellWidget(row, 1, color_button)
                     # Riesgo
                     riesgo_item = QTableWidgetItem(umbral[5])  # Asumiendo que el riesgo está en la posición 5
@@ -637,7 +637,7 @@ class UmbralView:
             table.setItem(row_count, 0, condicion_item)
             # Botón de color
             color_button = QPushButton()
-            color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+            color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
             table.setCellWidget(row_count, 1, color_button)
             # Riesgo
             riesgo_item = QTableWidgetItem("")
@@ -783,7 +783,7 @@ class UmbralView:
                 table.setItem(row, 0, condicion_item)
                 # Botón de color
                 color_button = QPushButton()
-                color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                 table.setCellWidget(row, 1, color_button)
                 # Riesgo
                 riesgo_item = QTableWidgetItem("")
@@ -818,7 +818,7 @@ class UmbralView:
                     # Botón de color
                     color_button = QPushButton()
                     color_button.setStyleSheet(f"background-color: {umbral[4]};")  # Asumiendo que el color está en la posición 4
-                    color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                    color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                     table.setCellWidget(row, 1, color_button)
                     # Riesgo
                     riesgo_item = QTableWidgetItem(umbral[5])  # Asumiendo que el riesgo está en la posición 5
@@ -862,7 +862,7 @@ class UmbralView:
             table.setItem(row_count, 0, condicion_item)
             # Botón de color
             color_button = QPushButton()
-            color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+            color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
             table.setCellWidget(row_count, 1, color_button)
             # Riesgo
             riesgo_item = QTableWidgetItem("")
@@ -1017,7 +1017,7 @@ class UmbralView:
                 table.setItem(row, 0, condicion_item)
                 # Botón de color
                 color_button = QPushButton()
-                color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                 table.setCellWidget(row, 1, color_button)
                 # Riesgo
                 riesgo_item = QTableWidgetItem("")
@@ -1071,7 +1071,7 @@ class UmbralView:
                         # Botón de color
                         color_button = QPushButton()
                         color_button.setStyleSheet(f"background-color: {umbral[4]};")  # Asumiendo que el color está en la posición 4
-                        color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                        color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                         table.setCellWidget(row, 1, color_button)
                         # Riesgo
                         riesgo_item = QTableWidgetItem(umbral[5])  # Asumiendo que el riesgo está en la posición 5
@@ -1117,7 +1117,7 @@ class UmbralView:
             table.setItem(row_count, 0, condicion_item)
             # Botón de color
             color_button = QPushButton()
-            color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+            color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
             table.setCellWidget(row_count, 1, color_button)
             # Riesgo
             riesgo_item = QTableWidgetItem("")
@@ -1302,7 +1302,7 @@ class UmbralView:
                 table.setItem(row, 0, condicion_item)
                 # Botón de color
                 color_button = QPushButton()
-                color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                 table.setCellWidget(row, 1, color_button)
                 # Riesgo
                 riesgo_item = QTableWidgetItem("")
@@ -1372,7 +1372,7 @@ class UmbralView:
                     # Botón de color
                     color_button = QPushButton()
                     color_button.setStyleSheet(f"background-color: {umbral[4]};")  # Asumiendo que el color está en la posición 4
-                    color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                    color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                     table.setCellWidget(row, 1, color_button)
                     # Riesgo
                     riesgo_item = QTableWidgetItem(umbral[5])  # Asumiendo que el riesgo está en la posición 5
@@ -1416,7 +1416,7 @@ class UmbralView:
             table.setItem(row_count, 0, condicion_item)
             # Botón de color
             color_button = QPushButton()
-            color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+            color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
             table.setCellWidget(row_count, 1, color_button)
             # Riesgo
             riesgo_item = QTableWidgetItem("")
@@ -1626,7 +1626,7 @@ class UmbralView:
                 table.setItem(row, 0, condicion_item)
                 # Botón de color
                 color_button = QPushButton()
-                color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                 table.setCellWidget(row, 1, color_button)
                 # Riesgo
                 riesgo_item = QTableWidgetItem("")
@@ -1711,7 +1711,7 @@ class UmbralView:
                     # Botón de color
                     color_button = QPushButton()
                     color_button.setStyleSheet(f"background-color: {umbral[4]};")  # Asumiendo que el color está en la posición 4
-                    color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                    color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                     table.setCellWidget(row, 1, color_button)
                     # Riesgo
                     riesgo_item = QTableWidgetItem(umbral[5])  # Asumiendo que el riesgo está en la posición 5
@@ -1755,7 +1755,7 @@ class UmbralView:
             table.setItem(row_count, 0, condicion_item)
             # Botón de color
             color_button = QPushButton()
-            color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+            color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
             table.setCellWidget(row_count, 1, color_button)
             # Riesgo
             riesgo_item = QTableWidgetItem("")
@@ -1908,7 +1908,7 @@ class UmbralView:
                 table.setItem(row, 1, riesgo_item)
                 # Botón de color
                 color_button = QPushButton()
-                color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                 table.setCellWidget(row, 2, color_button)
                 # Distancia (DoubleSpinBox)
                 distancia_spinbox = QDoubleSpinBox()
@@ -1939,7 +1939,7 @@ class UmbralView:
                     # Botón de color
                     color_button = QPushButton()
                     color_button.setStyleSheet(f"background-color: {umbral[5]};")
-                    color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                    color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                     table.setCellWidget(row, 2, color_button)
                     # Distancia (DoubleSpinBox)
                     distancia_spinbox = QDoubleSpinBox()
@@ -1988,7 +1988,7 @@ class UmbralView:
             table.setItem(row_count, 1, riesgo_item)
             # Botón de color
             color_button = QPushButton()
-            color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+            color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
             table.setCellWidget(row_count, 2, color_button)
             # Distancia (DoubleSpinBox)
             distancia_spinbox = QDoubleSpinBox()
@@ -2160,7 +2160,7 @@ class UmbralView:
                     table.setItem(row, 0, condicion_item)
                     # Botón de color
                     color_button = QPushButton()
-                    color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                    color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                     table.setCellWidget(row, 1, color_button)
                     # Riesgo
                     riesgo_item = QTableWidgetItem("")
@@ -2185,7 +2185,7 @@ class UmbralView:
                     table.setItem(row, 0, nombre_item)
                     # Botón de color
                     color_button = QPushButton()
-                    color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                    color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                     table.setCellWidget(row, 1, color_button)
                     # Riesgo
                     riesgo_item = QTableWidgetItem("")
@@ -2216,7 +2216,7 @@ class UmbralView:
                         # Botón de color
                         color_button = QPushButton()
                         color_button.setStyleSheet(f"background-color: {umbral[4]};")
-                        color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                        color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                         table.setCellWidget(row, 1, color_button)
                         # Riesgo
                         riesgo_item = QTableWidgetItem(umbral[5])  # Asumiendo que el riesgo
@@ -2245,7 +2245,7 @@ class UmbralView:
                         # Botón de color
                         color_button = QPushButton()
                         color_button.setStyleSheet(f"background-color: {umbral[4]};")  # Asumiendo que el color está en la posición 4
-                        color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                        color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                         table.setCellWidget(row, 1, color_button)
                         # Riesgo
                         riesgo_item = QTableWidgetItem(umbral[5])  # Asumiendo que el riesgo está en la posición 5
@@ -2291,7 +2291,7 @@ class UmbralView:
                 table.setItem(row_count, 0, nombre_item)
                 # Color
                 color_button = QPushButton()
-                color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                 table.setCellWidget(row_count, 1, color_button)
                 # Riesgo
                 riesgo_item = QTableWidgetItem("")
@@ -2315,7 +2315,7 @@ class UmbralView:
                 table.setItem(row_count, 0, condicion_item)
                 # Color
                 color_button = QPushButton()
-                color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                 table.setCellWidget(row_count, 1, color_button)
                 # Riesgo
                 riesgo_item = QTableWidgetItem("")

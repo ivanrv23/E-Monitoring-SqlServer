@@ -306,7 +306,7 @@ class ProcesarLidar:
                 nombre_archivo, ruta_archivo = archivo
                 checkbox = QCheckBox(nombre_archivo)
                 checkbox.setProperty("ruta", ruta_archivo)
-                checkbox.stateChanged.connect(lambda _, cb=checkbox: ProcesarLidar.limitar_seleccion(cb, checkboxes_seleccionados, archivos_seleccionados))
+                checkbox.stateChanged.connect(lambda *args, cb=checkbox: ProcesarLidar.limitar_seleccion(cb, checkboxes_seleccionados, archivos_seleccionados))
                 scroll_layout.addWidget(checkbox)
 
         combo_box.currentIndexChanged.connect(actualizar_archivos)

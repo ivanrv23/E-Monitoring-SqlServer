@@ -59,7 +59,7 @@ class ConfigurarEstratos:
 
                 # Botón de color
                 color_button = QPushButton()
-                color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                 table.setCellWidget(row, 1, color_button)
 
                 # Rango Mínimo (DoubleSpinBox)
@@ -89,7 +89,7 @@ class ConfigurarEstratos:
                     # Botón de color
                     color_button = QPushButton()
                     color_button.setStyleSheet(f"background-color: {estrato[4]};")  # Asumiendo que el color está en la posición 4
-                    color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                    color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
                     table.setCellWidget(row, 1, color_button)
 
                     # Rango Mínimo (DoubleSpinBox)
@@ -145,7 +145,7 @@ class ConfigurarEstratos:
 
             # Botón de color
             color_button = QPushButton()
-            color_button.clicked.connect(lambda _, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+            color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
             table.setCellWidget(row_count, 1, color_button)
 
             # Rango Mínimo (DoubleSpinBox)

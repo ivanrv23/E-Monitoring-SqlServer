@@ -920,7 +920,7 @@ class RegistroEquipos:
                 elif text == '←':
                     button.clicked.connect(delete_last_component)
                 else:
-                    button.clicked.connect(lambda _, t=text: add_component(t))
+                    button.clicked.connect(lambda *args, t=text: add_component(t))
                 calculator_layout.addWidget(button, i, j)
         main_layout.addLayout(calculator_layout)
 
@@ -946,7 +946,7 @@ class RegistroEquipos:
             button = QPushButton(text)
             if text in tooltipsdynamic:
                 button.setToolTip(tooltipsdynamic[text])
-            button.clicked.connect(lambda _, t=text: add_component(t))
+            button.clicked.connect(lambda *args, t=text: add_component(t))
             fila = i // 5       # Nueva fila cada 5 botones
             columna = i % 5     # Columna va de 0 a 4
             dynamic_layout.addWidget(button, fila, columna)

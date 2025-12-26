@@ -128,7 +128,7 @@ class Reporte:
                     btn_borrar = QPushButton("Borrar", dialog)
                     btn_borrar.setFixedSize(75, 50)
                     cargarIcono(btn_borrar, ListaIconos.ICONOS["basura"])
-                    btn_borrar.clicked.connect(lambda _, id_imagen=id_imagen, fila_layout=fila_layout: Reporte.borrarImagenFila(id_imagen, fila_layout, scroll_layout))
+                    btn_borrar.clicked.connect(lambda *args, id_imagen=id_imagen, fila_layout=fila_layout: Reporte.borrarImagenFila(id_imagen, fila_layout, scroll_layout))
                     # Añadir el label y el botón a la fila
                     fila_layout.addWidget(label_imagen)
                     fila_layout.addWidget(btn_borrar)
@@ -210,7 +210,7 @@ class Reporte:
                     btn_borrar = QPushButton("Borrar", dialog)
                     btn_borrar.setFixedSize(75, 50)
                     cargarIcono(btn_borrar, ListaIconos.ICONOS["basura"])
-                    btn_borrar.clicked.connect(lambda _, id_imagen=id_imagen, fila_layout=fila_layout: Reporte.borrarImagenFila(id_imagen, fila_layout, scroll_layout))
+                    btn_borrar.clicked.connect(lambda *args, id_imagen=id_imagen, fila_layout=fila_layout: Reporte.borrarImagenFila(id_imagen, fila_layout, scroll_layout))
                     # Añadir el label y el botón a la fila
                     fila_layout.addWidget(label_imagen)
                     fila_layout.addWidget(btn_borrar)
