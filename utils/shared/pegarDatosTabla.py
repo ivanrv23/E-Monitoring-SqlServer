@@ -50,12 +50,21 @@ def es_fila_encabezado_valido(fila):
     celdas_no_vacias = [celda.strip() for celda in fila if celda.strip()]
     if not celdas_no_vacias:
         return False  # Si todas las celdas están vacías, no es encabezado
-    if any(celda.isdigit() for celda in celdas_no_vacias):
-        return False  # Si contiene valores numéricos, no es encabezado
+    
+    # Verificación extra: si TODAS las celdas parecen números o fechas, definitivamente no es encabezado
+    # (esto ayuda si copias una fila entera de fechas)
+    es_todo_datos = all(re.search(r"^[\d/.-]+$", c) for c in celdas_no_vacias)
+    if es_todo_datos:
+        return False
+
     return all(es_encabezado_valido(celda) for celda in celdas_no_vacias)
 
 def es_encabezado_valido(celda):
-    return bool(re.search(r"[A-Za-z()°%/]", celda))
+    # Si parece una fecha con barras (ej: 21/12/23), NO es un encabezado
+    if re.search(r"\d+/\d+", celda):
+        return False
+    # Busca letras o símbolos (excluyendo la barra sola para no confundir con fechas)
+    return bool(re.search(r"[A-Za-z()°%]", celda))
 
 def insertar_datos(tabla, filas, columnas_validas, es_encabezado):
     fila_actual = tabla.currentRow()
