@@ -312,7 +312,7 @@ class AcelerografoModel:
             CREATE TABLE {tabla} (
                 id_detalle INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
                 id_acelerografo INT NOT NULL,
-                fecha_detalle VARCHAR(50) NOT NULL,
+                fecha_detalle DATETIME NOT NULL,
                 magnitud_detalle FLOAT NOT NULL,
                 distancia_detalle FLOAT NOT NULL,
                 observacion_detalle VARCHAR(MAX)
