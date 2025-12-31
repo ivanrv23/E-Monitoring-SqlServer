@@ -63,19 +63,6 @@ CREATE TABLE [piezometrocuerdas] (
   CONSTRAINT [PK_piezometrocuerdas] PRIMARY KEY CLUSTERED ([id_piezometro])
 );
 
--- TABLA: piezometrocuerda_detalle1
-CREATE TABLE [piezometrocuerda_detalle1] (
-  [id_cuerda] INT IDENTITY(1,1) NOT NULL,
-  [id_piezometro] INT NOT NULL,
-  [fecha_cuerda] DATETIME NOT NULL,
-  [frecuencia_cuerda] FLOAT NOT NULL,
-  [temperatura_cuerda] FLOAT NOT NULL,
-  [presion_barometrica] FLOAT,
-  [medida_calculada] FLOAT,
-  [observacion_cuerda] NVARCHAR(MAX),
-  [estado_cuerda] TINYINT NOT NULL DEFAULT ((1)),
-  CONSTRAINT [PK_piezometrocuerda_detalle1] PRIMARY KEY CLUSTERED ([id_cuerda])
-);
 
 -- TABLA: cotas_piezometricas
 CREATE TABLE [cotas_piezometricas] (
@@ -106,16 +93,6 @@ CREATE TABLE [piezometromanuales] (
   CONSTRAINT [PK_piezometromanuales] PRIMARY KEY CLUSTERED ([id_piezometro])
 );
 
--- TABLA: piezometromanual_detalle1
-CREATE TABLE [piezometromanual_detalle1] (
-  [id_detalle] INT IDENTITY(1,1) NOT NULL,
-  [id_piezometro] INT NOT NULL,
-  [fecha_piezometro] DATETIME NOT NULL,
-  [medida_piezometro] FLOAT,
-  [observacion_detalle] NVARCHAR(MAX),
-  [estado_manual] TINYINT NOT NULL DEFAULT ((1)),
-  CONSTRAINT [PK_piezometromanual_detalle1] PRIMARY KEY CLUSTERED ([id_detalle])
-);
 
 -- TABLA: pluviometros
 CREATE TABLE [pluviometros] (
@@ -131,16 +108,6 @@ CREATE TABLE [pluviometros] (
   CONSTRAINT [PK_pluviometros] PRIMARY KEY CLUSTERED ([id_pluviometro])
 );
 
--- TABLA: pluviometro_detalle1
-CREATE TABLE [pluviometro_detalle1] (
-  [id_detalle] INT IDENTITY(1,1) NOT NULL,
-  [id_pluviometro] INT NOT NULL,
-  [fecha_pluviometro] DATETIME NOT NULL,
-  [medida_pluviometro] FLOAT NOT NULL,
-  [observacion_pluviometro] NVARCHAR(MAX),
-  CONSTRAINT [PK_pluviometro_detalle1] PRIMARY KEY CLUSTERED ([id_detalle])
-);
-
 -- TABLA: cotasterreno
 CREATE TABLE [cotasterreno] (
   [id_terreno] INT IDENTITY(1,1) NOT NULL,
@@ -151,16 +118,6 @@ CREATE TABLE [cotasterreno] (
   CONSTRAINT [PK_cotasterreno] PRIMARY KEY CLUSTERED ([id_terreno])
 );
 
--- TABLA: cotaterreno_detalle1
-CREATE TABLE [cotaterreno_detalle1] (
-  [id_detalle] INT IDENTITY(1,1) NOT NULL,
-  [id_terreno] INT NOT NULL,
-  [fecha_detalle] DATETIME NOT NULL,
-  [nivel_detalle] FLOAT NOT NULL,
-  [observacion_detalle] NVARCHAR(MAX),
-  [estado_detalle] TINYINT DEFAULT ((1)),
-  CONSTRAINT [PK_cotaterreno_detalle1] PRIMARY KEY CLUSTERED ([id_detalle])
-);
 
 -- TABLA: celdas
 CREATE TABLE [celdas] (
@@ -182,19 +139,6 @@ CREATE TABLE [celdas] (
   CONSTRAINT [PK_celdas] PRIMARY KEY CLUSTERED ([id_celda])
 );
 
--- TABLA: celda_detalle1
-CREATE TABLE [celda_detalle1] (
-  [id_detalle] INT IDENTITY(1,1) NOT NULL,
-  [id_celda] INT NOT NULL,
-  [fecha_detalle] DATETIME NOT NULL,
-  [frecuencia_digits] FLOAT,
-  [frecuencia_hz] FLOAT,
-  [temperatura_detalle] FLOAT,
-  [medida_calculada] FLOAT,
-  [observacion_detalle] NVARCHAR(MAX),
-  [estado_detalle] TINYINT NOT NULL DEFAULT ((1)),
-  CONSTRAINT [PK_celda_detalle1] PRIMARY KEY CLUSTERED ([id_detalle])
-);
 
 -- TABLA: acelerografos
 CREATE TABLE [acelerografos] (
@@ -205,17 +149,6 @@ CREATE TABLE [acelerografos] (
   [norte_acelerografo] FLOAT,
   [elevacion_acelerografo] FLOAT,
   CONSTRAINT [PK_acelerografos] PRIMARY KEY CLUSTERED ([id_acelerografo])
-);
-
--- TABLA: acelerografo_detalle1
-CREATE TABLE [acelerografo_detalle1] (
-  [id_detalle] INT IDENTITY(1,1) NOT NULL,
-  [id_acelerografo] INT NOT NULL,
-  [fecha_detalle] DATETIME NOT NULL,
-  [magnitud_detalle] FLOAT NOT NULL,
-  [distancia_detalle] FLOAT NOT NULL,
-  [observacion_detalle] NVARCHAR(MAX),
-  CONSTRAINT [PK_acelerografo_detalle1] PRIMARY KEY CLUSTERED ([id_detalle])
 );
 
 -- TABLA: cotas_celdas
@@ -266,18 +199,6 @@ CREATE TABLE [inclinometro_encabezado] (
   CONSTRAINT [PK_inclinometro_encabezado] PRIMARY KEY CLUSTERED ([id_encabezado])
 );
 
--- TABLA: inclinometro_detalle1
-CREATE TABLE [inclinometro_detalle1] (
-  [id_detalle] INT IDENTITY(1,1) NOT NULL,
-  [id_encabezado] INT NOT NULL,
-  [profundidad_detalle] FLOAT NOT NULL,
-  [apositivo_detalle] FLOAT NOT NULL,
-  [anegativo_detalle] FLOAT NOT NULL,
-  [bpositivo_detalle] FLOAT NOT NULL,
-  [bnegativo_detalle] FLOAT NOT NULL,
-  CONSTRAINT [PK_inclinometro_detalle1] PRIMARY KEY CLUSTERED ([id_detalle])
-);
-
 -- TABLA: empresa
 CREATE TABLE [empresa] (
   [id_empresa] INT IDENTITY(1,1) NOT NULL,
@@ -326,27 +247,6 @@ CREATE TABLE [sondajestdr] (
   CONSTRAINT [PK_sondajestdr] PRIMARY KEY CLUSTERED ([id_sondajetdr])
 );
 
--- TABLA: sondajetdr_detalle1
-CREATE TABLE [sondajetdr_detalle1] (
-  [id_detalle] INT IDENTITY(1,1) NOT NULL,
-  [id_sondajetdr] INT NOT NULL,
-  [profundidad_detalle] FLOAT NOT NULL,
-  [fecha_detalle] DATETIME NOT NULL,
-  [impedancia_detalle] FLOAT NOT NULL,
-  [observacion_detalle] NVARCHAR(MAX),
-  CONSTRAINT [PK_sondajetdr_detalle1] PRIMARY KEY CLUSTERED ([id_detalle])
-);
-
--- TABLA: sondajestdr_puntos
-CREATE TABLE [sondajestdr_puntos] (
-  [id_detalle] INT IDENTITY(1,1) NOT NULL,
-  [id_sondajetdr] INT NOT NULL,
-  [tipo_detalle] NVARCHAR(500),
-  [medida_detalle] FLOAT,
-  [color_detalle] NVARCHAR(50),
-  [orden_detalle] INT,
-  CONSTRAINT [PK_sondajestdr_puntos] PRIMARY KEY CLUSTERED ([id_detalle])
-);
 
 -- TABLA: equipos
 CREATE TABLE [equipos] (
@@ -364,42 +264,6 @@ CREATE TABLE [equipos] (
   CONSTRAINT [PK_equipos] PRIMARY KEY CLUSTERED ([id_equipo])
 );
 
--- TABLA: prismas1
-CREATE TABLE [prismas1] (
-  [id_prisma] INT IDENTITY(1,1) NOT NULL,
-  [state_prisma] TINYINT NOT NULL DEFAULT ((1)),
-  [estado_prisma] TINYINT NOT NULL DEFAULT ((1)),
-  [nombre_prisma] NVARCHAR(500) NOT NULL,
-  [perfil_prisma] NVARCHAR(MAX),
-  [hora_prisma] DATETIME NOT NULL,
-  [angulo_horizontal] NVARCHAR(MAX),
-  [angulo_vertical] NVARCHAR(MAX),
-  [distancia_prisma] FLOAT DEFAULT ((0)),
-  [tipoppm_prisma] NVARCHAR(MAX),
-  [ppm_prisma] FLOAT DEFAULT ((0)),
-  [presion_prisma] FLOAT DEFAULT ((0)),
-  [temperatura_prisma] FLOAT DEFAULT ((0)),
-  [constante_prisma] FLOAT DEFAULT ((0)),
-  [este_target] FLOAT NOT NULL,
-  [norte_target] FLOAT NOT NULL,
-  [elevacion_target] FLOAT NOT NULL,
-  [altura_reflector] FLOAT DEFAULT ((0)),
-  [altura_instrumento] FLOAT DEFAULT ((0)),
-  [este_estacion] FLOAT DEFAULT ((0)),
-  [norte_estacion] FLOAT DEFAULT ((0)),
-  [altura_estacion] FLOAT DEFAULT ((0)),
-  [medicion_prisma] FLOAT DEFAULT ((0)),
-  [diferencia_tiempocorto] FLOAT DEFAULT ((0)),
-  [diferencia_tiempolargo] FLOAT DEFAULT ((0)),
-  [diferencia_limitevelocidad] FLOAT DEFAULT ((0)),
-  [distancia_horizontal] FLOAT DEFAULT ((0)),
-  [diferencia_atipica] FLOAT DEFAULT ((0)),
-  [desplaza_longitudinal] FLOAT DEFAULT ((0)),
-  [desplaza_transversal] FLOAT DEFAULT ((0)),
-  [desplaza_altura] FLOAT DEFAULT ((0)),
-  [grupo_puntos] NVARCHAR(MAX),
-  CONSTRAINT [PK_prismas1] PRIMARY KEY CLUSTERED ([id_prisma])
-);
 
 -- TABLA: firmas
 CREATE TABLE [firmas] (
