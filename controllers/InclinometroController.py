@@ -7,33 +7,50 @@ from models.InterfazModel import InterfazModel
 
 class InclinometroController:
     
-    # --- FUNCIÓN CORREGIDA PARA FECHAS ---
     @staticmethod
     def procesar_lista_fechas(fechas_raw):
+        # 1. Validación inicial
         if not fechas_raw:
             return []
-        
-        if "datetime.datetime" in fechas_raw:
+
+        lista_objetos = []
+
+        # 2. Si YA es una lista (el driver SQL Server a veces lo entrega así)
+        if isinstance(fechas_raw, list):
+            lista_objetos = fechas_raw
+
+        # 3. Si es texto y contiene "datetime.datetime" (representación de Python)
+        elif isinstance(fechas_raw, str) and "datetime.datetime" in fechas_raw:
             try:
-                # CORRECCIÓN: Pasamos el módulo 'datetime' (dt_module) al contexto de eval
-                lista_objetos = eval(fechas_raw, {"datetime": dt_module})
+                # CONTEXTO:
+                # mapeamos la palabra "datetime" dentro del string al módulo 'dt_module'
+                # para que eval pueda resolver "datetime.datetime(...)"
+                contexto_seguro = {'datetime': dt_module}
                 
-                lista_strings = []
-                for dt in lista_objetos:
-                    if isinstance(dt, datetime):
-                        lista_strings.append(dt.strftime('%Y-%m-%d %H:%M:%S'))
-                    else:
-                        lista_strings.append(str(dt))
-                return lista_strings
+                # SEGURIDAD: __builtins__: None evita ejecución de código malicioso
+                lista_objetos = eval(fechas_raw, {"__builtins__": None}, contexto_seguro)
             except Exception as e:
                 print(f"Error procesando fechas SQL Server: {e}")
                 return []
 
-        try:
-            return ast.literal_eval(fechas_raw)
-        except:
-            return []
+        # 4. Fallback: Si es texto normal (lista de strings simple, formato antiguo)
+        elif isinstance(fechas_raw, str):
+            try:
+                return ast.literal_eval(fechas_raw)
+            except:
+                return []
 
+        # --- CONVERSIÓN A STRING ---
+        lista_strings = []
+        for dt in lista_objetos:
+            # Aquí usamos 'datetime' (la clase) directo porque tienes: from datetime import datetime
+            if isinstance(dt, datetime):
+                lista_strings.append(dt.strftime('%Y-%m-%d %H:%M:%S'))
+            else:
+                lista_strings.append(str(dt))
+                
+        return lista_strings
+    
     # --- FUNCIÓN MEJORADA: Convertir Decimal a Float (Incluyendo Profundidad) ---
     @staticmethod
     def convertir_decimal_a_float(datos):

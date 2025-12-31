@@ -1395,11 +1395,7 @@ class VisorView:
                     linea.SetVisibility(False)
                     for compon, inclinos in inclinometrofechasmarcados:
                         for nombreincli, idinstrume, fechas in inclinos:
-                            # listafechas = ast.literal_eval(fechas)
-                            # Le decimos a eval que cuando lea "datetime" en el texto, use el MÓDULO, no la clase.
                             contexto_seguro = {'datetime': dt_module}
-                            
-                            # Convertimos el texto a objetos reales
                             listafechas = eval(fechas, {"__builtins__": None}, contexto_seguro)
                             for fech in listafechas:
                                 if str(fecha) == str(fech) and str(idcomponen) == compon[1] and str(idinstru) == idinstrume:
@@ -1540,9 +1536,7 @@ class VisorView:
         if len(listainclinometros) > 0:
             ids_graficados = {codinstru for idcompo, codinstru, fecha, linea in VisorView.inclinometrolineas}
             for inclinome, fechitas, idinstru in listainclinometros:
-                if idinstru not in ids_graficados: # verificar si ya está graficado
-                    # fechas = ast.literal_eval(fechitas)
-                     # Le decimos a eval que cuando lea "datetime" en el texto, use el MÓDULO, no la clase.
+                if idinstru not in ids_graficados:
                     contexto_seguro = {'datetime': dt_module}
                     
                     # Convertimos el texto a objetos reales

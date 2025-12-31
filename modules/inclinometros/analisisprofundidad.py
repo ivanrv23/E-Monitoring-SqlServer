@@ -110,9 +110,7 @@ class AnalisisProfundidad:
                     nombrecomponente, idcomponente, idproy = componente
                     for nombreincli, idinstru, fechas in listainclinometros:
                         tabla = f"inclinometro_detalle{idproyecto}"
-                        # fechitas = ast.literal_eval(fechas)
                         contexto_seguro = {'datetime': dt_module}
-                        # Usamos eval porque ast.literal_eval no soporta objetos datetime
                         fechitas = eval(fechas, {"__builtins__": None}, contexto_seguro)
                         if tipoincli == "RST":
                             if graficatipo == 'DIA':

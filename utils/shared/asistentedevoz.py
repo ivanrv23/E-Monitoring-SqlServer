@@ -1,6 +1,7 @@
 import pyttsx3
 import ast
 from datetime import datetime
+import datetime as dt_module 
 from PySide6.QtWidgets import QComboBox
 from utils.common.metodosGenerales import MetodosGenerales
 from controllers.AsistentevozController import AsistenteVozController
@@ -69,19 +70,54 @@ class AsistenteVoz:
         return texto
     
     def obtenerInformacionInclinometros(inclinometromarcados):
-        listafechas = []
-        for inclinome, fechitas, idinstru in inclinometromarcados:
-            fechas = ast.literal_eval(fechitas)
-            listafechas.extend(fechas)
+        lista_fechas_dt = [] # Almacenaremos objetos datetime reales aquí
+
+        for inclinome, fechitas_raw, idinstru in inclinometromarcados:
+            temp_lista = []
+            
+            # 1. PARSEO: Convertir entrada a lista
+            if isinstance(fechitas_raw, list):
+                temp_lista = fechitas_raw
+            elif isinstance(fechitas_raw, str) and "datetime.datetime" in fechitas_raw:
+                try:
+                    # Usamos dt_module para el contexto del eval
+                    temp_lista = eval(fechitas_raw, {"__builtins__": None}, {"datetime": dt_module})
+                except:
+                    temp_lista = []
+            elif isinstance(fechitas_raw, str):
+                try:
+                    temp_lista = ast.literal_eval(fechitas_raw)
+                except:
+                    temp_lista = []
+
+            # 2. NORMALIZACIÓN: Convertir todo a objeto datetime
+            for item in temp_lista:
+                if isinstance(item, datetime):
+                    # Si ya es objeto (vía eval o driver), lo guardamos directo
+                    lista_fechas_dt.append(item)
+                elif isinstance(item, str):
+                    # Si es texto (vía ast o driver antiguo), lo convertimos
+                    try:
+                        dt_obj = datetime.strptime(item, "%Y-%m-%d %H:%M:%S")
+                        lista_fechas_dt.append(dt_obj)
+                    except ValueError:
+                        pass # Ignorar formatos incorrectos
+
+        if not lista_fechas_dt:
+            return "No se encontraron fechas válidas para analizar."
+
+        # 3. CÁLCULO
+        fechamenor = min(lista_fechas_dt)
+        fechamayor = max(lista_fechas_dt)
+        
         cantidadIncli = len(inclinometromarcados)
-        fechas_dt = [datetime.strptime(fecha, "%Y-%m-%d %H:%M:%S") for fecha in listafechas]
-        # Obtener la menor y mayor fecha
-        fechamenor = min(fechas_dt)
-        fechamayor = max(fechas_dt)
+        
+        # str(fechamenor) convierte automáticamente a 'YYYY-MM-DD HH:MM:SS'
         if cantidadIncli == 1:
             texto = f"Se esta analizando un inclinómetro con lecturas desde el {fechamenor} hasta {fechamayor}."
         else:
             texto = f"Se esta analizando un total de {cantidadIncli} inclinómetros con lecturas desde el {fechamenor} hasta {fechamayor}."
+            
         return texto
     
     def obtenerInformacionPiezometros(piezometromarcados, tipo):

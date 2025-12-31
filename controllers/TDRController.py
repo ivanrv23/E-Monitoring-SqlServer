@@ -1,16 +1,20 @@
 import ast
 from models.TDRModel import TDRModel
-
+import datetime
 class TDRController:
     
     def ctrlObtenerLecturasTDR(idproyecto, sondajetdrmarcados, unidadmedida):
         data = []
         fallas = []
         tabla = f"sondajetdr_detalle{idproyecto}"
+        contexto_seguro = {
+        'datetime': datetime, 
+        'list': list 
+    }
         for componente, listatdr in sondajetdrmarcados:
             nombrecomponente, idcomponente, idproy = componente
             for nombretdr, idinstru, fechas in listatdr:
-                fechitas = ast.literal_eval(fechas)
+                fechitas = eval(fechas, {"__builtins__": None}, contexto_seguro)
                 respuesta = TDRModel.mdlObtenerLecturasTDR(tabla, idcomponente, idinstru, unidadmedida, fechitas)
                 datafallas = TDRModel.mdlObtenerFallasTDR(idcomponente, idinstru)
                 if respuesta:
