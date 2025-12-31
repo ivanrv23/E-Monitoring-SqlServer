@@ -525,7 +525,7 @@ class PrismaModel:
                 estado_prisma INT NOT NULL DEFAULT 1, 
                 nombre_prisma VARCHAR(255) NOT NULL, 
                 perfil_prisma VARCHAR(255), 
-                hora_prisma DATETIME NOT NULL, 
+                hora_prisma DATETIME2(0) NOT NULL, 
                 angulo_horizontal VARCHAR(50), 
                 angulo_vertical VARCHAR(50), 
                 distancia_prisma FLOAT DEFAULT 0, 
@@ -560,7 +560,7 @@ class PrismaModel:
             
             # Optimización: Cargar claves existentes en memoria para evitar duplicados
             # Nota: hora_prisma se castea a string para comparar, asumiendo formato compatible
-            cursor.execute(f"SELECT nombre_prisma, FORMAT(hora_prisma, 'yyyy-MM-dd HH:mm:ss') FROM {nombretabla}")
+            cursor.execute(f"SELECT nombre_prisma, FORMAT(hora_prisma, 'yyyy-MM-ddTHH:mm:ss') FROM {nombretabla}")
             existen_prismas = set([(row[0], row[1]) for row in cursor.fetchall()])
             
             lote_registros = []

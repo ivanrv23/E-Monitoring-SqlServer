@@ -598,6 +598,8 @@ class DatosModel:
     def mdlRegistrarPrismasAutomatizadosUno(idproyecto, datos_procesados):
         respuesta = True
         nombretabla = f"prismas{idproyecto}"
+        
+        # 1. USO DE DATETIME2(0)
         sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
         CREATE TABLE {nombretabla} (
             id_prisma INT IDENTITY(1,1) NOT NULL,
@@ -605,7 +607,7 @@ class DatosModel:
             estado_prisma INT NOT NULL DEFAULT ((1)), 
             nombre_prisma NVARCHAR(500) NOT NULL, 
             perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME NOT NULL, 
+            hora_prisma DATETIME2(0) NOT NULL, 
             angulo_horizontal NVARCHAR(50), 
             angulo_vertical NVARCHAR(50), 
             distancia_prisma FLOAT DEFAULT ((0)), 
@@ -642,16 +644,15 @@ class DatosModel:
             cursor.execute(sqltable)
             conn.commit()
             
+            # 2. FORMATO ISO CON 'T' PARA COMPARACIÓN EXACTA
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%dT%H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
-            total_registros = len(datos_procesados)
-            lote_tamano = max(5000, min(total_registros // 100, 10000))
+            lote_tamano = 5000
             lote_registros = []
-            contador = 0
             
             sql_insert = f"""
                 INSERT INTO {nombretabla} (
@@ -666,19 +667,21 @@ class DatosModel:
             """
             
             for fila in datos_procesados.itertuples(index=False):
+                # fila[3] viene con 'T' desde tu controller
                 if (fila[1], str(fila[3])) not in existing_records:
                     datos_limpios = [None if pd.isna(x) else x for x in fila]
                     lote_registros.append(tuple(datos_limpios))
-                    contador += 1
                 
-                if contador % lote_tamano == 0:
+                # 3. CONTADOR SEGURO (len)
+                if len(lote_registros) >= lote_tamano:
                     cursor.executemany(sql_insert, lote_registros)
+                    conn.commit()
                     lote_registros = []
 
             if lote_registros:
                 cursor.executemany(sql_insert, lote_registros)
+                conn.commit()
 
-            conn.commit()
         except Exception as e:
             print(f"Error detallado SQL UNO: {e}")
             respuesta = False
@@ -691,6 +694,7 @@ class DatosModel:
     def mdlRemplazarPrismasAutomatizadosUno(idproyecto, datos_procesados, componente=None):
         respuesta = True
         nombretabla = f"prismas{idproyecto}"
+        
         sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
         CREATE TABLE {nombretabla} (
             id_prisma INT IDENTITY(1,1) NOT NULL,
@@ -698,7 +702,7 @@ class DatosModel:
             estado_prisma INT NOT NULL DEFAULT ((1)), 
             nombre_prisma NVARCHAR(500) NOT NULL, 
             perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME NOT NULL, 
+            hora_prisma DATETIME2(0) NOT NULL, 
             angulo_horizontal NVARCHAR(50), 
             angulo_vertical NVARCHAR(50), 
             distancia_prisma FLOAT DEFAULT ((0)), 
@@ -747,12 +751,11 @@ class DatosModel:
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%dT%H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
             lote_tamano = 5000
             lote_registros = []
-            contador = 0
             
             sql_insert = f"""
                 INSERT INTO {nombretabla} (
@@ -770,16 +773,16 @@ class DatosModel:
                 if (fila[1], str(fila[3])) not in existing_records:
                     datos_limpios = [None if pd.isna(x) else x for x in fila]
                     lote_registros.append(tuple(datos_limpios))
-                    contador += 1
                 
-                if contador % lote_tamano == 0:
+                if len(lote_registros) >= lote_tamano:
                     cursor.executemany(sql_insert, lote_registros)
+                    conn.commit()
                     lote_registros = []
 
             if lote_registros:
                 cursor.executemany(sql_insert, lote_registros)
+                conn.commit()
 
-            conn.commit()
         except Exception as e:
             print(f"Error detallado Reemplazar UNO: {e}")
             respuesta = False
@@ -799,7 +802,7 @@ class DatosModel:
             estado_prisma INT NOT NULL DEFAULT ((1)), 
             nombre_prisma NVARCHAR(500) NOT NULL, 
             perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME NOT NULL, 
+            hora_prisma DATETIME2(0) NOT NULL, 
             angulo_horizontal NVARCHAR(50), 
             angulo_vertical NVARCHAR(50), 
             distancia_prisma FLOAT DEFAULT ((0)), 
@@ -839,12 +842,11 @@ class DatosModel:
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%dT%H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
             lote_tamano = 5000
             lote_registros = []
-            contador = 0
             
             sql_insert = f"""
                 INSERT INTO {nombretabla} (
@@ -854,19 +856,20 @@ class DatosModel:
             """
             
             for fila in datos_procesados.itertuples(index=False):
+                # Asumiendo que fila[9] es hora_prisma
                 if (fila[0], str(fila[9])) not in existing_records:
                     datos_limpios = [None if pd.isna(x) else x for x in fila]
                     lote_registros.append(tuple(datos_limpios))
-                    contador += 1
                 
-                if contador % lote_tamano == 0:
+                if len(lote_registros) >= lote_tamano:
                     cursor.executemany(sql_insert, lote_registros)
+                    conn.commit()
                     lote_registros = []
 
             if lote_registros:
                 cursor.executemany(sql_insert, lote_registros)
+                conn.commit()
 
-            conn.commit()
         except Exception as e:
             print(f"Error detallado SQL DOS: {e}")
             respuesta = False
@@ -877,6 +880,7 @@ class DatosModel:
     
     @staticmethod
     def mdlRemplazarPrismasAutomatizadosDos(idproyecto, datos_procesados, componente=None):
+        # Mismos cambios: DATETIME2(0), formato con T, contador seguro
         respuesta = True
         nombretabla = f"prismas{idproyecto}"
         sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
@@ -886,7 +890,7 @@ class DatosModel:
             estado_prisma INT NOT NULL DEFAULT ((1)), 
             nombre_prisma NVARCHAR(500) NOT NULL, 
             perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME NOT NULL, 
+            hora_prisma DATETIME2(0) NOT NULL, 
             angulo_horizontal NVARCHAR(50), 
             angulo_vertical NVARCHAR(50), 
             distancia_prisma FLOAT DEFAULT ((0)), 
@@ -935,12 +939,11 @@ class DatosModel:
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%dT%H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
             lote_tamano = 5000
             lote_registros = []
-            contador = 0
             
             sql_insert = f"""
                 INSERT INTO {nombretabla} (
@@ -953,16 +956,16 @@ class DatosModel:
                 if (fila[0], str(fila[9])) not in existing_records:
                     datos_limpios = [None if pd.isna(x) else x for x in fila]
                     lote_registros.append(tuple(datos_limpios))
-                    contador += 1
                 
-                if contador % lote_tamano == 0:
+                if len(lote_registros) >= lote_tamano:
                     cursor.executemany(sql_insert, lote_registros)
+                    conn.commit()
                     lote_registros = []
 
             if lote_registros:
                 cursor.executemany(sql_insert, lote_registros)
+                conn.commit()
 
-            conn.commit()
         except Exception as e:
             print(f"Error detallado Reemplazar DOS: {e}")
             respuesta = False
@@ -973,6 +976,7 @@ class DatosModel:
     
     @staticmethod
     def mdlRegistrarPrismasAutomatizadosTres(idproyecto, datos_procesados, encode, delimitador):
+        # CAMBIO: Usar T en SQL y en el parseo manual del CSV
         equipos_unicos = set()
         nombretabla = f"prismas{idproyecto}"
         sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
@@ -982,7 +986,7 @@ class DatosModel:
             estado_prisma INT NOT NULL DEFAULT ((1)), 
             nombre_prisma NVARCHAR(500) NOT NULL, 
             perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME NOT NULL, 
+            hora_prisma DATETIME2(0) NOT NULL, 
             angulo_horizontal NVARCHAR(50), 
             angulo_vertical NVARCHAR(50), 
             distancia_prisma FLOAT DEFAULT ((0)), 
@@ -1022,9 +1026,10 @@ class DatosModel:
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%dT%H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
+            # ... (Lectura del CSV se mantiene) ...
             columnas_omitir = [2, 11, 14, 15, 16, 17]
             try:
                 df = pd.read_csv(datos_procesados, encoding=encode, sep=delimitador)
@@ -1041,7 +1046,6 @@ class DatosModel:
             
             lote_tamano = 5000
             lote_registros = []
-            contador = 0
             
             sql_insert = f"""INSERT INTO {nombretabla} (nombre_prisma, grupo_puntos, estado_prisma,
                     hora_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, este_target, norte_target, elevacion_target,
@@ -1060,32 +1064,28 @@ class DatosModel:
                         fecha_obj = datetime.strptime(fecha_limpia, '%Y-%m-%d %H:%M:%S.%f')
                     else:
                         fecha_obj = datetime.strptime(fecha_limpia, '%Y-%m-%d %H:%M:%S')
-                    fechahora = fecha_obj.strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    # CAMBIO CLAVE: Formatear con T para que coincida con existing_records
+                    fechahora = fecha_obj.strftime('%Y-%m-%dT%H:%M:%S')
                 except ValueError:
                     fechahora = fecha_limpia
                 
                 if (fila.iloc[0], fechahora) not in existing_records:
                     datos_fila = fila.tolist()
-                    datos_fila[3] = fechahora
-                    # LIMPIEZA
+                    datos_fila[3] = fechahora # Actualizamos con el formato T
+                    
                     datos_limpios = [None if pd.isna(x) else x for x in datos_fila]
                     lote_registros.append(tuple(datos_limpios))
-                    contador += 1
 
-                if contador % lote_tamano == 0:
-                    unique_data = {(row[0], row[3]): row for row in lote_registros}
-                    datalimpia = list(unique_data.values())
-                    if datalimpia:
-                        cursor.executemany(sql_insert, datalimpia)
+                if len(lote_registros) >= lote_tamano:
+                    cursor.executemany(sql_insert, lote_registros)
+                    conn.commit()
                     lote_registros = []
 
             if lote_registros:
-                unique_data = {(row[0], row[3]): row for row in lote_registros}
-                datalimpia = list(unique_data.values())
-                if datalimpia:
-                    cursor.executemany(sql_insert, datalimpia)
+                cursor.executemany(sql_insert, lote_registros)
+                conn.commit()
             
-            conn.commit()
             return True, list(equipos_unicos)
         except Exception as e:
             print(f"Error detallado SQL TRES: {e}")
@@ -1096,6 +1096,7 @@ class DatosModel:
             
     @staticmethod
     def mdlRemplazarPrismasAutomatizadosTres(idproyecto, datos_procesados, encode, delimitador, componente=None):
+        # Mismos cambios que RegistrarTres
         equipos_unicos = set()
         nombretabla = f"prismas{idproyecto}"
         
@@ -1106,7 +1107,7 @@ class DatosModel:
             estado_prisma INT NOT NULL DEFAULT ((1)), 
             nombre_prisma NVARCHAR(500) NOT NULL, 
             perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME NOT NULL, 
+            hora_prisma DATETIME2(0) NOT NULL, 
             angulo_horizontal NVARCHAR(50), 
             angulo_vertical NVARCHAR(50), 
             distancia_prisma FLOAT DEFAULT ((0)), 
@@ -1155,9 +1156,10 @@ class DatosModel:
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%dT%H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
+            # ... CSV Parsing ...
             columnas_omitir = [2, 11, 14, 15, 16, 17]
             try:
                 df = pd.read_csv(datos_procesados, encoding=encode, sep=delimitador)
@@ -1174,7 +1176,6 @@ class DatosModel:
             
             lote_tamano = 5000
             lote_registros = []
-            contador = 0
             
             sql_insert = f"""INSERT INTO {nombretabla} (nombre_prisma, grupo_puntos, estado_prisma,
                     hora_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, este_target, norte_target, elevacion_target,
@@ -1193,32 +1194,25 @@ class DatosModel:
                         fecha_obj = datetime.strptime(fecha_limpia, '%Y-%m-%d %H:%M:%S.%f')
                     else:
                         fecha_obj = datetime.strptime(fecha_limpia, '%Y-%m-%d %H:%M:%S')
-                    fechahora = fecha_obj.strftime('%Y-%m-%d %H:%M:%S')
+                    fechahora = fecha_obj.strftime('%Y-%m-%dT%H:%M:%S')
                 except ValueError:
                     fechahora = fecha_limpia
                 
                 if (fila.iloc[0], fechahora) not in existing_records:
                     datos_fila = fila.tolist()
                     datos_fila[3] = fechahora
-                    # LIMPIEZA
                     datos_limpios = [None if pd.isna(x) else x for x in datos_fila]
                     lote_registros.append(tuple(datos_limpios))
-                    contador += 1
 
-                if contador % lote_tamano == 0:
-                    unique_data = {(row[0], row[3]): row for row in lote_registros}
-                    datalimpia = list(unique_data.values())
-                    if datalimpia:
-                        cursor.executemany(sql_insert, datalimpia)
+                if len(lote_registros) >= lote_tamano:
+                    cursor.executemany(sql_insert, lote_registros)
+                    conn.commit()
                     lote_registros = []
 
             if lote_registros:
-                unique_data = {(row[0], row[3]): row for row in lote_registros}
-                datalimpia = list(unique_data.values())
-                if datalimpia:
-                    cursor.executemany(sql_insert, datalimpia)
+                cursor.executemany(sql_insert, lote_registros)
+                conn.commit()
             
-            conn.commit()
             return True, list(equipos_unicos)
         except Exception as e:
             print(f"Error detallado Reemplazar TRES: {e}")
@@ -1238,7 +1232,7 @@ class DatosModel:
             estado_prisma INT NOT NULL DEFAULT ((1)), 
             nombre_prisma NVARCHAR(500) NOT NULL, 
             perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME NOT NULL, 
+            hora_prisma DATETIME2(0) NOT NULL, 
             angulo_horizontal NVARCHAR(50), 
             angulo_vertical NVARCHAR(50), 
             distancia_prisma FLOAT DEFAULT ((0)), 
@@ -1278,12 +1272,11 @@ class DatosModel:
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%dT%H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
             lote_tamano = 5000
             lote_registros = []
-            contador = 0
             
             sql_insert = f"""
                 INSERT INTO {nombretabla} (
@@ -1295,19 +1288,18 @@ class DatosModel:
             
             for fila in datos_procesados.itertuples(index=False):
                 if (fila[1], str(fila[2])) not in existing_records:
-                    # LIMPIEZA
                     datos_limpios = [None if pd.isna(x) else x for x in fila]
                     lote_registros.append(tuple(datos_limpios))
-                    contador += 1
                 
-                if contador % lote_tamano == 0:
+                if len(lote_registros) >= lote_tamano:
                     cursor.executemany(sql_insert, lote_registros)
+                    conn.commit()
                     lote_registros = []
 
             if lote_registros:
                 cursor.executemany(sql_insert, lote_registros)
+                conn.commit()
 
-            conn.commit()
         except Exception as e:
             print(f"Error detallado SQL CUATRO: {e}")
             respuesta = False
@@ -1327,7 +1319,7 @@ class DatosModel:
             estado_prisma INT NOT NULL DEFAULT ((1)), 
             nombre_prisma NVARCHAR(500) NOT NULL, 
             perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME NOT NULL, 
+            hora_prisma DATETIME2(0) NOT NULL, 
             angulo_horizontal NVARCHAR(50), 
             angulo_vertical NVARCHAR(50), 
             distancia_prisma FLOAT DEFAULT ((0)), 
@@ -1376,12 +1368,11 @@ class DatosModel:
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%dT%H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
             lote_tamano = 5000
             lote_registros = []
-            contador = 0
             
             sql_insert = f"""
                 INSERT INTO {nombretabla} (
@@ -1393,19 +1384,18 @@ class DatosModel:
             
             for fila in datos_procesados.itertuples(index=False):
                 if (fila[1], str(fila[2])) not in existing_records:
-                    # LIMPIEZA
                     datos_limpios = [None if pd.isna(x) else x for x in fila]
                     lote_registros.append(tuple(datos_limpios))
-                    contador += 1
                 
-                if contador % lote_tamano == 0:
+                if len(lote_registros) >= lote_tamano:
                     cursor.executemany(sql_insert, lote_registros)
+                    conn.commit()
                     lote_registros = []
 
             if lote_registros:
                 cursor.executemany(sql_insert, lote_registros)
+                conn.commit()
 
-            conn.commit()
         except Exception as e:
             print(f"Error detallado Reemplazar CUATRO: {e}")
             respuesta = False
@@ -1425,7 +1415,7 @@ class DatosModel:
             estado_prisma INT NOT NULL DEFAULT ((1)), 
             nombre_prisma NVARCHAR(500) NOT NULL, 
             perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME NOT NULL, 
+            hora_prisma DATETIME2(0) NOT NULL, 
             angulo_horizontal NVARCHAR(50), 
             angulo_vertical NVARCHAR(50), 
             distancia_prisma FLOAT DEFAULT ((0)), 
@@ -1465,12 +1455,11 @@ class DatosModel:
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%dT%H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
             lote_tamano = 5000
             lote_registros = []
-            contador = 0
             
             sql_insert = f"""
                 INSERT INTO {nombretabla} (
@@ -1483,19 +1472,18 @@ class DatosModel:
             
             for fila in datos_procesados.itertuples(index=False):
                 if (fila[1], str(fila[0])) not in existing_records:
-                    # LIMPIEZA
                     datos_limpios = [None if pd.isna(x) else x for x in fila]
                     lote_registros.append(tuple(datos_limpios))
-                    contador += 1
                 
-                if contador % lote_tamano == 0:
+                if len(lote_registros) >= lote_tamano:
                     cursor.executemany(sql_insert, lote_registros)
+                    conn.commit()
                     lote_registros = []
 
             if lote_registros:
                 cursor.executemany(sql_insert, lote_registros)
+                conn.commit()
 
-            conn.commit()
         except Exception as e:
             print(f"Error detallado SQL CINCO: {e}")
             respuesta = False
@@ -1515,7 +1503,7 @@ class DatosModel:
             estado_prisma INT NOT NULL DEFAULT ((1)), 
             nombre_prisma NVARCHAR(500) NOT NULL, 
             perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME NOT NULL, 
+            hora_prisma DATETIME2(0) NOT NULL, 
             angulo_horizontal NVARCHAR(50), 
             angulo_vertical NVARCHAR(50), 
             distancia_prisma FLOAT DEFAULT ((0)), 
@@ -1564,12 +1552,11 @@ class DatosModel:
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
             for row in cursor.fetchall():
-                f_str = row[1].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
+                f_str = row[1].strftime('%Y-%m-%dT%H:%M:%S') if hasattr(row[1], 'strftime') else str(row[1])
                 existing_records.add((row[0], f_str))
             
             lote_tamano = 5000
             lote_registros = []
-            contador = 0
             
             sql_insert = f"""
                 INSERT INTO {nombretabla} (
@@ -1582,19 +1569,18 @@ class DatosModel:
             
             for fila in datos_procesados.itertuples(index=False):
                 if (fila[1], str(fila[0])) not in existing_records:
-                    # LIMPIEZA
                     datos_limpios = [None if pd.isna(x) else x for x in fila]
                     lote_registros.append(tuple(datos_limpios))
-                    contador += 1
                 
-                if contador % lote_tamano == 0:
+                if len(lote_registros) >= lote_tamano:
                     cursor.executemany(sql_insert, lote_registros)
+                    conn.commit()
                     lote_registros = []
 
             if lote_registros:
                 cursor.executemany(sql_insert, lote_registros)
+                conn.commit()
 
-            conn.commit()
         except Exception as e:
             print(f"Error detallado Reemplazar CINCO: {e}")
             respuesta = False

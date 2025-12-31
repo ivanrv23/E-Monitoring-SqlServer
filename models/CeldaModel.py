@@ -841,7 +841,7 @@ class CeldaModel:
         CREATE TABLE {table_name} (
                 id_detalle INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
                 id_celda INT NOT NULL,
-                fecha_detalle DATETIME NOT NULL,
+                fecha_detalle DATETIME2(0) NOT NULL,
                 frecuencia_digits FLOAT,
                 frecuencia_hz FLOAT,
                 temperatura_detalle FLOAT,

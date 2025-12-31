@@ -720,7 +720,7 @@ class PiezometroModel:
             CREATE TABLE [{table_name}] (
                 id_cuerda INT IDENTITY(1,1) PRIMARY KEY,
                 id_piezometro INT NOT NULL,
-                fecha_cuerda DATETIME NOT NULL,
+                fecha_cuerda DATETIME2(0) NOT NULL,
                 frecuencia_cuerda FLOAT NOT NULL,
                 temperatura_cuerda FLOAT NOT NULL,
                 presion_barometrica FLOAT,
@@ -829,7 +829,7 @@ class PiezometroModel:
             CREATE TABLE [{nombretabla}] (
                 id_detalle INT IDENTITY(1,1) PRIMARY KEY,
                 id_piezometro INT NOT NULL,
-                fecha_piezometro DATETIME NOT NULL,
+                fecha_piezometro DATETIME2(0) NOT NULL,
                 medida_piezometro FLOAT,
                 observacion_detalle VARCHAR(MAX),
                 estado_manual INT NOT NULL DEFAULT 1

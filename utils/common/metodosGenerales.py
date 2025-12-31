@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, time
 
 # Importaciones de PySide6 (Se incluyen QDate y QDateTime)
 from PySide6.QtWidgets import QColorDialog, QFileDialog
-from PySide6.QtCore import QByteArray, Qt, QLocale, QDate, QDateTime
+from PySide6.QtCore import QByteArray, Qt, QLocale, QDate, QDateTime,QTime
 from PySide6.QtGui import QPixmap
 
 # Controladores
@@ -20,35 +20,42 @@ class MetodosGenerales:
     # -------------------------------------------------------------------------
     @staticmethod
     def _parsear_fecha_segura(fecha):
-        """
-        Normaliza entrada (Qt Object, String sucio, ISO, formatos latinos) a datetime.
-        Esencial para SQL Server donde los formatos pueden variar o incluir timezones.
-        """
+        """Normaliza entrada (Qt Object, String sucio, ISO, formatos latinos) a datetime."""
         if not fecha:
             return None
             
-        # 1. Soporte directo para objetos de PySide6
+        # 1. Objetos de Librería
         if isinstance(fecha, QDate):
             return datetime(fecha.year(), fecha.month(), fecha.day())
         if isinstance(fecha, QDateTime):
-            return fecha.toPython() # Convierte QDateTime a datetime nativo
+            return fecha.toPython()
         if isinstance(fecha, datetime):
             return fecha
             
         # 2. Limpieza de String
         fecha_str = str(fecha).strip()
         
-        # Limpieza ISO con Timezone (ej: 2025-02-05 10:00:00.0000000)
-        # Cortamos a 19 caracteres para ignorar milisegundos y timezones si existen
-        if len(fecha_str) >= 19:
+        # Limpieza ISO con Timezone (ej: SQL Server)
+        if len(fecha_str) >= 19 and 'T' in fecha_str:
             try:
-                # Reemplazar T por espacio si es ISO estricto
                 clean = fecha_str[:19].replace('T', ' ')
                 return datetime.strptime(clean, "%Y-%m-%d %H:%M:%S")
             except ValueError:
                 pass 
 
-        # 3. Fallback formatos estándar (Latinos e ISO cortos)
+        # 3. Detección Inteligente (Regex para 5/2/2025, 05-02-25, etc.)
+        patron_latino = r'^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$'
+        match = re.match(patron_latino, fecha_str)
+        
+        if match:
+            dia, mes, anio = map(int, match.groups())
+            if anio < 100: anio += 2000 # Corrección año corto
+            try:
+                return datetime(anio, mes, dia)
+            except ValueError:
+                pass 
+
+        # 4. Fallback formatos estándar
         formatos = [
             "%Y-%m-%d %H:%M:%S", "%Y-%m-%d",
             "%d/%m/%Y %H:%M:%S", "%d/%m/%Y", "%d-%m-%Y",
@@ -62,20 +69,17 @@ class MetodosGenerales:
                 continue
                 
         return None
-
     # -------------------------------------------------------------------------
     # MÉTODOS DE FECHA Y HORA (Optimizados)
     # -------------------------------------------------------------------------
 
     @staticmethod
     def validarFormatoFecha(fecha):
-        """Retorna YYYY-MM-DD para compatibilidad SQL"""
-        # Intentamos el parseo seguro primero
         fecha_dt = MetodosGenerales._parsear_fecha_segura(fecha)
         if fecha_dt:
             return fecha_dt.strftime("%Y-%m-%d")
 
-        # Fallback original para formatos muy específicos
+        # Fallback original conservado
         formatos_validos = [
             "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d", 
             "%d/%m/%y", "%d-%m-%y", "%d.%m.%Y", "%Y-%m-%d"
@@ -90,33 +94,33 @@ class MetodosGenerales:
 
     @staticmethod
     def validarFormatoHora(hora):
-        """Valida y formatea horas, soporta objetos Qt y strings"""
         if not hora: return None
             
         # 1. Soporte Objetos
         if isinstance(hora, (datetime, time)): return hora.strftime("%H:%M:%S")
-        
-        # 2. Regex robusto (tu implementación solicitada)
-        patrones_hora = [
-            r'^([01]\d|2[0-3]):[0-5]\d$',
-            r'^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$',
-            r'^([01]\d|2[0-3]):[0-5]\d:[0-5]\d\.\d+$'
-        ]
-        hora_str = str(hora).strip()
-        for patron in patrones_hora:
-            if re.match(patron, hora_str):
-                try:
-                    # Limpiar milisegundos si existen
-                    hora_limpia = hora_str.split('.')[0]
-                    return datetime.strptime(hora_limpia, "%H:%M:%S").strftime("%H:%M:%S")
-                except ValueError:
-                    try:
-                        # Intento formato corto HH:MM
-                        return datetime.strptime(hora_str, "%H:%M").strftime("%H:%M:%S")
-                    except ValueError:
-                        continue
-        return None
+        if isinstance(hora, QTime): return hora.toString("HH:mm:ss")
+        if isinstance(hora, QDateTime): return hora.time().toString("HH:mm:ss")
 
+        # 2. Limpieza String
+        hora_str = str(hora).strip().split('.')[0] # Quitar milisegundos
+
+        # 3. Formatos estándar (Incluye AM/PM)
+        formatos_comunes = ["%H:%M:%S", "%H:%M", "%I:%M %p", "%I:%M:%S %p", "%I:%M%p"]
+        for fmt in formatos_comunes:
+            try:
+                return datetime.strptime(hora_str, fmt).strftime("%H:%M:%S")
+            except ValueError:
+                continue
+
+        # 4. Regex Robusto
+        match = re.match(r'^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$', hora_str)
+        if match:
+            h, m, s = match.groups()
+            try:
+                return time(int(h), int(m), int(s or 0)).strftime("%H:%M:%S")
+            except ValueError:
+                pass
+        return None
     @staticmethod
     def obtenerMesAnio(fecha):
         try:

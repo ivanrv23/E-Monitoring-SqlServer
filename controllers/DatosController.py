@@ -64,42 +64,72 @@ class DatosController:
     
     def ctrlRegistrarPrismasAutomatizadosUno(idproyecto, tipodata, archivo_prisma, encoding, idcompo, delimitador, chunksize=10000):
         datos_procesados = pd.DataFrame()
-        equipos_unicos = set()  # Conjunto para almacenar nombres únicos de equipos
+        equipos_unicos = set()
+        
         try:
             chunks = pd.read_csv(archivo_prisma, encoding=encoding, sep=delimitador, chunksize=chunksize, header=0)
+            
             for i, data_chunk in enumerate(chunks):
-                # Limpiar caracteres no válidos en las columnas de ángulos
+                # 1. Limpiar caracteres no válidos en las columnas de ángulos
+                # Usamos regex=False para evitar advertencias futuras de Pandas
                 data_chunk.iloc[:, 4] = data_chunk.iloc[:, 4].apply(lambda x: x.replace('ï¿½', '°') if isinstance(x, str) else x)
                 data_chunk.iloc[:, 5] = data_chunk.iloc[:, 5].apply(lambda x: x.replace('ï¿½', '°') if isinstance(x, str) else x)
-                # Convertir y formatear las fechas a %Y-%m-%d %H:%M:%S, omitiendo errores
-                data_chunk.iloc[:, 3] = pd.to_datetime(data_chunk.iloc[:, 3], format="%d-%m-%Y %H:%M:%S", errors='coerce')\
-                                        .dt.strftime("%Y-%m-%d %H:%M:%S")
-                # Filtrar filas con fechas inválidas y filas completamente vacías
-                data_chunk = data_chunk.dropna(subset=[data_chunk.columns[3]]).dropna(how='all')
+
+                # --- INICIO AJUSTE PARA SQL SERVER DATETIME2(0) ---
+                
+                # 2. Convertir a objetos datetime primero (sin pasar a string todavía)
+                # errors='coerce' transformará formatos irreconocibles en NaT (Not a Time)
+                fechas_obj = pd.to_datetime(data_chunk.iloc[:, 3], format="%d-%m-%Y %H:%M:%S", errors='coerce')
+                
+                # 3. Filtrar: Eliminamos NaT y años antiguos/basura (< 1900)
+                # Esto previene el error 22007 por "fuera de intervalo"
+                mask_valida = fechas_obj.notna() & (fechas_obj.dt.year >= 1900)
+                data_chunk = data_chunk[mask_valida].copy() # .copy() es importante para evitar warnings
+
+                # 4. Formatear a String ISO 8601 estricto (Con la 'T')
+                # Ejemplo resultado: "2024-05-20T14:30:00"
+                # Al usar DATETIME2(0) en la BD, esto calza perfecto.
+                data_chunk.iloc[:, 3] = fechas_obj[mask_valida].dt.strftime("%Y-%m-%dT%H:%M:%S")
+                
+                # --- FIN AJUSTE ---
+
+                # 5. Limpieza final de espacios y nulos
+                data_chunk = data_chunk.dropna(how='all')
                 data_chunk = data_chunk.map(lambda x: x.strip() if isinstance(x, str) else x)
-                # Extraer nombres únicos de equipos en la columna 2
+                
+                # 6. Extraer nombres únicos de equipos
                 equipos_unicos.update(data_chunk.iloc[:, 1].dropna().unique())
-                # Agregar datos procesados al DataFrame final
+                
+                # 7. Concatenar
                 datos_procesados = pd.concat([datos_procesados, data_chunk], ignore_index=True)
-            # Convertir a lista si necesitas una lista de nombres de equipos únicos
+
+            # Si tras el filtro no quedó nada, retornamos vacío
+            if datos_procesados.empty:
+                return False, []
+
             lista_equipos_unicos = list(equipos_unicos)
-            # no permitir data duplicada
+            
+            # 8. Eliminar duplicados en memoria
+            # Como ya formateamos la fecha con 'T' en el paso 4, la tupla será consistente
             unique_data = {(row[1], row[3]): row for row in datos_procesados.itertuples(index=False)}
             datalimpia = pd.DataFrame(unique_data.values())
-            # Llamar al modelo con los datos procesados
+            
+            # 9. Llamar al modelo
             if tipodata == 1:  # actualizar
                 respuesta = DatosModel.mdlRegistrarPrismasAutomatizadosUno(idproyecto, datalimpia)
             else:  # reemplazar
                 respuesta = DatosModel.mdlRemplazarPrismasAutomatizadosUno(idproyecto, datalimpia, idcompo)
+                
             return respuesta, lista_equipos_unicos
+
         except FileNotFoundError as e:
-            print(f"Error: ", e)
+            print(f"Error Archivo no encontrado: {e}")
             return False, []
         except pd.errors.ParserError as e:
-            print(f"Error: ", e)
+            print(f"Error Parseo Pandas: {e}")
             return False, []
         except Exception as e:
-            print(f"Error: ", e)
+            print(f"Error General: {e}")
             return False, []
     
     def ctrlRegistrarPrismasAutomatizadosCinco(idproyecto, tipodata, archivo_prisma, encoding, idcompo, delimitador, chunksize=10000):

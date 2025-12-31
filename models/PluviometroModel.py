@@ -125,7 +125,7 @@ class PluviometroModel:
                     CREATE TABLE {tabla} (
                         id_detalle INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
                         id_pluviometro INT NOT NULL,
-                        fecha_pluviometro DATETIME NOT NULL,
+                        fecha_pluviometro DATETIME2(0) NOT NULL,
                         medida_pluviometro DECIMAL(18,6) NOT NULL,
                         observacion_pluviometro VARCHAR(500)
                     )

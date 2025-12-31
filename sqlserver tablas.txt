@@ -1,13 +1,13 @@
 /* =============================================
-   SCRIPT DE MIGRACIÓN: MySQL -> SQL SERVER
-   Compatibilidad: SQL Server 2008+
+   SCRIPT DE MIGRACIÓN: OPTIMIZADO PARA SQL SERVER 2019/2022
+   Ajuste principal: Uso de DATETIME2(0) para compatibilidad ISO
    ============================================= */
 
 -- TABLA: proyectos
 CREATE TABLE [proyectos] (
   [id_proyecto] INT IDENTITY(1,1) NOT NULL,
   [nombre_proyecto] NVARCHAR(500) NOT NULL,
-  [fecha_proyecto] DATE,
+  [fecha_proyecto] DATE, -- DATE es seguro (0001-9999), se deja igual
   [descripcion_proyecto] NVARCHAR(MAX),
   [estado_proyecto] TINYINT DEFAULT ((1)),
   CONSTRAINT [PK_proyectos] PRIMARY KEY CLUSTERED ([id_proyecto])
@@ -63,13 +63,12 @@ CREATE TABLE [piezometrocuerdas] (
   CONSTRAINT [PK_piezometrocuerdas] PRIMARY KEY CLUSTERED ([id_piezometro])
 );
 
-
 -- TABLA: cotas_piezometricas
 CREATE TABLE [cotas_piezometricas] (
   [id_cota] INT IDENTITY(1,1) NOT NULL,
   [id_piezometro] INT NOT NULL,
   [tipo_piezometro] NVARCHAR(50),
-  [fecha_cota] DATETIME,
+  [fecha_cota] DATETIME2(0), -- CAMBIO IMPORTANTE
   [nivel_cota] FLOAT,
   CONSTRAINT [PK_cotas_piezometricas] PRIMARY KEY CLUSTERED ([id_cota])
 );
@@ -92,7 +91,6 @@ CREATE TABLE [piezometromanuales] (
   [estado_piezometro] TINYINT NOT NULL DEFAULT ((1)),
   CONSTRAINT [PK_piezometromanuales] PRIMARY KEY CLUSTERED ([id_piezometro])
 );
-
 
 -- TABLA: pluviometros
 CREATE TABLE [pluviometros] (
@@ -118,7 +116,6 @@ CREATE TABLE [cotasterreno] (
   CONSTRAINT [PK_cotasterreno] PRIMARY KEY CLUSTERED ([id_terreno])
 );
 
-
 -- TABLA: celdas
 CREATE TABLE [celdas] (
   [id_celda] INT IDENTITY(1,1) NOT NULL,
@@ -139,7 +136,6 @@ CREATE TABLE [celdas] (
   CONSTRAINT [PK_celdas] PRIMARY KEY CLUSTERED ([id_celda])
 );
 
-
 -- TABLA: acelerografos
 CREATE TABLE [acelerografos] (
   [id_acelerografo] INT IDENTITY(1,1) NOT NULL,
@@ -155,7 +151,7 @@ CREATE TABLE [acelerografos] (
 CREATE TABLE [cotas_celdas] (
   [id_cota] INT IDENTITY(1,1) NOT NULL,
   [id_celda] INT NOT NULL,
-  [fecha_cota] DATETIME,
+  [fecha_cota] DATETIME2(0), -- CAMBIO IMPORTANTE
   [nivel_cota] FLOAT,
   CONSTRAINT [PK_cotas_celdas] PRIMARY KEY CLUSTERED ([id_cota])
 );
@@ -163,13 +159,12 @@ CREATE TABLE [cotas_celdas] (
 -- TABLA: historial
 CREATE TABLE [historial] (
   [idproyecto] INT NOT NULL,
-  [fecha] DATETIME NOT NULL,
+  [fecha] DATETIME2(0) NOT NULL, -- CAMBIO IMPORTANTE
   [accion] NVARCHAR(100) NOT NULL,
   [tabla] NVARCHAR(100) NOT NULL,
   [cambios] NVARCHAR(MAX),
   [usuario] NVARCHAR(100) NOT NULL,
   [nombres] NVARCHAR(500)
-  -- Nota: historial no tiene PK en el original, se deja igual.
 );
 
 -- TABLA: inclinometros
@@ -194,7 +189,7 @@ CREATE TABLE [inclinometros] (
 CREATE TABLE [inclinometro_encabezado] (
   [id_encabezado] INT IDENTITY(1,1) NOT NULL,
   [id_inclinometro] INT NOT NULL,
-  [fecha_inclinometro] DATETIME NOT NULL,
+  [fecha_inclinometro] DATETIME2(0) NOT NULL, -- CAMBIO IMPORTANTE
   [estado_base] TINYINT NOT NULL DEFAULT ((0)),
   CONSTRAINT [PK_inclinometro_encabezado] PRIMARY KEY CLUSTERED ([id_encabezado])
 );
@@ -206,7 +201,7 @@ CREATE TABLE [empresa] (
   [ruc_empresa] NVARCHAR(20),
   [telefono_empresa] NVARCHAR(20),
   [correo_empresa] NVARCHAR(100),
-  [logo_empresa] VARBINARY(MAX), -- Cambio de LONGBLOB
+  [logo_empresa] VARBINARY(MAX),
   CONSTRAINT [PK_empresa] PRIMARY KEY CLUSTERED ([id_empresa])
 );
 
@@ -218,7 +213,7 @@ CREATE TABLE [reporte_general] (
   [pie_reporte] NVARCHAR(MAX),
   [titulo_reporte] NVARCHAR(MAX),
   [lugar_reporte] NVARCHAR(MAX),
-  [fecha_reporte] DATE,
+  [fecha_reporte] DATE, -- DATE se mantiene (seguro)
   [para_reporte] NVARCHAR(500),
   [de_reporte] NVARCHAR(500),
   [cc_reporte] NVARCHAR(500),
@@ -242,11 +237,10 @@ CREATE TABLE [sondajestdr] (
   [inclinacion_sondajetdr] FLOAT,
   [azimut_sondajetdr] FLOAT,
   [comentario_sondajetdr] NVARCHAR(MAX),
-  [base_sondajetdr] DATE,
+  [base_sondajetdr] DATE, -- DATE se mantiene
   [estado_sondajetdr] INT NOT NULL DEFAULT ((1)),
   CONSTRAINT [PK_sondajestdr] PRIMARY KEY CLUSTERED ([id_sondajetdr])
 );
-
 
 -- TABLA: equipos
 CREATE TABLE [equipos] (
@@ -263,7 +257,6 @@ CREATE TABLE [equipos] (
   [descripcion_equipo] NVARCHAR(MAX),
   CONSTRAINT [PK_equipos] PRIMARY KEY CLUSTERED ([id_equipo])
 );
-
 
 -- TABLA: firmas
 CREATE TABLE [firmas] (
@@ -365,7 +358,7 @@ CREATE TABLE [topografias] (
   [archivo_topografia] NVARCHAR(MAX) NOT NULL,
   [comentario_topografia] NVARCHAR(MAX),
   [estado_topografia] TINYINT NOT NULL DEFAULT ((1)),
-  [fecha_topografia] DATETIME,
+  [fecha_topografia] DATETIME2(0), -- CAMBIO IMPORTANTE
   CONSTRAINT [PK_topografias] PRIMARY KEY CLUSTERED ([id_topografia])
 );
 
@@ -505,6 +498,7 @@ CREATE TABLE [reporte_anexos] (
   CONSTRAINT [PK_reporte_anexos] PRIMARY KEY CLUSTERED ([id_reporte])
 );
 
+-- ... (Tablas resumen_ejecutivo_anexo1 hasta observaciones_medidas_anexo2 sin cambios en fechas) ...
 -- TABLA: resumen_ejecutivo_anexo1
 CREATE TABLE [resumen_ejecutivo_anexo1] (
   [id_resumen] INT IDENTITY(1,1) NOT NULL,
@@ -523,7 +517,6 @@ CREATE TABLE [resumen_ejecutivo_anexo1] (
   CONSTRAINT [PK_resumen_ejecutivo_anexo1] PRIMARY KEY CLUSTERED ([id_resumen])
 );
 
--- TABLA: resumen_ejecutivo_anexo2
 CREATE TABLE [resumen_ejecutivo_anexo2] (
   [id_resumen] INT IDENTITY(1,1) NOT NULL,
   [id_componente] INT NOT NULL,
@@ -537,7 +530,6 @@ CREATE TABLE [resumen_ejecutivo_anexo2] (
   CONSTRAINT [PK_resumen_ejecutivo_anexo2] PRIMARY KEY CLUSTERED ([id_resumen])
 );
 
--- TABLA: control_parametros_anexo1
 CREATE TABLE [control_parametros_anexo1] (
   [id_control] INT IDENTITY(1,1) NOT NULL,
   [id_componente] INT NOT NULL,
@@ -549,7 +541,6 @@ CREATE TABLE [control_parametros_anexo1] (
   CONSTRAINT [PK_control_parametros_anexo1] PRIMARY KEY CLUSTERED ([id_control])
 );
 
--- TABLA: condiciones_fisicas_anexo1
 CREATE TABLE [condiciones_fisicas_anexo1] (
   [id_condicion] INT IDENTITY(1,1) NOT NULL,
   [id_componente] INT NOT NULL,
@@ -560,7 +551,6 @@ CREATE TABLE [condiciones_fisicas_anexo1] (
   CONSTRAINT [PK_condiciones_fisicas_anexo1] PRIMARY KEY CLUSTERED ([id_condicion])
 );
 
--- TABLA: operatividad_equipos_anexo1
 CREATE TABLE [operatividad_equipos_anexo1] (
   [id_operatividad] INT IDENTITY(1,1) NOT NULL,
   [id_componente] INT NOT NULL,
@@ -572,7 +562,6 @@ CREATE TABLE [operatividad_equipos_anexo1] (
   CONSTRAINT [PK_operatividad_equipos_anexo1] PRIMARY KEY CLUSTERED ([id_operatividad])
 );
 
--- TABLA: observaciones_medidas_anexo1
 CREATE TABLE [observaciones_medidas_anexo1] (
   [id_observacion] INT IDENTITY(1,1) NOT NULL,
   [id_componente] INT NOT NULL,
@@ -586,7 +575,6 @@ CREATE TABLE [observaciones_medidas_anexo1] (
   CONSTRAINT [PK_observaciones_medidas_anexo1] PRIMARY KEY CLUSTERED ([id_observacion])
 );
 
--- TABLA: instrumentacion_geotecnica_anexo2
 CREATE TABLE [instrumentacion_geotecnica_anexo2] (
   [id_instrumentacion] INT IDENTITY(1,1) NOT NULL,
   [id_componente] INT NOT NULL,
@@ -600,7 +588,6 @@ CREATE TABLE [instrumentacion_geotecnica_anexo2] (
   CONSTRAINT [PK_instrumentacion_geotecnica_anexo2] PRIMARY KEY CLUSTERED ([id_instrumentacion])
 );
 
--- TABLA: ubicaciones_instrumentacion_anexo2
 CREATE TABLE [ubicaciones_instrumentacion_anexo2] (
   [id_ubicacion] INT IDENTITY(1,1) NOT NULL,
   [id_componente] INT NOT NULL,
@@ -610,7 +597,6 @@ CREATE TABLE [ubicaciones_instrumentacion_anexo2] (
   CONSTRAINT [PK_ubicaciones_instrumentacion_anexo2] PRIMARY KEY CLUSTERED ([id_ubicacion])
 );
 
--- TABLA: observaciones_medidas_anexo2
 CREATE TABLE [observaciones_medidas_anexo2] (
   [id_observacion] INT IDENTITY(1,1) NOT NULL,
   [id_componente] INT NOT NULL,
@@ -659,7 +645,7 @@ CREATE TABLE [registro_ajuste_coordenadas] (
   [numero_fila] INT,
   [valor_anterior] FLOAT,
   [nuevo_valor] FLOAT,
-  [fecha_cambio] DATETIME,
+  [fecha_cambio] DATETIME2(0), -- CAMBIO IMPORTANTE
   [usuario_cambio] NVARCHAR(100) NOT NULL,
   [nombres_cambio] NVARCHAR(500),
   CONSTRAINT [PK_registro_ajuste_coordenadas] PRIMARY KEY CLUSTERED ([id_ajuste])
@@ -676,7 +662,7 @@ CREATE TABLE [desviaciones] (
   [desviacion_norte] FLOAT,
   [centro_cota] FLOAT,
   [desviacion_cota] FLOAT,
-  [fecha_calculo] DATETIME,
+  [fecha_calculo] DATETIME2(0), -- CAMBIO IMPORTANTE
   CONSTRAINT [PK_desviaciones] PRIMARY KEY CLUSTERED ([id_desviacion])
 );
 
@@ -694,12 +680,12 @@ CREATE TABLE [registro_cambios_prismas] (
   [nombre_equipo] NVARCHAR(500),
   [indice_lectura] INT,
   [tabla_equipo] NVARCHAR(100),
-  [fecha_equipo] DATETIME,
+  [fecha_equipo] DATETIME2(0), -- CAMBIO IMPORTANTE
   [coordenada_este] FLOAT,
   [coordenada_norte] FLOAT,
   [coordenada_cota] FLOAT,
   [distancia_inclinada] FLOAT,
-  [fecha_modificacion] DATETIME,
+  [fecha_modificacion] DATETIME2(0), -- CAMBIO IMPORTANTE
   CONSTRAINT [PK_registro_cambios_prismas] PRIMARY KEY CLUSTERED ([id_registro])
 );
 
@@ -710,7 +696,7 @@ CREATE TABLE [registro_limpieza_desviaciones] (
   [id_componente] INT,
   [equipo] NVARCHAR(500),
   [tipo_equipo] NVARCHAR(100),
-  [ultima_fecha_modificada] DATETIME,
+  [ultima_fecha_modificada] DATETIME2(0), -- CAMBIO IMPORTANTE
   CONSTRAINT [PK_registro_limpieza_desviaciones] PRIMARY KEY CLUSTERED ([id_registro])
 );
 
@@ -726,12 +712,13 @@ CREATE TABLE [umbral_personalizado] (
   [nombre_umbral] NVARCHAR(255),
   CONSTRAINT [PK_umbral_personalizado] PRIMARY KEY CLUSTERED ([id_umbral])
 );
+
 -- TABLA: licencias
 CREATE TABLE [licencias] (
   [id_licencia] INT IDENTITY(1,1) NOT NULL,
   [serial_licencia] NVARCHAR(MAX) NOT NULL,
-  [inicio_licencia] DATETIME NOT NULL,
-  [final_licencia] DATETIME NOT NULL,
+  [inicio_licencia] DATETIME2(0) NOT NULL, -- CAMBIO IMPORTANTE
+  [final_licencia] DATETIME2(0) NOT NULL, -- CAMBIO IMPORTANTE
   [dispositivo_licencia] NVARCHAR(MAX) NOT NULL,
   [estado_licencia] INT NOT NULL,
   [documento_licencia] NVARCHAR(50) NOT NULL,

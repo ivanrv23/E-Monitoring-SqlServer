@@ -66,7 +66,7 @@ class TerrenoModel:
                     CREATE TABLE {table_name} (
                         id_detalle INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
                         id_terreno INT NOT NULL,
-                        fecha_detalle DATETIME NOT NULL,
+                        fecha_detalle DATETIME2(0) NOT NULL,
                         nivel_detalle DECIMAL(18,6) NOT NULL,
                         observacion_detalle VARCHAR(500),
                         estado_detalle INT DEFAULT 1

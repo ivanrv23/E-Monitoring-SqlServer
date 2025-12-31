@@ -643,13 +643,13 @@ class AnalisisModel:
             IF OBJECT_ID('backup_{tabla}', 'U') IS NULL
             CREATE TABLE backup_{tabla} (
                 id_prisma INT NOT NULL,
-                hora_prisma DATETIME NOT NULL,
+                hora_prisma DATETIME2(0) NOT NULL,
                 nombre_prisma VARCHAR(50) NOT NULL,
                 este_target FLOAT NOT NULL,
                 norte_target FLOAT NOT NULL,
                 elevacion_target FLOAT NOT NULL,
                 distancia_prisma FLOAT NOT NULL,
-                fecha_backup DATETIME NOT NULL
+                fecha_backup DATETIME2(0) NOT NULL
             );
             """)
             # Indices
@@ -1173,7 +1173,7 @@ class AnalisisModel:
                     id_componente INT,
                     equipo VARCHAR(255),
                     tipo_equipo VARCHAR(255),
-                    ultima_fecha_modificada DATETIME
+                    ultima_fecha_modificada DATETIME2(0)
                 )
             ''')
             cur.execute('''
