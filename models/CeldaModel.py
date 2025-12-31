@@ -49,21 +49,38 @@ class CeldaModel:
     
     @staticmethod
     def mdlRegistrarCelda(data, fecha):
-        query = """INSERT INTO celdas (id_proyecto, nombre_celda, marca_celda, modelo_celda, serie_celda, rango_celda, 
+        # 1. Agregamos SET NOCOUNT ON; al inicio
+        query = """
+        SET NOCOUNT ON;
+        INSERT INTO celdas (id_proyecto, nombre_celda, marca_celda, modelo_celda, serie_celda, rango_celda, 
         instalacion_celda, este_celda, norte_celda, fundacion_celda, frecuencia_inicial, temperatura_inicial, cf_celda, tk_celda)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-        SELECT CAST(SCOPE_IDENTITY() AS INT);"""
-        
+        SELECT CAST(SCOPE_IDENTITY() AS INT);
+        """
         valores = (
-            data['proyecto'], data['nombre_celda'], data['marca_celda'], data['modelo_celda'], data['modelo_celda'], data['rango_celda'],
-            data['cota_instalacion_celda'], data['coordenada_este_celda'], data['coordenada_norte_celda'], data['cota_fundacion_celda'],
-            data['frecuencia_inicial'], data['temperatura_inicial_celda'], data['cf_celda'], data['tk_celda']
+            data['proyecto'], 
+            data['nombre_celda'], 
+            data['marca_celda'], 
+            data['modelo_celda'], 
+            data['modelo_celda'],
+            data['rango_celda'],
+            data['cota_instalacion_celda'], 
+            data['coordenada_este_celda'], 
+            data['coordenada_norte_celda'], 
+            data['cota_fundacion_celda'],
+            data['frecuencia_inicial'], 
+            data['temperatura_inicial_celda'], 
+            data['cf_celda'], 
+            data['tk_celda']
         )
+        
         conexion = None
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
             cursor.execute(query, valores)
+            
+            # Ahora fetchone capturará directamente el ID
             row_id = cursor.fetchone()
             id_insertado = row_id[0] if row_id else None
 
@@ -76,6 +93,8 @@ class CeldaModel:
             return id_insertado
         except Exception as e:
             print(f"Error al registrar celda y cota: {e}")
+            if conexion:
+                conexion.rollback() # Buena práctica: rollback si falla
             return None
         finally:
             if conexion:

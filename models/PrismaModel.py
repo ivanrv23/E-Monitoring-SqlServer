@@ -10,7 +10,6 @@ class PrismaModel:
 
     @staticmethod
     def mdlObtenerFechasMaximasPrismas(tabla):
-        # SQL Server: TOP 1 en lugar de LIMIT
         sql = f"""SELECT TOP 1 MAX(hora_prisma) AS max_fecha FROM {tabla} WHERE state_prisma = 1;"""
         conn = None
         try:
@@ -19,19 +18,17 @@ class PrismaModel:
             cur.execute(sql)
             row = cur.fetchone()
             if row:
-                return tuple(row) # Conversión explícita a tupla
+                return tuple(row)
             else:
                 return None
         except Exception as e:
             print("Error al obtener fechas max prismas: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlListarDataPrismasNombre(table, nombres):
-        # SQL Server: Placeholder '?' funciona igual en pyodbc
         placeholders = ', '.join(['?' for _ in nombres])
         sql = f"""SELECT nombre_prisma, estado_prisma, perfil_prisma, hora_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, tipoppm_prisma, ppm_prisma, 
             presion_prisma, temperatura_prisma, constante_prisma, este_target, norte_target, elevacion_target, altura_reflector, altura_instrumento, este_estacion, 
@@ -44,14 +41,12 @@ class PrismaModel:
             cur = conn.cursor()
             cur.execute(sql, nombres)
             rows = cur.fetchall()
-            # Conversión explícita de pyodbc.Row a lista de tuplas para compatibilidad
             return [tuple(row) for row in rows]
         except Exception as e:
             print("Error al listar prismas: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
 
     @staticmethod
     def mdlListarDataPrismasNombre_manuales(table, nombres):
@@ -69,20 +64,18 @@ class PrismaModel:
             print("Error al listar prismas: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlResumenPrismaNombre(tabla, nombres, fechaini, fechafin, tipo_prisma):
         nombres_str = ','.join(['?' for _ in nombres])
-        # T-SQL: Reemplazo de JULIANDAY por DATEDIFF en segundos / 86400.0 para obtener decimales
-        # Se convierte a INT al final como en el original.
-        sql = f"""SELECT nombre_prisma, tipo, MIN(hora) AS fecha_minima, MAX(hora) AS fecha_maxima, COUNT(*) AS cantidad,
+        # T-SQL: DATEDIFF en SEGUNDOS / 86400.0 para obtener la diferencia en días con decimales
+        sql = f"""SELECT nombre_prisma, '{tipo_prisma}' AS tipo, MIN(hora) AS fecha_minima, MAX(hora) AS fecha_maxima, COUNT(*) AS cantidad,
             CAST((CAST(DATEDIFF(SECOND, MIN(hora), MAX(hora)) AS FLOAT) / 86400.0) + 1 AS INT) as total_dias
         FROM (
             SELECT nombre_prisma, '{tipo_prisma}' AS tipo, hora_prisma AS hora FROM {tabla} WHERE state_prisma = 1
             AND nombre_prisma IN ({nombres_str}) AND hora_prisma BETWEEN ? AND ?
-        ) AS subquery GROUP BY nombre_prisma;""" # Alias necesario para subquery en SQL Server
+        ) AS subquery GROUP BY nombre_prisma;"""
 
         conn = None
         try:
@@ -96,8 +89,7 @@ class PrismaModel:
             print("Error al consultar Resumen prisma: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
 
     @staticmethod
     def mdlObtenerFechaMinMaxAuto(proyectoid):
@@ -117,8 +109,7 @@ class PrismaModel:
             print("Error al obtener fechas min-max: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlObtenerFechaMinMaxManual(proyectoid):
@@ -138,13 +129,10 @@ class PrismaModel:
             print("Error al obtener fechas min-max: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlListarPrismasUnicosMinima(tabla, prismas, idcomponente):
-        # T-SQL estricto: No permite seleccionar columnas fuera del GROUP BY.
-        # Solución: Usar ROW_NUMBER() para seleccionar la fila completa con la fecha mínima.
         placeholders = ', '.join(['?' for _ in prismas])
         params = prismas + [idcomponente]
         
@@ -173,12 +161,10 @@ class PrismaModel:
             print("Error al listar prismas ini: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlListarPrismasUnicosFechaMinima(tabla, prismas, idcomponente, fechaini, fechafin):
-        # T-SQL Refactorizado con ROW_NUMBER para evitar errores de Group By
         placeholders = ', '.join(['?' for _ in prismas])
         params = prismas + [idcomponente] + [fechaini] + [fechafin]
         
@@ -208,13 +194,10 @@ class PrismaModel:
             print("Error al listar prismas ini fechas: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlTraerPrismasInicialesProyectoFecha(proyecto, fechaini, fechafin):
-        # T-SQL: Reemplazo de "SELECT *, MIN(id)" que es inválido en SQL Server standard.
-        # Se usa CTE para obtener la primera fila real. Se incluye id_prisma al final para simular el MIN(id) de SQLite.
         tabla = "prismas" + str(proyecto)
         sql = f"""
         SELECT t.*, t.id_prisma 
@@ -236,12 +219,10 @@ class PrismaModel:
             print("Error al listar prismas: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlPrismasManualesInicialesProyectoFecha(proyecto, fechaini, fechafin):
-        # Misma lógica: Obtener la primera fila ordenada por fecha/id
         tabla = "prismas" + str(proyecto)
         sql = f"""
         SELECT t.*, t.id_prisma 
@@ -263,12 +244,10 @@ class PrismaModel:
             print("Error al listar prismas: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlTraerPrismaInicialProyectoNombreFecha(proyecto, nombre, fechaini, fechafin):
-        # T-SQL: TOP 1 en lugar de select directo con agregación implícita
         tabla = "prismas" + str(proyecto)
         sql = f"""
         SELECT TOP 1 *, id_prisma 
@@ -290,12 +269,10 @@ class PrismaModel:
             print("Error al listar prismas por fecha: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlTraerPrismasFinalesProyectoFecha(proyecto, fechaini, fechafin):
-        # T-SQL: Ordenamiento DESC para obtener el último
         tabla = "prismas" + str(proyecto)
         sql = f"""
         SELECT t.*, t.id_prisma 
@@ -317,8 +294,7 @@ class PrismaModel:
             print("Error al listar prismas: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close() 
+            if conn: conn.close() 
     
     @staticmethod
     def mdlPrismasManualesFinalesProyectoFecha(proyecto, fechaini, fechafin):
@@ -343,12 +319,10 @@ class PrismaModel:
             print("Error al listar prismas: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()  
+            if conn: conn.close()  
     
     @staticmethod
     def mdlListarPrismasUnicosMaxima(tabla, prismas, idcomponente):
-        # T-SQL: Refactorización con ROW_NUMBER y ORDER DESC para Máximos
         placeholders = ', '.join(['?' for _ in prismas])
         params = prismas + [idcomponente]
         sql = f"""
@@ -376,8 +350,7 @@ class PrismaModel:
             print("Error al listar prismas max: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlListarPrismasUnicosFechaMaxima(tabla, prismas, idcomponente, fechaini, fechafin):
@@ -409,14 +382,10 @@ class PrismaModel:
             print("Error al listar prismas max fechas: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlListarPrismasFechaMinimaUnicos(tabla, proyecto, fechaini, fechafin, tipo):
-        # Este SQL necesita agrupar campos no agregados. En SQL Server deben estar en Group By.
-        # Se asume que instrumentacion es 1 a 1 con nombre_equipo para esos campos.
-        # Si falla, usar ROW_NUMBER. Como aquí usa MIN(hora), pasamos a ROW_NUMBER para seguridad.
         sql = f"""
         SELECT id_instrumentacion, nombre_equipo, este_target, norte_target, elevacion_target, id_componente, tipo_equipo, hora
         FROM (
@@ -441,8 +410,7 @@ class PrismaModel:
             print("Error al listar prismas minima: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlCambiarEstadoPrisma(tabla, nombreprisma, estado_prisma):
@@ -458,8 +426,7 @@ class PrismaModel:
             print("Error al cambiar estado prisma: " + str(e))
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlEliminarPrisma(tabla, nombreprisma):
@@ -478,13 +445,11 @@ class PrismaModel:
             print("Error al eliminar prisma: " + str(e))
             return False
         finally:
-            if conn:
-                conn.close() 
+            if conn: conn.close()
     
     @staticmethod
     def mdlListarPrismasManualesProyecto(proyecto):
         tabla = "prismas" + str(proyecto)
-        # T-SQL: Subquery para simular la selección laxa de SQLite
         sql = f"""
         SELECT t.*, t.id_prisma 
         FROM (
@@ -505,8 +470,7 @@ class PrismaModel:
             print("Error al listar nombre prismas manual: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlGuardarPrismasManualesTabla(proyecto, data):
@@ -516,8 +480,7 @@ class PrismaModel:
             nombretabla = "prismas" + str(proyecto)
             cursor = conn.cursor()
             
-            # T-SQL DDL: IDENTITY en lugar de AUTOINCREMENT, VARCHAR/DATETIME en lugar de TEXT, FLOAT en lugar de NUMERIC
-            # Se usa FLOAT para asegurar compatibilidad matemática con Python (evitar Decimal)
+            # --- USO DE DATETIME2(0) PARA COMPATIBILIDAD ---
             sqltable = f"""IF OBJECT_ID('{nombretabla}', 'U') IS NULL
             CREATE TABLE {nombretabla} (
                 id_prisma INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
@@ -554,19 +517,16 @@ class PrismaModel:
                 grupo_puntos VARCHAR(255)
             );"""
             
-            # Eliminadas las PRAGMA de SQLite
             cursor.execute(sqltable)
-            conn.commit() # Asegurar que la tabla existe antes de insertar
+            conn.commit() 
             
-            # Optimización: Cargar claves existentes en memoria para evitar duplicados
-            # Nota: hora_prisma se castea a string para comparar, asumiendo formato compatible
+            # --- VALIDACIÓN DE DUPLICADOS CON 'T' ---
             cursor.execute(f"SELECT nombre_prisma, FORMAT(hora_prisma, 'yyyy-MM-ddTHH:mm:ss') FROM {nombretabla}")
             existen_prismas = set([(row[0], row[1]) for row in cursor.fetchall()])
             
             lote_registros = []
             contador = 0
             
-            # Query de inserción T-SQL
             insert_query = f"""INSERT INTO {nombretabla} (state_prisma, estado_prisma, nombre_prisma, hora_prisma, distancia_prisma, este_target,
                         norte_target, elevacion_target, angulo_horizontal, angulo_vertical) VALUES (1, 1, ?, ?, ?, ?, ?, ?, ?, ?)"""
 
@@ -580,10 +540,12 @@ class PrismaModel:
                 horiz_original = fila[7]
                 verti_original = fila[8]
                 
-                # Completar el formato de fecha (YYYY-MM-DD HH:MM:SS es estándar SQL)
-                fecha_hora = fecha_original + " " + hora_original
+                # --- CAMBIO IMPORTANTE: CONCATENAR CON 'T' PARA QUE COINCIDA CON LA VALIDACION ---
+                # Antes: fecha_original + " " + hora_original (Espacio)
+                # Ahora: fecha_original + "T" + hora_original (ISO)
+                fecha_hora = f"{fecha_original}T{hora_original}"
                 
-                # Verifica si el registro no existe en el conjunto
+                # Ahora la comparación es "2023-01-01T12:00" == "2023-01-01T12:00"
                 if (fila[0], fecha_hora) not in existen_prismas:
                     row = (
                         fila[0],
@@ -609,18 +571,14 @@ class PrismaModel:
             return True
         except Exception as e:
             print("Error al guardar los prismas de la tabla " + str(e))
-            if conn:
-                conn.rollback()
+            if conn: conn.rollback()
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
-        # LISTAR LA DATA DE LOS PRISMAS POR PROYECTO                  
     @staticmethod
     def mdlListarDataPrismasProyecto(proyecto, fechaini, fechafin):
         table = "prismas" + str(proyecto)
-        # T-SQL: Uso de parámetros ? para fechas en lugar de concatenación insegura
         sql = f"""SELECT * FROM {table} WHERE state_prisma = 1 AND hora_prisma BETWEEN ? AND ?;"""
         conn = None
         try:
@@ -633,18 +591,11 @@ class PrismaModel:
             print("Error al listar prismas: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
-    # MOSTRAR DATA DE PRISMAS MANUALES POR FECHAS            
     @staticmethod
     def mdlTraerDataPrismasManualesFecha(proyecto, fechaini, fechafin):
         tabla = "prismas" + str(proyecto)
-        # T-SQL Refactor:
-        # 1. JULIANDAY -> DATEDIFF(SECOND, ...) / 86400.0 para obtener días decimales.
-        # 2. Tipos de datos -> CAST AS FLOAT para asegurar divisiones decimales en SQL Server (evitar división entera).
-        # 3. Parameters -> Fechas pasadas como parámetros.
-        
         sql = f"""WITH prismasmanuales AS (
             SELECT 
                 id_prisma, nombre_prisma, state_prisma, hora_prisma, 
@@ -694,14 +645,11 @@ class PrismaModel:
             print("Error al listar prismas manuales: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
                 
-    # MOSTRAR LISTA DE PRISMAS INICIALES AUTOMATIZADOS SIN REPETIRSE POR PROYECTO            
     @staticmethod
     def mdlListarPrismasProyecto(proyecto):
         tabla = "prismas" + str(proyecto)
-        # T-SQL: Reemplazo de GROUP BY laxo con ROW_NUMBER
         sql = f"""
         SELECT t.*, t.id_prisma 
         FROM (
@@ -722,14 +670,11 @@ class PrismaModel:
             print("Error al listar nombre prismas auto: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
-    # LISTAR LOS PRISMAS AUTO CON COORDENADAS INICIALES Y FINALES           
     @staticmethod
     def mdlObtenerInfoPrismasAutoJSONproyecto(proyecto):
         tabla = "prismas" + str(proyecto)
-        # T-SQL: Subconsultas usan TOP 1 en lugar de LIMIT 1
         sql = f"""SELECT
             nombre_prisma,
             (SELECT TOP 1 este_target FROM {tabla} AS sub WHERE sub.nombre_prisma = p.nombre_prisma AND sub.state_prisma = 1 
@@ -751,7 +696,7 @@ class PrismaModel:
         GROUP BY
             nombre_prisma
         ORDER BY
-            MIN(hora_prisma);""" # Order by agregado a agregación válida o columna agrupada
+            MIN(hora_prisma);"""
         conn = None
         try:
             conn = Connection.connectionDB()
@@ -763,14 +708,11 @@ class PrismaModel:
             print("Error al listar info prismas auto json: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
-    # LISTAR LOS PRISMAS MANUALES CON COORDENADAS INICIALES Y FINALES           
     @staticmethod
     def mdlObtenerInfoPrismasManualJSONproyecto(proyecto):
         tabla = "prismas" + str(proyecto)
-        # T-SQL: Subconsultas usan TOP 1
         sql = f"""SELECT
             nombre_prisma,
             (SELECT TOP 1 este_target FROM {tabla} AS sub WHERE sub.nombre_prisma = p.nombre_prisma AND sub.state_prisma = 1 
@@ -804,12 +746,10 @@ class PrismaModel:
             print("Error al listar info prismas manual json: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
            
     @staticmethod
     def mdlActualizarLecturaPrisma(tabla, datanueva, idproyecto, username, nombres):
-        # datanueva orden esperado según uso original: [hora, este, norte, elev, dist, id]
         query_select = f"""SELECT hora_prisma, este_target, norte_target, elevacion_target, distancia_prisma, id_prisma
         FROM {tabla} WHERE id_prisma = ?;"""
         conn = None
@@ -817,24 +757,22 @@ class PrismaModel:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
             
-            # Obtener ID del último elemento de datanueva (asumiendo estructura de la lista)
             id_registro = datanueva[-1]
             
             cursor.execute(query_select, (id_registro,))
             datos_anteriores_row = cursor.fetchone()
             
             if datos_anteriores_row:
-                datos_anteriores = tuple(datos_anteriores_row) # Asegurar tupla para string conversion
-                fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                datos_anteriores = tuple(datos_anteriores_row)
+                # CAMBIO: Formato T para consistencia en historial
+                fecha_cambio = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
                 accion = "update"
                 cambios = f"Antiguos: {datos_anteriores}, Nuevos: {datanueva}"
                 
-                # Asumiendo que tabla historial existe en SQL Server con columnas compatibles
                 query_historial = """INSERT INTO historial (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
                 VALUES (?, ?, ?, ?, ?, ?, ?);"""
                 cursor.execute(query_historial, (idproyecto, fecha_cambio, accion, tabla, cambios, username, nombres))
             
-            # actualizar prisma
             query = f"""UPDATE {tabla} SET hora_prisma = ?, este_target = ?, norte_target = ?, elevacion_target = ?,
             distancia_prisma = ? WHERE id_prisma = ?;"""
             cursor.execute(query, datanueva)
@@ -845,8 +783,7 @@ class PrismaModel:
             if conn: conn.rollback()
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlCambiarEstadoLecturaPrisma(tabla, iddetalle):
@@ -854,7 +791,6 @@ class PrismaModel:
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            # T-SQL standard CASE syntax
             query_update = f"""UPDATE {tabla} SET estado_prisma = CASE WHEN estado_prisma = 1 THEN 0 ELSE 1 END
             WHERE id_prisma = ?;"""
             cursor.execute(query_update, (iddetalle,))
@@ -864,19 +800,15 @@ class PrismaModel:
             print(f"Error al cambiar el estado del prisma: {e}")
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlOmitirLecturasPrismaDesviacion(tabla, prisma, desviacioneste, desviacionnorte):
-        # SQL Server soporta CTE, pero la sintaxis de UPDATE con CTE requiere cuidado.
-        # Estrategia: Calcular IDs en CTE y usar IN en el UPDATE principal.
         conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
             
-            # Ajuste matemático: Asegurar float division
             query_update = f"""
             WITH primeros AS (
                 SELECT id_prisma, este_target, norte_target,
@@ -895,7 +827,6 @@ class PrismaModel:
                     ) > 1
                 );"""
             
-            # Parametros duplicados porque se usan dos veces en el cálculo cuadrático
             params = (prisma, desviacioneste, desviacionnorte)
             cursor.execute(query_update, params)
             conn.commit()
@@ -904,8 +835,7 @@ class PrismaModel:
             print(f"Error al omitir lecturas segun desviacion: {e}")
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlActivarLecturasPrisma(tabla, prisma):
@@ -921,8 +851,7 @@ class PrismaModel:
             print(f"Error al activar lecturas del prisma: {e}")
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlCambiarEstadoLecturaPrismaBloque(tabla, listacodigos):
@@ -942,8 +871,7 @@ class PrismaModel:
             print(f"Error al cambiar el estado de los prismas: {e}")
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlEliminarLecturaPrisma(tabla, iddetalle, idproyecto, username, nombres):
@@ -958,7 +886,7 @@ class PrismaModel:
             
             if datos_anteriores_row:
                 datos_anteriores = tuple(datos_anteriores_row)
-                fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                fecha_cambio = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
                 accion = "delete"
                 cambios = f"Datos: {datos_anteriores}"
                 query_historial = """INSERT INTO historial (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
@@ -974,8 +902,7 @@ class PrismaModel:
             if conn: conn.rollback()
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlEliminarLecturasBloquePrisma(tabla, iddetalles, idproyecto, username, nombres):
@@ -992,7 +919,7 @@ class PrismaModel:
             datos_anteriores = [tuple(row) for row in cursor.fetchall()]
             
             if datos_anteriores:
-                fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                fecha_cambio = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
                 accion = "delete"
                 cambios = f"Datos: {datos_anteriores}"
                 query_historial = """INSERT INTO historial (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
@@ -1008,8 +935,7 @@ class PrismaModel:
             if conn: conn.rollback()
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlCambiarEstadoPrismas(estado, idcomponente):
@@ -1026,8 +952,7 @@ class PrismaModel:
             print("Error al cambiar estado prismas: " + str(e))
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlEliminarPrismas(idcomponente):
@@ -1054,8 +979,7 @@ class PrismaModel:
             if conn: conn.rollback()
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlEliminarDataPrismas(tabla, prismas):
@@ -1074,8 +998,7 @@ class PrismaModel:
             print(f"Error al eliminar data prismas: {e}")
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlCambiarPrismaEstado(estado, idcomponente, idinstrumento):
@@ -1092,8 +1015,7 @@ class PrismaModel:
             print("Error al cambiar estado prisma: " + str(e))
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlEliminarPrismaUnico(idinstrumento):
@@ -1121,8 +1043,7 @@ class PrismaModel:
             if conn: conn.rollback()
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlEliminarPrismaData(tabla, nombreprisma):
@@ -1138,8 +1059,7 @@ class PrismaModel:
             print(f"Error al eliminar data prisma: {e}")
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlCambiarComponentePrismas(idcomponente, nuevocomponente):
@@ -1156,8 +1076,7 @@ class PrismaModel:
             print("Error al cambiar componente prismas: " + str(e))
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlCambiarPrismaComponente(idinstrumento, nuevocomponente):
@@ -1173,12 +1092,10 @@ class PrismaModel:
             print("Error al cambiar componente prisma: " + str(e))
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
                 
     @staticmethod
     def mdlResumenDesplazamiento(tabla, fechaini, fechafin):
-        # T-SQL: Sintaxis compatible con CTE y Group By estricto
         sql = f"""WITH ResumenDesplazamiento AS (
             SELECT p.nombre_prisma, p.hora_prisma,
                 ABS(
@@ -1218,15 +1135,10 @@ class PrismaModel:
             print("Error al obtener resumen prismas desplazamiento: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlResumenVelocidad(tabla, fechaini, fechafin):
-        # T-SQL Refactorizado: 
-        # Reemplazo de JULIANDAY(x) - JULIANDAY(y) por: CAST(DATEDIFF(SECOND, y, x) AS FLOAT) / 86400.0
-        # Esto calcula la diferencia en días con precisión de segundos (decimales).
-        
         sql = f"""WITH ResumenVelocidad AS (
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, p.elevacion_target,
                 CASE 
@@ -1292,12 +1204,10 @@ class PrismaModel:
             print("Error al obtener resumen prismas velocidad: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlResumenTrendPlunge(tabla, fechaini, fechafin):
-        # T-SQL: Uso de DEGREES y ATAN nativos
         sql = f"""WITH ResumenTrendplunge AS (
             SELECT p.nombre_prisma, p.hora_prisma,
                 p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS desplaza_este,
@@ -1320,7 +1230,7 @@ class PrismaModel:
                     WHEN desplaza_norte = 0 AND desplaza_este < 0 THEN 270
                     WHEN desplaza_este = 0 AND desplaza_norte > 0 THEN 0
                     WHEN desplaza_este = 0 AND desplaza_norte < 0 THEN 180
-                    WHEN desplaza_este > 0 THEN 90 - DEGREES(ATAN(desplaza_norte / (desplaza_este * 1.0))) -- *1.0 asegura float
+                    WHEN desplaza_este > 0 THEN 90 - DEGREES(ATAN(desplaza_norte / (desplaza_este * 1.0)))
                     WHEN desplaza_este < 0 THEN 270 - DEGREES(ATAN(desplaza_norte / (desplaza_este * 1.0)))
                 END AS trend,
                 CASE
@@ -1344,14 +1254,12 @@ class PrismaModel:
             print("Error al obtener resumen prismas trend plunge: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlCalcularVectoresDesplazamiento3DA(tabla, prismas, idcomponente):
         placeholders = ', '.join(['?' for _ in prismas])
         params = prismas + [idcomponente]
-        # DATEDIFF en segundos / 3600.0 para horas, / 86400.0 para dias
         sql = f"""WITH ultimas_lecturas AS (
             SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
                 (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 3600.0) AS horas,
@@ -1379,8 +1287,7 @@ class PrismaModel:
             print("Error al consultar vectores D3D: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlCalcularVectoresDesplazamientoFechas3DA(tabla, prismas, idcomponente, fechaini, fechafin):
@@ -1414,8 +1321,7 @@ class PrismaModel:
             print("Error al consultar vectores D3D Fechas: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlCalcularVectoresVelocidadPositivaVI3D(tabla, prismas, idcomponente):
@@ -1431,7 +1337,6 @@ class PrismaModel:
                 ) AS tresD
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            -- El Order By aqui no es necesario para el CTE, pero se mantiene la logica de orden
         ),
         CalculoCompleto AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24 AS HORAS,
@@ -1456,8 +1361,7 @@ class PrismaModel:
             print("Error al consultar vectores vi3d positiva: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlCalcularVectoresVelocidadPositivaFechasVI3D(tabla, prismas, idcomponente, fechaini, fechafin):
@@ -1498,8 +1402,7 @@ class PrismaModel:
             print("Error al consultar vectores vi3d positiva fechas: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlCalcularVectoresVelocidadVI3D(tabla, prismas, idcomponente):
@@ -1540,8 +1443,7 @@ class PrismaModel:
             print("Error al consultar vectores vi3d: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlCalcularVectoresVelocidadFechasVI3D(tabla, prismas, idcomponente, fechaini, fechafin):
@@ -1583,8 +1485,7 @@ class PrismaModel:
             print("Error al consultar vectores vi3d fechas: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlDatosPrismasDesviaciones(tabla, tipoprisma, prisma):
@@ -1609,8 +1510,7 @@ class PrismaModel:
             print("Error al obtener data prismas desviaciones:", e)
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlObtenerDesviacionStandar(idproyecto, nombreprisma):
@@ -1629,8 +1529,7 @@ class PrismaModel:
             print("Error al obtener desviacion estandar: " + str(e))
             return None
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
                 
     @staticmethod
     def mdlOmitirLecturaPrisma(tabla, prisma, fecha):
@@ -1646,8 +1545,7 @@ class PrismaModel:
             print(f"Error al omitir lecturas del prisma: {e}")
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlVerificarPrismaUnico(nameprisma, idinstrumento, idproyecto):
@@ -1655,7 +1553,6 @@ class PrismaModel:
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            # T-SQL: TOP 1 en lugar de LIMIT 1
             query = """SELECT TOP 1 1 FROM instrumentacion i INNER JOIN componentes c ON i.id_componente = c.id_componente
             WHERE LOWER(i.nombre_equipo) = LOWER(?) AND i.id_instrumentacion != ? 
             AND c.id_proyecto = ? AND i.tipo_equipo = 'PRISMAS';"""
@@ -1666,8 +1563,7 @@ class PrismaModel:
             print(f"Error al comprobar nombres del prisma: {e}")
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()
     
     @staticmethod
     def mdlActualizarNombrePrisma(nameprisma, nuevoprisma, idinstrumento, idproyecto):
@@ -1676,38 +1572,30 @@ class PrismaModel:
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            # PyODBC maneja transacciones. Si autocommit=False (default), se requiere commit al final.
-            # Se elimina BEGIN TRANSACTION explicito para compatibilidad DB-API.
             
-            # 1. Actualizar tabla dinámica de prismas
             query_update_prisma = f"""UPDATE {tabla} SET nombre_prisma = ? WHERE nombre_prisma = ?"""
             cursor.execute(query_update_prisma, (nuevoprisma, nameprisma))
             filas_prisma = cursor.rowcount
             
-            # 2. Actualizar tabla instrumentacion
             query_update_instrumento = """UPDATE instrumentacion SET nombre_equipo = ? WHERE id_instrumentacion = ?"""
             cursor.execute(query_update_instrumento, (nuevoprisma, idinstrumento))
             filas_instrumento = cursor.rowcount
             
-            # Validar integridad
             if filas_prisma == 0:
-                conn.rollback() # Revertir si falla la primera tabla lógica
+                conn.rollback()
                 print(f"No se encontró el prisma '{nameprisma}' para actualizar")
                 return False
             
             if filas_instrumento == 0:
-                conn.rollback() # Revertir si falla la segunda tabla lógica
+                conn.rollback()
                 print(f"No se pudo actualizar el instrumento con ID {idinstrumento}")
                 return False
             
-            # Confirmar transacción
             conn.commit()
             return True
         except Exception as e:
-            if conn:
-                conn.rollback()
+            if conn: conn.rollback()
             print(f"Error al actualizar nombre del prisma: {e}")
             return False
         finally:
-            if conn:
-                conn.close()
+            if conn: conn.close()

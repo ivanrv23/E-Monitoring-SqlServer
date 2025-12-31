@@ -121,6 +121,7 @@ class MetodosGenerales:
             except ValueError:
                 pass
         return None
+    
     @staticmethod
     def obtenerMesAnio(fecha):
         try:

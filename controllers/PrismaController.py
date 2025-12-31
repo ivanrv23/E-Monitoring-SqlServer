@@ -149,7 +149,8 @@ class PrismaController:
         datos_unicos = {}
         datos_limpios = []
         for nombre, fecha, hora, norte, este, nivel, sd, ah, av in data:
-            fechahora = fecha + " " + hora
+            # fechahora = fecha + " " + hora
+            fechahora  = f"{fecha}T{hora}" 
             clave = (nombre, fechahora)
             if clave not in datos_unicos:
                 datos_unicos[clave] = (norte, este, nivel, sd, ah, av)

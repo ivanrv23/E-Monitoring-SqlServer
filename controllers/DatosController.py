@@ -143,24 +143,37 @@ class DatosController:
                 data_chunk.iloc[:, 21] = data_chunk.iloc[:, 21].apply(lambda x: x.replace('ï¿½', '°') if isinstance(x, str) else x)
                 data_chunk.iloc[:, 22] = data_chunk.iloc[:, 22].apply(lambda x: x.replace('ï¿½', '°') if isinstance(x, str) else x)
 
-                # Validar y formatear las fechas
-                data_chunk.iloc[:, 0] = data_chunk.iloc[:, 0].apply(MetodosGenerales.validarFormatoFechaCargaPrismas)
+                # --- REGLAS DE ORO: ISO 'T' + FILTRO 1900 ---
+                # 1. Convertir a datetime (vectorizado, sin apply externo)
+                fechas_obj = pd.to_datetime(data_chunk.iloc[:, 0], errors='coerce')
+                
+                # 2. Filtrar: Validar no nulos y Año >= 1900 (Evita error SQL 22007)
+                mask_valida = fechas_obj.notna() & (fechas_obj.dt.year >= 1900)
+                data_chunk = data_chunk[mask_valida].copy()
 
-                # Filtrar filas con fechas inválidas y filas completamente vacías
-                data_chunk = data_chunk.dropna(subset=[data_chunk.columns[0]]).dropna(how='all')
+                # 3. Formatear Estricto con 'T'
+                data_chunk.iloc[:, 0] = fechas_obj[mask_valida].dt.strftime("%Y-%m-%dT%H:%M:%S")
+                # --------------------------------------------
+
+                # Limpieza final
+                data_chunk = data_chunk.dropna(how='all')
                 data_chunk = data_chunk.map(lambda x: x.strip() if isinstance(x, str) else x)
-                # Extraer nombres únicos de equipos en la columna 2
+                
+                # Extraer nombres únicos
                 equipos_unicos.update(data_chunk.iloc[:, 1].dropna().unique())
 
-                # Agregar datos procesados al DataFrame final
+                # Agregar datos procesados
                 datos_procesados = pd.concat([datos_procesados, data_chunk], ignore_index=True)
 
-            # Convertir a lista si necesitas una lista de nombres de equipos únicos
+            if datos_procesados.empty:
+                return False, []
+
             lista_equipos_unicos = list(equipos_unicos)
-            # no permitir data duplicada
+            
+            # No permitir duplicados (Usando la fecha formateada con 'T')
             unique_data = {(row[1], row[0]): row for row in datos_procesados.itertuples(index=False)}
             datalimpia = pd.DataFrame(unique_data.values())
-            # Llamar al modelo con los datos procesados
+            
             if tipodata == 1:  # actualizar
                 respuesta = DatosModel.mdlRegistrarPrismasAutomatizadosCinco(idproyecto, datalimpia)
             else:  # reemplazar
@@ -180,116 +193,132 @@ class DatosController:
     
     def ctrlRegistrarPrismasAutomatizadosDos(idproyecto, tipodata, archivo_prisma, encoding, idcompo, delimitador, chunksize=10000):
         try:
-            datos_chunks = []  # Lista para almacenar los chunks procesados
-            equipos_unicos = set()  # Conjunto para almacenar nombres únicos de equipos
-            # Leer el archivo CSV en bloques
+            datos_chunks = []
+            equipos_unicos = set()
+            
             chunks = pd.read_csv(archivo_prisma, encoding=encoding, sep=delimitador, chunksize=chunksize, header=0)
             for i, data_chunk in enumerate(chunks):
-                # Seleccionar solo las primeras 10 columnas
                 data_copy = data_chunk.iloc[:, :9].copy()
                 data_copy = data_copy.map(lambda x: x.strip() if isinstance(x, str) else x)
+                
                 if data_chunk.iloc[:, 9:13].isnull().any().any():
                     continue
-                # Generar fecha con formato yy-mm-dd
-                fecha = (
-                    data_chunk.iloc[:, 11].astype(str) + "-" +  # Año
-                    data_chunk.iloc[:, 10].astype(str).str.zfill(2) + "-" +  # Mes
-                    data_chunk.iloc[:, 9].astype(str).str.zfill(2)  # Día
+                
+                # --- REGLAS DE ORO: ISO 'T' + FILTRO 1900 ---
+                # Construcción manual de la fecha para conversión
+                # Formato temporal para parseo: YYYY-MM-DD HH:MM:SS
+                fechas_temp = (
+                    data_chunk.iloc[:, 11].astype(str) + "-" + 
+                    data_chunk.iloc[:, 10].astype(str).str.zfill(2) + "-" + 
+                    data_chunk.iloc[:, 9].astype(str).str.zfill(2) + " " +
+                    data_chunk.iloc[:, 12].astype(str).str.zfill(2) + ":" + 
+                    data_chunk.iloc[:, 13].astype(str).str.zfill(2) + ":00"
                 )
-                # Generar hora
-                hora = (
-                    data_chunk.iloc[:, 12].astype(str).str.zfill(2) + ":" +  # Hora
-                    data_chunk.iloc[:, 13].astype(str).str.zfill(2) + ":00"  # Minutos + segundos fijos
-                )
-                # Agregar la nueva columna "Day" con la fecha y hora formateada
-                data_copy["Day"] = fecha + " " + hora
-                # Filtrar filas completamente vacías
+
+                # 1. Convertir a objetos datetime
+                fechas_obj = pd.to_datetime(fechas_temp, errors='coerce')
+
+                # 2. Filtrar Años < 1900 y NaT
+                mask_valida = fechas_obj.notna() & (fechas_obj.dt.year >= 1900)
+                
+                # Aplicar filtro al chunk original (importante para mantener alineación)
+                data_copy = data_copy[mask_valida].copy()
+                
+                # 3. Asignar formato ISO estricto con 'T'
+                data_copy["Day"] = fechas_obj[mask_valida].dt.strftime("%Y-%m-%dT%H:%M:%S")
+                # --------------------------------------------
+
                 data_copy = data_copy.dropna(how='all')
-                # Extraer nombres únicos de equipos en la columna 0
                 equipos_unicos.update(data_copy.iloc[:, 0].dropna().unique())
-                # Agregar el chunk procesado a la lista
                 datos_chunks.append(data_copy)
-            # Unir todos los datos procesados
+            
             datos_procesados = pd.concat(datos_chunks, ignore_index=True) if datos_chunks else pd.DataFrame()
-            # Convertir a lista si necesitas una lista de nombres de equipos únicos
+            
+            if datos_procesados.empty:
+                return False, []
+
             lista_equipos_unicos = list(equipos_unicos)
-            # no permitir data duplicada
+            
+            # Duplicados: clave compuesta (Equipo, FechaISO)
             unique_data = {(row[0], row[-1]): row for row in datos_procesados.itertuples(index=False)}
             datalimpia = pd.DataFrame(unique_data.values())
-            # Llamar al modelo con los datos procesados
-            if tipodata == 1:  # actualizar
+            
+            if tipodata == 1:
                 respuesta = DatosModel.mdlRegistrarPrismasAutomatizadosDos(idproyecto, datalimpia)
-            else:  # reemplazar
+            else:
                 respuesta = DatosModel.mdlRemplazarPrismasAutomatizadosDos(idproyecto, datalimpia, idcompo)
             return respuesta, lista_equipos_unicos
+            
         except FileNotFoundError as e:
-            print(f"Error: ", e)
+            print(f"Error: {e}")
             return False, []
         except pd.errors.ParserError as e:
-            print(f"Error: ", e)
+            print(f"Error: {e}")
             return False, []
         except Exception as e:
-            print(f"Error: ", e)
+            print(f"Error: {e}")
             return False, []
     
     def ctrlRegistrarPrismasAutomatizadosTresantiguo(idproyecto, tipodata, archivo_prisma, encoding, idcompo, delimitador, chunksize=10000):
         try:
-            datos_chunks = []  # Lista para almacenar los chunks procesados
-            equipos_unicos = set()  # Conjunto para almacenar nombres únicos de equipos
+            datos_chunks = []
+            equipos_unicos = set()
             columnas_omitir = [2, 11, 14, 15, 16, 17]
-            # Leer el archivo CSV en bloques
+            
             chunks = pd.read_csv(archivo_prisma, encoding=encoding, sep=delimitador, chunksize=chunksize, header=0)
             for i, data_chunk in enumerate(chunks):
-                # Seleccionar columnas a mantener
                 todas_columnas = list(range(len(data_chunk.columns)))
                 columnas_mantener = [col for col in todas_columnas if col not in columnas_omitir]
                 data_copy = data_chunk.iloc[:, columnas_mantener].copy()
                 data_copy = data_copy.map(lambda x: x.strip() if isinstance(x, str) else x)
-                # Verificar si la columna de fecha tiene valores nulos
+                
                 if data_copy.iloc[:, 3].isnull().all():
                     continue
-                # Procesar fechas - CORRECCIÓN: acceder a la columna correctamente
-                fecha_str = data_copy.iloc[:, 3].astype(str)
-                fecha_limpia = fecha_str.str.split('+').str[0].str.strip()
-                # Crear columna Time con fechas formateadas
-                data_copy["Time"] = pd.NaT  # Inicializar columna con valores NaT
-                # Procesar cada fecha individualmente
-                for idx, fecha in enumerate(fecha_limpia):
-                    try:
-                        try:
-                            fecha_obj = datetime.strptime(fecha, '%Y-%m-%d %H:%M:%S.%f')
-                        except ValueError:
-                            fecha_obj = datetime.strptime(fecha, '%Y-%m-%d %H:%M:%S')
-                        data_copy.loc[idx, "Time"] = fecha_obj.strftime('%Y-%m-%d %H:%M:%S')
-                    except Exception:
-                        pass
-                # Filtrar filas completamente vacías
+
+                # --- REGLAS DE ORO: ISO 'T' + FILTRO 1900 + OPTIMIZACIÓN VECTORIZADA ---
+                # Limpieza de string de fecha (eliminar zona horaria '+' y espacios)
+                fechas_series = data_copy.iloc[:, 3].astype(str).str.split('+').str[0].str.strip()
+                
+                # 1. Convertir a datetime (Vectorizado es 100x más rápido que el bucle for original)
+                # Intentamos inferir el formato automáticamente, manejando milisegundos si existen
+                fechas_obj = pd.to_datetime(fechas_series, errors='coerce')
+                
+                # 2. Filtrar Años < 1900 y NaT
+                mask_valida = fechas_obj.notna() & (fechas_obj.dt.year >= 1900)
+                data_copy = data_copy[mask_valida].copy()
+
+                # 3. Formato ISO estricto con 'T'
+                data_copy["Time"] = fechas_obj[mask_valida].dt.strftime("%Y-%m-%dT%H:%M:%S")
+                # --------------------------------------------
+
                 data_copy = data_copy.dropna(how='all')
-                # Extraer nombres únicos de equipos en la columna 0
                 equipos_unicos.update(data_copy.iloc[:, 0].dropna().unique())
-                # Agregar el chunk procesado a la lista
                 datos_chunks.append(data_copy)
-            # Unir todos los datos procesados
+            
             datos_procesados = pd.concat(datos_chunks, ignore_index=True) if datos_chunks else pd.DataFrame()
-            # Convertir a lista si necesitas una lista de nombres de equipos únicos
+            
+            if datos_procesados.empty:
+                return False, []
+
             lista_equipos_unicos = list(equipos_unicos)
-            # no permitir data duplicada
-            unique_data = {(row[0], row[4]): row for row in datos_procesados.itertuples(index=False)}
+            
+            unique_data = {(row[0], row[-1]): row for row in datos_procesados.itertuples(index=False)}
             datalimpia = pd.DataFrame(unique_data.values())
-            # Llamar al modelo con los datos procesados
-            if tipodata == 1:  # actualizar
+            
+            if tipodata == 1:
                 respuesta = DatosModel.mdlRegistrarPrismasAutomatizadosTres(idproyecto, datalimpia)
-            else:  # reemplazar
+            else:
                 respuesta = DatosModel.mdlRemplazarPrismasAutomatizadosTres(idproyecto, datalimpia, idcompo)
             return respuesta, lista_equipos_unicos
+            
         except FileNotFoundError as e:
-            print(f"Error: ", e)
+            print(f"Error: {e}")
             return False, []
         except pd.errors.ParserError as e:
-            print(f"Error: ", e)
+            print(f"Error: {e}")
             return False, []
         except Exception as e:
-            print(f"Error: ", e)
+            print(f"Error: {e}")
             return False, []
     
     def ctrlRegistrarPrismasAutomatizadosTres(idproyecto, tipodata, archivo_prisma, encoding, idcompo, delimitador):
@@ -301,42 +330,53 @@ class DatosController:
     
     def ctrlRegistrarPrismasAutomatizadosCuatro(idproyecto, tipodata, archivo_prisma, encoding, idcompo, delimitador, chunksize=10000):
         datos_procesados = pd.DataFrame()
-        equipos_unicos = set()  # Conjunto para almacenar nombres únicos de equipos
-        # Lee el archivo CSV en bloques, omitiendo la primera fila como encabezado
+        equipos_unicos = set()
+        
         try:
             chunks = pd.read_csv(archivo_prisma, encoding=encoding, sep=delimitador, chunksize=chunksize, header=0)
             for i, data_chunk in enumerate(chunks):
-                # Convertir y formatear las fechas a %Y-%m-%d %H:%M:%S, omitiendo errores
-                data_chunk.iloc[:, 2] = pd.to_datetime(data_chunk.iloc[:, 2], format="%d-%m-%Y %H:%M:%S", errors='coerce')\
-                            .dt.strftime("%Y-%m-%d %H:%M:%S")
-                # Filtrar filas con fechas inválidas y filas completamente vacías
-                data_chunk = data_chunk.dropna(subset=[data_chunk.columns[2]]).dropna(how='all')
+                # --- REGLAS DE ORO: ISO 'T' + FILTRO 1900 ---
+                # 1. Convertir a datetime
+                fechas_obj = pd.to_datetime(data_chunk.iloc[:, 2], format="%d-%m-%Y %H:%M:%S", errors='coerce')
+                
+                # 2. Filtrar Años < 1900 y NaT
+                mask_valida = fechas_obj.notna() & (fechas_obj.dt.year >= 1900)
+                data_chunk = data_chunk[mask_valida].copy()
+
+                # 3. Formato ISO estricto con 'T'
+                data_chunk.iloc[:, 2] = fechas_obj[mask_valida].dt.strftime("%Y-%m-%dT%H:%M:%S")
+                # --------------------------------------------
+
+                data_chunk = data_chunk.dropna(how='all')
                 data_chunk = data_chunk.map(lambda x: x.strip() if isinstance(x, str) else x)
-                # Extraer nombres únicos de equipos en la columna 2
+                
                 equipos_unicos.update(data_chunk.iloc[:, 1].dropna().unique())
-                # Agregar datos procesados al DataFrame final
                 datos_procesados = pd.concat([datos_procesados, data_chunk], ignore_index=True)
-            # Convertir a lista si necesitas una lista de nombres de equipos únicos
+            
+            if datos_procesados.empty:
+                return False, []
+
             lista_equipos_unicos = list(equipos_unicos)
-            # no permitir data duplicada
+            
             unique_data = {(row[1], row[2]): row for row in datos_procesados.itertuples(index=False)}
             datalimpia = pd.DataFrame(unique_data.values())
-            # Llamar al modelo con los datos procesados
-            if tipodata == 1:  # actualizar
+            
+            if tipodata == 1:
                 respuesta = DatosModel.mdlRegistrarPrismasAutomatizadosCuatro(idproyecto, datalimpia)
-            else:  # reemplazar
+            else:
                 respuesta = DatosModel.mdlRemplazarPrismasAutomatizadosCuatro(idproyecto, datalimpia, idcompo)
             return respuesta, lista_equipos_unicos
+            
         except FileNotFoundError as e:
-            print(f"Error: ", e)
+            print(f"Error: {e}")
             return False, []
         except pd.errors.ParserError as e:
-            print(f"Error: ", e)
+            print(f"Error: {e}")
             return False, []
         except Exception as e:
-            print(f"Error: ", e)
+            print(f"Error: {e}")
             return False, []
-    
+
     def ctrlRegistrarInclinometro(id_proyecto,datos):
         respueta = DatosModel.mdlRegistrarInclinometro(id_proyecto,datos)
         return respueta

@@ -731,3 +731,13 @@ CREATE TABLE [licencias] (
   [codigo_venta] INT NOT NULL,
   CONSTRAINT [PK_licencias] PRIMARY KEY CLUSTERED ([id_licencia])
 );
+
+CREATE TABLE [dbo].[sondajestdr_puntos] (
+    [id_detalle]      INT IDENTITY(1,1) NOT NULL,
+    [id_sondajetdr]   INT NOT NULL,
+    [tipo_detalle]    VARCHAR(255) NULL,
+    [medida_detalle]  DECIMAL(18, 4) NULL,
+    [color_detalle]   VARCHAR(50) NULL,
+    [orden_detalle]   DECIMAL(18, 4) NULL,
+    CONSTRAINT [PK_sondajestdr_puntos] PRIMARY KEY CLUSTERED ([id_detalle] ASC)
+);

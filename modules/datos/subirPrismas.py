@@ -393,32 +393,42 @@ class SubirPrismas:
                     c = 0
                     for column in range(tabladata.columnCount()):
                         item = tabladata.item(row, column)
-                        valor = item.text().strip() if item else ""
-                        if valor != "":
-                            if column == 1:
-                                valor = MetodosGenerales.validarFormatoFecha(valor)
-                                if not valor:
+                        valor_original = item.text().strip() if item else ""
+                        valor_final = valor_original # Por defecto usamos el original
+
+                        if valor_original != "":
+                            if column == 1: # Columna FECHA
+                                # AQUI ESTA EL CAMBIO CLAVE:
+                                # Guardamos el resultado estandarizado (YYYY-MM-DD)
+                                valor_normalizado = MetodosGenerales.validarFormatoFecha(valor_original)
+                                if not valor_normalizado:
                                     mensaje = "La fecha no tiene un formato adecuado."
                                     fila_valida = False
                                     break
-                            elif column == 2:
-                                valor = MetodosGenerales.validarFormatoHora(valor)
-                                if not valor:
+                                valor_final = valor_normalizado 
+
+                            elif column == 2: # Columna HORA
+                                # AQUI TAMBIEN: Guardamos la hora estandarizada (HH:MM:SS)
+                                valor_normalizado = MetodosGenerales.validarFormatoHora(valor_original)
+                                if not valor_normalizado:
                                     mensaje = "La hora no tiene un formato adecuado."
                                     fila_valida = False
                                     break
+                                valor_final = valor_normalizado
+
                             elif column > 2 and column < 7:
-                                if not MetodosGenerales.validarEsNumero(valor):
+                                if not MetodosGenerales.validarEsNumero(valor_original):
                                     mensaje = "Las lecturas deben ser numéricas."
                                     fila_valida = False
                                     break
                             elif column == 7 or column == 8:
-                                if not MetodosGenerales.validarEsNumero(valor):
-                                    if not MetodosGenerales.validarEsAngulo(valor):
+                                if not MetodosGenerales.validarEsNumero(valor_original):
+                                    if not MetodosGenerales.validarEsAngulo(valor_original):
                                         mensaje = "Los ángulos no tiene un formato válido."
                                         fila_valida = False
                                         break
                         else:
+                            # Manejo de vacíos (se mantiene igual, pero asegurando ceros)
                             if column == 0:
                                 fila_valida = False
                                 mensaje = "El nombre del prisma está vacío."
@@ -426,14 +436,17 @@ class SubirPrismas:
                                 fila_valida = False
                                 mensaje = "La fecha está vacía."
                             elif column == 2:
-                                valor = "00:00:00"
+                                valor_final = "00:00:00" # Hora por defecto estandarizada
                             elif column == 3 or column == 4 or column == 5:
                                 fila_valida = False
                                 mensaje = "Las coordenadas están vacías."
                             elif column == 6 or column == 7 or column == 8:
-                                valor = "0"
+                                valor_final = "0"
                             c += 1
-                        datosfila.append(valor)
+                        
+                        # Agregamos el VALOR_FINAL (ya estandarizado), no el original
+                        datosfila.append(valor_final)
+
                     if c != 9:
                         if fila_valida and len(datosfila) == 9:
                             data.append(datosfila)
