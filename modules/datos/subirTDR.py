@@ -598,36 +598,27 @@ class SubirTDR:
         layout = QVBoxLayout()
         layout.addWidget(ui_file)
         dialogo.setLayout(layout)
-        
         # Obtener elementos para interactuar
         lbltitulo = dialogo.findChild(QLabel, "label_nombre")
         treefechas = dialogo.findChild(QTreeWidget, "tree_fechas")
         botonaceptar = dialogo.findChild(QPushButton, "btn_aceptar")
-        
         lbltitulo.setText("FECHAS DEL TDR")
         treefechas.setHeaderLabels([nombrecompo])
-        
         listafechas = TDRController.ctrlListarFechasSondajetdr(idcomponente, idinstrumento, idproyecto)
-        
         if listafechas:
             if estado == Qt.Checked and fechasmarcadas:
-                
-                # --- INICIO LÓGICA DE CORRECCIÓN CON dt_module ---
                 fechaselegidos = []
                 try:
                     # 1. Si ya es una lista de objetos (por drivers modernos)
                     if isinstance(fechasmarcadas, list):
                         # Convertimos a string por si acaso
                         fechaselegidos = [str(f) for f in fechasmarcadas]
-                    
                     # 2. Si es texto y contiene "datetime.datetime" (Formato SQL Server/Repr)
                     elif isinstance(fechasmarcadas, str) and "datetime.datetime" in fechasmarcadas:
                         # Usamos el ALIAS dt_module para que eval entienda que 'datetime' es el módulo
                         contexto_seguro = {'datetime': dt_module}
-                        
                         # Ejecutamos eval de forma segura
                         temp_objs = eval(fechasmarcadas, {"__builtins__": None}, contexto_seguro)
-                        
                         # Convertimos los objetos a string 'YYYY-MM-DD HH:MM:SS' para comparar con el árbol
                         for obj in temp_objs:
                             # Verificamos usando la clase dentro del módulo alias
@@ -635,45 +626,37 @@ class SubirTDR:
                                 fechaselegidos.append(obj.strftime('%Y-%m-%d %H:%M:%S'))
                             else:
                                 fechaselegidos.append(str(obj))
-                                
                     # 3. Fallback: Si es texto normal (lista de strings simple)
                     elif isinstance(fechasmarcadas, str):
                         fechaselegidos = ast.literal_eval(fechasmarcadas)
                         # Aseguramos que todo sea string
                         fechaselegidos = [str(f) for f in fechaselegidos]
-                        
                 except Exception as e:
                     print(f"Error procesando fechas marcadas en dialogo: {e}")
                     fechaselegidos = []
                 # --- FIN LÓGICA DE CORRECCIÓN ---
-
                 parent = QTreeWidgetItem(treefechas)
                 parent.setText(0, nombretdr)
                 parent.setText(1, "1")
-                
                 # Lógica para marcar check padre/hijo
                 if len(listafechas) == len(fechaselegidos):
                     parent.setCheckState(0, Qt.Checked)
                 else:
                     parent.setCheckState(0, Qt.PartiallyChecked)
-                    
                 parent.setFlags(parent.flags() | Qt.ItemIsUserCheckable)
                 parent.setExpanded(True)
-                
                 for fechas in listafechas:
                     item = QTreeWidgetItem(parent)
-                    item.setText(0, fechas[0]) # Fecha string de la BD
+                    item.setText(0, str(fechas[0])) # Fecha string de la BD
                     item.setText(1, "fecha")
                     item.setText(2, str(fechas[2])) # id sondaje
                     item.setCheckState(0, Qt.Unchecked)
                     item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
-                    
-                    if fechas[0] == fechas[1]: # es base
+                    if str(fechas[0]) == str(fechas[1]): # es base
                         item.setForeground(0, QBrush(QColor("red")))
-                    
                     # Comparación String vs String (Segura)
                     for fechita in fechaselegidos:
-                        if fechas[0] == fechita:
+                        if str(fechas[0]) == str(fechita):
                             item.setCheckState(0, Qt.Checked)
             else:
                 # Caso: No hay fechas marcadas previamente o no está checkeado
@@ -683,17 +666,15 @@ class SubirTDR:
                 parent.setCheckState(0, Qt.Unchecked)
                 parent.setFlags(parent.flags() | Qt.ItemIsUserCheckable)
                 parent.setExpanded(True)
-                
                 for fechas in listafechas:
                     item = QTreeWidgetItem(parent)
-                    item.setText(0, fechas[0])
+                    item.setText(0, str(fechas[0]))
                     item.setText(1, "fecha")
                     item.setText(2, str(fechas[2]))
                     item.setCheckState(0, Qt.Unchecked)
                     item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
-                    if fechas[0] == fechas[1]: # es base
+                    if str(fechas[0]) == str(fechas[1]): # es base
                         item.setForeground(0, QBrush(QColor("red")))
-
         # --- Funciones internas ---
         def marcadoDesmarcadoCheckbox(parent_item, column):
             TreeCheckbox.validarMarcadoCheckbox(parent_item, column)

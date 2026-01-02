@@ -1540,14 +1540,14 @@ class ReporteModel:
                     este_target,
                     norte_target,
                     elevacion_target,
-                    CAST(DATEDIFF(SECOND, first_value(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                    CAST(DATEDIFF(SECOND, first_value(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), hora_prisma) AS FLOAT) / 86400.0 AS dias,
                     CASE
-                        WHEN row_number() OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma) = 1 THEN 0
+                        WHEN row_number() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) = 1 THEN 0
                         ELSE
                             SQRT(
-                                POWER(este_target - lag(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2) +
-                                POWER(norte_target - lag(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2) +
-                                POWER(elevacion_target - lag(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), 2)
+                                POWER(este_target - lag(este_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), 2) +
+                                POWER(norte_target - lag(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), 2) +
+                                POWER(elevacion_target - lag(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), 2)
                             )
                     END AS tresD2
                 FROM {tabla}
@@ -1562,7 +1562,7 @@ class ReporteModel:
                     WHEN row_number() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) = 1 THEN 0
                     ELSE
                         (tresD2*100) / 
-                        NULLIF((CAST(DATEDIFF(SECOND, LAG(hora_prisma, 1, hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma, hora_prisma), hora_prisma) AS FLOAT) / 86400.0), 0)
+                        NULLIF((CAST(DATEDIFF(SECOND, LAG(hora_prisma, 1, hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), hora_prisma) AS FLOAT) / 86400.0), 0)
                 END AS VI3D2,
                 ? AS tipo_prisma
             FROM PrismasCTE;

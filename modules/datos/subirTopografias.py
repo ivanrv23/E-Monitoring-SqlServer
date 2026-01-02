@@ -4,6 +4,7 @@ from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QPlainTextEdit, QPushButton, QTreeWidget, QFormLayout,
                             QDialogButtonBox, QMessageBox, QLabel, QLineEdit, QFileDialog,QDateEdit)
 from PySide6.QtCore import Qt, QFileInfo
+from datetime import datetime
 from utils.common.rutasarchivos import resource_path
 from utils.generic.cargariconos import cargarIcono
 from utils.common.alertas import mostrar_mensaje
@@ -195,8 +196,13 @@ class SubirTopografias:
             inputnombre.setText(str(datatopo[2]))
             nombreactual = str(datatopo[2])
             inputcomenta.setPlainText(str(datatopo[5]))
-            fecha_str= datatopo[7]
-            fecha_qdate = QDate.fromString(fecha_str, "yyyy-MM-dd")
+            fecha_dato = datatopo[7]
+            if isinstance(fecha_dato, datetime):
+                fecha_qdate = QDate(fecha_dato.year, fecha_dato.month, fecha_dato.day)
+            elif isinstance(fecha_dato, str):
+                fecha_qdate = QDate.fromString(fecha_dato, "yyyy-MM-dd")
+            else:
+                fecha_qdate = QDate.currentDate()
             fecha_edit.setDate(fecha_qdate)
         def actualizarDatos():
             componente = combocomponente.currentData()
