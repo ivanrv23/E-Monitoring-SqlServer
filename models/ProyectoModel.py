@@ -155,6 +155,25 @@ class ProyectoModel:
                 conn.close()
     
     @staticmethod
+    def mdlEliminarProyectoooooooooooooo(idproyecto):
+        conn = None
+        sql = """UPDATE proyectos SET estado_proyecto = 0 WHERE id_proyecto = ?;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (idproyecto,))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al eliminar proyecto:", e)
+            if conn:
+                conn.rollback()
+            return False  
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
     def mdlEliminarProyecto(idproyecto):
         conn = None
         # Consultas SQL para eliminar registros
