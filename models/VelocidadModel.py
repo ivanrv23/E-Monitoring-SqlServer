@@ -120,9 +120,9 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
-                CAST(DATEDIFF(SECOND, COALESCE(LAG(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
-                (b.promedio_distancia - FIRST_VALUE(CAST(b.promedio_distancia AS FLOAT)) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma)) * ? AS SD,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, COALESCE(LAG(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
+                (b.promedio_distancia - FIRST_VALUE(CAST(b.promedio_distancia AS FLOAT)) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma)) * ? AS SD,
                 b.tipo_equipo,
                 b.bloque_dias -- Agregado para ordenar en la CTE
             FROM bloques b
@@ -181,9 +181,9 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
-                CAST(DATEDIFF(SECOND, COALESCE(LAG(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
-                (b.promedio_distancia - FIRST_VALUE(CAST(b.promedio_distancia AS FLOAT)) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma)) * ? AS SD,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, COALESCE(LAG(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
+                (b.promedio_distancia - FIRST_VALUE(CAST(b.promedio_distancia AS FLOAT)) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma)) * ? AS SD,
                 b.tipo_equipo,
                 b.bloque_dias
             FROM bloques b
@@ -236,9 +236,9 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
-                CAST(DATEDIFF(SECOND, COALESCE(LAG(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
-                (pd.promedio_distancia - FIRST_VALUE(CAST(pd.promedio_distancia AS FLOAT)) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma)) * ? AS SD,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, COALESCE(LAG(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
+                (pd.promedio_distancia - FIRST_VALUE(CAST(pd.promedio_distancia AS FLOAT)) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma)) * ? AS SD,
                 pd.tipo_equipo,
                 pd.fecha, pd.bloque -- Para ordenamiento si es necesario
             FROM promedios_horas pd
@@ -291,9 +291,9 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
-                CAST(DATEDIFF(SECOND, COALESCE(LAG(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
-                (pd.promedio_distancia - FIRST_VALUE(CAST(pd.promedio_distancia AS FLOAT)) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma)) * ? AS SD,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, COALESCE(LAG(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
+                (pd.promedio_distancia - FIRST_VALUE(CAST(pd.promedio_distancia AS FLOAT)) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma)) * ? AS SD,
                 pd.tipo_equipo,
                 pd.fecha, pd.bloque
             FROM promedios_horas pd
@@ -442,8 +442,8 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
-                (b.promedio_distancia - FIRST_VALUE(CAST(b.promedio_distancia AS FLOAT)) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma)) * ? AS SD,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
+                (b.promedio_distancia - FIRST_VALUE(CAST(b.promedio_distancia AS FLOAT)) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma)) * ? AS SD,
                 b.tipo_equipo,
                 b.bloque_dias
             FROM bloques b
@@ -502,8 +502,8 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
-                (b.promedio_distancia - FIRST_VALUE(CAST(b.promedio_distancia AS FLOAT)) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma)) * ? AS SD,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
+                (b.promedio_distancia - FIRST_VALUE(CAST(b.promedio_distancia AS FLOAT)) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma)) * ? AS SD,
                 b.tipo_equipo,
                 b.bloque_dias
             FROM bloques b
@@ -556,8 +556,8 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
-                (pd.promedio_distancia - FIRST_VALUE(CAST(pd.promedio_distancia AS FLOAT)) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma)) * ? AS SD,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
+                (pd.promedio_distancia - FIRST_VALUE(CAST(pd.promedio_distancia AS FLOAT)) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma)) * ? AS SD,
                 pd.tipo_equipo,
                 pd.fecha, pd.bloque
             FROM promedios_horas pd
@@ -610,8 +610,8 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
-                (pd.promedio_distancia - FIRST_VALUE(CAST(pd.promedio_distancia AS FLOAT)) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma)) * ? AS SD,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
+                (pd.promedio_distancia - FIRST_VALUE(CAST(pd.promedio_distancia AS FLOAT)) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma)) * ? AS SD,
                 pd.tipo_equipo,
                 pd.fecha, pd.bloque
             FROM promedios_horas pd
@@ -764,13 +764,13 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma, b.promedio_este, b.promedio_norte,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 CASE
-                    WHEN ROW_NUMBER() OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma) = 1 THEN 0
+                    WHEN ROW_NUMBER() OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma) = 1 THEN 0
                     ELSE 
                         SQRT(
-                            POWER(b.promedio_este - LAG(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                            POWER(b.promedio_norte - LAG(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2)
+                            POWER(b.promedio_este - LAG(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                            POWER(b.promedio_norte - LAG(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2)
                         ) * ?
                 END AS dosD,
                 b.tipo_equipo,
@@ -827,13 +827,13 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma, b.promedio_este, b.promedio_norte,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 CASE
-                    WHEN ROW_NUMBER() OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma) = 1 THEN 0
+                    WHEN ROW_NUMBER() OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma) = 1 THEN 0
                     ELSE 
                         SQRT(
-                            POWER(b.promedio_este - LAG(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                            POWER(b.promedio_norte - LAG(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2)
+                            POWER(b.promedio_este - LAG(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                            POWER(b.promedio_norte - LAG(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2)
                         ) * ?
                 END AS dosD,
                 b.tipo_equipo,
@@ -884,13 +884,13 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma, pd.promedio_este, pd.promedio_norte,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 CASE
-                    WHEN ROW_NUMBER() OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma) = 1 THEN 0
+                    WHEN ROW_NUMBER() OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma) = 1 THEN 0
                     ELSE 
                         SQRT(
-                            POWER(pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                            POWER(pd.promedio_norte - LAG(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2)
+                            POWER(pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                            POWER(pd.promedio_norte - LAG(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2)
                         ) * ?
                 END AS dosD,
                 pd.tipo_equipo,
@@ -941,13 +941,13 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma, pd.promedio_este, pd.promedio_norte,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 CASE
-                    WHEN ROW_NUMBER() OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma) = 1 THEN 0
+                    WHEN ROW_NUMBER() OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma) = 1 THEN 0
                     ELSE 
                         SQRT(
-                            POWER(pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                            POWER(pd.promedio_norte - LAG(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2)
+                            POWER(pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                            POWER(pd.promedio_norte - LAG(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2)
                         ) * ?
                 END AS dosD,
                 pd.tipo_equipo,
@@ -1090,10 +1090,10 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma, b.promedio_este, b.promedio_norte,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
-                    POWER(b.promedio_este - FIRST_VALUE(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                    POWER(b.promedio_norte - FIRST_VALUE(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2)
+                    POWER(b.promedio_este - FIRST_VALUE(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                    POWER(b.promedio_norte - FIRST_VALUE(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2)
                 ) * ? AS dosD,
                 b.tipo_equipo,
                 b.bloque_dias
@@ -1149,10 +1149,10 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma, b.promedio_este, b.promedio_norte,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
-                    POWER(b.promedio_este - FIRST_VALUE(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                    POWER(b.promedio_norte - FIRST_VALUE(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2)
+                    POWER(b.promedio_este - FIRST_VALUE(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                    POWER(b.promedio_norte - FIRST_VALUE(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2)
                 ) * ? AS dosD,
                 b.tipo_equipo,
                 b.bloque_dias
@@ -1201,10 +1201,10 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma, pd.promedio_este, pd.promedio_norte,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
-                    POWER(pd.promedio_este - FIRST_VALUE(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                    POWER(pd.promedio_norte - FIRST_VALUE(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2)
+                    POWER(pd.promedio_este - FIRST_VALUE(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                    POWER(pd.promedio_norte - FIRST_VALUE(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2)
                 ) * ? AS dosD,
                 pd.tipo_equipo,
                 pd.fecha, pd.bloque
@@ -1254,10 +1254,10 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma, pd.promedio_este, pd.promedio_norte,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
-                    POWER(pd.promedio_este - FIRST_VALUE(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                    POWER(pd.promedio_norte - FIRST_VALUE(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2)
+                    POWER(pd.promedio_este - FIRST_VALUE(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                    POWER(pd.promedio_norte - FIRST_VALUE(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2)
                 ) * ? AS dosD,
                 pd.tipo_equipo,
                 pd.fecha, pd.bloque
@@ -1399,11 +1399,11 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma, b.promedio_este, b.promedio_norte, b.promedio_elevacion,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
-                    POWER(b.promedio_este - LAG(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                    POWER(b.promedio_norte - LAG(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                    POWER(b.promedio_elevacion - LAG(b.promedio_elevacion) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2)
+                    POWER(b.promedio_este - LAG(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                    POWER(b.promedio_norte - LAG(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                    POWER(b.promedio_elevacion - LAG(b.promedio_elevacion) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2)
                 ) * ? AS tresD,
                 b.tipo_equipo,
                 b.bloque_dias
@@ -1459,11 +1459,11 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma, b.promedio_este, b.promedio_norte, b.promedio_elevacion,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
-                    POWER(b.promedio_este - LAG(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                    POWER(b.promedio_norte - LAG(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                    POWER(b.promedio_elevacion - LAG(b.promedio_elevacion) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2)
+                    POWER(b.promedio_este - LAG(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                    POWER(b.promedio_norte - LAG(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                    POWER(b.promedio_elevacion - LAG(b.promedio_elevacion) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2)
                 ) * ? AS tresD,
                 b.tipo_equipo,
                 b.bloque_dias
@@ -1513,11 +1513,11 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma, pd.promedio_este, pd.promedio_norte, pd.promedio_elevacion,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
-                    POWER(pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                    POWER(pd.promedio_norte - LAG(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                    POWER(pd.promedio_elevacion - LAG(pd.promedio_elevacion) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2)
+                    POWER(pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                    POWER(pd.promedio_norte - LAG(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                    POWER(pd.promedio_elevacion - LAG(pd.promedio_elevacion) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2)
                 ) * ? AS tresD,
                 pd.tipo_equipo,
                 pd.fecha, pd.bloque
@@ -1567,11 +1567,11 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma, pd.promedio_este, pd.promedio_norte, pd.promedio_elevacion,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
-                    POWER(pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                    POWER(pd.promedio_norte - LAG(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                    POWER(pd.promedio_elevacion - LAG(pd.promedio_elevacion) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2)
+                    POWER(pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                    POWER(pd.promedio_norte - LAG(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                    POWER(pd.promedio_elevacion - LAG(pd.promedio_elevacion) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2)
                 ) * ? AS tresD,
                 pd.tipo_equipo,
                 pd.fecha, pd.bloque
@@ -1722,14 +1722,14 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma, b.promedio_este, b.promedio_norte, b.promedio_elevacion,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 CASE
-                    WHEN ROW_NUMBER() OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma) = 1 THEN 0
+                    WHEN ROW_NUMBER() OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma) = 1 THEN 0
                     ELSE 
                         SQRT(
-                            POWER(b.promedio_este - LAG(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                            POWER(b.promedio_norte - LAG(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                            POWER(b.promedio_elevacion - LAG(b.promedio_elevacion) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2)
+                            POWER(b.promedio_este - LAG(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                            POWER(b.promedio_norte - LAG(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                            POWER(b.promedio_elevacion - LAG(b.promedio_elevacion) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2)
                         ) * ?
                 END AS tresD, b.tipo_equipo,
                 b.bloque_dias
@@ -1786,14 +1786,14 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma, b.promedio_este, b.promedio_norte, b.promedio_elevacion,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 CASE
-                    WHEN ROW_NUMBER() OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma) = 1 THEN 0
+                    WHEN ROW_NUMBER() OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma) = 1 THEN 0
                     ELSE 
                         SQRT(
-                            POWER(b.promedio_este - LAG(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                            POWER(b.promedio_norte - LAG(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                            POWER(b.promedio_elevacion - LAG(b.promedio_elevacion) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2)
+                            POWER(b.promedio_este - LAG(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                            POWER(b.promedio_norte - LAG(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                            POWER(b.promedio_elevacion - LAG(b.promedio_elevacion) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2)
                         ) * ?
                 END AS tresD,
                 b.tipo_equipo,
@@ -1844,14 +1844,14 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma, pd.promedio_este, pd.promedio_norte, pd.promedio_elevacion,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 CASE
-                    WHEN ROW_NUMBER() OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma) = 1 THEN 0
+                    WHEN ROW_NUMBER() OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma) = 1 THEN 0
                     ELSE 
                         SQRT(
-                            POWER(pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                            POWER(pd.promedio_norte - LAG(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                            POWER(pd.promedio_elevacion - LAG(pd.promedio_elevacion) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2)
+                            POWER(pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                            POWER(pd.promedio_norte - LAG(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                            POWER(pd.promedio_elevacion - LAG(pd.promedio_elevacion) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2)
                         ) * ?
                 END AS tresD,
                 pd.tipo_equipo,
@@ -1903,14 +1903,14 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma, pd.promedio_este, pd.promedio_norte, pd.promedio_elevacion,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 CASE
-                    WHEN ROW_NUMBER() OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma) = 1 THEN 0
+                    WHEN ROW_NUMBER() OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma) = 1 THEN 0
                     ELSE 
                         SQRT(
-                            POWER(pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                            POWER(pd.promedio_norte - LAG(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                            POWER(pd.promedio_elevacion - LAG(pd.promedio_elevacion) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2)
+                            POWER(pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                            POWER(pd.promedio_norte - LAG(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                            POWER(pd.promedio_elevacion - LAG(pd.promedio_elevacion) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2)
                         ) * ?
                 END AS tresD,
                 pd.tipo_equipo,
@@ -2054,11 +2054,11 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma, b.promedio_este, b.promedio_norte, b.promedio_elevacion,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
-                    POWER(b.promedio_este - FIRST_VALUE(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                    POWER(b.promedio_norte - FIRST_VALUE(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                    POWER(b.promedio_elevacion - FIRST_VALUE(b.promedio_elevacion) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2)
+                    POWER(b.promedio_este - FIRST_VALUE(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                    POWER(b.promedio_norte - FIRST_VALUE(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                    POWER(b.promedio_elevacion - FIRST_VALUE(b.promedio_elevacion) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2)
                 ) * ? AS tresD,
                 b.tipo_equipo,
                 b.bloque_dias
@@ -2115,11 +2115,11 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma, b.promedio_este, b.promedio_norte, b.promedio_elevacion,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
-                    POWER(b.promedio_este - FIRST_VALUE(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                    POWER(b.promedio_norte - FIRST_VALUE(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2) +
-                    POWER(b.promedio_elevacion - FIRST_VALUE(b.promedio_elevacion) OVER (PARTITION BY b.nombre_prisma ORDER BY b.nombre_prisma, b.hora_prisma), 2)
+                    POWER(b.promedio_este - FIRST_VALUE(b.promedio_este) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                    POWER(b.promedio_norte - FIRST_VALUE(b.promedio_norte) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2) +
+                    POWER(b.promedio_elevacion - FIRST_VALUE(b.promedio_elevacion) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), 2)
                 ) * ? AS tresD,
                 b.tipo_equipo,
                 b.bloque_dias
@@ -2169,11 +2169,11 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma, pd.promedio_este, pd.promedio_norte, pd.promedio_elevacion,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
-                    POWER(pd.promedio_este - FIRST_VALUE(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                    POWER(pd.promedio_norte - FIRST_VALUE(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                    POWER(pd.promedio_elevacion - FIRST_VALUE(pd.promedio_elevacion) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2)
+                    POWER(pd.promedio_este - FIRST_VALUE(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                    POWER(pd.promedio_norte - FIRST_VALUE(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                    POWER(pd.promedio_elevacion - FIRST_VALUE(pd.promedio_elevacion) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2)
                 ) * ? AS tresD,
                 pd.tipo_equipo,
                 pd.fecha, pd.bloque
@@ -2224,11 +2224,11 @@ class VelocidadModel:
         ),
         velocidad AS (
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma, pd.promedio_este, pd.promedio_norte, pd.promedio_elevacion,
-                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0 AS dias,
                 SQRT(
-                    POWER(pd.promedio_este - FIRST_VALUE(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                    POWER(pd.promedio_norte - FIRST_VALUE(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2) +
-                    POWER(pd.promedio_elevacion - FIRST_VALUE(pd.promedio_elevacion) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.nombre_prisma, pd.hora_prisma), 2)
+                    POWER(pd.promedio_este - FIRST_VALUE(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                    POWER(pd.promedio_norte - FIRST_VALUE(pd.promedio_norte) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2) +
+                    POWER(pd.promedio_elevacion - FIRST_VALUE(pd.promedio_elevacion) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), 2)
                 ) * ? AS tresD,
                 pd.tipo_equipo,
                 pd.fecha, pd.bloque

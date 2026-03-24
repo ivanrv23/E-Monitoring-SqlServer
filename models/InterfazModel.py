@@ -7,7 +7,7 @@ class InterfazModel:
         conn = None
         try:
             conn = Connection.connectionDB()
-            sql = """SELECT * FROM proyectos ORDER BY id_proyecto DESC;"""
+            sql = """SELECT * FROM proyectos WHERE estado_proyecto = 1 ORDER BY id_proyecto DESC;"""
             cur = conn.cursor()
             cur.execute(sql)
             rows = cur.fetchall()

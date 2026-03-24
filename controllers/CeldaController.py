@@ -21,7 +21,7 @@ class CeldaController:
             return fechamin, fechamax
     
     def ctrlRegistrarCelda(idcomponente, data):
-        fecha_actual = f"{datetime.now().strftime("%Y-%m-%d")} 00:00:00"
+        fecha_actual = f"{datetime.now().strftime('%Y-%m-%d')} 00:00:00"
         idcelda = CeldaModel.mdlRegistrarCelda(data, fecha_actual)
         if idcelda:
             respuesta = CeldaModel.mdlRegistrarInstrumentacionCelda((idcomponente, "CELDA", data['nombre_celda'], idcelda, "celdas"))
@@ -34,7 +34,7 @@ class CeldaController:
         return respuesta, info
     
     def ctrlRegistrarCeldaFormato(idcomponente, datos):
-        fecha_actual = f"{datetime.now().strftime("%Y-%m-%d")} 00:00:00"
+        fecha_actual = f"{datetime.now().strftime('%Y-%m-%d')} 00:00:00"
         idcelda = CeldaModel.mdlRegistrarCelda(datos, fecha_actual)
         if idcelda:
             respues = CeldaModel.mdlRegistrarInstrumentacionCelda((idcomponente, "CELDA", datos['nombre_celda'], idcelda, "celdas"))

@@ -237,7 +237,7 @@ CREATE TABLE [sondajestdr] (
   [inclinacion_sondajetdr] FLOAT,
   [azimut_sondajetdr] FLOAT,
   [comentario_sondajetdr] NVARCHAR(MAX),
-  [base_sondajetdr] DATE, -- DATE se mantiene
+  [base_sondajetdr] DATETIME2(0),
   [estado_sondajetdr] INT NOT NULL DEFAULT ((1)),
   CONSTRAINT [PK_sondajestdr] PRIMARY KEY CLUSTERED ([id_sondajetdr])
 );

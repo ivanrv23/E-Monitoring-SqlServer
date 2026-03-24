@@ -1248,9 +1248,6 @@ class VisorView:
             puntos_iniciales = [(tupla[2], tupla[3], tupla[4]) for tupla in piniciales]
             puntos_finales = [(tupla[2], tupla[3], tupla[4]) for tupla in pfinales]
             nombreprismas = [(tupla[0], tupla[1], tupla[5]) for tupla in pfinales]
-            print(f'prismas: {nombreprismas}')
-            print(f'puntos iniciales: {puntos_iniciales}')
-            print(f'puntos finales: {puntos_finales}')
             vectores = []  # Arreglo para almacenar la información de los vectores
             VisorView.colorvectores.clear()
             # Traer distancias según tipo

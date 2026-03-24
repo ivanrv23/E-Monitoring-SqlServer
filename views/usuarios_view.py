@@ -61,7 +61,7 @@ class UsuariosView:
                 UsuariosView.idventa = empresa[1]
         if UsuariosView.estadoPagina:
             btn_refrescar_tabla = UsuariosView.main.findChild(QPushButton, "btn_refrescar_usuarios")
-            btn_refrescar_tabla.clicked.connect(UsuariosView.mostrarListaUsuarios)
+            btn_refrescar_tabla.clicked.connect(UsuariosView.simularCopiaPrismasUnaBaseDatosOtra)
             # Conectar el menú contextual al QTableView
             tablausers =  main.findChild(QTableView, "table_usuarios")
             tablausers.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -70,6 +70,33 @@ class UsuariosView:
             btnnuevousuario.clicked.connect(UsuariosView.modalCrearNuevoUsuario)
             UsuariosView.estadoPagina = False
     
+    def simularCopiaPrismasUnaBaseDatosOtra():
+        dialog = QDialog()
+        dialog.setWindowTitle("Confirmar copia")
+        layout = QFormLayout(dialog)
+        # Campo documento
+        label_mensaje = QLabel("")
+        label_mensaje.setAlignment(Qt.AlignCenter)
+        label_mensaje.setStyleSheet("QLabel { color: red; }")
+        layout.addRow(label_mensaje)
+        button_box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        # Cambiar los textos a español
+        button_box.button(QDialogButtonBox.Save).setText("Aceptar")
+        button_box.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        layout.addWidget(button_box)
+        # Conectar los botones a las funciones correspondientes
+        def guardarDatos():
+            respuesta = UsuarioController.ctrlRealizarCopia()
+            if respuesta is True:
+                label_mensaje.setText("Copiado.")
+            else:
+                label_mensaje.setText("Error al copiar.")
+        button_box.accepted.connect(guardarDatos)
+        button_box.rejected.connect(dialog.reject)
+        # Mostrar el diálogo
+        dialog.setLayout(layout)
+        dialog.exec()
+
     def mostrarListaUsuarios():
         tabla =  UsuariosView.main.findChild(QTableView, "table_usuarios")
         if UsuariosView.idventa:
