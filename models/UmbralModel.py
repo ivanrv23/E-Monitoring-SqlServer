@@ -721,7 +721,7 @@ class UmbralModel:
                     nombre_prisma,
                     distancia_prisma AS distancia_prisma,
                     LAG(nombre_prisma) OVER (ORDER BY nombre_prisma) AS prev_nombre_prisma,
-                    FIRST_VALUE(distancia_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma) AS primer_valor
+                    FIRST_VALUE(distancia_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) AS primer_valor
                 FROM {tabla}
                 WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
             )
@@ -771,7 +771,7 @@ class UmbralModel:
                     nombre_prisma,
                     distancia_prisma AS distancia_prisma,
                     LAG(nombre_prisma) OVER (ORDER BY nombre_prisma) AS prev_nombre_prisma,
-                    FIRST_VALUE(distancia_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma) AS primer_valor
+                    FIRST_VALUE(distancia_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) AS primer_valor
                 FROM {tabla}
                 WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
             )
@@ -823,7 +823,7 @@ class UmbralModel:
                     nombre_prisma,
                     distancia_prisma AS distancia_prisma,
                     LAG(nombre_prisma) OVER (ORDER BY nombre_prisma) AS prev_nombre_prisma,
-                    FIRST_VALUE(distancia_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma) AS primer_valor
+                    FIRST_VALUE(distancia_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) AS primer_valor
                 FROM {tabla}
                 WHERE state_prisma = '1' AND nombre_prisma IN ({placeholders}) AND hora_prisma BETWEEN ? AND ?
             )
@@ -877,7 +877,7 @@ class UmbralModel:
                     nombre_prisma,
                     distancia_prisma AS distancia_prisma,
                     LAG(nombre_prisma) OVER (ORDER BY nombre_prisma) AS prev_nombre_prisma,
-                    FIRST_VALUE(distancia_prisma) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma) AS primer_valor
+                    FIRST_VALUE(distancia_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) AS primer_valor
                 FROM {tabla}
                 WHERE state_prisma = '1' AND nombre_prisma IN ({placeholders}) AND hora_prisma BETWEEN ? AND ?
             )
@@ -932,9 +932,9 @@ class UmbralModel:
                     nombre_prisma,
                     hora_prisma,
                     SQRT(
-                        POWER(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2) +
-                        POWER(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2) +
-                        POWER(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2)
+                        POWER(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), 2) +
+                        POWER(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), 2) +
+                        POWER(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), 2)
                     ) AS distancia
                 FROM {tabla}
                 WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
@@ -973,9 +973,9 @@ class UmbralModel:
                     nombre_prisma,
                     hora_prisma,
                     SQRT(
-                        POWER(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2) +
-                        POWER(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2) +
-                        POWER(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma), 2)
+                        POWER(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), 2) +
+                        POWER(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), 2) +
+                        POWER(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), 2)
                     ) AS distancia
                 FROM {tabla}
                 WHERE state_prisma = '1' AND nombre_prisma IN ({placeholders}) AND hora_prisma BETWEEN ? AND ?
@@ -1194,8 +1194,8 @@ class UmbralModel:
         tabla = "prismas" + str(id_proyecto)
         sql = f"""WITH Calculo AS (
             SELECT nombre_prisma, norte_target,
-            (norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia,
-            ABS(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A
+            (norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma)) AS distancia,
+            ABS(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma)) AS V_A
             FROM {tabla}
             WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
         ),
@@ -1229,8 +1229,8 @@ class UmbralModel:
         placeholders = ','.join(['?' for _ in nombres])
         sql = f"""WITH Calculo AS (
             SELECT nombre_prisma, norte_target,
-            (norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia,
-            ABS(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A
+            (norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma)) AS distancia,
+            ABS(norte_target - FIRST_VALUE(norte_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma)) AS V_A
             FROM {tabla}
             WHERE state_prisma = '1' AND nombre_prisma IN ({placeholders}) AND hora_prisma BETWEEN ? AND ?
         ),
@@ -1264,8 +1264,8 @@ class UmbralModel:
         tabla = "prismas" + str(id_proyecto)
         sql = f"""WITH Calculo AS (
             SELECT nombre_prisma, este_target,
-            (este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia,
-            ABS(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A
+            (este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma)) AS distancia,
+            ABS(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma)) AS V_A
             FROM {tabla}
             WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
         ),
@@ -1299,8 +1299,8 @@ class UmbralModel:
         placeholders = ','.join(['?' for _ in nombres])
         sql = f"""WITH Calculo AS (
             SELECT nombre_prisma, este_target,
-            (este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia,
-            ABS(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A
+            (este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma)) AS distancia,
+            ABS(este_target - FIRST_VALUE(este_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma)) AS V_A
             FROM {tabla}
             WHERE state_prisma = '1' AND nombre_prisma IN ({placeholders}) AND hora_prisma BETWEEN ? AND ?
         ),
@@ -1334,8 +1334,8 @@ class UmbralModel:
         tabla = "prismas" + str(id_proyecto)
         sql = f"""WITH Calculo AS (
             SELECT nombre_prisma, elevacion_target,
-            (elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia,
-            ABS(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A
+            (elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma)) AS distancia,
+            ABS(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma)) AS V_A
             FROM {tabla}
             WHERE state_prisma = '1' AND hora_prisma BETWEEN ? AND ?
         ),
@@ -1369,8 +1369,8 @@ class UmbralModel:
         placeholders = ','.join(['?' for _ in nombres])
         sql = f"""WITH Calculo AS (
             SELECT nombre_prisma, elevacion_target,
-            (elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS distancia,
-            ABS(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY nombre_prisma)) AS V_A
+            (elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma)) AS distancia,
+            ABS(elevacion_target - FIRST_VALUE(elevacion_target) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma)) AS V_A
             FROM {tabla}
             WHERE state_prisma = '1' AND nombre_prisma IN ({placeholders}) AND hora_prisma BETWEEN ? AND ?
         ),
