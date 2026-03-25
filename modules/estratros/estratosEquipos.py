@@ -23,12 +23,11 @@ class ConfigurarEstratos:
         component_combo_label = QLabel("Seleccione Componente:")
         component_combo = QComboBox()
 
-        # Añadir opciones al nuevo ComboBox desde listacomponente
-        for componente in listacomponente:
-            component_combo.addItem(componente[2], userData=componente[0])  # componente[2] es el nombre, componente[0] es el ID
-
-        # Seleccionar el primer elemento por defecto
         if listacomponente:
+            # Añadir opciones al nuevo ComboBox desde listacomponente
+            for componente in listacomponente:
+                component_combo.addItem(componente[2], userData=componente[0])  # componente[2] es el nombre, componente[0] es el ID
+            # Seleccionar el primer elemento por defecto
             component_combo.setCurrentIndex(0)
 
         # Añadir el nuevo ComboBox y el botón al layout horizontal

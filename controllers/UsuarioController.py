@@ -30,6 +30,23 @@ class UsuarioController:
         respuesta, data = UsuarioModel.mdlComprobarUsuarioContraseña(usuario, contraseña, idventa)
         return respuesta, data
     
+    def ctrlObtenerConexiones():
+        result = UsuarioModel.mdlObtenerConexiones()
+        return result
+    
+    def ctrlGuardarNuevaConexion(datos):
+        respuesta = UsuarioModel.mdlGuardarNuevaConexion(datos)
+        return respuesta
+    
+    def ctrlActualizarConexion(datos):
+        respuesta = UsuarioModel.mdlActualizarConexion(datos)
+        return respuesta
+    
+    def ctrlEliminarConexion(idconexion):
+        respuesta = UsuarioModel.mdlEliminarConexion(idconexion)
+        return respuesta
+    
+
     def ctrlRealizarCopia():
         try:
             # ── 1. EXTRACT ──────────────────────────────────

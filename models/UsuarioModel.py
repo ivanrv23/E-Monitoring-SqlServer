@@ -1,7 +1,7 @@
 import requests
 from sqlite3 import Error
-from services.security.apis.conexiones.conexion import Conexion
 import pyodbc
+from services.security.apis.conexiones.conexion import Conexion
 from services.security.apis.conexiones.connection import Connection
 
 class UsuarioModel:
@@ -204,7 +204,118 @@ class UsuarioModel:
         except requests.exceptions.RequestException:
             return False, {"error": "Error al validar usuario y contraseña."}
     
+    @staticmethod
+    def mdlObtenerConexiones():
+        conn = None
+        sql = """SELECT p.nombre_proyecto, k.nombre_componente, c.instrumento_conexion, c.servidor_conexion, c.puerto_conexion, c.database_conexion,
+        c.usuario_conexion, c.tabla_conexion, c.frecuencia_conexion, c.estado_conexion, c.id_conexion, c.id_proyecto, c.id_componente
+        FROM conexiones c INNER JOIN proyectos p ON c.id_proyecto = p.id_proyecto INNER JOIN componentes k ON c.id_componente = k.id_componente;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql)
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
+            else:
+                return None
+        except Exception as e:
+            print("Error al consultar conexiones: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
 
+    @staticmethod
+    def mdlGuardarNuevaConexion(datos):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            sql = """INSERT INTO conexiones (id_proyecto, id_componente, instrumento_conexion, servidor_conexion, puerto_conexion, database_conexion,
+            usuario_conexion, password_conexion, tabla_conexion, frecuencia_conexion, estado_conexion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+            cur = conn.cursor()
+            cur.execute(sql, datos)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al registrar conexión:", e)
+            if conn:
+                conn.rollback()
+            return False  
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlActualizarConexion(datos):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            idproyecto, componente, instrumento, servidor, puerto, database, usuario, password, tabla, frecuencia, estado, idconexion = datos
+            if password:  # ← Con contraseña: actualiza todo
+                sql = """UPDATE conexiones SET
+                    id_proyecto          = ?,
+                    id_componente        = ?,
+                    instrumento_conexion = ?,
+                    servidor_conexion    = ?,
+                    puerto_conexion      = ?,
+                    database_conexion    = ?,
+                    usuario_conexion     = ?,
+                    password_conexion    = ?,
+                    tabla_conexion       = ?,
+                    frecuencia_conexion  = ?,
+                    estado_conexion      = ?
+                WHERE id_conexion = ?;"""
+                params = (idproyecto, componente, instrumento, servidor, puerto,
+                        database, usuario, password, tabla, frecuencia, estado, idconexion)
+            else:  # ← Sin contraseña: omite password_conexion
+                sql = """UPDATE conexiones SET
+                    id_proyecto          = ?,
+                    id_componente        = ?,
+                    instrumento_conexion = ?,
+                    servidor_conexion    = ?,
+                    puerto_conexion      = ?,
+                    database_conexion    = ?,
+                    usuario_conexion     = ?,
+                    tabla_conexion       = ?,
+                    frecuencia_conexion  = ?,
+                    estado_conexion      = ?
+                WHERE id_conexion = ?;"""
+                params = (idproyecto, componente, instrumento, servidor, puerto,
+                        database, usuario, tabla, frecuencia, estado, idconexion)
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al actualizar conexión:", e)
+            if conn:
+                conn.rollback()
+            return False
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlEliminarConexion(idconexion):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            sql = """DELETE FROM conexiones WHERE id_conexion = ?;"""
+            cur = conn.cursor()
+            cur.execute(sql, (idconexion,))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al eliminar conexión:", e)
+            if conn:
+                conn.rollback()
+            return False
+        finally:
+            if conn:
+                conn.close()
+        
 
 
     

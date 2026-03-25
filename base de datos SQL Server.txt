@@ -1,4 +1,4 @@
-###############TABLAS DE BASE DE DATOS MYSQL#########################
+###############TABLAS DE BASE DE DATOS SQL SERVER#########################
 
 CREATE TABLE proyectos (
   id_proyecto INT NOT NULL AUTO_INCREMENT,
@@ -499,4 +499,19 @@ CREATE TABLE registro_limpieza_desviaciones (
   tipo_equipo VARCHAR(100),
   ultima_fecha_modificada DATETIME,
   PRIMARY KEY (id_registro)
+);
+
+CREATE TABLE conexiones (
+  id_conexion INT IDENTITY(1,1) PRIMARY KEY,
+  id_proyecto INT NOT NULL,
+  id_componente INT NOT NULL,
+  instrumento_conexion VARCHAR(255) NOT NULL,
+  servidor_conexion VARCHAR(255) NOT NULL,
+  puerto_conexion VARCHAR(50) NOT NULL,
+  database_conexion VARCHAR(255) NOT NULL,
+  usuario_conexion VARCHAR(100) NOT NULL,
+  password_conexion VARCHAR(255) NOT NULL,
+  tabla_conexion VARCHAR(255) NOT NULL,
+  frecuencia_conexion INT NOT NULL,
+  estado_conexion INT NOT NULL DEFAULT 1
 );
