@@ -1,7 +1,7 @@
 import requests
 from sqlite3 import Error
-from services.security.apis.conexiones.conexion import Conexion
 import pyodbc
+from services.security.apis.conexiones.conexion import Conexion
 from services.security.apis.conexiones.connection import Connection
 
 class UsuarioModel:
@@ -204,65 +204,128 @@ class UsuarioModel:
         except requests.exceptions.RequestException:
             return False, {"error": "Error al validar usuario y contraseña."}
     
-
-
-
-    
     @staticmethod
-    def connectionDBOrigen():
-        """Conexión nueva → BD del cliente (solo lectura, origen)"""
-        conn = pyodbc.connect(
-            "DRIVER={ODBC Driver 17 for SQL Server};"
-            "SERVER=192.168.100.97;"   # ← segunda instancia
-            "DATABASE=prismas_original;"
-            "UID=sa;PWD=server2026;"
-            "TrustServerCertificate=yes;"
-        )
-        return conn
-
-    def mdlTraerPrismasOriginal():
-        """
-        Lee TODOS los prismas activos de la BD origen (solo lectura).
-        Usa connectionDBOrigen() — nunca toca la BD emonitoring.
-        Retorna lista de tuplas o None si hay error.
-        """
+    def mdlObtenerConexiones():
         conn = None
+        sql = """SELECT p.nombre_proyecto, k.nombre_componente, c.instrumento_conexion, c.servidor_conexion, c.puerto_conexion, c.database_conexion,
+        c.usuario_conexion, c.tabla_conexion, c.frecuencia_conexion, c.estado_conexion, c.id_conexion, c.id_proyecto, c.id_componente
+        FROM conexiones c INNER JOIN proyectos p ON c.id_proyecto = p.id_proyecto INNER JOIN componentes k ON c.id_componente = k.id_componente;"""
         try:
-            conn = UsuarioModel.connectionDBOrigen()
+            conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Seleccionamos solo los campos que necesitamos mapear.
-            # La tabla origen se llama 'prismas' (sin número de proyecto).
-            sql = """
-                SELECT *
-                FROM hitos;
-            """
             cur.execute(sql)
             rows = cur.fetchall()
-            result = [tuple(row) for row in rows]
-            return result if result else None
- 
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
+            else:
+                return None
         except Exception as e:
-            print("Error al obtener prismas original: " + str(e))
+            print("Error al consultar conexiones: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
 
-    def mdlGuardarPrismasProcesados(datos): # Base de datos emonitoring
-        """Guarda múltiples umbrales personalizados"""
+    @staticmethod
+    def mdlGuardarNuevaConexion(datos):
         conn = None
-        # T-SQL: Insert estándar
-        sql = """INSERT INTO prismas1 (state_prisma, estado_prisma, nombre_prisma, hora_prisma, distancia_prisma, este_target,
-                        norte_target, elevacion_target, angulo_horizontal, angulo_vertical) VALUES (1, 1, ?, ?, ?, ?, ?, ?, ?, ?);"""
         try:
             conn = Connection.connectionDB()
+            sql = """INSERT INTO conexiones (id_proyecto, id_componente, instrumento_conexion, servidor_conexion, puerto_conexion, database_conexion,
+            usuario_conexion, password_conexion, tabla_conexion, frecuencia_conexion, estado_conexion) OUTPUT INSERTED.id_conexion
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
             cur = conn.cursor()
-            # pyodbc maneja eficientemente executemany
-            cur.executemany(sql, datos)
+            cur.execute(sql, datos)
+            # Obtener el id recién insertado
+            row = cur.fetchone()
+            if not row:
+                raise Exception("No se obtuvo el ID de la conexión insertada.")
+            nuevo_id = int(row[0])
+            # Registrar en sync_control para que arranque de inmediato
+            cur.execute("""INSERT INTO sync_control
+                (id_conexion, ultimo_sync, proximo_sync, ejecutando, hostname, frecuencia_min)
+                VALUES (?, NULL, GETDATE(), 0, NULL, ?);""", nuevo_id, datos[9])   # datos[9] = frecuencia_conexion
             conn.commit()
             return True
         except Exception as e:
-            print("Error al guardar prismas:", e)
+            print("Error al registrar conexión:", e)
+            if conn:
+                conn.rollback()
+            return False  
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlActualizarConexion(datos):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            idproyecto, componente, instrumento, servidor, puerto, database, usuario, password, tabla, frecuencia, estado, idconexion = datos
+            if password:  # ← Con contraseña: actualiza todo
+                sql = """UPDATE conexiones SET
+                    id_proyecto          = ?,
+                    id_componente        = ?,
+                    instrumento_conexion = ?,
+                    servidor_conexion    = ?,
+                    puerto_conexion      = ?,
+                    database_conexion    = ?,
+                    usuario_conexion     = ?,
+                    password_conexion    = ?,
+                    tabla_conexion       = ?,
+                    frecuencia_conexion  = ?,
+                    estado_conexion      = ?
+                WHERE id_conexion = ?;"""
+                params = (idproyecto, componente, instrumento, servidor, puerto,
+                        database, usuario, password, tabla, frecuencia, estado, idconexion)
+            else:  # ← Sin contraseña: omite password_conexion
+                sql = """UPDATE conexiones SET
+                    id_proyecto          = ?,
+                    id_componente        = ?,
+                    instrumento_conexion = ?,
+                    servidor_conexion    = ?,
+                    puerto_conexion      = ?,
+                    database_conexion    = ?,
+                    usuario_conexion     = ?,
+                    tabla_conexion       = ?,
+                    frecuencia_conexion  = ?,
+                    estado_conexion      = ?
+                WHERE id_conexion = ?;"""
+                params = (idproyecto, componente, instrumento, servidor, puerto,
+                        database, usuario, tabla, frecuencia, estado, idconexion)
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            # Sincronizar sync_control con la nueva frecuencia
+            cur.execute("""UPDATE sync_control
+                SET frecuencia_min = ?, ejecutando     = 0
+                WHERE id_conexion  = ?;""", frecuencia, idconexion)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al actualizar conexión:", e)
+            if conn:
+                conn.rollback()
+            return False
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlEliminarConexion(idconexion):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            sql = """DELETE FROM conexiones WHERE id_conexion = ?;"""
+            cur = conn.cursor()
+            cur.execute("DELETE FROM sync_control WHERE id_conexion = ?", idconexion)
+            cur.execute(sql, (idconexion,))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al eliminar conexión:", e)
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:

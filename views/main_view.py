@@ -44,7 +44,6 @@ from controllers.PiezometroController import PiezometroController
 from controllers.CeldaController import CeldaController
 from controllers.AcelerografoController import AcelerografoController
 from modules.estratros.estratosEquipos import ConfigurarEstratos
-from controllers.ProyectoController import ProyectoController
 from services.security.session import Session
 from views.dashboard_view import DashboardView
 from modules.conexion.conexioDB import ConexionDB
@@ -662,12 +661,19 @@ class MainView:
             # conetar sqlserver
             actionConexionDB = MainView.main_window.findChild(QAction, "action_conexion_DB")
             actionConexionDB.triggered.connect(MainView.mostrarDialogoConexion)
+
+            # Conexiones sqlserver de Prismas
+            actionConexiones = MainView.main_window.findChild(QAction, "action_conexiones")
+            actionConexiones.triggered.connect(MainView.mostrarDialogoConexiones)
+
             if Session.is_authenticated() and Session.get_idrole() == 1:
                 actionHistorial.setVisible(True)
                 actionConexionDB.setVisible(True)
+                actionConexiones.setVisible(True)
             else:
                 actionHistorial.setVisible(False)
                 actionConexionDB.setVisible(False)
+                actionConexiones.setVisible(False)
             
             actionSalir = MainView.main_window.findChild(QAction, "action_salir")
             actionSalir.triggered.connect(MainView.cerrarSesion)
@@ -901,6 +907,10 @@ class MainView:
         if Session.is_authenticated() and Session.get_idrole() == 1:
             ConexionDB.configuracion()
     
+    def mostrarDialogoConexiones():
+        if Session.is_authenticated() and Session.get_idrole() == 1:
+            ConexionDB.mostrarConfiguracionesSqlServer()
+    
     def ocultarMostrarMenuProyectos(main):
         # Buscar el QStackedWidget y el botón una sola vez
         qstacked_widget = main.findChild(QStackedWidget, "stacked_lista_checks")
@@ -920,32 +930,6 @@ class MainView:
         icon = QIcon(svg_icon_path)
         btn_visor.setIcon(icon)
     
-    # def listar_proyectos_recientes(menu, main_window):
-    #     menu.clear()
-    #     lista = InterfazController.ctrlListarProyectos()
-    #     if lista:
-    #         num_proyectos_a_mostrar = 10
-    #         for i, proyecto in enumerate(lista[:num_proyectos_a_mostrar]):
-    #             accion_proyecto = QAction(proyecto[1], main_window)
-    #             accion_proyecto.setData((proyecto[0], proyecto[1]))  # Almacenar ID y nombre del proyecto
-    #             accion_proyecto.triggered.connect(lambda checked, p=proyecto, main=main_window: MainView.manejar_proyecto_seleccionado(p, main))
-    #             menu.addAction(accion_proyecto)
-    #             if i < len(lista[:num_proyectos_a_mostrar]) - 1:
-    #                 menu.addSeparator()
-    #         if len(lista) > num_proyectos_a_mostrar:
-    #             menu.addSeparator()
-    #             submenu_mostrar_mas = QMenu("Mostrar más...", main_window)
-    #             for proyecto in lista[num_proyectos_a_mostrar:]:
-    #                 accion_proyecto = QAction(proyecto[1], main_window)
-    #                 accion_proyecto.setData((proyecto[0], proyecto[1]))  # Almacenar ID y nombre del proyecto
-    #                 accion_proyecto.triggered.connect(lambda checked, p=proyecto, main=main_window: MainView.manejar_proyecto_seleccionado(p, main))
-    #                 submenu_mostrar_mas.addAction(accion_proyecto)
-    #                 if i < len(lista[num_proyectos_a_mostrar:]) - 1:
-    #                     submenu_mostrar_mas.addSeparator()
-    #             # Añadir el submenú al menú principal
-    #             menu.addMenu(submenu_mostrar_mas)
-    #     # Conectar la señal de clic derecho al menú
-    #     menu.installEventFilter(MenuEventFilter(menu, main_window))
     @staticmethod
     def listar_proyectos_recientes(menu, main_window):
         menu.clear()
@@ -977,43 +961,7 @@ class MainView:
                 menu.addMenu(submenu_mostrar_mas)
         
         menu.installEventFilter(MenuEventFilter(menu, main_window))
-        
-    # def listar_componentes_proyecto(menu, main_window):
-    #     menu.clear()
-    #     if MainView.proyecto_id:
-    #         lista = ProyectoController.ctrlObtenerComponentesProyecto(MainView.proyecto_id)
-    #         if lista:
-    #             num_componentes_mostrar = 10
-    #             for i, componente in enumerate(lista[:num_componentes_mostrar]):
-    #                 sub_menu_componente = QMenu(componente[2], main_window)  # Nombre del componente como título
-    #                 # Acción editar
-    #                 accion_editar = QAction("Editar", main_window)
-    #                 accion_editar.triggered.connect(lambda checked, p=componente: MainView.mostrar_editar_componente(p))
-    #                 sub_menu_componente.addAction(accion_editar)
-    #                 # Acción eliminar
-    #                 accion_eliminar = QAction("Eliminar", main_window)
-    #                 accion_eliminar.triggered.connect(lambda checked, p=componente: MainView.mostrar_eliminar_componente(p))
-    #                 sub_menu_componente.addAction(accion_eliminar)
-    #                 menu.addMenu(sub_menu_componente)
-    #                 if i < len(lista[:num_componentes_mostrar]) - 1:
-    #                     menu.addSeparator()
-    #             if len(lista) > num_componentes_mostrar:
-    #                 menu.addSeparator()
-    #                 submenu_mostrar_mas = QMenu("Mostrar más...", main_window)
-    #                 for componente in lista[num_componentes_mostrar:]:
-    #                     sub_menu_componente = QMenu(componente[2], main_window)
-    #                     # accion editar
-    #                     accion_editar = QAction("Editar", main_window)
-    #                     accion_editar.triggered.connect(lambda checked, p=componente: MainView.mostrar_editar_componente(p))
-    #                     sub_menu_componente.addAction(accion_editar)
-    #                     # acción eliminar
-    #                     accion_eliminar = QAction("Eliminar", main_window)
-    #                     accion_eliminar.triggered.connect(lambda checked, p=componente: MainView.mostrar_eliminar_componente(p))
-    #                     sub_menu_componente.addAction(accion_eliminar)
-    #                     submenu_mostrar_mas.addMenu(sub_menu_componente)
-    #                 menu.addMenu(submenu_mostrar_mas)
-    #         menu.installEventFilter(MenuEventFilter(menu, main_window))
-    
+
     @staticmethod
     def listar_componentes_proyecto(menu, main_window):
         menu.clear()
