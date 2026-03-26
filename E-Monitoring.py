@@ -13,6 +13,7 @@ from PySide6.QtCore import QTimer
 from views.splashscreen import SplashScreen
 from utils.common.rutasarchivos import resource_path
 from services.exportar.exportarDatos import ExportarDatos
+from services.sync.sync_manager import SyncManager
 # Constantes
 LOG_FILE_PATH = "errores.log"
 ICON_PATH = "resources/logo.png"
@@ -100,11 +101,20 @@ class MyApp:
                 file.write("Archivo de errores creado.\n")
         logging.basicConfig(filename=log_file_path, level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
     
+    def _procesar_datos_sync(self, payload: dict):
+        print(f"Datos recibidos de {payload['instrumento']}: {payload['filas']} filas")
+   
     def show_interfaz_principal(self):
         from views.principal import Principal
         Principal.show_main_view()
         self.splash.close()
         ExportarDatos.programar_exportacion()
+        # Iniciar sincronización automática
+        SyncManager.iniciar(
+            on_datos  = self._procesar_datos_sync,
+            on_log    = lambda msg: print(msg),
+            on_error  = lambda err: print(err),
+        )
     
     def run(self):
         try:
@@ -113,6 +123,7 @@ class MyApp:
             self.cleanup()
     
     def cleanup(self):
+        SyncManager.detener()
         self.kill_existing_instance()
     
     def handle_exception(self, exc_type, exc_value, exc_traceback):

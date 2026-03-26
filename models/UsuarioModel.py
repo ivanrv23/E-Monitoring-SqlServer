@@ -233,9 +233,19 @@ class UsuarioModel:
         try:
             conn = Connection.connectionDB()
             sql = """INSERT INTO conexiones (id_proyecto, id_componente, instrumento_conexion, servidor_conexion, puerto_conexion, database_conexion,
-            usuario_conexion, password_conexion, tabla_conexion, frecuencia_conexion, estado_conexion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+            usuario_conexion, password_conexion, tabla_conexion, frecuencia_conexion, estado_conexion) OUTPUT INSERTED.id_conexion
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
             cur = conn.cursor()
             cur.execute(sql, datos)
+            # Obtener el id recién insertado
+            row = cur.fetchone()
+            if not row:
+                raise Exception("No se obtuvo el ID de la conexión insertada.")
+            nuevo_id = int(row[0])
+            # Registrar en sync_control para que arranque de inmediato
+            cur.execute("""INSERT INTO sync_control
+                (id_conexion, ultimo_sync, proximo_sync, ejecutando, hostname, frecuencia_min)
+                VALUES (?, NULL, GETDATE(), 0, NULL, ?);""", nuevo_id, datos[9])   # datos[9] = frecuencia_conexion
             conn.commit()
             return True
         except Exception as e:
@@ -286,6 +296,10 @@ class UsuarioModel:
                         database, usuario, tabla, frecuencia, estado, idconexion)
             cur = conn.cursor()
             cur.execute(sql, params)
+            # Sincronizar sync_control con la nueva frecuencia
+            cur.execute("""UPDATE sync_control
+                SET frecuencia_min = ?, ejecutando     = 0
+                WHERE id_conexion  = ?;""", frecuencia, idconexion)
             conn.commit()
             return True
         except Exception as e:
@@ -304,6 +318,7 @@ class UsuarioModel:
             conn = Connection.connectionDB()
             sql = """DELETE FROM conexiones WHERE id_conexion = ?;"""
             cur = conn.cursor()
+            cur.execute("DELETE FROM sync_control WHERE id_conexion = ?", idconexion)
             cur.execute(sql, (idconexion,))
             conn.commit()
             return True
@@ -311,69 +326,6 @@ class UsuarioModel:
             print("Error al eliminar conexión:", e)
             if conn:
                 conn.rollback()
-            return False
-        finally:
-            if conn:
-                conn.close()
-        
-
-
-    
-    @staticmethod
-    def connectionDBOrigen():
-        """Conexión nueva → BD del cliente (solo lectura, origen)"""
-        conn = pyodbc.connect(
-            "DRIVER={ODBC Driver 17 for SQL Server};"
-            "SERVER=192.168.100.97;"   # ← segunda instancia
-            "DATABASE=prismas_original;"
-            "UID=sa;PWD=server2026;"
-            "TrustServerCertificate=yes;"
-        )
-        return conn
-
-    def mdlTraerPrismasOriginal():
-        """
-        Lee TODOS los prismas activos de la BD origen (solo lectura).
-        Usa connectionDBOrigen() — nunca toca la BD emonitoring.
-        Retorna lista de tuplas o None si hay error.
-        """
-        conn = None
-        try:
-            conn = UsuarioModel.connectionDBOrigen()
-            cur = conn.cursor()
-            # Seleccionamos solo los campos que necesitamos mapear.
-            # La tabla origen se llama 'prismas' (sin número de proyecto).
-            sql = """
-                SELECT *
-                FROM hitos;
-            """
-            cur.execute(sql)
-            rows = cur.fetchall()
-            result = [tuple(row) for row in rows]
-            return result if result else None
- 
-        except Exception as e:
-            print("Error al obtener prismas original: " + str(e))
-            return None
-        finally:
-            if conn:
-                conn.close()
-
-    def mdlGuardarPrismasProcesados(datos): # Base de datos emonitoring
-        """Guarda múltiples umbrales personalizados"""
-        conn = None
-        # T-SQL: Insert estándar
-        sql = """INSERT INTO prismas1 (state_prisma, estado_prisma, nombre_prisma, hora_prisma, distancia_prisma, este_target,
-                        norte_target, elevacion_target, angulo_horizontal, angulo_vertical) VALUES (1, 1, ?, ?, ?, ?, ?, ?, ?, ?);"""
-        try:
-            conn = Connection.connectionDB()
-            cur = conn.cursor()
-            # pyodbc maneja eficientemente executemany
-            cur.executemany(sql, datos)
-            conn.commit()
-            return True
-        except Exception as e:
-            print("Error al guardar prismas:", e)
             return False
         finally:
             if conn:

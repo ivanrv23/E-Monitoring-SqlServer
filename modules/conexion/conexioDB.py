@@ -12,6 +12,7 @@ from utils.common.alertas import mostrar_mensaje
 from controllers.InterfazController import InterfazController
 from controllers.ProyectoController import ProyectoController
 from controllers.UsuarioController import UsuarioController
+from services.sync.sync_manager import SyncManager
 
 # Importamos las funciones para manejar el archivo .env
 from dotenv import set_key, dotenv_values
@@ -338,6 +339,7 @@ class ConexionDB:
                 dialogo.accept()
                 if on_success:
                     on_success()
+                SyncManager.recargar_conexiones()
             else:
                 lblrespuesta.setText("Error al registrar.")
                 lblrespuesta.setStyleSheet("color: red;")
