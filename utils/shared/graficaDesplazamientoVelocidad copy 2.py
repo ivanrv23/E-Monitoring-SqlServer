@@ -403,15 +403,16 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         ax.axhline(y=tick, color='gray', linestyle='--', linewidth=0.5)
                 else:
                     avisolabels = True
-
-    annot = ax.annotate("", xy=(0,0), xytext=(15,15), textcoords="offset points",
-                        bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#cccccc", lw=1, alpha=0.95),
-                        arrowprops=dict(arrowstyle="-|>", connectionstyle="arc3,rad=0.2", color="#555555", lw=0.8))
+    # --- INICIO MODIFICACIÓN PASO 3 ---
+    annot = ax.annotate("", xy=(0,0), xytext=(20,20), textcoords="offset points",
+                        bbox=dict(boxstyle="round", fc="w", ec="k", alpha=0.9),
+                        arrowprops=dict(arrowstyle="->"))
     annot.set_visible(False)
 
-    punto_resaltado, = ax.plot([], [], 'o', color='#dc3545', markersize=5, markeredgecolor='white', markeredgewidth=1, zorder=10)
+    # --- NUEVO: Punto que resalta el vértice exacto ---
+    punto_resaltado, = ax.plot([], [], 'o', color='red', markersize=6, zorder=10)
     punto_resaltado.set_visible(False)
-
+    # ----------------------------------
     def calculate_columns():
         font_config = {'family': fuente, 'size': leyendazise, 'weight': 'normal'}
         renderer = canvas.get_renderer()
@@ -485,7 +486,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                 
     # ---------------- INICIO DE FUNCIÓN CORREGIDA ----------------
     def on_hover(event):
-        # 1. Validaciones
+        # 1. Validaciones básicas: Checkbox activo y mouse dentro de los ejes
         if not check_inspector.isChecked() or event.inaxes != ax:
             if annot.get_visible():
                 annot.set_visible(False)
@@ -493,38 +494,47 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                 canvas.draw_idle()
             return
 
-        # 2. Configuración de búsqueda
-        min_distancia = 30 # Radio de captura (píxeles) más preciso
+        # 2. Configuración inicial
+        # Radio de captura en píxeles (sensibilidad)
+        min_distancia = 50 
         punto_encontrado = None
+        
+        # Transformaciones para cálculos de coordenadas
+        trans_data = ax.transData
+        trans_axes = ax.transAxes
+        inv_trans_axes = trans_axes.inverted()
+        
+        # Límites del zoom actual
         xlim = ax.get_xlim()
         ylim = ax.get_ylim()
 
         # 3. Búsqueda del punto más cercano
         for line in lineas:
-            # Ignorar líneas que no son datos (como líneas de tendencia si no se desean, o bordes)
-            if not line.get_visible(): continue
-
             x_data, y_data = line.get_data()
             
-            # Conversión segura de fechas
+            # --- Conversión segura de fechas a números ---
             if tiempo == "FECHA":
                 try:
-                    if hasattr(x_data, 'dtype') and (x_data.dtype == 'object' or np.issubdtype(x_data.dtype, np.datetime64)):
+                    if pd.api.types.is_datetime64_any_dtype(x_data) or isinstance(x_data, pd.DatetimeIndex):
+                         x_data = mdates.date2num(x_data)
+                    elif isinstance(x_data, np.ndarray) and x_data.dtype == 'object':
                          x_data = mdates.date2num(x_data)
                 except Exception:
                     continue 
+            # ---------------------------------------------
 
-            # Filtrar solo puntos visibles en el zoom actual (Optimización)
+            # Optimización: Solo procesar puntos visibles en pantalla
             mask = (x_data >= xlim[0]) & (x_data <= xlim[1]) & (y_data >= ylim[0]) & (y_data <= ylim[1])
             if not np.any(mask): continue
             
             x_visibles = x_data[mask]
             y_visibles = y_data[mask]
             
-            # Transformar a píxeles
-            puntos_pixel = ax.transData.transform(np.column_stack([x_visibles, y_visibles]))
+            # Convertir datos a coordenadas de píxeles
+            puntos_pixel = trans_data.transform(np.column_stack([x_visibles, y_visibles]))
             mouse_pos = np.array([event.x, event.y])
             
+            # Calcular distancias
             distancias = np.sqrt(np.sum((puntos_pixel - mouse_pos)**2, axis=1))
             if len(distancias) == 0: continue
 
@@ -535,62 +545,104 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                 min_distancia = dist_actual
                 punto_encontrado = (x_visibles[idx_min], y_visibles[idx_min], line.get_label())
 
-        # 4. Mostrar anotación si se encontró punto
+        # 4. LÓGICA DE POSICIONAMIENTO "ANTICHOQUE"
         if punto_encontrado:
             fecha_num, lectura_val, label_equipo = punto_encontrado
             
-            # Posicionar punto resaltado
+            # A. Dibujar el punto rojo
             punto_resaltado.set_data([fecha_num], [lectura_val])
             punto_resaltado.set_visible(True)
+            punto_resaltado.set_zorder(100)
             
-            # Posicionamiento inteligente del cuadro
-            punto_pixel = ax.transData.transform((fecha_num, lectura_val))
-            punto_relativo = ax.transAxes.inverted().transform(punto_pixel)
-            x_rel, y_rel = punto_relativo
+            # B. Calcular posición relativa en los ejes (0.0 a 1.0)
+            # Esto es lo que nos garantiza saber si estamos "arriba" o "abajo" independientemente de los valores
+            pixel_point = trans_data.transform((fecha_num, lectura_val))
+            axes_point = inv_trans_axes.transform(pixel_point)
+            
+            x_rel = axes_point[0] # 0=Izquierda, 1=Derecha
+            y_rel = axes_point[1] # 0=Abajo, 1=Arriba
 
-            offset_x = 15
-            offset_y = 15
-            ha = 'left'
-            va = 'bottom'
+            # C. Definir márgenes de seguridad (Offsets)
+            # Distancia base desde el punto rojo hasta el inicio de la caja
+            base_offset = 40
+            
+            offset_x = 0
+            offset_y = 0
+            
+            # Alineaciones (Horizontal Alignment / Vertical Alignment)
+            ha = 'center'
+            va = 'center'
 
-            if y_rel > 0.70:
-                va = 'top'
-                offset_y = -15
-            if x_rel > 0.65:
+            # --- REGLAS ESTRICTAS DE POSICIONAMIENTO ---
+            
+            # EJE VERTICAL (Evitar chocar con Título o Eje X)
+            if y_rel > 0.5:
+                # El punto está en la mitad SUPERIOR -> La caja DEBE ir ABAJO
+                va = 'top'  # El borde superior de la caja se pega al ancla
+                offset_y = -base_offset # Empujamos hacia abajo (negativo)
+                
+                # SI ESTÁ MUY ARRIBA (Casi tocando el título, > 85%)
+                if y_rel > 0.85:
+                    offset_y = -60 # Empujamos MÁS abajo para asegurar espacio
+            else:
+                # El punto está en la mitad INFERIOR -> La caja DEBE ir ARRIBA
+                va = 'bottom' # El borde inferior de la caja se pega al ancla
+                offset_y = base_offset # Empujamos hacia arriba (positivo)
+
+            # EJE HORIZONTAL (Evitar salirse por los lados)
+            if x_rel > 0.6:
+                # Está a la derecha -> Mover a la izquierda
                 ha = 'right'
-                offset_x = -15
+                offset_x = -base_offset
+            elif x_rel < 0.4:
+                # Está a la izquierda -> Mover a la derecha
+                ha = 'left'
+                offset_x = base_offset
+            else:
+                # Centro
+                ha = 'left'
+                offset_x = base_offset
 
+            # D. Aplicar configuración a la anotación
             annot.xy = (fecha_num, lectura_val)
+            
+            # IMPORTANTE: textcoords="offset points" hace que (offset_x, offset_y) sean píxeles desde el punto
             annot.xytext = (offset_x, offset_y) 
+            
             annot.set_ha(ha)
             annot.set_va(va)
             
-            # Formato de Texto Profesional
+            # E. Estilo de Flecha y Caja
+            # Usamos una flecha recta simple para evitar arcos que salgan del gráfico
+            annot.arrow_patch.set_connectionstyle("arc3,rad=0") 
+            
+            # Formatear Texto
             if tiempo == "FECHA":
                 fecha_obj = mdates.num2date(fecha_num).replace(tzinfo=None)
-                str_fecha = fecha_obj.strftime('%d/%m/%Y %H:%M') # Sin segundos para limpieza visual
+                str_fecha = fecha_obj.strftime('%d/%m/%Y %H:%M:%S')
             else:
                 str_fecha = f"{fecha_num:.2f}"
             
-            # Uso de HTML-like styling (limitado en mpl) o formato limpio
-            # Texto oscuro (#333) sobre fondo blanco para legibilidad
-            text = f"{label_equipo}\nFecha: {str_fecha}\nLectura: {lectura_val:.3f}"
+            text = f"Equipo: {label_equipo}\nFecha: {str_fecha}\nLectura: {lectura_val:.3f}"
             annot.set_text(text)
             
-            # Estilo de fuente
-            annot.set_fontsize(9)
-            annot.set_color('#333333')
+            # Estilo visual
+            annot.get_bbox_patch().set_boxstyle("round,pad=0.5")
+            annot.get_bbox_patch().set_alpha(1.0) # Opaco
+            annot.get_bbox_patch().set_facecolor('#ffffe0') 
+            annot.get_bbox_patch().set_edgecolor('black')
+            
+            # F. Z-Order Máximo (Encima de todo)
+            annot.set_zorder(999) 
             
             annot.set_visible(True)
-            annot.set_zorder(999)
             canvas.draw_idle()
         
         else:
             if annot.get_visible():
                 annot.set_visible(False)
                 punto_resaltado.set_visible(False)
-                canvas.draw_idle()
-                 
+                canvas.draw_idle()       
     # ---------------- FIN DE FUNCIÓN CORREGIDA ----------------
     
     def on_click(event):
@@ -755,11 +807,6 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
     toolbar_layout = QHBoxLayout()
     widget.toolbar = CustomToolbar(canvas, widget)
     toolbar_layout.addWidget(widget.toolbar)
-    # --------------------
-    check_inspector = QCheckBox("Inspector de Datos")
-    check_inspector.setStyleSheet("font-size: 11px; margin-left: 10px; color: #333;")
-    toolbar_layout.addWidget(check_inspector)
-    # --------------------
     layout.addLayout(toolbar_layout)
     # Configurar eje secundario si hay datos de pluviómetro
     barras_pluviometro = None
@@ -1096,16 +1143,6 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     ax.axhline(y=tick, color='gray', linestyle='--', linewidth=0.5)
             else:
                 avisolabels = True
-                
-    # --- INICIALIZACIÓN HOVER PIEZOMETROS ---
-    annot = ax.annotate("", xy=(0,0), xytext=(15,15), textcoords="offset points",
-                        bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#cccccc", lw=1, alpha=0.95),
-                        arrowprops=dict(arrowstyle="-|>", connectionstyle="arc3,rad=0.2", color="#555555", lw=0.8))
-    annot.set_visible(False)
-
-    punto_resaltado, = ax.plot([], [], 'o', color='#dc3545', markersize=5, markeredgecolor='white', markeredgewidth=1, zorder=10)
-    punto_resaltado.set_visible(False)
-    # ----------------------------------------
     
     # Configuración de leyenda paginada
     def calculate_columns():
@@ -1185,114 +1222,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     print(f"{label}\nFecha: {formatted_date}\nLectura: {reading}\nTipo: {tipo_piezo}")
                 else:
                     print('error al omitir de celdas')
-                    
-    def on_hover(event):
-        # 1. Validaciones
-        if not check_inspector.isChecked() or event.inaxes != ax:
-            if annot.get_visible():
-                annot.set_visible(False)
-                punto_resaltado.set_visible(False)
-                canvas.draw_idle()
-            return
 
-        # 2. Configuración de búsqueda
-        min_distancia = 30 # Radio de captura (píxeles) más preciso
-        punto_encontrado = None
-        xlim = ax.get_xlim()
-        ylim = ax.get_ylim()
-
-        # 3. Búsqueda del punto más cercano
-        for line in lineas:
-            # Ignorar líneas que no son datos (como líneas de tendencia si no se desean, o bordes)
-            if not line.get_visible(): continue
-
-            x_data, y_data = line.get_data()
-            
-            # Conversión segura de fechas
-            if tiempo == "FECHA":
-                try:
-                    if hasattr(x_data, 'dtype') and (x_data.dtype == 'object' or np.issubdtype(x_data.dtype, np.datetime64)):
-                         x_data = mdates.date2num(x_data)
-                except Exception:
-                    continue 
-
-            # Filtrar solo puntos visibles en el zoom actual (Optimización)
-            mask = (x_data >= xlim[0]) & (x_data <= xlim[1]) & (y_data >= ylim[0]) & (y_data <= ylim[1])
-            if not np.any(mask): continue
-            
-            x_visibles = x_data[mask]
-            y_visibles = y_data[mask]
-            
-            # Transformar a píxeles
-            puntos_pixel = ax.transData.transform(np.column_stack([x_visibles, y_visibles]))
-            mouse_pos = np.array([event.x, event.y])
-            
-            distancias = np.sqrt(np.sum((puntos_pixel - mouse_pos)**2, axis=1))
-            if len(distancias) == 0: continue
-
-            idx_min = np.argmin(distancias)
-            dist_actual = distancias[idx_min]
-            
-            if dist_actual < min_distancia:
-                min_distancia = dist_actual
-                punto_encontrado = (x_visibles[idx_min], y_visibles[idx_min], line.get_label())
-
-        # 4. Mostrar anotación si se encontró punto
-        if punto_encontrado:
-            fecha_num, lectura_val, label_equipo = punto_encontrado
-            
-            # Posicionar punto resaltado
-            punto_resaltado.set_data([fecha_num], [lectura_val])
-            punto_resaltado.set_visible(True)
-            
-            # Posicionamiento inteligente del cuadro
-            punto_pixel = ax.transData.transform((fecha_num, lectura_val))
-            punto_relativo = ax.transAxes.inverted().transform(punto_pixel)
-            x_rel, y_rel = punto_relativo
-
-            offset_x = 15
-            offset_y = 15
-            ha = 'left'
-            va = 'bottom'
-
-            if y_rel > 0.70:
-                va = 'top'
-                offset_y = -15
-            if x_rel > 0.65:
-                ha = 'right'
-                offset_x = -15
-
-            annot.xy = (fecha_num, lectura_val)
-            annot.xytext = (offset_x, offset_y) 
-            annot.set_ha(ha)
-            annot.set_va(va)
-            
-            # Formato de Texto Profesional
-            if tiempo == "FECHA":
-                fecha_obj = mdates.num2date(fecha_num).replace(tzinfo=None)
-                str_fecha = fecha_obj.strftime('%d/%m/%Y %H:%M') # Sin segundos para limpieza visual
-            else:
-                str_fecha = f"{fecha_num:.2f}"
-            
-            # Uso de HTML-like styling (limitado en mpl) o formato limpio
-            # Texto oscuro (#333) sobre fondo blanco para legibilidad
-            text = f"{label_equipo}\nFecha: {str_fecha}\nLectura: {lectura_val:.3f}"
-            annot.set_text(text)
-            
-            # Estilo de fuente
-            annot.set_fontsize(9)
-            annot.set_color('#333333')
-            
-            annot.set_visible(True)
-            annot.set_zorder(999)
-            canvas.draw_idle()
-        
-        else:
-            if annot.get_visible():
-                annot.set_visible(False)
-                punto_resaltado.set_visible(False)
-                canvas.draw_idle()
-                
     def on_click(event):
         # Determinar el eje y las anotaciones a usar
         if ax2:
@@ -1363,7 +1293,6 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                 
     canvas.mpl_connect('resize_event', on_resize)
     canvas.mpl_connect('button_press_event', on_click)
-    canvas.mpl_connect('motion_notify_event', on_hover)
     actualizar_leyenda()
     plt.close(figure)
     if avisolabels:
@@ -1424,11 +1353,6 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
     toolbar_layout = QHBoxLayout()
     widget.toolbar = CustomToolbar(canvas, widget)
     toolbar_layout.addWidget(widget.toolbar)
-    
-    check_inspector = QCheckBox("Inspector de Datos")
-    check_inspector.setStyleSheet("font-size: 11px; margin-left: 10px; color: #333;")
-    toolbar_layout.addWidget(check_inspector)
-    
     layout.addLayout(toolbar_layout)
     # Graficar datos de desplazamiento
     lineas = []
@@ -1521,16 +1445,6 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
                     ax.axhline(y=tick, color='gray', linestyle='--', linewidth=0.5)
             else:
                 avisolabels = True
-    # --- INICIALIZACIÓN HOVER ANALISIS ---
-    annot = ax.annotate("", xy=(0,0), xytext=(15,15), textcoords="offset points",
-                        bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#cccccc", lw=1, alpha=0.95),
-                        arrowprops=dict(arrowstyle="-|>", connectionstyle="arc3,rad=0.2", color="#555555", lw=0.8))
-    annot.set_visible(False)
-    # Nota: En análisis a veces usas scatter, pero un plot vacío funciona para el punto resaltado
-    punto_resaltado, = ax.plot([], [], 'o', color='#dc3545', markersize=5, markeredgecolor='white', markeredgewidth=1, zorder=10)
-    punto_resaltado.set_visible(False)
-    # -------------------------------------
-    
     # Configuración de leyenda paginada
     def calculate_columns():
         font_config = {'family': fuente, 'size': leyendazise, 'weight': 'normal'}
@@ -1584,116 +1498,8 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
 
     def on_resize(event):
         actualizar_leyenda()
-    
-    def on_hover(event):
-        # 1. Validaciones
-        if not check_inspector.isChecked() or event.inaxes != ax:
-            if annot.get_visible():
-                annot.set_visible(False)
-                punto_resaltado.set_visible(False)
-                canvas.draw_idle()
-            return
-
-        # 2. Configuración de búsqueda
-        min_distancia = 30 # Radio de captura (píxeles) más preciso
-        punto_encontrado = None
-        xlim = ax.get_xlim()
-        ylim = ax.get_ylim()
-
-        # 3. Búsqueda del punto más cercano
-        for line in lineas:
-            # Ignorar líneas que no son datos (como líneas de tendencia si no se desean, o bordes)
-            if not line.get_visible(): continue
-
-            x_data, y_data = line.get_data()
-            
-            # Conversión segura de fechas
-            if tiempo == "FECHA":
-                try:
-                    if hasattr(x_data, 'dtype') and (x_data.dtype == 'object' or np.issubdtype(x_data.dtype, np.datetime64)):
-                         x_data = mdates.date2num(x_data)
-                except Exception:
-                    continue 
-
-            # Filtrar solo puntos visibles en el zoom actual (Optimización)
-            mask = (x_data >= xlim[0]) & (x_data <= xlim[1]) & (y_data >= ylim[0]) & (y_data <= ylim[1])
-            if not np.any(mask): continue
-            
-            x_visibles = x_data[mask]
-            y_visibles = y_data[mask]
-            
-            # Transformar a píxeles
-            puntos_pixel = ax.transData.transform(np.column_stack([x_visibles, y_visibles]))
-            mouse_pos = np.array([event.x, event.y])
-            
-            distancias = np.sqrt(np.sum((puntos_pixel - mouse_pos)**2, axis=1))
-            if len(distancias) == 0: continue
-
-            idx_min = np.argmin(distancias)
-            dist_actual = distancias[idx_min]
-            
-            if dist_actual < min_distancia:
-                min_distancia = dist_actual
-                punto_encontrado = (x_visibles[idx_min], y_visibles[idx_min], line.get_label())
-
-        # 4. Mostrar anotación si se encontró punto
-        if punto_encontrado:
-            fecha_num, lectura_val, label_equipo = punto_encontrado
-            
-            # Posicionar punto resaltado
-            punto_resaltado.set_data([fecha_num], [lectura_val])
-            punto_resaltado.set_visible(True)
-            
-            # Posicionamiento inteligente del cuadro
-            punto_pixel = ax.transData.transform((fecha_num, lectura_val))
-            punto_relativo = ax.transAxes.inverted().transform(punto_pixel)
-            x_rel, y_rel = punto_relativo
-
-            offset_x = 15
-            offset_y = 15
-            ha = 'left'
-            va = 'bottom'
-
-            if y_rel > 0.70:
-                va = 'top'
-                offset_y = -15
-            if x_rel > 0.65:
-                ha = 'right'
-                offset_x = -15
-
-            annot.xy = (fecha_num, lectura_val)
-            annot.xytext = (offset_x, offset_y) 
-            annot.set_ha(ha)
-            annot.set_va(va)
-            
-            # Formato de Texto Profesional
-            if tiempo == "FECHA":
-                fecha_obj = mdates.num2date(fecha_num).replace(tzinfo=None)
-                str_fecha = fecha_obj.strftime('%d/%m/%Y %H:%M') # Sin segundos para limpieza visual
-            else:
-                str_fecha = f"{fecha_num:.2f}"
-            
-            # Uso de HTML-like styling (limitado en mpl) o formato limpio
-            # Texto oscuro (#333) sobre fondo blanco para legibilidad
-            text = f"{label_equipo}\nFecha: {str_fecha}\nLectura: {lectura_val:.3f}"
-            annot.set_text(text)
-            
-            # Estilo de fuente
-            annot.set_fontsize(9)
-            annot.set_color('#333333')
-            
-            annot.set_visible(True)
-            annot.set_zorder(999)
-            canvas.draw_idle()
         
-        else:
-            if annot.get_visible():
-                annot.set_visible(False)
-                punto_resaltado.set_visible(False)
-                canvas.draw_idle()
-                    
     canvas.mpl_connect('resize_event', on_resize)
-    canvas.mpl_connect('motion_notify_event', on_hover)
     actualizar_leyenda()
     plt.close(figure)
     if avisolabels:
