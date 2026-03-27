@@ -1,0 +1,157 @@
+-- ============================================================
+-- PROCEDIMIENTO que hace el copiado (equivale a tu worker)
+-- ============================================================
+CREATE OR ALTER PROCEDURE sp_sincronizar_conexiones
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @id_conexion    INT
+    DECLARE @servidor       NVARCHAR(255)
+    DECLARE @puerto         NVARCHAR(10)
+    DECLARE @database       NVARCHAR(255)
+    DECLARE @usuario        NVARCHAR(100)
+    DECLARE @password       NVARCHAR(255)
+    DECLARE @tabla          NVARCHAR(255)
+    DECLARE @instrumento    NVARCHAR(100)
+    DECLARE @id_proyecto    INT
+    DECLARE @id_componente  INT
+    DECLARE @frecuencia     INT
+    DECLARE @ahora          DATETIME = GETDATE()
+
+    -- Recorrer conexiones activas que ya deben sincronizarse
+    DECLARE cur CURSOR FOR
+        SELECT sc.id_conexion, c.servidor_conexion, c.puerto_conexion,
+               c.database_conexion, c.usuario_conexion, c.password_conexion,
+               c.tabla_conexion, c.instrumento_conexion,
+               c.id_proyecto, c.id_componente, sc.frecuencia_min
+        FROM sync_control sc
+        INNER JOIN conexiones c ON sc.id_conexion = c.id_conexion
+        WHERE sc.proximo_sync <= @ahora
+          AND sc.ejecutando   = 0
+          AND c.estado_conexion = 1
+
+    OPEN cur
+    FETCH NEXT FROM cur INTO
+        @id_conexion, @servidor, @puerto, @database,
+        @usuario, @password, @tabla, @instrumento,
+        @id_proyecto, @id_componente, @frecuencia
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        -- Adquirir lock
+        UPDATE sync_control
+        SET ejecutando = 1, hostname = 'SQL_SERVER_AGENT'
+        WHERE id_conexion = @id_conexion AND ejecutando = 0
+
+        IF @@ROWCOUNT > 0
+        BEGIN
+            BEGIN TRY
+                -- Linked Server dinámico para conectarse a la BD externa
+                DECLARE @linked_server NVARCHAR(100) = 'LS_' + CAST(@id_conexion AS NVARCHAR)
+                DECLARE @sql NVARCHAR(MAX)
+
+                -- Crear linked server temporal si no existe
+                IF NOT EXISTS (SELECT 1 FROM sys.servers WHERE name = @linked_server)
+                BEGIN
+                    EXEC sp_addlinkedserver
+                        @server     = @linked_server,
+                        @srvproduct = '',
+                        @provider   = 'SQLNCLI11',
+                        @datasrc    = @servidor,
+                        @catalog    = @database
+
+                    EXEC sp_addlinkedsrvlogin
+                        @rmtsrvname  = @linked_server,
+                        @useself     = 'FALSE',
+                        @rmtuser     = @usuario,
+                        @rmtpassword = @password
+                END
+
+                -- Copiar datos evitando duplicados (adaptar según instrumento)
+                SET @sql = N'
+                    INSERT INTO prismas1 (
+                        state_prisma, estado_prisma, nombre_prisma, hora_prisma,
+                        distancia_prisma, este_target, norte_target,
+                        elevacion_target, angulo_horizontal, angulo_vertical
+                    )
+                    SELECT 1, 1,
+                        nombre, hora, distancia, este, norte,
+                        elevacion, ang_horizontal, ang_vertical
+                    FROM [' + @linked_server + '].[' + @database + '].dbo.[' + @tabla + '] src
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM prismas1 dst
+                        WHERE dst.nombre_prisma = src.nombre
+                          AND dst.hora_prisma   = src.hora
+                    );'
+                EXEC sp_executesql @sql
+
+                -- Liberar lock y programar siguiente ejecución
+                UPDATE sync_control
+                SET ejecutando   = 0,
+                    ultimo_sync  = @ahora,
+                    proximo_sync = DATEADD(MINUTE, @frecuencia, @ahora)
+                WHERE id_conexion = @id_conexion
+
+            END TRY
+            BEGIN CATCH
+                -- Liberar lock aunque haya error
+                UPDATE sync_control
+                SET ejecutando   = 0,
+                    proximo_sync = DATEADD(MINUTE, @frecuencia, @ahora)
+                WHERE id_conexion = @id_conexion
+
+                -- Registrar el error
+                INSERT INTO sync_errores (id_conexion, mensaje_error, fecha_error)
+                VALUES (@id_conexion, ERROR_MESSAGE(), @ahora)
+            END CATCH
+        END
+
+        FETCH NEXT FROM cur INTO
+            @id_conexion, @servidor, @puerto, @database,
+            @usuario, @password, @tabla, @instrumento,
+            @id_proyecto, @id_componente, @frecuencia
+    END
+
+    CLOSE cur
+    DEALLOCATE cur
+END
+GO
+
+-- ============================================================
+-- TABLA de errores para auditoría
+-- ============================================================
+CREATE TABLE sync_errores (
+    id_error      INT IDENTITY(1,1) PRIMARY KEY,
+    id_conexion   INT,
+    mensaje_error NVARCHAR(MAX),
+    fecha_error   DATETIME DEFAULT GETDATE()
+);
+GO
+
+-- ============================================================
+-- JOB que llama al procedimiento cada 1 minuto
+-- (SQL Server Agent debe estar corriendo)
+-- ============================================================
+USE msdb;
+GO
+EXEC sp_add_job @job_name = 'EMonitoring_Sync';
+
+EXEC sp_add_jobstep
+    @job_name       = 'EMonitoring_Sync',
+    @step_name      = 'Ejecutar sync',
+    @command        = 'EXEC tu_base_de_datos.dbo.sp_sincronizar_conexiones',
+    @database_name  = 'tu_base_de_datos';
+
+EXEC sp_add_schedule
+    @schedule_name      = 'Cada_1_minuto',
+    @freq_type          = 4,        -- diario
+    @freq_interval      = 1,
+    @freq_subday_type   = 4,        -- minutos
+    @freq_subday_interval = 1;      -- cada 1 minuto
+
+EXEC sp_attach_schedule
+    @job_name      = 'EMonitoring_Sync',
+    @schedule_name = 'Cada_1_minuto';
+
+EXEC sp_add_jobserver @job_name = 'EMonitoring_Sync';
+GO

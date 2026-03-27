@@ -4,7 +4,6 @@ from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushBut
 from utils.common.metodosGenerales import MetodosGenerales
 from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica_piezometros
 from utils.shared.graficaDesplazamientoVelocidad import limpiar_widget
-from utils.common.alertas import mostrar_mensaje
 from controllers.PiezometroController import PiezometroController
 from controllers.PluviometroController import PluviometroController
 from controllers.TerrenoController import TerrenoController
