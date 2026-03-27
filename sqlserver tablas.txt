@@ -741,3 +741,26 @@ CREATE TABLE [dbo].[sondajestdr_puntos] (
     [orden_detalle]   DECIMAL(18, 4) NULL,
     CONSTRAINT [PK_sondajestdr_puntos] PRIMARY KEY CLUSTERED ([id_detalle] ASC)
 );
+
+CREATE TABLE Software_EventosGrafica (
+    id_evento INT IDENTITY(1,1) PRIMARY KEY,
+    id_proyecto INT NOT NULL,
+    fecha_evento DATETIME NOT NULL,
+    descripcion VARCHAR(255) NOT NULL,
+    
+    -- Personalización
+    color_hex VARCHAR(7) DEFAULT '#FF0000', -- Ej: '#FF0000', '#0000FF'
+    
+    -- Lógica de Alcance
+    tipo_alcance VARCHAR(20) NOT NULL, -- 'GLOBAL' o 'ESPECIFICO'
+    
+    -- Identificación del Equipo (Flexible para Prismas/Piezos)
+    tipo_instrumento VARCHAR(20), -- 'PRISMA', 'PIEZOMETRO', 'CELDA', 'TERRENO'
+    id_instrumento VARCHAR(100), -- VARCHAR para soportar Codigos (Prismas) o IDs (Piezos)
+    
+    -- Auditoría básica
+    fecha_creacion DATETIME DEFAULT GETDATE()
+);
+
+-- Índice para búsquedas rápidas al graficar
+CREATE INDEX IDX_Eventos_Proyecto_Fecha ON Software_EventosGrafica(id_proyecto, fecha_evento);
