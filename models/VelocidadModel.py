@@ -1,5 +1,4 @@
 from services.security.apis.conexiones.connection import Connection
-import pyodbc
 
 class VelocidadModel:
     

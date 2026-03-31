@@ -1230,6 +1230,7 @@ class DesplazamientoModel:
         finally:
             if conn:
                 conn.close()
+    
     @staticmethod
     def mdlCalcularDesplazamiento2DA(tabla, unidad, prismas, idcomponente):
         conn = None
@@ -3721,6 +3722,7 @@ class DesplazamientoModel:
         finally:
             if conn:
                 conn.close()
+    
     @staticmethod
     def mdlCalcularDesplazamientoHorasDNI(tabla, unidad, prismas, idcomponente, cantidad):
         conn = None
