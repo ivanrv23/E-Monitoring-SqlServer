@@ -390,11 +390,11 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         if potenci:
                             lineas.append(potenci)
                             lblecuacion_rcuadrado = lblecuacion_rcuadrado + nombreequipo + ':  ' + ecualbl + '\n'
-
-    if tiempo != "FECHA":
-        labeltendencia.setText(lblecuacion_rcuadrado)
-    else:
-        labeltendencia.setText("")
+    if labeltendencia:
+        if tiempo != "FECHA":
+            labeltendencia.setText(lblecuacion_rcuadrado)
+        else:
+            labeltendencia.setText("")
 
     ax.set_title(titulo, fontsize=titulozise)
     ax.set_xlabel(labelejex, fontsize=ejezise)

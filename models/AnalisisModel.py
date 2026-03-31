@@ -1,6 +1,7 @@
 from services.security.apis.conexiones.connection import Connection
 import datetime
 import numpy as np
+from pyodbc import Error
 
 class AnalisisModel:
     
@@ -1436,3 +1437,821 @@ class AnalisisModel:
         finally:
             if conn:
                 conn.close()
+    
+    ###########################################################################
+    @staticmethod
+    def mdlPrismasDesplazamiento3DA(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+            (SQRT(
+                POWER(p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                POWER(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+            )) * ? AS valor, i.tipo_equipo
+        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlPrismasDesplazamiento3DA: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasDesplazamiento3DI(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+            CAST(CASE 
+                WHEN LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (SQRT(
+                    POWER(p.este_target - LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                    POWER(p.norte_target - LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                    POWER(p.elevacion_target - LAG(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+                )) * ?
+            END AS FLOAT) AS valor, i.tipo_equipo
+        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlPrismasDesplazamiento3DI: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlPrismasDesplazamiento2DA(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+            (SQRT(
+                POWER(p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+            )) * ? AS valor, i.tipo_equipo
+        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlPrismasDesplazamiento2DA: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasDesplazamiento2DI(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+            CAST(CASE 
+                WHEN LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (SQRT(
+                    POWER(p.este_target - LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                    POWER(p.norte_target - LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+                )) * ?
+            END AS FLOAT) AS valor, i.tipo_equipo
+        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlCalcularDesplazamiento2DI: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasDesplazamientoSDA(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+            (p.distancia_prisma - FIRST_VALUE(CAST(p.distancia_prisma AS FLOAT)) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * ? AS valor,
+            i.tipo_equipo
+        FROM {tabla} p 
+        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            rows = [tuple(row) for row in cur.fetchall()]
+            if rows:
+                return rows
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlPrismasDesplazamientoSDA: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasDesplazamientoSDI(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+            CAST(CASE 
+                WHEN LAG(p.distancia_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (p.distancia_prisma - LAG(p.distancia_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * ?
+            END AS FLOAT) AS valor, i.tipo_equipo
+        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlPrismasDesplazamientoSDI: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasDesplazamientoDEA(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+            (p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * ? AS valor,
+            i.tipo_equipo
+        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlPrismasDesplazamientoDEA: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasDesplazamientoDEI(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+            CAST(CASE 
+                WHEN LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (p.este_target - LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * ?
+            END AS FLOAT) AS valor, i.tipo_equipo
+        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlPrismasDesplazamientoDEI: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasDesplazamientoDNA(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+            (p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * ? AS valor,
+            i.tipo_equipo
+        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlPrismasDesplazamientoDNA: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasDesplazamientoDNI(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+            CAST(CASE 
+                WHEN LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (p.norte_target - LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * ?
+            END AS FLOAT) AS valor, i.tipo_equipo
+        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlPrismasDesplazamientoDNI: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasDesplazamientoDZA(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+            (p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * ? AS valor,
+            i.tipo_equipo
+        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlPrismasDesplazamientoDZA: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasDesplazamientoDZI(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+            CAST(CASE 
+                WHEN LAG(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (p.elevacion_target - LAG(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * ?
+            END AS FLOAT) AS valor, i.tipo_equipo
+        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlPrismasDesplazamientoDZI: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasVelocidadVA3D(tabla, unidad, idcomponente):
+        sql = f"""WITH PrismasCTE AS (
+            SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+                SQRT(
+                    POWER(p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                    POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                    POWER(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+                ) * ? AS tresD, i.tipo_equipo
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        )
+        SELECT id_instrumentacion, nombre_prisma, hora_prisma,
+            CASE 
+                WHEN DATEDIFF(SECOND, FIRST_VALUE(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), hora_prisma) = 0 THEN 0
+                ELSE (tresD - FIRST_VALUE(tresD) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma))
+                    / (CAST(DATEDIFF(SECOND, FIRST_VALUE(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), hora_prisma) AS FLOAT) / 86400.0)
+            END AS valor, tipo_equipo
+        FROM PrismasCTE
+        ORDER BY nombre_prisma, hora_prisma;"""
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            rows = cur.fetchall()
+            if rows:
+                return [tuple(row) for row in rows]
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlPrismasVelocidadVA3D: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasVelocidadVI3D(tabla, unidad, idcomponente):
+        sql = f"""WITH PrismasCTE AS (
+            SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+                CASE
+                    WHEN ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) = 1 THEN 0
+                    ELSE 
+                        SQRT(
+                            POWER(p.este_target - LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                            POWER(p.norte_target - LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                            POWER(p.elevacion_target - LAG(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+                        ) * ?
+                END AS tresD, i.tipo_equipo
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        )
+        SELECT id_instrumentacion, nombre_prisma, hora_prisma,
+            CASE
+                WHEN ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) = 1 THEN 0
+                ELSE (tresD - LAG(tresD) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma))
+                / (CAST(DATEDIFF(SECOND, LAG(hora_prisma, 1, hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), hora_prisma) AS FLOAT) / 86400.0)
+            END AS valor, tipo_equipo
+        FROM PrismasCTE
+        ORDER BY nombre_prisma, hora_prisma;"""
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            rows = cur.fetchall()
+            if rows:
+                return [tuple(row) for row in rows]
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlPrismasVelocidadVI3D: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasVelocidadVA2D(tabla, unidad, idcomponente):
+        sql = f"""WITH PrismasCTE AS (
+            SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+                SQRT(
+                    POWER(p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                    POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+                ) * ? AS dosD, i.tipo_equipo
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        )
+        SELECT id_instrumentacion, nombre_prisma, hora_prisma,
+            CASE 
+                WHEN DATEDIFF(SECOND, FIRST_VALUE(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), hora_prisma) = 0 THEN 0
+                ELSE (dosD - FIRST_VALUE(dosD) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma))
+                    / (CAST(DATEDIFF(SECOND, FIRST_VALUE(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), hora_prisma) AS FLOAT) / 86400.0)
+            END AS valor, tipo_equipo
+        FROM PrismasCTE
+        ORDER BY nombre_prisma, hora_prisma;"""
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            rows = cur.fetchall()
+            if rows:
+                return [tuple(row) for row in rows]
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlPrismasVelocidadVA2D: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasVelocidadVI2D(tabla, unidad, prismas, idcomponente):
+        sql = f"""WITH PrismasCTE AS (
+            SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+                CASE
+                    WHEN ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) = 1 THEN 0
+                    ELSE 
+                        SQRT(
+                            POWER(p.este_target - LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                            POWER(p.norte_target - LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+                        ) * ?
+                END AS dosD, i.tipo_equipo
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        )
+        SELECT id_instrumentacion, nombre_prisma, hora_prisma,
+            CASE
+                WHEN ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) = 1 THEN 0
+                ELSE (dosD - LAG(dosD) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma))
+                / (CAST(DATEDIFF(SECOND, LAG(hora_prisma, 1, hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), hora_prisma) AS FLOAT) / 86400.0)
+            END AS valor, tipo_equipo
+        FROM PrismasCTE
+        ORDER BY nombre_prisma, hora_prisma;"""
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            rows = cur.fetchall()
+            if rows:
+                return [tuple(row) for row in rows]
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlPrismasVelocidadVI2D: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasVelocidadVASD(tabla, unidad, idcomponente):
+        sql = f"""WITH CD AS (
+            SELECT id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+                CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
+                (p.distancia_prisma - FIRST_VALUE(CAST(p.distancia_prisma AS FLOAT)) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * ? AS SD,
+                i.tipo_equipo
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ),
+        CD_Dif AS (
+            SELECT id_instrumentacion, nombre_prisma, hora_prisma,
+                CASE
+                    WHEN dif_fechas = 0 THEN 0
+                    ELSE (SD - FIRST_VALUE(SD) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma)) / dif_fechas
+                END AS valor, tipo_equipo
+            FROM CD
+        )
+        SELECT id_instrumentacion, nombre_prisma, hora_prisma, valor, tipo_equipo
+        FROM CD_Dif
+        ORDER BY nombre_prisma, hora_prisma;"""
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            rows = cur.fetchall()
+            if rows:
+                return [tuple(row) for row in rows]
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlPrismasVelocidadVASD: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPrismasVelocidadVISD(tabla, unidad, idcomponente):
+        sql = f"""WITH velocidad AS (
+            SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+                CAST(DATEDIFF(SECOND, COALESCE(LAG(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0 AS dif_fechas,
+                (p.distancia_prisma - FIRST_VALUE(CAST(p.distancia_prisma AS FLOAT)) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * ? AS SD,
+                i.tipo_equipo
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+        ),
+        CD_Dif AS (
+            SELECT id_instrumentacion, nombre_prisma, hora_prisma,
+                CASE
+                    WHEN dif_fechas = 0 THEN 0
+                    ELSE (SD - COALESCE(LAG(SD) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), SD)) / dif_fechas
+                END AS valor, tipo_equipo
+            FROM velocidad
+        )
+        SELECT id_instrumentacion, nombre_prisma, hora_prisma, valor, tipo_equipo
+        FROM CD_Dif
+        ORDER BY nombre_prisma, hora_prisma;"""
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            rows = cur.fetchall()
+            if rows:
+                return [tuple(row) for row in rows]
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlPrismasVelocidadVISD: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPiezometrosCuerdaNivelFreatico(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT t.id_instrumentacion, pzc.nombre_piezometro, pzcd.fecha_cuerda,
+            CASE
+                WHEN pzc.tipo_piezometro = 1 THEN pzc.elevacion_piezometro + pzcd.medida_calculada
+                ELSE pzcd.medida_calculada
+            END AS valor, t.tipo_equipo
+        FROM piezometrocuerdas pzc INNER JOIN {tabla} pzcd ON pzc.id_piezometro = pzcd.id_piezometro 
+        INNER JOIN instrumentacion t ON pzc.id_piezometro = t.id_equipo
+        WHERE pzcd.estado_cuerda = 1 AND c.id_componente = ?
+        ORDER BY pzc.nombre_piezometro ASC, pzcd.fecha_cuerda ASC;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (idcomponente,))
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlPiezometrosCuerdaNivelFreatico: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPiezometrosCuerdaNivelAcumulado(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT t.id_instrumentacion, pzc.nombre_piezometro, pzcd.fecha_cuerda,
+            CASE 
+                WHEN pzc.tipo_piezometro = 1 THEN pzcd.medida_calculada
+                ELSE pzcd.medida_calculada - pzc.elevacion_piezometro
+            END * ? AS valor, t.tipo_equipo
+        FROM piezometrocuerdas pzc INNER JOIN {tabla} pzcd ON pzc.id_piezometro = pzcd.id_piezometro 
+        INNER JOIN instrumentacion t ON pzc.id_piezometro = t.id_equipo
+        WHERE pzcd.estado_cuerda = 1 AND c.id_componente = ?
+        ORDER BY pzc.nombre_piezometro ASC, pzcd.fecha_cuerda ASC;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlPiezometrosCuerdaNivelAcumulado: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPiezometrosCuerdaNivelIncremental(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT t.id_instrumentacion, pzc.nombre_piezometro, pzcd.fecha_cuerda,
+            COALESCE(pzcd.medida_calculada - LAG(pzcd.medida_calculada) OVER (PARTITION BY pzc.nombre_piezometro ORDER BY pzcd.fecha_cuerda), 0) * ? AS valor,
+            t.tipo_equipo
+        FROM piezometrocuerdas pzc INNER JOIN {tabla} pzcd ON pzc.id_piezometro = pzcd.id_piezometro 
+        INNER JOIN instrumentacion t ON pzc.id_piezometro = t.id_equipo
+        WHERE pzcd.estado_cuerda = 1 AND c.id_componente = ?
+        ORDER BY pzc.nombre_piezometro ASC, pzcd.fecha_cuerda ASC;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlPiezometrosCuerdaNivelIncremental: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPiezometrosCasagrandeNivelFreatico(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""WITH cte_cota AS (
+            SELECT it.id_instrumentacion, p.nombre_piezometro, d.fecha_piezometro, p.tipo_piezometro,
+            d.medida_piezometro, p.stickup_piezometro,
+            COALESCE(
+                (SELECT TOP 1 c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = d.id_piezometro 
+                AND c2.tipo_piezometro = 'PVC' AND c2.fecha_cota <= d.fecha_piezometro ORDER BY c2.fecha_cota DESC),
+                (SELECT TOP 1 c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = d.id_piezometro
+                AND c3.tipo_piezometro = 'PVC' ORDER BY c3.fecha_cota ASC)
+            ) AS elevacion, it.tipo_equipo
+            FROM piezometromanuales p INNER JOIN {tabla} d ON p.id_piezometro = d.id_piezometro
+            INNER JOIN instrumentacion AS it ON it.id_equipo = p.id_piezometro
+            WHERE d.estado_manual = 1 AND it.id_componente = ?
+        )
+        SELECT id_instrumentacion, nombre_piezometro, fecha_piezometro,
+            CASE
+                WHEN tipo_piezometro = 1 THEN stickup_piezometro + elevacion - medida_piezometro
+                ELSE medida_piezometro
+            END AS valor, tipo_equipo
+        FROM cte_cota ORDER BY nombre_piezometro ASC, fecha_piezometro ASC;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (idcomponente,))
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlPiezometrosCasagrandeNivelFreatico: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPiezometrosCasagrandeNivelAcumulado(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""WITH cte_cota AS (
+            SELECT it.id_instrumentacion, p.nombre_piezometro, d.fecha_piezometro, p.tipo_piezometro,
+            d.medida_piezometro, p.stickup_piezometro,
+            COALESCE(
+                (SELECT TOP 1 c2.nivel_cota FROM cotas_piezometricas c2 WHERE c2.id_piezometro = d.id_piezometro 
+                AND c2.tipo_piezometro = 'PVC' AND c2.fecha_cota <= d.fecha_piezometro ORDER BY c2.fecha_cota DESC),
+                (SELECT TOP 1 c3.nivel_cota FROM cotas_piezometricas c3 WHERE c3.id_piezometro = d.id_piezometro
+                AND c3.tipo_piezometro = 'PVC' ORDER BY c3.fecha_cota ASC)
+            ) AS elevacion, it.tipo_equipo
+            FROM piezometromanuales p INNER JOIN {tabla} d ON p.id_piezometro = d.id_piezometro
+            INNER JOIN instrumentacion AS it ON it.id_equipo = p.id_piezometro
+            WHERE d.estado_manual = 1 AND it.id_componente = ?
+        )
+        SELECT id_instrumentacion, nombre_piezometro, fecha_piezometro,
+            CASE 
+                WHEN tipo_piezometro = 1 THEN 
+                    (stickup_piezometro + elevacion - medida_piezometro) -
+                    (stickup_piezometro + FIRST_VALUE(elevacion) OVER (PARTITION BY nombre_piezometro ORDER BY fecha_piezometro) - 
+                    FIRST_VALUE(medida_piezometro) OVER (PARTITION BY nombre_piezometro ORDER BY fecha_piezometro))
+                ELSE 
+                    medida_piezometro - FIRST_VALUE(medida_piezometro) OVER (PARTITION BY nombre_piezometro ORDER BY fecha_piezometro)
+            END * ? AS valor, tipo_equipo
+        FROM cte_cota ORDER BY nombre_piezometro ASC, fecha_piezometro ASC;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (idcomponente, unidad))
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlPiezometrosCasagrandeNivelAcumulado: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlPiezometrosCasagrandeNivelIncremental(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT it.id_instrumentacion, p.nombre_piezometro, d.fecha_piezometro,
+            COALESCE(d.medida_piezometro - LAG(d.medida_piezometro) OVER (PARTITION BY p.nombre_piezometro ORDER BY d.fecha_piezometro), 0) * ? AS valor,
+            it.tipo_equipo
+        FROM piezometromanuales p INNER JOIN {tabla} d ON p.id_piezometro = d.id_piezometro
+        INNER JOIN instrumentacion AS it ON it.id_equipo = p.id_piezometro
+        WHERE d.estado_manual = 1 AND it.id_componente = ?
+        ORDER BY p.nombre_piezometro ASC, d.fecha_piezometro ASC;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlPiezometrosCasagrandeNivelIncremental: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCeldasAsentamientoCota(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT t.id_instrumentacion, c.nombre_celda, cd.fecha_detalle,
+            c.instalacion_celda - abs(cd.medida_calculada) AS valor, t.tipo_equipo
+        FROM celdas c INNER JOIN {tabla} cd ON c.id_celda = cd.id_celda
+        INNER JOIN instrumentacion t ON c.id_celda = t.id_equipo
+        WHERE t.id_componente = ? AND cd.estado_detalle = 1
+        ORDER BY c.nombre_celda ASC, cd.fecha_detalle ASC;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            rows = cur.fetchall()
+            return [tuple(row) for row in rows] if rows else None
+        except Exception as e:
+            print("Error en mdlCeldasAsentamientoCota: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCeldasAsentamientoIncremental(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT t.id_instrumentacion, c.nombre_celda, cd.fecha_detalle,
+            COALESCE(cd.medida_calculada - LAG(cd.medida_calculada) OVER (PARTITION BY c.nombre_celda ORDER BY cd.fecha_detalle ASC), 0) * CAST(? AS FLOAT) AS valor,
+            t.tipo_equipo
+        FROM celdas c INNER JOIN {tabla} cd ON c.id_celda = cd.id_celda
+        INNER JOIN instrumentacion t ON c.id_celda = t.id_equipo
+        WHERE t.id_componente = ? AND cd.estado_detalle = 1
+        ORDER BY c.nombre_celda ASC, cd.fecha_detalle ASC;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            rows = cur.fetchall()
+            return [tuple(row) for row in rows] if rows else None
+        except Exception as e:
+            print("Error en mdlCeldasAsentamientoIncremental: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlObtenerAsentamientoAcumulado(tabla, unidad, idcomponente):
+        conn = None
+        sql = f"""SELECT t.id_instrumentacion, c.nombre_celda, cd.fecha_detalle,
+            cd.medida_calculada * CAST(? AS FLOAT) AS valor, t.tipo_equipo
+        FROM celdas c INNER JOIN {tabla} cd ON c.id_celda = cd.id_celda
+        INNER JOIN instrumentacion t ON c.id_celda = t.id_equipo
+        WHERE t.id_componente = ? AND cd.estado_detalle = 1
+        ORDER BY c.nombre_celda ASC, cd.fecha_detalle ASC;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (unidad, idcomponente))
+            rows = cur.fetchall()
+            return [tuple(row) for row in rows] if rows else None
+        except Exception as e:
+            print("Error en mdlObtenerAsentamientoAcumulado: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    

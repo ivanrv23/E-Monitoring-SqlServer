@@ -122,6 +122,11 @@ class GraficarUmbrales:
                     else:
                         # Obtener el eje (ax) del canvas
                         ax = canvas.figure.axes[0]
+                        # Inicializar atributos si no existen  <-- AGREGAR ESTO
+                        if not hasattr(ax, 'colored_spans'):
+                            ax.colored_spans = []
+                        if not hasattr(ax, 'dashed_lines'):
+                            ax.dashed_lines = []
                         # Ordenar los umbrales por valor
                         umbrales_ordenados = sorted(umbrales, key=lambda x: x[6])
                         # Obtener los límites actuales del eje correspondiente

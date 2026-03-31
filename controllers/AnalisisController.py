@@ -320,3 +320,74 @@ class AnalisisController:
         tabla=f'prismas{idproyecto}'
         respuesta = AnalisisModel.mdlOmitirLecturasRuido(tabla,ids)
         return respuesta
+    
+    def ctrlObtenerDataTiempoReal(idproyecto, idcomponente, equipo, tipografico, unidad):
+        respuesta = None
+        if equipo == "PRISMA":
+            tabla = "prismas" + str(idproyecto)
+            if tipografico == "3DA":
+                respuesta = AnalisisModel.mdlPrismasDesplazamiento3DA(tabla, unidad, idcomponente)
+            elif tipografico == "3DI":
+                respuesta = AnalisisModel.mdlPrismasDesplazamiento3DI(tabla, unidad, idcomponente)
+            elif tipografico == "2DA":
+                respuesta = AnalisisModel.mdlPrismasDesplazamiento2DA(tabla, unidad, idcomponente)
+            elif tipografico == "2DI":
+                respuesta = AnalisisModel.mdlPrismasDesplazamiento2DI(tabla, unidad, idcomponente)
+            elif tipografico == "SDA":
+                respuesta = AnalisisModel.mdlPrismasDesplazamientoSDA(tabla, unidad, idcomponente)
+            elif tipografico == "SDI":
+                respuesta = AnalisisModel.mdlPrismasDesplazamientoSDI(tabla, unidad, idcomponente)
+            elif tipografico == "DEA":
+                respuesta = AnalisisModel.mdlPrismasDesplazamientoDEA(tabla, unidad, idcomponente)
+            elif tipografico == "DEI":
+                respuesta = AnalisisModel.mdlPrismasDesplazamientoDEI(tabla, unidad, idcomponente)
+            elif tipografico == "DNA":
+                respuesta = AnalisisModel.mdlPrismasDesplazamientoDNA(tabla, unidad, idcomponente)
+            elif tipografico == "DNI":
+                respuesta = AnalisisModel.mdlPrismasDesplazamientoDNI(tabla, unidad, idcomponente)
+            elif tipografico == "DZA":
+                respuesta = AnalisisModel.mdlPrismasDesplazamientoDZA(tabla, unidad, idcomponente)
+            elif tipografico == "DZI":
+                respuesta = AnalisisModel.mdlPrismasDesplazamientoDZI(tabla, unidad, idcomponente)
+            elif tipografico == "VA3D":
+                respuesta = AnalisisModel.mdlPrismasVelocidadVA3D(tabla, unidad, idcomponente)
+            elif tipografico == "VI3D":
+                respuesta = AnalisisModel.mdlPrismasVelocidadVI3D(tabla, unidad, idcomponente)
+            elif tipografico == "VA2D":
+                respuesta = AnalisisModel.mdlPrismasVelocidadVA2D(tabla, unidad, idcomponente)
+            elif tipografico == "VI2D":
+                respuesta = AnalisisModel.mdlPrismasVelocidadVI2D(tabla, unidad, idcomponente)
+            elif tipografico == "VASD":
+                respuesta = AnalisisModel.mdlPrismasVelocidadVASD(tabla, unidad, idcomponente)
+            elif tipografico == "VISD":
+                respuesta = AnalisisModel.mdlPrismasVelocidadVISD(tabla, unidad, idcomponente)
+        elif equipo == "PIEZOMETROCUERDA":
+            tabla = "piezometrocuerda_detalle" + str(idproyecto)
+            if tipografico == "PCNF":
+                respuesta = AnalisisModel.mdlPiezometrosCuerdaNivelFreatico(tabla, unidad, idcomponente)
+            elif tipografico == "PCNA":
+                respuesta = AnalisisModel.mdlPiezometrosCuerdaNivelAcumulado(tabla, unidad, idcomponente)
+            elif tipografico == "PCNI":
+                respuesta = AnalisisModel.mdlPiezometrosCuerdaNivelIncremental(tabla, unidad, idcomponente)
+        elif equipo == "PIEZOMETROMANUAL":
+            if tipografico == "PMNF":
+                tabla = "prismas" + str(idproyecto)
+                respuesta = AnalisisModel.mdlPiezometrosCasagrandeNivelFreatico(tabla, unidad, idcomponente)
+            elif tipografico == "PMNA":
+                tabla = "prismas" + str(idproyecto)
+                respuesta = AnalisisModel.mdlPiezometrosCasagrandeNivelAcumulado(tabla, unidad, idcomponente)
+            elif tipografico == "PMNI":
+                tabla = "prismas" + str(idproyecto)
+                respuesta = AnalisisModel.mdlPiezometrosCasagrandeNivelIncremental(tabla, unidad, idcomponente)
+        elif equipo == "CELDA":
+            if tipografico == "CANA":
+                tabla = "prismas" + str(idproyecto)
+                respuesta = AnalisisModel.mdlCeldasAsentamientoCota(tabla, unidad, idcomponente)
+            elif tipografico == "CAAA":
+                tabla = "prismas" + str(idproyecto)
+                respuesta = AnalisisModel.mdlCeldasAsentamientoIncremental(tabla, unidad, idcomponente)
+            elif tipografico == "CAAI":
+                tabla = "prismas" + str(idproyecto)
+                respuesta = AnalisisModel.mdlObtenerAsentamientoAcumulado(tabla, unidad, idcomponente)
+        return respuesta
+    

@@ -426,7 +426,6 @@ class ConexionDB:
         comboEstados.addItem("Conectado", 1)
         comboEstados.addItem("Desconectado", 0)
         # Llenar componentes
-        idproyecto = comboProyectos.currentData()
         if idproyecto != 0:
             componentes = ProyectoController.ctrlObtenerComponentesProyecto(idproyecto)
             if len(componentes) > 0:

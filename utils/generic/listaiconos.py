@@ -72,4 +72,5 @@ class ListaIconos:
         "limpieza_ruido_manual":"resources/iconos/fontawesome/solid/diagram-project.svg",
         "clipboard":"resources/iconos/fontawesome/solid/clipboard.svg",
         "nuevo": "resources/iconos/fontawesome/solid/plus.svg",
+        "reloj": "resources/iconos/fontawesome/solid/clock.svg",
     }
