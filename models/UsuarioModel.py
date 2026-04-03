@@ -208,7 +208,7 @@ class UsuarioModel:
     def mdlObtenerConexiones():
         conn = None
         sql = """SELECT p.nombre_proyecto, k.nombre_componente, c.instrumento_conexion, c.servidor_conexion, c.puerto_conexion, c.database_conexion,
-        c.usuario_conexion, c.tabla_conexion, c.frecuencia_conexion, c.estado_conexion, c.id_conexion, c.id_proyecto, c.id_componente
+        c.usuario_conexion, c.consulta_conexion, c.dato_conexion, c.frecuencia_conexion, c.estado_conexion, c.id_conexion, c.id_proyecto, c.id_componente
         FROM conexiones c INNER JOIN proyectos p ON c.id_proyecto = p.id_proyecto INNER JOIN componentes k ON c.id_componente = k.id_componente;"""
         try:
             conn = Connection.connectionDB()
@@ -233,8 +233,8 @@ class UsuarioModel:
         try:
             conn = Connection.connectionDB()
             sql = """INSERT INTO conexiones (id_proyecto, id_componente, instrumento_conexion, servidor_conexion, puerto_conexion, database_conexion,
-            usuario_conexion, password_conexion, tabla_conexion, frecuencia_conexion, estado_conexion) OUTPUT INSERTED.id_conexion
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+            usuario_conexion, password_conexion, consulta_conexion, dato_conexion, frecuencia_conexion, estado_conexion) OUTPUT INSERTED.id_conexion
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
             cur = conn.cursor()
             cur.execute(sql, datos)
             # Obtener el id recién insertado
@@ -245,7 +245,7 @@ class UsuarioModel:
             # Registrar en sync_control para que arranque de inmediato
             cur.execute("""INSERT INTO sync_control
                 (id_conexion, ultimo_sync, proximo_sync, ejecutando, hostname, frecuencia_min)
-                VALUES (?, NULL, GETDATE(), 0, NULL, ?);""", nuevo_id, datos[9])   # datos[9] = frecuencia_conexion
+                VALUES (?, NULL, GETDATE(), 0, NULL, ?);""", nuevo_id, datos[10])   # datos[10] = frecuencia_conexion
             conn.commit()
             return True
         except Exception as e:
@@ -262,7 +262,7 @@ class UsuarioModel:
         conn = None
         try:
             conn = Connection.connectionDB()
-            idproyecto, componente, instrumento, servidor, puerto, database, usuario, password, tabla, frecuencia, estado, idconexion = datos
+            idproyecto, componente, instrumento, servidor, puerto, database, usuario, password, consulta, ultimoid, frecuencia, estado, idconexion = datos
             if password:  # ← Con contraseña: actualiza todo
                 sql = """UPDATE conexiones SET
                     id_proyecto          = ?,
@@ -273,12 +273,13 @@ class UsuarioModel:
                     database_conexion    = ?,
                     usuario_conexion     = ?,
                     password_conexion    = ?,
-                    tabla_conexion       = ?,
+                    consulta_conexion    = ?,
+                    dato_conexion        = ?,
                     frecuencia_conexion  = ?,
                     estado_conexion      = ?
                 WHERE id_conexion = ?;"""
                 params = (idproyecto, componente, instrumento, servidor, puerto,
-                        database, usuario, password, tabla, frecuencia, estado, idconexion)
+                        database, usuario, password, consulta, ultimoid, frecuencia, estado, idconexion)
             else:  # ← Sin contraseña: omite password_conexion
                 sql = """UPDATE conexiones SET
                     id_proyecto          = ?,
@@ -288,12 +289,13 @@ class UsuarioModel:
                     puerto_conexion      = ?,
                     database_conexion    = ?,
                     usuario_conexion     = ?,
-                    tabla_conexion       = ?,
+                    consulta_conexion    = ?,
+                    dato_conexion        = ?,
                     frecuencia_conexion  = ?,
                     estado_conexion      = ?
                 WHERE id_conexion = ?;"""
                 params = (idproyecto, componente, instrumento, servidor, puerto,
-                        database, usuario, tabla, frecuencia, estado, idconexion)
+                        database, usuario, consulta, ultimoid, frecuencia, estado, idconexion)
             cur = conn.cursor()
             cur.execute(sql, params)
             # Sincronizar sync_control con la nueva frecuencia

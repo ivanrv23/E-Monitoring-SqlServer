@@ -50,25 +50,19 @@ class ConexionWorker(QThread):
         try:
             ahora = datetime.now()
             cur = conn.cursor()
-
             # Buscar conexiones que ya deben sincronizarse y NO están bloqueadas
             cur.execute("""
-                SELECT sc.id_conexion, sc.frecuencia_min,
-                       c.servidor_conexion, c.puerto_conexion, c.database_conexion,
-                       c.usuario_conexion, c.password_conexion,
-                       c.tabla_conexion,   c.instrumento_conexion,
-                       c.id_proyecto,      c.id_componente
+                SELECT sc.id_conexion, sc.frecuencia_min, c.servidor_conexion, c.puerto_conexion,
+                c.database_conexion, c.usuario_conexion, c.password_conexion, c.consulta_conexion,
+                c.dato_conexion, c.instrumento_conexion, c.id_proyecto, c.id_componente
                 FROM sync_control sc
                 INNER JOIN conexiones c ON sc.id_conexion = c.id_conexion
                 WHERE sc.proximo_sync <= ?
-                  AND sc.ejecutando   = 0
-                  AND c.estado_conexion = 1
+                  AND sc.ejecutando   = 0 AND c.estado_conexion = 1
             """, ahora)
             pendientes = cur.fetchall()
-
         finally:
             conn.close()
-
         for row in pendientes:
             if not self._corriendo:
                 break
@@ -78,18 +72,14 @@ class ConexionWorker(QThread):
     #  Intento de adquirir el lock y sincronizar
     # ------------------------------------------------------------------ #
     def _intentar_sincronizar(self, row):
-        (id_conexion, frecuencia_min,
-         servidor, puerto, database,
-         usuario, password, tabla,
-         instrumento, id_proyecto, id_componente) = row
-
+        (id_conexion, frecuencia_min, servidor, puerto, database, usuario, password,
+         consulta, ultimoid, instrumento, id_proyecto, id_componente) = row
         conn = Connection.connectionDB()
         if not conn:
             return
         try:
             cur  = conn.cursor()
             ahora = datetime.now()
-
             # --- Adquirir lock atómico (UPDATE condicional) ---
             cur.execute("""
                 UPDATE sync_control
@@ -100,25 +90,22 @@ class ConexionWorker(QThread):
                   AND proximo_sync <= ?
             """, HOSTNAME, id_conexion, ahora)
             conn.commit()
-
             if cur.rowcount == 0:
                 # Otro nodo ganó el lock — no hacer nada
                 return
-
         except Exception as e:
             self.senal_error.emit(f"[Lock] {instrumento}: {e}")
             conn.close()
             return
-
         # --- Tenemos el lock: ejecutar la consulta externa ---
         exito = False
         try:
-            datos = self._consultar_bd_externa(servidor, puerto, database, usuario, password, tabla)
+            datos = self._consultar_bd_externa(servidor, puerto, database, usuario, password, consulta, ultimoid)
             if datos is not None:
-                self._insertar_en_bd_central(conn, cur, datos, instrumento, id_proyecto, id_componente)
+                self._insertar_en_bd_central(conn, cur, datos, instrumento, id_proyecto, id_componente, id_conexion)
                 exito = True
                 self.senal_log.emit(
-                    f"[Sync] ✔ {instrumento} → {len(datos)} filas "
+                    f"[Sync] {instrumento} → {len(datos)} filas "
                     f"({ahora.strftime('%H:%M:%S')}) desde {HOSTNAME}"
                 )
                 self.senal_datos.emit({
@@ -127,10 +114,8 @@ class ConexionWorker(QThread):
                     "filas": len(datos),
                     "timestamp": ahora.isoformat(),
                 })
-
         except Exception as e:
-            self.senal_error.emit(f"[Sync] ✖ {instrumento}: {e}")
-
+            self.senal_error.emit(f"[Sync] {instrumento}: {e}")
         finally:
             # --- Liberar lock siempre, tanto si hubo error como si no ---
             try:
@@ -151,12 +136,12 @@ class ConexionWorker(QThread):
     # ------------------------------------------------------------------ #
     #  Consultar BD externa (origen)
     # ------------------------------------------------------------------ #
-    def _consultar_bd_externa(self, servidor, puerto, database, usuario, password, tabla):
-        drivers  = pyodbc.drivers()
-        driver   = next(
+    def _consultar_bd_externa(self, servidor, puerto, database, usuario, password, consulta, ultimoid):
+        drivers = pyodbc.drivers()
+        driver  = next(
             (d for d in ["ODBC Driver 18 for SQL Server",
-                         "ODBC Driver 17 for SQL Server",
-                         "SQL Server"] if d in drivers),
+                        "ODBC Driver 17 for SQL Server",
+                        "SQL Server"] if d in drivers),
             None
         )
         if not driver:
@@ -170,22 +155,36 @@ class ConexionWorker(QThread):
             "TrustServerCertificate=yes;"
             "Connection Timeout=5;"
         )
+
         conn = pyodbc.connect(conn_str)
+        consultaSQL = """
+            SELECT r.ID, r.Point_ID, p.Name, r.Epoch, t.Epoch,
+                t.HzAngle, t.VAngle, t.SlopeDistance, t.Pressure, t.Temperature,
+                r.Easting, r.Northing, r.Height, r.HorzDistance,
+                r.LongitudinalDisplacement, r.TransverseDisplacement, r.HeightDisplacement
+            FROM Points p
+            INNER JOIN Results r ON p.ID = r.Point_ID
+            INNER JOIN TPSMeasurements t ON t.Point_ID = r.Point_ID
+                AND t.Epoch BETWEEN DATEADD(SECOND, -60, r.Epoch)
+                                AND DATEADD(SECOND,  60, r.Epoch)
+            WHERE r.Easting      IS NOT NULL
+            AND r.Northing     IS NOT NULL
+            AND r.Height       IS NOT NULL
+            AND r.HorzDistance IS NOT NULL
+            AND r.ID >= ?
+            ORDER BY r.ID;
+        """
         try:
             cur = conn.cursor()
-            cur.execute(f"SELECT * FROM {tabla};")
-            return [tuple(r) for r in cur.fetchall()]
+            cur.execute(consultaSQL, (ultimoid,))
+            filas = [tuple(r) for r in cur.fetchall()]
+            return filas
         finally:
             conn.close()
 
-    # ------------------------------------------------------------------ #
-    #  Insertar en BD central (aquí defines tu lógica de upsert/insert)
-    # ------------------------------------------------------------------ #
-    def _insertar_en_bd_central(self, conn, cur, datos, instrumento, id_proyecto, id_componente):
-        """
-        Inserta datos leídos de 'hitos' en la tabla destino 'prismasX'.
-        Además registra prismas únicos en la tabla 'instrumentacion'.
-        """
+
+    def _insertar_en_bd_central(self, conn, cur, datos, instrumento,
+                                id_proyecto, id_componente, id_conexion):
         if instrumento == "Prismas":
             try:
                 nombretabla = "prismas" + str(id_proyecto)
@@ -195,79 +194,73 @@ class ConexionWorker(QThread):
                 # ══════════════════════════════════════════════
                 sqltable = f"""IF OBJECT_ID('{nombretabla}', 'U') IS NULL
                 CREATE TABLE {nombretabla} (
-                    id_prisma INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-                    state_prisma INT NOT NULL DEFAULT 1,
-                    estado_prisma INT NOT NULL DEFAULT 1,
-                    nombre_prisma VARCHAR(255) NOT NULL,
-                    perfil_prisma VARCHAR(255),
-                    hora_prisma DATETIME2(0) NOT NULL,
-                    angulo_horizontal VARCHAR(50),
-                    angulo_vertical VARCHAR(50),
-                    distancia_prisma FLOAT DEFAULT 0,
-                    tipoppm_prisma VARCHAR(50),
-                    ppm_prisma FLOAT DEFAULT 0,
-                    presion_prisma FLOAT DEFAULT 0,
-                    temperatura_prisma FLOAT DEFAULT 0,
-                    constante_prisma FLOAT DEFAULT 0,
-                    este_target FLOAT NOT NULL,
-                    norte_target FLOAT NOT NULL,
-                    elevacion_target FLOAT NOT NULL,
-                    altura_reflector FLOAT DEFAULT 0,
-                    altura_instrumento FLOAT DEFAULT 0,
-                    este_estacion FLOAT DEFAULT 0,
-                    norte_estacion FLOAT DEFAULT 0,
-                    altura_estacion FLOAT DEFAULT 0,
-                    medicion_prisma FLOAT DEFAULT 0,
-                    diferencia_tiempocorto FLOAT DEFAULT 0,
-                    diferencia_tiempolargo FLOAT DEFAULT 0,
+                    id_prisma               INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                    state_prisma            INT NOT NULL DEFAULT 1,
+                    estado_prisma           INT NOT NULL DEFAULT 1,
+                    nombre_prisma           VARCHAR(255) NOT NULL,
+                    perfil_prisma           VARCHAR(255),
+                    hora_prisma             DATETIME2(0) NOT NULL,
+                    angulo_horizontal       VARCHAR(50),
+                    angulo_vertical         VARCHAR(50),
+                    distancia_prisma        FLOAT DEFAULT 0,
+                    tipoppm_prisma          VARCHAR(50),
+                    ppm_prisma              FLOAT DEFAULT 0,
+                    presion_prisma          FLOAT DEFAULT 0,
+                    temperatura_prisma      FLOAT DEFAULT 0,
+                    constante_prisma        FLOAT DEFAULT 0,
+                    este_target             FLOAT NOT NULL,
+                    norte_target            FLOAT NOT NULL,
+                    elevacion_target        FLOAT NOT NULL,
+                    altura_reflector        FLOAT DEFAULT 0,
+                    altura_instrumento      FLOAT DEFAULT 0,
+                    este_estacion           FLOAT DEFAULT 0,
+                    norte_estacion          FLOAT DEFAULT 0,
+                    altura_estacion         FLOAT DEFAULT 0,
+                    medicion_prisma         FLOAT DEFAULT 0,
+                    diferencia_tiempocorto  FLOAT DEFAULT 0,
+                    diferencia_tiempolargo  FLOAT DEFAULT 0,
                     diferencia_limitevelocidad FLOAT DEFAULT 0,
-                    distancia_horizontal FLOAT DEFAULT 0,
-                    diferencia_atipica FLOAT DEFAULT 0,
-                    desplaza_longitudinal FLOAT DEFAULT 0,
-                    desplaza_transversal FLOAT DEFAULT 0,
-                    desplaza_altura FLOAT DEFAULT 0,
-                    grupo_puntos VARCHAR(255)
+                    distancia_horizontal    FLOAT DEFAULT 0,
+                    diferencia_atipica      FLOAT DEFAULT 0,
+                    desplaza_longitudinal   FLOAT DEFAULT 0,
+                    desplaza_transversal    FLOAT DEFAULT 0,
+                    desplaza_altura         FLOAT DEFAULT 0,
+                    grupo_puntos            VARCHAR(255)
                 );"""
-
                 cur.execute(sqltable)
                 conn.commit()
 
                 # ══════════════════════════════════════════════
-                # 2. EXTRAER NOMBRES ÚNICOS (antes de insertar)
+                # 2. EXTRAER NOMBRES ÚNICOS
                 # ══════════════════════════════════════════════
-                nombres_unicos = set(fila[2] for fila in datos)
+                nombres_unicos = set(fila[2] for fila in datos)  # fila[2] = p.Name
 
                 # ══════════════════════════════════════════════
                 # 3. LIMPIAR DUPLICADOS EN MEMORIA
-                #    (similar a ctrlGuardarPrismasManualesTabla)
                 # ══════════════════════════════════════════════
-                datos_unicos = {}
+                datos_unicos  = {}
                 datos_limpios = []
 
                 for fila in datos:
-                    nombre_prisma = fila[2]
+                    nombre_prisma = fila[2]   # p.Name
+                    epoch         = fila[3]   # r.Epoch
 
-                    # Convertir fecha a ISO con 'T'
-                    if hasattr(fila[3], 'strftime'):
-                        fecha_hora = fila[3].strftime('%Y-%m-%dT%H:%M:%S')
-                    else:
-                        fecha_hora = str(fila[3]).replace(' ', 'T')
+                    epoch_dt = epoch.replace(microsecond=0) if isinstance(epoch, datetime) \
+                            else datetime.strptime(str(epoch)[:19].replace('T', ' '), '%Y-%m-%d %H:%M:%S')
 
-                    clave = (nombre_prisma, fecha_hora)
-
+                    clave = (nombre_prisma, epoch_dt)
                     if clave not in datos_unicos:
                         datos_unicos[clave] = True
-                        datos_limpios.append(fila)
+                        datos_limpios.append((fila, epoch_dt))  # guardar epoch_dt limpio
 
                 # ══════════════════════════════════════════════
                 # 4. CARGAR EXISTENTES EN BD PARA DEDUPLICACIÓN
                 # ══════════════════════════════════════════════
-                cur.execute(
-                    f"SELECT nombre_prisma, FORMAT(hora_prisma, 'yyyy-MM-ddTHH:mm:ss') "
-                    f"FROM {nombretabla}"
-                )
+                cur.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla}")
                 existen_prismas = set(
-                    [(row[0], row[1]) for row in cur.fetchall()]
+                    (row[0], row[1].replace(microsecond=0) if isinstance(row[1], datetime)
+                    else datetime.strptime(str(row[1])[:19], '%Y-%m-%d %H:%M:%S'))
+                    for row in cur.fetchall()
                 )
 
                 # ══════════════════════════════════════════════
@@ -275,82 +268,101 @@ class ConexionWorker(QThread):
                 # ══════════════════════════════════════════════
                 insert_query = f"""
                     INSERT INTO {nombretabla} (
-                        state_prisma, estado_prisma, nombre_prisma, hora_prisma,
-                        distancia_prisma, este_target, norte_target,
-                        elevacion_target, angulo_horizontal, angulo_vertical,
+                        state_prisma, estado_prisma,
+                        nombre_prisma, hora_prisma,
+                        angulo_horizontal, angulo_vertical,
+                        distancia_prisma, presion_prisma, temperatura_prisma,
+                        este_target, norte_target, elevacion_target,
+                        distancia_horizontal,
+                        desplaza_longitudinal, desplaza_transversal, desplaza_altura,
                         grupo_puntos
-                    ) VALUES (1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
 
                 lote_registros = []
-                contador = 0
-                for fila in datos_limpios:
-                    nombre_prisma = fila[2]
+                contador       = 0
+                ultimo_id_ext  = None
 
-                    if hasattr(fila[3], 'strftime'):
-                        fecha_hora = fila[3].strftime('%Y-%m-%dT%H:%M:%S')
-                    else:
-                        fecha_hora = str(fila[3]).replace(' ', 'T')
+                for fila, epoch_dt in datos_limpios:
+                    id_externo    = fila[0]   # r.ID
+                    # fila[1]     = r.Point_ID (no se usa)
+                    nombre_prisma = fila[2]   # p.Name
+                    # fila[3]     = r.Epoch   (ya en epoch_dt)
+                    # fila[4]     = t.Epoch   (no se usa)
+                    ang_h         = fila[5]   # t.HzAngle
+                    ang_v         = fila[6]   # t.VAngle
+                    distancia     = fila[7]   # t.SlopeDistance
+                    presion       = fila[8]   # t.Pressure
+                    temperatura   = fila[9]   # t.Temperature
+                    este          = fila[10]  # r.Easting
+                    norte         = fila[11]  # r.Northing
+                    elevacion     = fila[12]  # r.Height
+                    dist_hz       = fila[13]  # r.HorzDistance
+                    desplaz_long  = fila[14]  # r.LongitudinalDisplacement
+                    desplaz_trans = fila[15]  # r.TransverseDisplacement
+                    desplaz_alt   = fila[16]  # r.HeightDisplacement
 
-                    # Deduplicar contra BD
-                    if (nombre_prisma, fecha_hora) not in existen_prismas:
-                        distancia = float(fila[6]) if fila[6] else 0.0
-                        este      = float(fila[7]) if fila[7] else 0.0
-                        norte     = float(fila[8]) if fila[8] else 0.0
-                        elevacion = float(fila[9]) if fila[9] else 0.0
-                        ang_h     = 0
-                        ang_v     = fila[5] if fila[5] else ''
-                        grupo     = fila[10] if fila[10] else ''
-
-                        row = (
+                    if (nombre_prisma, epoch_dt) not in existen_prismas:
+                        lote_registros.append((
                             nombre_prisma,
-                            fecha_hora,
-                            distancia,
-                            este,
-                            norte,
-                            elevacion,
-                            ang_h,
-                            ang_v,
-                            grupo
-                        )
-                        lote_registros.append(row)
+                            epoch_dt,                                           # datetime, no string
+                            str(ang_h)           if ang_h        is not None else '',
+                            str(ang_v)           if ang_v        is not None else '',
+                            float(distancia)     if distancia    is not None else 0.0,
+                            float(presion)       if presion      is not None else 0.0,
+                            float(temperatura)   if temperatura  is not None else 0.0,
+                            float(este)          if este         is not None else 0.0,
+                            float(norte)         if norte        is not None else 0.0,
+                            float(elevacion)     if elevacion    is not None else 0.0,
+                            float(dist_hz)       if dist_hz      is not None else 0.0,
+                            float(desplaz_long)  if desplaz_long is not None else 0.0,
+                            float(desplaz_trans) if desplaz_trans is not None else 0.0,
+                            float(desplaz_alt)   if desplaz_alt  is not None else 0.0,
+                            '',   # grupo_puntos — ya no viene en la query
+                        ))
                         contador += 1
 
-                    # Insertar en lotes de 1000
-                    if contador % 1000 == 0 and lote_registros:
+                    if ultimo_id_ext is None or id_externo > ultimo_id_ext:
+                        ultimo_id_ext = id_externo
+
+                    if len(lote_registros) >= 1000:
                         cur.executemany(insert_query, lote_registros)
                         lote_registros = []
 
-                # Lote restante
                 if lote_registros:
                     cur.executemany(insert_query, lote_registros)
 
                 conn.commit()
-                print(f"✅ {contador} filas nuevas insertadas en {nombretabla}")
+                print(f"{contador} filas nuevas insertadas en {nombretabla}")
 
                 # ══════════════════════════════════════════════
-                # 6. REGISTRAR EQUIPOS ÚNICOS EN instrumentacion
-                #    (similar a mdlRegistrarEquipoZona)
+                # 6. ACTUALIZAR dato_conexion CON EL ÚLTIMO ID
+                # ══════════════════════════════════════════════
+                if ultimo_id_ext is not None:
+                    cur.execute(
+                        "UPDATE conexiones SET dato_conexion = ? WHERE id_conexion = ?",
+                        str(ultimo_id_ext), id_conexion
+                    )
+                    conn.commit()
+                    print(f"dato_conexion → {ultimo_id_ext} (id_conexion={id_conexion})")
+
+                # ══════════════════════════════════════════════
+                # 7. REGISTRAR EQUIPOS EN instrumentacion
                 # ══════════════════════════════════════════════
                 self._registrar_equipos_zona(
                     conn, cur, id_componente, nombretabla,
                     nombres_unicos, instrumento
                 )
 
-                return True
+                return ultimo_id_ext
 
             except Exception as e:
-                print(f"❌ Error al insertar en prismas{id_proyecto}: {e}")
+                print(f"Error al insertar en prismas{id_proyecto}: {e}")
                 if conn:
                     conn.rollback()
-                return False
+                return None
 
-        # ── Aquí puedes agregar más instrumentos en el futuro ──
-        # elif instrumento == "Piezometros":
-        #     ...
-
-        return False
-
+        return None
 
     def _registrar_equipos_zona(self, conn, cur, id_componente, nombretabla,
                                 nombres_unicos, tipo_equipo):
@@ -389,16 +401,10 @@ class ConexionWorker(QThread):
                     prismas_nuevos.append(nombre_equipo)
 
             conn.commit()
-
-            if prismas_nuevos:
-                print(f"✅ Nuevos equipos registrados en instrumentacion: {prismas_nuevos}")
-            else:
-                print("ℹ️  Todos los equipos ya estaban registrados en instrumentacion")
-
             return True, prismas_nuevos
 
         except Exception as e:
-            print(f"❌ Error al registrar equipos en instrumentacion: {e}")
+            print(f"Error al registrar equipos en instrumentacion: {e}")
             if conn:
                 conn.rollback()
             return False, []

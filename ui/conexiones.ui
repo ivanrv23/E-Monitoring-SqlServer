@@ -99,7 +99,12 @@
      </column>
      <column>
       <property name="text">
-       <string>Tabla</string>
+       <string>Consulta</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Último Dato</string>
       </property>
      </column>
      <column>

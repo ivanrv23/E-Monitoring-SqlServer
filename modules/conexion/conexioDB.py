@@ -2,7 +2,7 @@ import pyodbc
 from pathlib import Path
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QLineEdit, QPushButton, QLabel, QGroupBox, 
-    QToolButton, QStyle, QFrame, QMessageBox, QTableWidget, QTableWidgetItem, QComboBox, QSpinBox, QMenu)
+    QToolButton, QStyle, QFrame, QMessageBox, QTableWidget, QTableWidgetItem, QTextEdit, QComboBox, QSpinBox, QMenu)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIntValidator, QAction
 from utils.generic.listaiconos import ListaIconos
@@ -198,29 +198,31 @@ class ConexionDB:
         conexiones = UsuarioController.ctrlObtenerConexiones()
         if conexiones:
             tabladatos.setRowCount(len(conexiones))
-            tabladatos.setColumnCount(13)
+            tabladatos.setColumnCount(14)
             for fila, datos_fila in enumerate(conexiones):
                 for columna, dato in enumerate(datos_fila):
-                    texto = ESTADOS.get(dato, str(dato)) if columna == 9 else str(dato)
+                    texto = ESTADOS.get(dato, str(dato)) if columna == 10 else str(dato)
                     tabladatos.setItem(fila, columna, QTableWidgetItem(texto))
             # Ocultar columnas de IDs
-            tabladatos.setColumnHidden(10, True)
+            tabladatos.setColumnHidden(7, True)
             tabladatos.setColumnHidden(11, True)
             tabladatos.setColumnHidden(12, True)
+            tabladatos.setColumnHidden(13, True)
         def refrescarTabla():
             conexiones = UsuarioController.ctrlObtenerConexiones()
             tabladatos.clearContents()
             if conexiones:
                 tabladatos.setRowCount(len(conexiones))
-                tabladatos.setColumnCount(13)
+                tabladatos.setColumnCount(14)
                 for fila, datos_fila in enumerate(conexiones):
                     for columna, dato in enumerate(datos_fila):
-                        texto = ESTADOS.get(dato, str(dato)) if columna == 9 else str(dato)
+                        texto = ESTADOS.get(dato, str(dato)) if columna == 10 else str(dato)
                         tabladatos.setItem(fila, columna, QTableWidgetItem(texto))
                 # Ocultar columnas de IDs
-                tabladatos.setColumnHidden(10, True)
+                tabladatos.setColumnHidden(7, True)
                 tabladatos.setColumnHidden(11, True)
                 tabladatos.setColumnHidden(12, True)
+                tabladatos.setColumnHidden(13, True)
         def aceptarConexiones():
             dialog.close()
         # Inicializar botones
@@ -247,7 +249,8 @@ class ConexionDB:
         inputDatabase = dialogo.findChild(QLineEdit, 'input_database')
         inputUsuario = dialogo.findChild(QLineEdit, 'input_usuario')
         inputPassword = dialogo.findChild(QLineEdit, 'input_password')
-        inputTabla = dialogo.findChild(QLineEdit, 'input_tabla')
+        inputConsulta = dialogo.findChild(QTextEdit, 'input_consulta')
+        inputDato = dialogo.findChild(QLineEdit, 'input_dato')
         inputFrecuencia = dialogo.findChild(QSpinBox, 'spin_frecuencia')
         comboEstados = dialogo.findChild(QComboBox, "cb_estados")
         lblrespuesta = dialogo.findChild(QLabel, "label_mensaje")
@@ -299,7 +302,8 @@ class ConexionDB:
             database = inputDatabase.text().strip()
             usuario = inputUsuario.text().strip()
             contraseña = inputPassword.text().strip()
-            tabla = inputTabla.text().strip()
+            consulta = inputConsulta.toPlainText().strip()
+            ultimoid = inputDato.text().strip()
             frecuencia = inputFrecuencia.value()
             estado = comboEstados.currentData()
             # Validaciones
@@ -327,13 +331,20 @@ class ConexionDB:
             if not contraseña:
                 lblrespuesta.setText("La contraseña no puede estar vacía")
                 return
-            if not tabla:
-                lblrespuesta.setText("La tabla no puede estar vacía")
+            if not consulta:
+                lblrespuesta.setText("La consulta no puede estar vacía")
                 return
+            if not ultimoid:
+                ultimoid = 0
+            else:
+                try:
+                    ultimoid = int(ultimoid)
+                except (TypeError, ValueError):
+                    ultimoid = 0
             if frecuencia == 0:
                 lblrespuesta.setText("La frecuencia debe ser mayor a 0")
                 return
-            datos = [idproyecto, componente, instrumento, servidor, puerto, database, usuario, contraseña, tabla, frecuencia, estado]
+            datos = [idproyecto, componente, instrumento, servidor, puerto, database, usuario, contraseña, consulta, ultimoid, frecuencia, estado]
             respuesta = UsuarioController.ctrlGuardarNuevaConexion(datos)
             if respuesta:
                 dialogo.accept()
@@ -365,29 +376,30 @@ class ConexionDB:
         puerto = table.model().data(table.model().index(row, 4), Qt.DisplayRole)
         database = table.model().data(table.model().index(row, 5), Qt.DisplayRole)
         usuario = table.model().data(table.model().index(row, 6), Qt.DisplayRole)
-        tabla = table.model().data(table.model().index(row, 7), Qt.DisplayRole)
-        frecuencia = table.model().data(table.model().index(row, 8), Qt.DisplayRole)
-        estado = table.model().data(table.model().index(row, 9), Qt.DisplayRole)
-        idconexion = table.model().data(table.model().index(row, 10), Qt.DisplayRole)
-        idproyecto = table.model().data(table.model().index(row, 11), Qt.DisplayRole)
-        idcomponente = table.model().data(table.model().index(row, 12), Qt.DisplayRole)
-        ConexionDB.generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, tabla, frecuencia, estado, idconexion, idproyecto, idcomponente, on_success)
+        consulta = table.model().data(table.model().index(row, 7), Qt.DisplayRole)
+        ultimoid = table.model().data(table.model().index(row, 8), Qt.DisplayRole)
+        frecuencia = table.model().data(table.model().index(row, 9), Qt.DisplayRole)
+        estado = table.model().data(table.model().index(row, 10), Qt.DisplayRole)
+        idconexion = table.model().data(table.model().index(row, 11), Qt.DisplayRole)
+        idproyecto = table.model().data(table.model().index(row, 12), Qt.DisplayRole)
+        idcomponente = table.model().data(table.model().index(row, 13), Qt.DisplayRole)
+        ConexionDB.generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, consulta, ultimoid, frecuencia, estado, idconexion, idproyecto, idcomponente, on_success)
     
-    def generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, tabla, frecuencia, estado, idconexion, idproyecto, idcomponente, on_success=None):
+    def generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, consulta, ultimoid, frecuencia, estado, idconexion, idproyecto, idcomponente, on_success=None):
         # Crear menú contextual
         menu = QMenu()
         edit_action = QAction("Editar Conexión", table)
         delete_action = QAction("Eliminar Conexión", table)
         # Conectar las acciones con los valores de la fila
-        edit_action.triggered.connect(lambda: ConexionDB.dialogoActualizarConexion(instrumento, servidor, puerto, database, usuario, tabla, frecuencia, estado, idconexion, idproyecto, idcomponente, on_success))
-        delete_action.triggered.connect(lambda: ConexionDB.delete_row_prismas(idconexion, instrumento, servidor, on_success))
+        edit_action.triggered.connect(lambda: ConexionDB.dialogoActualizarConexion(instrumento, servidor, puerto, database, usuario, consulta, ultimoid, frecuencia, estado, idconexion, idproyecto, idcomponente, on_success))
+        delete_action.triggered.connect(lambda: ConexionDB.delete_row_conexion(idconexion, instrumento, servidor, on_success))
         # Añadir las acciones al menú
         menu.addAction(edit_action)
         menu.addAction(delete_action)
         # Mostrar menú contextual en la posición del clic
         menu.exec(table.viewport().mapToGlobal(position))
     
-    def dialogoActualizarConexion(instrumento, servidor, puerto, database, usuario, tabla, frecuencia, estado, idconexion, idproyecto, idcomponente, on_success=None):
+    def dialogoActualizarConexion(instrumento, servidor, puerto, database, usuario, consulta, ultimoid, frecuencia, estado, idconexion, idproyecto, idcomponente, on_success=None):
         loaderLoading = QUiLoader()
         ui_file_path = resource_path("ui/nuevaconexion.ui")
         ui_file = loaderLoading.load(ui_file_path, None)
@@ -405,7 +417,8 @@ class ConexionDB:
         inputDatabase = dialogo.findChild(QLineEdit, 'input_database')
         inputUsuario = dialogo.findChild(QLineEdit, 'input_usuario')
         inputPassword = dialogo.findChild(QLineEdit, 'input_password')
-        inputTabla = dialogo.findChild(QLineEdit, 'input_tabla')
+        inputConsulta = dialogo.findChild(QTextEdit, 'input_consulta')
+        inputDato = dialogo.findChild(QLineEdit, 'input_dato')
         inputFrecuencia = dialogo.findChild(QSpinBox, 'spin_frecuencia')
         comboEstados = dialogo.findChild(QComboBox, "cb_estados")
         lblrespuesta = dialogo.findChild(QLabel, "label_mensaje")
@@ -444,7 +457,8 @@ class ConexionDB:
         inputDatabase.setText(str(database))
         inputUsuario.setText(str(usuario))
         inputPassword.setText("")
-        inputTabla.setText(str(tabla))
+        inputConsulta.setPlainText(str(consulta))
+        inputDato.setText(ultimoid)
         inputFrecuencia.setValue(int(frecuencia))
         comboEstados.setCurrentText(str(estado))
         def actualizarComponentes():
@@ -468,7 +482,8 @@ class ConexionDB:
             database = inputDatabase.text().strip()
             usuario = inputUsuario.text().strip()
             contraseña = inputPassword.text().strip()
-            tabla = inputTabla.text().strip()
+            consulta = inputConsulta.toPlainText().strip()
+            ultimodato = inputDato.text().strip()
             frecuencia = inputFrecuencia.value()
             estado = comboEstados.currentData()
             password = None
@@ -496,13 +511,20 @@ class ConexionDB:
                 return
             if contraseña:
                 password = contraseña
-            if not tabla:
-                lblrespuesta.setText("La tabla no puede estar vacía")
+            if not consulta:
+                lblrespuesta.setText("La consulta no puede estar vacía")
                 return
+            if not ultimodato:
+                ultimodato = 0
+            else:
+                try:
+                    ultimodato = int(ultimodato)
+                except (TypeError, ValueError):
+                    ultimodato = 0
             if frecuencia == 0:
                 lblrespuesta.setText("La frecuencia debe ser mayor a 0")
                 return
-            datos = [idproyecto, componente, instrumento, servidor, puerto, database, usuario, password, tabla, frecuencia, estado, idconexion]
+            datos = [idproyecto, componente, instrumento, servidor, puerto, database, usuario, password, consulta, ultimodato, frecuencia, estado, idconexion]
             respuesta = UsuarioController.ctrlActualizarConexion(datos)
             if respuesta:
                 dialogo.accept()
@@ -516,7 +538,7 @@ class ConexionDB:
         botonGuardar.clicked.connect(actualizarInfoConexion)
         dialogo.exec()
     
-    def delete_row_prismas(idconexion, instrumento, servidor, on_success=None):
+    def delete_row_conexion(idconexion, instrumento, servidor, on_success=None):
         dlg = QMessageBox()
         dlg.setWindowTitle("Eliminar Conexión")
         dlg.setText(f"¿Está seguro de eliminar la conexión de {instrumento} \n y del servidor {servidor}?")
