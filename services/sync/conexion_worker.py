@@ -158,25 +158,26 @@ class ConexionWorker(QThread):
 
         conn = pyodbc.connect(conn_str)
         consultaSQL = """
-            SELECT r.ID, r.Point_ID, p.Name, r.Epoch, t.Epoch,
+            SELECT r.ID, r.Point_ID, p.Name, t.Epoch,
                 t.HzAngle, t.VAngle, t.SlopeDistance, t.Pressure, t.Temperature,
-                r.Easting, r.Northing, r.Height, r.HorzDistance,
-                r.LongitudinalDisplacement, r.TransverseDisplacement, r.HeightDisplacement
+                r.Easting, r.Northing, r.Height, r.HorzDistance, r.LongitudinalDisplacement,
+                r.TransverseDisplacement, r.HeightDisplacement, g.Name
             FROM Points p
             INNER JOIN Results r ON p.ID = r.Point_ID
             INNER JOIN TPSMeasurements t ON t.Point_ID = r.Point_ID
                 AND t.Epoch BETWEEN DATEADD(SECOND, -60, r.Epoch)
                                 AND DATEADD(SECOND,  60, r.Epoch)
+            INNER JOIN PointGroups g ON t.PointGroup_ID = g.ID
             WHERE r.Easting      IS NOT NULL
             AND r.Northing     IS NOT NULL
             AND r.Height       IS NOT NULL
             AND r.HorzDistance IS NOT NULL
-            AND r.ID >= ?
+            AND r.ID >= ? AND g.ID = 1014
             ORDER BY r.ID;
         """
         try:
             cur = conn.cursor()
-            cur.execute(consultaSQL, (ultimoid,))
+            cur.execute(consulta, (ultimoid,))
             filas = [tuple(r) for r in cur.fetchall()]
             return filas
         finally:
@@ -273,8 +274,8 @@ class ConexionWorker(QThread):
                         angulo_horizontal, angulo_vertical,
                         distancia_prisma, presion_prisma, temperatura_prisma,
                         este_target, norte_target, elevacion_target,
-                        distancia_horizontal,
-                        desplaza_longitudinal, desplaza_transversal, desplaza_altura,
+                        distancia_horizontal, desplaza_longitudinal,
+                        desplaza_transversal, desplaza_altura,
                         grupo_puntos
                     ) VALUES (1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
@@ -285,23 +286,22 @@ class ConexionWorker(QThread):
 
                 for fila, epoch_dt in datos_limpios:
                     id_externo    = fila[0]   # r.ID
-                    # fila[1]     = r.Point_ID (no se usa)
+                    # id_punto    = fila[1]   # r.Point_ID
                     nombre_prisma = fila[2]   # p.Name
-                    # fila[3]     = r.Epoch   (ya en epoch_dt)
-                    # fila[4]     = t.Epoch   (no se usa)
-                    ang_h         = fila[5]   # t.HzAngle
-                    ang_v         = fila[6]   # t.VAngle
-                    distancia     = fila[7]   # t.SlopeDistance
-                    presion       = fila[8]   # t.Pressure
-                    temperatura   = fila[9]   # t.Temperature
-                    este          = fila[10]  # r.Easting
-                    norte         = fila[11]  # r.Northing
-                    elevacion     = fila[12]  # r.Height
-                    dist_hz       = fila[13]  # r.HorzDistance
-                    desplaz_long  = fila[14]  # r.LongitudinalDisplacement
-                    desplaz_trans = fila[15]  # r.TransverseDisplacement
-                    desplaz_alt   = fila[16]  # r.HeightDisplacement
-
+                    # fecha       = fila[3]   t.Epoch
+                    ang_h         = fila[4]   # t.HzAngle
+                    ang_v         = fila[5]   # t.VAngle
+                    distancia     = fila[6]   # t.SlopeDistance
+                    presion       = fila[7]   # t.Pressure
+                    temperatura   = fila[8]   # t.Temperature
+                    este          = fila[9]   # r.Easting
+                    norte         = fila[10]  # r.Northing
+                    elevacion     = fila[11]  # r.Height
+                    dist_hz       = fila[12]  # r.HorzDistance
+                    desplaz_long  = fila[13]  # r.LongitudinalDisplacement
+                    desplaz_trans = fila[14]  # r.TransverseDisplacement
+                    desplaz_alt   = fila[15]  # r.HeightDisplacement
+                    grupo         = fila[16]  # g.Name
                     if (nombre_prisma, epoch_dt) not in existen_prismas:
                         lote_registros.append((
                             nombre_prisma,
@@ -318,7 +318,7 @@ class ConexionWorker(QThread):
                             float(desplaz_long)  if desplaz_long is not None else 0.0,
                             float(desplaz_trans) if desplaz_trans is not None else 0.0,
                             float(desplaz_alt)   if desplaz_alt  is not None else 0.0,
-                            '',   # grupo_puntos — ya no viene en la query
+                            grupo                if grupo        is not None else '',
                         ))
                         contador += 1
 
