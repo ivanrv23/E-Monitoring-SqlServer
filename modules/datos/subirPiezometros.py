@@ -395,7 +395,7 @@ class SubirPiezometros:
                         frecu = float(row['frecuencia']) if not pd.isna(row['frecuencia']) else 0
                         tempe = float(row['temperatura']) if not pd.isna(row['temperatura']) else 0
                         presio = float(row['presion']) if not pd.isna(row['presion']) else 0
-                        observa = observacion if not pd.isna(observacion) else ""
+                        observa = "" if pd.isna(observacion) else str(observacion).strip()
                         data.append((idpiezometro, fecha, hora, frecu, tempe, presio, mca, observa))
                     if data:
                         respon = PiezometroController.ctrlGuardarPiezometrosCuerdaCalculada(proyectoid, data, False)
@@ -580,7 +580,7 @@ class SubirPiezometros:
                                 tempe = float(temperatura_valor) if not pd.isna(temperatura_valor) else 0
                                 presio = float(presion_valor) if not pd.isna(presion_valor) else 0
                                 # Procesar observación
-                                observa = observacion_valor if not pd.isna(observacion_valor) else ""
+                                observa = "" if pd.isna(observacion_valor) else str(observacion_valor).strip()
                                 sheet_data.append((idpiezometro, fecha_procesada, hora, frecu, tempe, presio, mca_procesada, observa))
                                 fila += 1
                             # Agregar datos de esta hoja al conjunto total
@@ -938,7 +938,7 @@ class SubirPiezometros:
                             nivel = float(nivel)
                         except (ValueError, TypeError):
                             continue
-                        observa = observacion if not pd.isna(observacion) else ""
+                        observa = "" if pd.isna(observacion) else str(observacion).strip()
                         data.append((idpiezometro, fecha, hora, nivel, observa))
                     if data:
                         respon = PiezometroController.ctrlGuardarPiezometrosManualesTabla(proyectoid, data)

@@ -370,7 +370,7 @@ class SubirAcelerografos:
                             distancia = float(distancia)
                         except (ValueError, TypeError):
                             continue
-                        observa = observacion if not pd.isna(observacion) else ""
+                        observa = "" if pd.isna(observacion) else str(observacion).strip()
                         data.append((idacelerografo, fecha, hora, magnitud, distancia, observa))
                     if data:
                         respon = AcelerografoController.ctrlRegistrarDataAcelerografo(proyectoid, data)

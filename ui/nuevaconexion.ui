@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>290</width>
-    <height>388</height>
+    <height>423</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -25,7 +25,7 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <layout class="QGridLayout" name="gridLayout">
-     <item row="0" column="0" colspan="3">
+     <item row="0" column="0" colspan="2">
       <widget class="QLabel" name="label_7">
        <property name="font">
         <font>
@@ -49,110 +49,131 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="1" colspan="2">
+     <item row="1" column="1">
       <widget class="QComboBox" name="cb_proyectos"/>
      </item>
      <item row="2" column="0">
-      <widget class="QLabel" name="label_11">
-       <property name="text">
-        <string>Componente:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="1" colspan="2">
-      <widget class="QComboBox" name="cb_componentes"/>
-     </item>
-     <item row="3" column="0">
       <widget class="QLabel" name="label_9">
        <property name="text">
         <string>Instrumento:</string>
        </property>
       </widget>
      </item>
-     <item row="3" column="1" colspan="2">
+     <item row="2" column="1">
       <widget class="QComboBox" name="cb_instrumentos"/>
      </item>
-     <item row="4" column="0">
+     <item row="3" column="0">
       <widget class="QLabel" name="label">
        <property name="text">
         <string>Server:</string>
        </property>
       </widget>
      </item>
-     <item row="4" column="1" colspan="2">
+     <item row="3" column="1">
       <widget class="QLineEdit" name="input_server"/>
      </item>
-     <item row="5" column="0">
+     <item row="4" column="0">
       <widget class="QLabel" name="label_2">
        <property name="text">
         <string>Puerto:</string>
        </property>
       </widget>
      </item>
-     <item row="5" column="1" colspan="2">
+     <item row="4" column="1">
       <widget class="QLineEdit" name="input_puerto"/>
      </item>
-     <item row="6" column="0">
+     <item row="5" column="0">
       <widget class="QLabel" name="label_5">
        <property name="text">
         <string>Database:</string>
        </property>
       </widget>
      </item>
-     <item row="6" column="1" colspan="2">
+     <item row="5" column="1">
       <widget class="QLineEdit" name="input_database"/>
      </item>
-     <item row="7" column="0">
+     <item row="6" column="0">
       <widget class="QLabel" name="label_4">
        <property name="text">
         <string>Usuario:</string>
        </property>
       </widget>
      </item>
-     <item row="7" column="1" colspan="2">
+     <item row="6" column="1">
       <widget class="QLineEdit" name="input_usuario"/>
      </item>
-     <item row="8" column="0">
+     <item row="7" column="0">
       <widget class="QLabel" name="label_3">
        <property name="text">
         <string>Contraseña:</string>
        </property>
       </widget>
      </item>
-     <item row="8" column="1" colspan="2">
+     <item row="7" column="1">
       <widget class="QLineEdit" name="input_password"/>
      </item>
-     <item row="9" column="0">
+     <item row="8" column="0">
       <widget class="QLabel" name="label_13">
        <property name="text">
         <string>Último Dato:</string>
        </property>
       </widget>
      </item>
-     <item row="9" column="1" colspan="2">
+     <item row="8" column="1">
       <widget class="QLineEdit" name="input_dato"/>
      </item>
-     <item row="10" column="0" colspan="2">
+     <item row="9" column="0">
       <widget class="QLabel" name="label_10">
        <property name="text">
         <string>Frecuencia (min):</string>
        </property>
       </widget>
      </item>
-     <item row="10" column="2">
+     <item row="9" column="1">
       <widget class="QSpinBox" name="spin_frecuencia">
        <property name="maximum">
         <number>9999</number>
        </property>
       </widget>
      </item>
-     <item row="11" column="2">
+     <item row="10" column="0">
+      <widget class="QLabel" name="label_12">
+       <property name="text">
+        <string>Estado:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="1">
       <widget class="QComboBox" name="cb_estados"/>
      </item>
-     <item row="12" column="2">
-      <widget class="QTextEdit" name="input_consulta"/>
+     <item row="11" column="0">
+      <widget class="QLabel" name="label_11">
+       <property name="text">
+        <string>Consulta de Grupos:</string>
+       </property>
+      </widget>
      </item>
-     <item row="14" column="0" colspan="3">
+     <item row="11" column="1">
+      <widget class="QTextEdit" name="input_consulta_grupos"/>
+     </item>
+     <item row="12" column="0">
+      <widget class="QLabel" name="label_8">
+       <property name="text">
+        <string>Consulta de Lecturas:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="12" column="1">
+      <widget class="QTextEdit" name="input_consulta_lecturas"/>
+     </item>
+     <item row="13" column="0" colspan="2">
+      <widget class="QLabel" name="label_mensaje">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item row="14" column="0" colspan="2">
       <widget class="QFrame" name="frame_piepagina">
        <property name="styleSheet">
         <string notr="true">QFrame {
@@ -189,27 +210,6 @@
          </widget>
         </item>
        </layout>
-      </widget>
-     </item>
-     <item row="13" column="0" colspan="3">
-      <widget class="QLabel" name="label_mensaje">
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-     </item>
-     <item row="12" column="0" colspan="2">
-      <widget class="QLabel" name="label_8">
-       <property name="text">
-        <string>Consulta:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="11" column="0" colspan="2">
-      <widget class="QLabel" name="label_12">
-       <property name="text">
-        <string>Estado:</string>
-       </property>
       </widget>
      </item>
     </layout>

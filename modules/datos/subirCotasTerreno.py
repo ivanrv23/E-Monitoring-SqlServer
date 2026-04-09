@@ -379,7 +379,7 @@ class SubirCotasTerreno:
                             cota = float(cota)
                         except (ValueError, TypeError):
                             continue
-                        observa = observacion if not pd.isna(observacion) else ""
+                        observa = "" if pd.isna(observacion) else str(observacion).strip()
                         data.append((idterreno, fecha, hora, cota, observa))
                     if data:
                         respon = TerrenoController.ctrlGuardarDataCotaTerreno(proyectoid, data)

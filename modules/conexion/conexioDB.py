@@ -198,31 +198,31 @@ class ConexionDB:
         conexiones = UsuarioController.ctrlObtenerConexiones()
         if conexiones:
             tabladatos.setRowCount(len(conexiones))
-            tabladatos.setColumnCount(14)
+            tabladatos.setColumnCount(13)
             for fila, datos_fila in enumerate(conexiones):
                 for columna, dato in enumerate(datos_fila):
                     texto = ESTADOS.get(dato, str(dato)) if columna == 10 else str(dato)
                     tabladatos.setItem(fila, columna, QTableWidgetItem(texto))
             # Ocultar columnas de IDs
+            tabladatos.setColumnHidden(6, True)
             tabladatos.setColumnHidden(7, True)
             tabladatos.setColumnHidden(11, True)
             tabladatos.setColumnHidden(12, True)
-            tabladatos.setColumnHidden(13, True)
         def refrescarTabla():
             conexiones = UsuarioController.ctrlObtenerConexiones()
             tabladatos.clearContents()
             if conexiones:
                 tabladatos.setRowCount(len(conexiones))
-                tabladatos.setColumnCount(14)
+                tabladatos.setColumnCount(13)
                 for fila, datos_fila in enumerate(conexiones):
                     for columna, dato in enumerate(datos_fila):
                         texto = ESTADOS.get(dato, str(dato)) if columna == 10 else str(dato)
                         tabladatos.setItem(fila, columna, QTableWidgetItem(texto))
                 # Ocultar columnas de IDs
+                tabladatos.setColumnHidden(6, True)
                 tabladatos.setColumnHidden(7, True)
                 tabladatos.setColumnHidden(11, True)
                 tabladatos.setColumnHidden(12, True)
-                tabladatos.setColumnHidden(13, True)
         def aceptarConexiones():
             dialog.close()
         # Inicializar botones
@@ -242,16 +242,16 @@ class ConexionDB:
         dialogo.setLayout(layout_procesar_data)
         # Validando inputs
         comboProyectos = dialogo.findChild(QComboBox, "cb_proyectos")
-        comboComponentes = dialogo.findChild(QComboBox, "cb_componentes")
         comboInstrumentos = dialogo.findChild(QComboBox, "cb_instrumentos")
         inputServer = dialogo.findChild(QLineEdit, 'input_server')
         inputPuerto = dialogo.findChild(QLineEdit, 'input_puerto')
         inputDatabase = dialogo.findChild(QLineEdit, 'input_database')
         inputUsuario = dialogo.findChild(QLineEdit, 'input_usuario')
         inputPassword = dialogo.findChild(QLineEdit, 'input_password')
-        inputConsulta = dialogo.findChild(QTextEdit, 'input_consulta')
         inputDato = dialogo.findChild(QLineEdit, 'input_dato')
         inputFrecuencia = dialogo.findChild(QSpinBox, 'spin_frecuencia')
+        inputGrupos = dialogo.findChild(QTextEdit, 'input_consulta_grupos')
+        inputLecturas = dialogo.findChild(QTextEdit, 'input_consulta_lecturas')
         comboEstados = dialogo.findChild(QComboBox, "cb_estados")
         lblrespuesta = dialogo.findChild(QLabel, "label_mensaje")
         botonGuardar = dialogo.findChild(QPushButton, "btn_registrar")
@@ -266,52 +266,26 @@ class ConexionDB:
         comboInstrumentos.addItem("Prismas")
         comboInstrumentos.addItem("Piezómetros")
         comboInstrumentos.addItem("Celdas")
-        comboInstrumentos.addItem("Inclinómetros")
+        # comboInstrumentos.addItem("Inclinómetros")
         # Llenar estados
         comboEstados.addItem("Conectado", 1)
         comboEstados.addItem("Desconectado", 0)
-        # Llenar componentes
-        idproyecto = comboProyectos.currentData()
-        if idproyecto != 0:
-            componentes = ProyectoController.ctrlObtenerComponentesProyecto(idproyecto)
-            if len(componentes) > 0:
-                for fila in componentes:
-                    comboComponentes.addItem(str(fila[2]), fila[0])
-            else:
-                comboComponentes.addItem("Sin Componentes", 0)
-        else:
-            comboComponentes.addItem("Sin Componentes", 0)
-        def actualizarComponentes():
-            comboComponentes.clear()
-            idproyecto = comboProyectos.currentData()
-            if idproyecto != 0:
-                componentes = ProyectoController.ctrlObtenerComponentesProyecto(idproyecto)
-                if len(componentes) > 0:
-                    for fila in componentes:
-                        comboComponentes.addItem(str(fila[2]), fila[0])
-                else:
-                    comboComponentes.addItem("Sin Componentes", 0)
-            else:
-                comboComponentes.addItem("Sin Componentes", 0)
         def guardarInfoConexion():
             idproyecto = comboProyectos.currentData()
-            componente = comboComponentes.currentData()
             instrumento = comboInstrumentos.currentText()
             servidor = inputServer.text().strip()
             puerto = inputPuerto.text().strip()
             database = inputDatabase.text().strip()
             usuario = inputUsuario.text().strip()
             contraseña = inputPassword.text().strip()
-            consulta = inputConsulta.toPlainText().strip()
+            consultaGrupos = inputGrupos.toPlainText().strip()
+            consultaLecturas = inputLecturas.toPlainText().strip()
             ultimoid = inputDato.text().strip()
             frecuencia = inputFrecuencia.value()
             estado = comboEstados.currentData()
             # Validaciones
             if not idproyecto or idproyecto == 0:
                 lblrespuesta.setText("Seleccione un proyecto válido")
-                return
-            if not componente or componente == 0:
-                lblrespuesta.setText("Seleccione un componente válido")
                 return
             if not instrumento:
                 lblrespuesta.setText("Seleccione un instrumento")
@@ -331,8 +305,11 @@ class ConexionDB:
             if not contraseña:
                 lblrespuesta.setText("La contraseña no puede estar vacía")
                 return
-            if not consulta:
-                lblrespuesta.setText("La consulta no puede estar vacía")
+            if not consultaGrupos:
+                lblrespuesta.setText("La consulta de Grupos no puede estar vacía")
+                return
+            if not consultaLecturas:
+                lblrespuesta.setText("La consulta de Lecturas no puede estar vacía")
                 return
             if not ultimoid:
                 ultimoid = 0
@@ -344,7 +321,7 @@ class ConexionDB:
             if frecuencia == 0:
                 lblrespuesta.setText("La frecuencia debe ser mayor a 0")
                 return
-            datos = [idproyecto, componente, instrumento, servidor, puerto, database, usuario, contraseña, consulta, ultimoid, frecuencia, estado]
+            datos = [idproyecto, instrumento, servidor, puerto, database, usuario, contraseña, consultaGrupos, consultaLecturas, ultimoid, frecuencia, estado]
             respuesta = UsuarioController.ctrlGuardarNuevaConexion(datos)
             if respuesta:
                 dialogo.accept()
@@ -355,7 +332,6 @@ class ConexionDB:
                 lblrespuesta.setText("Error al registrar.")
                 lblrespuesta.setStyleSheet("color: red;")
         # conectar botones
-        comboProyectos.currentIndexChanged.connect(actualizarComponentes)
         botonGuardar.clicked.connect(guardarInfoConexion)
         dialogo.exec()
     
@@ -371,27 +347,27 @@ class ConexionDB:
                 return
         row = index.row()
         # Capturar los valores de la filas
-        instrumento = table.model().data(table.model().index(row, 2), Qt.DisplayRole)
-        servidor = table.model().data(table.model().index(row, 3), Qt.DisplayRole)
-        puerto = table.model().data(table.model().index(row, 4), Qt.DisplayRole)
-        database = table.model().data(table.model().index(row, 5), Qt.DisplayRole)
-        usuario = table.model().data(table.model().index(row, 6), Qt.DisplayRole)
-        consulta = table.model().data(table.model().index(row, 7), Qt.DisplayRole)
+        instrumento = table.model().data(table.model().index(row, 1), Qt.DisplayRole)
+        servidor = table.model().data(table.model().index(row, 2), Qt.DisplayRole)
+        puerto = table.model().data(table.model().index(row, 3), Qt.DisplayRole)
+        database = table.model().data(table.model().index(row, 4), Qt.DisplayRole)
+        usuario = table.model().data(table.model().index(row, 5), Qt.DisplayRole)
+        consultagrupos = table.model().data(table.model().index(row, 6), Qt.DisplayRole)
+        consultalecturas = table.model().data(table.model().index(row, 7), Qt.DisplayRole)
         ultimoid = table.model().data(table.model().index(row, 8), Qt.DisplayRole)
         frecuencia = table.model().data(table.model().index(row, 9), Qt.DisplayRole)
         estado = table.model().data(table.model().index(row, 10), Qt.DisplayRole)
         idconexion = table.model().data(table.model().index(row, 11), Qt.DisplayRole)
         idproyecto = table.model().data(table.model().index(row, 12), Qt.DisplayRole)
-        idcomponente = table.model().data(table.model().index(row, 13), Qt.DisplayRole)
-        ConexionDB.generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, consulta, ultimoid, frecuencia, estado, idconexion, idproyecto, idcomponente, on_success)
+        ConexionDB.generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success)
     
-    def generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, consulta, ultimoid, frecuencia, estado, idconexion, idproyecto, idcomponente, on_success=None):
+    def generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success=None):
         # Crear menú contextual
         menu = QMenu()
         edit_action = QAction("Editar Conexión", table)
         delete_action = QAction("Eliminar Conexión", table)
         # Conectar las acciones con los valores de la fila
-        edit_action.triggered.connect(lambda: ConexionDB.dialogoActualizarConexion(instrumento, servidor, puerto, database, usuario, consulta, ultimoid, frecuencia, estado, idconexion, idproyecto, idcomponente, on_success))
+        edit_action.triggered.connect(lambda: ConexionDB.dialogoActualizarConexion(instrumento, servidor, puerto, database, usuario, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success))
         delete_action.triggered.connect(lambda: ConexionDB.delete_row_conexion(idconexion, instrumento, servidor, on_success))
         # Añadir las acciones al menú
         menu.addAction(edit_action)
@@ -399,7 +375,7 @@ class ConexionDB:
         # Mostrar menú contextual en la posición del clic
         menu.exec(table.viewport().mapToGlobal(position))
     
-    def dialogoActualizarConexion(instrumento, servidor, puerto, database, usuario, consulta, ultimoid, frecuencia, estado, idconexion, idproyecto, idcomponente, on_success=None):
+    def dialogoActualizarConexion(instrumento, servidor, puerto, database, usuario, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success=None):
         loaderLoading = QUiLoader()
         ui_file_path = resource_path("ui/nuevaconexion.ui")
         ui_file = loaderLoading.load(ui_file_path, None)
@@ -410,16 +386,16 @@ class ConexionDB:
         dialogo.setLayout(layout_procesar_data)
         # Validando inputs
         comboProyectos = dialogo.findChild(QComboBox, "cb_proyectos")
-        comboComponentes = dialogo.findChild(QComboBox, "cb_componentes")
         comboInstrumentos = dialogo.findChild(QComboBox, "cb_instrumentos")
         inputServer = dialogo.findChild(QLineEdit, 'input_server')
         inputPuerto = dialogo.findChild(QLineEdit, 'input_puerto')
         inputDatabase = dialogo.findChild(QLineEdit, 'input_database')
         inputUsuario = dialogo.findChild(QLineEdit, 'input_usuario')
         inputPassword = dialogo.findChild(QLineEdit, 'input_password')
-        inputConsulta = dialogo.findChild(QTextEdit, 'input_consulta')
         inputDato = dialogo.findChild(QLineEdit, 'input_dato')
         inputFrecuencia = dialogo.findChild(QSpinBox, 'spin_frecuencia')
+        inputGrupos = dialogo.findChild(QTextEdit, 'input_consulta_grupos')
+        inputLecturas = dialogo.findChild(QTextEdit, 'input_consulta_lecturas')
         comboEstados = dialogo.findChild(QComboBox, "cb_estados")
         lblrespuesta = dialogo.findChild(QLabel, "label_mensaje")
         botonGuardar = dialogo.findChild(QPushButton, "btn_registrar")
@@ -434,55 +410,33 @@ class ConexionDB:
         comboInstrumentos.addItem("Prismas")
         comboInstrumentos.addItem("Piezómetros")
         comboInstrumentos.addItem("Celdas")
-        comboInstrumentos.addItem("Inclinómetros")
+        # comboInstrumentos.addItem("Inclinómetros")
         # Llenar estados
         comboEstados.addItem("Conectado", 1)
         comboEstados.addItem("Desconectado", 0)
-        # Llenar componentes
-        if idproyecto != 0:
-            componentes = ProyectoController.ctrlObtenerComponentesProyecto(idproyecto)
-            if len(componentes) > 0:
-                for fila in componentes:
-                    comboComponentes.addItem(str(fila[2]), fila[0])
-            else:
-                comboComponentes.addItem("Sin Componentes", 0)
-        else:
-            comboComponentes.addItem("Sin Componentes", 0)
         # Cargar la info en el formulario
         comboProyectos.setCurrentIndex(comboProyectos.findData(idproyecto))
         comboInstrumentos.setCurrentText(str(instrumento))
-        comboComponentes.setCurrentIndex(comboComponentes.findData(idcomponente))
         inputServer.setText(str(servidor))
         inputPuerto.setText(str(puerto))
         inputDatabase.setText(str(database))
         inputUsuario.setText(str(usuario))
         inputPassword.setText("")
-        inputConsulta.setPlainText(str(consulta))
+        inputGrupos.setPlainText(str(consultagrupos))
+        inputLecturas.setPlainText(str(consultalecturas))
         inputDato.setText(ultimoid)
         inputFrecuencia.setValue(int(frecuencia))
         comboEstados.setCurrentText(str(estado))
-        def actualizarComponentes():
-            comboComponentes.clear()
-            idproyecto = comboProyectos.currentData()
-            if idproyecto != 0:
-                componentes = ProyectoController.ctrlObtenerComponentesProyecto(idproyecto)
-                if len(componentes) > 0:
-                    for fila in componentes:
-                        comboComponentes.addItem(str(fila[2]), fila[0])
-                else:
-                    comboComponentes.addItem("Sin Componentes", 0)
-            else:
-                comboComponentes.addItem("Sin Componentes", 0)
         def actualizarInfoConexion():
             idproyecto = comboProyectos.currentData()
-            componente = comboComponentes.currentData()
             instrumento = comboInstrumentos.currentText()
             servidor = inputServer.text().strip()
             puerto = inputPuerto.text().strip()
             database = inputDatabase.text().strip()
             usuario = inputUsuario.text().strip()
             contraseña = inputPassword.text().strip()
-            consulta = inputConsulta.toPlainText().strip()
+            consultagrupos = inputGrupos.toPlainText().strip()
+            consultalecturas = inputLecturas.toPlainText().strip()
             ultimodato = inputDato.text().strip()
             frecuencia = inputFrecuencia.value()
             estado = comboEstados.currentData()
@@ -490,9 +444,6 @@ class ConexionDB:
             # Validaciones
             if not idproyecto or idproyecto == 0:
                 lblrespuesta.setText("Seleccione un proyecto válido")
-                return
-            if not componente or componente == 0:
-                lblrespuesta.setText("Seleccione un componente válido")
                 return
             if not instrumento:
                 lblrespuesta.setText("Seleccione un instrumento")
@@ -511,8 +462,11 @@ class ConexionDB:
                 return
             if contraseña:
                 password = contraseña
-            if not consulta:
-                lblrespuesta.setText("La consulta no puede estar vacía")
+            if not consultagrupos:
+                lblrespuesta.setText("La consulta de Grupos no puede estar vacía")
+                return
+            if not consultalecturas:
+                lblrespuesta.setText("La consulta de Lecturas no puede estar vacía")
                 return
             if not ultimodato:
                 ultimodato = 0
@@ -524,7 +478,7 @@ class ConexionDB:
             if frecuencia == 0:
                 lblrespuesta.setText("La frecuencia debe ser mayor a 0")
                 return
-            datos = [idproyecto, componente, instrumento, servidor, puerto, database, usuario, password, consulta, ultimodato, frecuencia, estado, idconexion]
+            datos = [idproyecto, instrumento, servidor, puerto, database, usuario, password, consultagrupos, consultalecturas, ultimodato, frecuencia, estado, idconexion]
             respuesta = UsuarioController.ctrlActualizarConexion(datos)
             if respuesta:
                 dialogo.accept()
@@ -534,7 +488,6 @@ class ConexionDB:
                 lblrespuesta.setText("Error al editar.")
                 lblrespuesta.setStyleSheet("color: red;")
         # conectar botones
-        comboProyectos.currentIndexChanged.connect(actualizarComponentes)
         botonGuardar.clicked.connect(actualizarInfoConexion)
         dialogo.exec()
     

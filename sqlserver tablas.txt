@@ -748,14 +748,14 @@ CREATE TABLE [dbo].[sondajestdr_puntos] (
 CREATE TABLE conexiones (
   id_conexion INT IDENTITY(1,1) PRIMARY KEY,
   id_proyecto INT NOT NULL,
-  id_componente INT NOT NULL,
   instrumento_conexion VARCHAR(255) NOT NULL,
   servidor_conexion VARCHAR(255) NOT NULL,
   puerto_conexion VARCHAR(50) NOT NULL,
   database_conexion VARCHAR(255) NOT NULL,
   usuario_conexion VARCHAR(100) NOT NULL,
   password_conexion VARCHAR(255) NOT NULL,
-  consulta_conexion NVARCHAR(MAX) NOT NULL,
+  grupos_conexion NVARCHAR(MAX) NOT NULL,
+  lecturas_conexion NVARCHAR(MAX) NOT NULL,
   frecuencia_conexion INT NOT NULL,
   dato_conexion INT NOT NULL DEFAULT 0,
   estado_conexion INT NOT NULL DEFAULT 1

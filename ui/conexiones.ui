@@ -69,11 +69,6 @@
      </column>
      <column>
       <property name="text">
-       <string>Componente</string>
-      </property>
-     </column>
-     <column>
-      <property name="text">
        <string>Instrumento</string>
       </property>
      </column>
@@ -99,7 +94,12 @@
      </column>
      <column>
       <property name="text">
-       <string>Consulta</string>
+       <string>Consulta Grupos</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Consulta Lecturas</string>
       </property>
      </column>
      <column>
