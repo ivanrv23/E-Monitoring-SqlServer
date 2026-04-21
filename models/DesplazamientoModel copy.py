@@ -5706,7 +5706,245 @@ class DesplazamientoModel:
         finally:
             if conn:
                 conn.close()
-
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoHorasFechasAHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente] + [fechaini] + [fechafin]
+        
+        sql = f"""WITH promedios_horas AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha,
+                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
+                MAX(p.hora_prisma) AS hora_prisma,
+                AVG(
+                    CASE 
+                        WHEN p.angulo_horizontal LIKE '%°%' AND p.angulo_horizontal LIKE '%''%' AND p.angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_horizontal, 1, CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('°', p.angulo_horizontal) + 1, CHARINDEX('''', p.angulo_horizontal) - CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('''', p.angulo_horizontal) + 1, CHARINDEX('"', p.angulo_horizontal) - CHARINDEX('''', p.angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE
+                            CAST(p.angulo_horizontal AS FLOAT)
+                    END
+                ) AS promedio_horizontal,
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            AND p.hora_prisma BETWEEN ? AND ? 
+            GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            (pd.promedio_horizontal - FIRST_VALUE(pd.promedio_horizontal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma)) AS angulo,
+            pd.tipo_equipo
+        FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom horas DA Horizontal fechas: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoAHI(tabla, unidad, prismas, idcomponente):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente]
+        
+        # Este es el SQL más complejo debido a la conversión DMS en el LAG.
+        # En T-SQL, las comillas simples dentro de un string literal (el parámetro de CHARINDEX) se escapan duplicándolas ('''').
+        
+        sql = f"""SELECT 
+            i.id_instrumentacion, 
+            p.nombre_prisma, 
+            p.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CAST(CASE 
+                WHEN LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (
+                    (CASE 
+                        WHEN p.angulo_horizontal LIKE '%°%' AND p.angulo_horizontal LIKE '%''%' AND p.angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_horizontal, 1, CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('°', p.angulo_horizontal) + 1, CHARINDEX('''', p.angulo_horizontal) - CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('''', p.angulo_horizontal) + 1, CHARINDEX('"', p.angulo_horizontal) - CHARINDEX('''', p.angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(p.angulo_horizontal AS FLOAT)
+                    END)
+                    -
+                    (CASE 
+                        WHEN LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) LIKE '%°%' 
+                            AND LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) LIKE '%''%' 
+                            AND LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) LIKE '%"%' THEN
+                            CAST(SUBSTRING(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 1, CHARINDEX('°', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), CHARINDEX('°', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) + 1, CHARINDEX('''', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - CHARINDEX('°', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), CHARINDEX('''', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) + 1, CHARINDEX('"', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - CHARINDEX('''', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - 1) AS FLOAT) / 3600.0
+                        ELSE 
+                            CAST(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS FLOAT)
+                    END)
+                )
+            END AS FLOAT) AS angulo, 
+            i.tipo_equipo
+        FROM {tabla} p 
+        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+        AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar DI Horizontal: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoFechasAHI(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente] + [fechaini] + [fechafin]
+        
+        sql = f"""SELECT 
+            i.id_instrumentacion, 
+            p.nombre_prisma, 
+            p.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CAST(CASE 
+                WHEN LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (
+                    (CASE 
+                        WHEN p.angulo_horizontal LIKE '%°%' AND p.angulo_horizontal LIKE '%''%' AND p.angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_horizontal, 1, CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('°', p.angulo_horizontal) + 1, CHARINDEX('''', p.angulo_horizontal) - CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('''', p.angulo_horizontal) + 1, CHARINDEX('"', p.angulo_horizontal) - CHARINDEX('''', p.angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(p.angulo_horizontal AS FLOAT)
+                    END)
+                    -
+                    (CASE 
+                        WHEN LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) LIKE '%°%' 
+                            AND LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) LIKE '%''%' 
+                            AND LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) LIKE '%"%' THEN
+                            CAST(SUBSTRING(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 1, CHARINDEX('°', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), CHARINDEX('°', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) + 1, CHARINDEX('''', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - CHARINDEX('°', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), CHARINDEX('''', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) + 1, CHARINDEX('"', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - CHARINDEX('''', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - 1) AS FLOAT) / 3600.0
+                        ELSE 
+                            CAST(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS FLOAT)
+                    END)
+                )
+            END AS FLOAT) AS angulo, 
+            i.tipo_equipo
+        FROM {tabla} p 
+        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+        AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+        AND p.hora_prisma BETWEEN ? AND ? 
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar DI Horizontal fechas: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoDiasAHI(tabla, unidad, prismas, idcomponente, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente]
+        
+        sql = f"""WITH fechas_inicio AS (
+            SELECT p.nombre_prisma, MIN(CAST(p.hora_prisma AS DATE)) AS fecha_inicio
+            FROM {tabla} p WHERE p.state_prisma = 1 AND p.estado_prisma = 1
+            GROUP BY p.nombre_prisma
+        ),
+        bloques AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha, 
+                MAX(p.hora_prisma) AS hora_prisma,
+                AVG(
+                    CASE
+                        WHEN p.angulo_horizontal LIKE '%°%' AND p.angulo_horizontal LIKE '%''%' AND p.angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_horizontal, 1, CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('°', p.angulo_horizontal) + 1, CHARINDEX('''', p.angulo_horizontal) - CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('''', p.angulo_horizontal) + 1, CHARINDEX('"', p.angulo_horizontal) - CHARINDEX('''', p.angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(p.angulo_horizontal AS FLOAT)
+                    END
+                ) AS promedio_horizontal,
+                FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}) AS bloque_dias,
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
+                     FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CAST(CASE 
+                WHEN LAG(b.promedio_horizontal) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma) IS NULL THEN 0
+                ELSE (b.promedio_horizontal - LAG(b.promedio_horizontal) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma))
+            END AS FLOAT) AS angulo, 
+            b.tipo_equipo
+        FROM bloques b ORDER BY b.nombre_prisma, b.bloque_dias;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom dias DI Horizontal: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasAHI(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -5766,6 +6004,301 @@ class DesplazamientoModel:
                 return None
         except Error as e:
             print("Error al consultar prom dias DI Horizontal fechas: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoHorasAHI(tabla, unidad, prismas, idcomponente, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente]
+        
+        sql = f"""WITH promedios_horas AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha,
+                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
+                MAX(p.hora_prisma) AS hora_prisma,
+                AVG(
+                    CASE
+                        WHEN p.angulo_horizontal LIKE '%°%' AND p.angulo_horizontal LIKE '%''%' AND p.angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_horizontal, 1, CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('°', p.angulo_horizontal) + 1, CHARINDEX('''', p.angulo_horizontal) - CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('''', p.angulo_horizontal) + 1, CHARINDEX('"', p.angulo_horizontal) - CHARINDEX('''', p.angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(p.angulo_horizontal AS FLOAT)
+                    END
+                ) AS promedio_horizontal,
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CAST(CASE 
+                WHEN LAG(pd.promedio_horizontal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma) IS NULL THEN 0
+                ELSE (pd.promedio_horizontal - LAG(pd.promedio_horizontal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma))
+            END AS FLOAT) AS angulo, 
+            pd.tipo_equipo
+        FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom horas DI Horizontal: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+                
+    @staticmethod
+    def mdlCalcularDesplazamientoHorasFechasAHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente] + [fechaini] + [fechafin]
+        
+        sql = f"""WITH promedios_horas AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha,
+                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
+                MAX(p.hora_prisma) AS hora_prisma,
+                AVG(
+                    CASE 
+                        WHEN p.angulo_horizontal LIKE '%°%' AND p.angulo_horizontal LIKE '%''%' AND p.angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_horizontal, 1, CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('°', p.angulo_horizontal) + 1, CHARINDEX('''', p.angulo_horizontal) - CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('''', p.angulo_horizontal) + 1, CHARINDEX('"', p.angulo_horizontal) - CHARINDEX('''', p.angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE
+                            CAST(p.angulo_horizontal AS FLOAT)
+                    END
+                ) AS promedio_horizontal,
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            AND p.hora_prisma BETWEEN ? AND ? 
+            GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            (pd.promedio_horizontal - FIRST_VALUE(pd.promedio_horizontal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma)) AS angulo,
+            pd.tipo_equipo
+        FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom horas DA Horizontal fechas: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoAHI(tabla, unidad, prismas, idcomponente):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente]
+        
+        # Traducción compleja: Parseo de DMS a Float tanto para el valor actual como para el valor LAG (anterior).
+        
+        sql = f"""SELECT 
+            i.id_instrumentacion, 
+            p.nombre_prisma, 
+            p.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CAST(CASE 
+                WHEN LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (
+                    -- Parseo Valor Actual
+                    (CASE 
+                        WHEN p.angulo_horizontal LIKE '%°%' AND p.angulo_horizontal LIKE '%''%' AND p.angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_horizontal, 1, CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('°', p.angulo_horizontal) + 1, CHARINDEX('''', p.angulo_horizontal) - CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('''', p.angulo_horizontal) + 1, CHARINDEX('"', p.angulo_horizontal) - CHARINDEX('''', p.angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(p.angulo_horizontal AS FLOAT)
+                    END)
+                    -
+                    -- Parseo Valor Anterior (LAG)
+                    (CASE 
+                        WHEN LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) LIKE '%°%' 
+                            AND LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) LIKE '%''%' 
+                            AND LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) LIKE '%"%' THEN
+                            CAST(SUBSTRING(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 1, CHARINDEX('°', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), CHARINDEX('°', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) + 1, CHARINDEX('''', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - CHARINDEX('°', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), CHARINDEX('''', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) + 1, CHARINDEX('"', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - CHARINDEX('''', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - 1) AS FLOAT) / 3600.0
+                        ELSE 
+                            CAST(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS FLOAT)
+                    END)
+                )
+            END AS FLOAT) AS angulo, 
+            i.tipo_equipo
+        FROM {tabla} p 
+        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+        AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar DI Horizontal: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoFechasAHI(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente] + [fechaini] + [fechafin]
+        
+        sql = f"""SELECT 
+            i.id_instrumentacion, 
+            p.nombre_prisma, 
+            p.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CAST(CASE 
+                WHEN LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (
+                    (CASE 
+                        WHEN p.angulo_horizontal LIKE '%°%' AND p.angulo_horizontal LIKE '%''%' AND p.angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_horizontal, 1, CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('°', p.angulo_horizontal) + 1, CHARINDEX('''', p.angulo_horizontal) - CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('''', p.angulo_horizontal) + 1, CHARINDEX('"', p.angulo_horizontal) - CHARINDEX('''', p.angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(p.angulo_horizontal AS FLOAT)
+                    END)
+                    -
+                    (CASE 
+                        WHEN LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) LIKE '%°%' 
+                            AND LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) LIKE '%''%' 
+                            AND LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) LIKE '%"%' THEN
+                            CAST(SUBSTRING(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 1, CHARINDEX('°', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), CHARINDEX('°', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) + 1, CHARINDEX('''', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - CHARINDEX('°', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), CHARINDEX('''', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) + 1, CHARINDEX('"', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - CHARINDEX('''', LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) - 1) AS FLOAT) / 3600.0
+                        ELSE 
+                            CAST(LAG(p.angulo_horizontal) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS FLOAT)
+                    END)
+                )
+            END AS FLOAT) AS angulo, 
+            i.tipo_equipo
+        FROM {tabla} p 
+        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+        AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+        AND p.hora_prisma BETWEEN ? AND ? 
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar DI Horizontal fechas: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoDiasAHI(tabla, unidad, prismas, idcomponente, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente]
+        
+        sql = f"""WITH fechas_inicio AS (
+            SELECT p.nombre_prisma, MIN(CAST(p.hora_prisma AS DATE)) AS fecha_inicio
+            FROM {tabla} p WHERE p.state_prisma = 1 AND p.estado_prisma = 1
+            GROUP BY p.nombre_prisma
+        ),
+        bloques AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha, 
+                MAX(p.hora_prisma) AS hora_prisma,
+                AVG(
+                    CASE
+                        WHEN p.angulo_horizontal LIKE '%°%' AND p.angulo_horizontal LIKE '%''%' AND p.angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_horizontal, 1, CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('°', p.angulo_horizontal) + 1, CHARINDEX('''', p.angulo_horizontal) - CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('''', p.angulo_horizontal) + 1, CHARINDEX('"', p.angulo_horizontal) - CHARINDEX('''', p.angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(p.angulo_horizontal AS FLOAT)
+                    END
+                ) AS promedio_horizontal,
+                FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}) AS bloque_dias, 
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
+                     FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}), 
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CAST(CASE 
+                WHEN LAG(b.promedio_horizontal) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma) IS NULL THEN 0
+                ELSE (b.promedio_horizontal - LAG(b.promedio_horizontal) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma))
+            END AS FLOAT) AS angulo, 
+            b.tipo_equipo
+        FROM bloques b ORDER BY b.nombre_prisma, b.bloque_dias;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom dias DI Horizontal: " + str(e))
             return None
         finally:
             if conn:
@@ -5834,7 +6367,384 @@ class DesplazamientoModel:
         finally:
             if conn:
                 conn.close()
-      
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoHorasAHI(tabla, unidad, prismas, idcomponente, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente]
+        
+        sql = f"""WITH promedios_horas AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha,
+                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
+                MAX(p.hora_prisma) AS hora_prisma,
+                AVG(
+                    CASE
+                        WHEN p.angulo_horizontal LIKE '%°%' AND p.angulo_horizontal LIKE '%''%' AND p.angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_horizontal, 1, CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('°', p.angulo_horizontal) + 1, CHARINDEX('''', p.angulo_horizontal) - CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('''', p.angulo_horizontal) + 1, CHARINDEX('"', p.angulo_horizontal) - CHARINDEX('''', p.angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(p.angulo_horizontal AS FLOAT)
+                    END
+                ) AS promedio_horizontal,
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CAST(CASE 
+                WHEN LAG(pd.promedio_horizontal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma) IS NULL THEN 0
+                ELSE (pd.promedio_horizontal - LAG(pd.promedio_horizontal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma))
+            END AS FLOAT) AS angulo, 
+            pd.tipo_equipo
+        FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom horas DI Horizontal: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoHorasFechasAHI(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente] + [fechaini] + [fechafin]
+        
+        sql = f"""WITH promedios_horas AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha,
+                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
+                MAX(p.hora_prisma) AS hora_prisma,
+                AVG(
+                    CASE
+                        WHEN p.angulo_horizontal LIKE '%°%' AND p.angulo_horizontal LIKE '%''%' AND p.angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_horizontal, 1, CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('°', p.angulo_horizontal) + 1, CHARINDEX('''', p.angulo_horizontal) - CHARINDEX('°', p.angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_horizontal, CHARINDEX('''', p.angulo_horizontal) + 1, CHARINDEX('"', p.angulo_horizontal) - CHARINDEX('''', p.angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(p.angulo_horizontal AS FLOAT)
+                    END
+                ) AS promedio_horizontal,
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            AND p.hora_prisma BETWEEN ? AND ? 
+            GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CAST(CASE 
+                WHEN LAG(pd.promedio_horizontal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma) IS NULL THEN 0
+                ELSE (pd.promedio_horizontal - LAG(pd.promedio_horizontal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma))
+            END AS FLOAT) AS angulo, 
+            pd.tipo_equipo
+        FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom horas DI Horizontal fechas: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoDAV(tabla, unidad, prismas, idcomponente):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente]
+        
+        sql = f"""SELECT 
+            i.id_instrumentacion, 
+            p.nombre_prisma, 
+            p.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CASE 
+                WHEN p.angulo_vertical LIKE '%°%' AND p.angulo_vertical LIKE '%''%' AND p.angulo_vertical LIKE '%"%' THEN
+                    CAST(SUBSTRING(p.angulo_vertical, 1, CHARINDEX('°', p.angulo_vertical) - 1) AS FLOAT) +
+                    CAST(SUBSTRING(p.angulo_vertical, CHARINDEX('°', p.angulo_vertical) + 1, CHARINDEX('''', p.angulo_vertical) - CHARINDEX('°', p.angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                    CAST(SUBSTRING(p.angulo_vertical, CHARINDEX('''', p.angulo_vertical) + 1, CHARINDEX('"', p.angulo_vertical) - CHARINDEX('''', p.angulo_vertical) - 1) AS FLOAT) / 3600.0
+                ELSE
+                    CAST(p.angulo_vertical AS FLOAT)
+            END AS angulo_vertical, 
+            i.tipo_equipo
+        FROM {tabla} p 
+        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+        AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar Angulo Vertical: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoFechasDAV(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente] + [fechaini] + [fechafin]
+        
+        sql = f"""SELECT 
+            i.id_instrumentacion, 
+            p.nombre_prisma, 
+            p.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CASE 
+                WHEN p.angulo_vertical LIKE '%°%' AND p.angulo_vertical LIKE '%''%' AND p.angulo_vertical LIKE '%"%' THEN
+                    CAST(SUBSTRING(p.angulo_vertical, 1, CHARINDEX('°', p.angulo_vertical) - 1) AS FLOAT) +
+                    CAST(SUBSTRING(p.angulo_vertical, CHARINDEX('°', p.angulo_vertical) + 1, CHARINDEX('''', p.angulo_vertical) - CHARINDEX('°', p.angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                    CAST(SUBSTRING(p.angulo_vertical, CHARINDEX('''', p.angulo_vertical) + 1, CHARINDEX('"', p.angulo_vertical) - CHARINDEX('''', p.angulo_vertical) - 1) AS FLOAT) / 3600.0
+                ELSE
+                    CAST(p.angulo_vertical AS FLOAT)
+            END AS angulo_vertical, 
+            i.tipo_equipo
+        FROM {tabla} p 
+        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+        AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+        AND p.hora_prisma BETWEEN ? AND ? 
+        ORDER BY p.nombre_prisma, p.hora_prisma;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar Angulo Vertical fechas: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoDiasDAV(tabla, unidad, prismas, idcomponente, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente]
+        
+        sql = f"""WITH fechas_inicio AS (
+            SELECT p.nombre_prisma, MIN(CAST(p.hora_prisma AS DATE)) AS fecha_inicio
+            FROM {tabla} p WHERE p.state_prisma = 1 AND p.estado_prisma = 1
+            GROUP BY p.nombre_prisma
+        ),
+        bloques AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha, 
+                MAX(p.hora_prisma) AS hora_prisma,
+                AVG(
+                    CASE 
+                        WHEN p.angulo_vertical LIKE '%°%' AND p.angulo_vertical LIKE '%''%' AND p.angulo_vertical LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_vertical, 1, CHARINDEX('°', p.angulo_vertical) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_vertical, CHARINDEX('°', p.angulo_vertical) + 1, CHARINDEX('''', p.angulo_vertical) - CHARINDEX('°', p.angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_vertical, CHARINDEX('''', p.angulo_vertical) + 1, CHARINDEX('"', p.angulo_vertical) - CHARINDEX('''', p.angulo_vertical) - 1) AS FLOAT) / 3600.0
+                        ELSE
+                            CAST(p.angulo_vertical AS FLOAT)
+                    END
+                ) AS promedio_vertical,
+                FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}) AS bloque_dias,
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
+                     FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            b.promedio_vertical AS angulo, 
+            b.tipo_equipo
+        FROM bloques b ORDER BY b.nombre_prisma, b.bloque_dias;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom dias Angulo Vertical: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoDiasFechasDAV(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente] + [fechaini] + [fechafin]
+        
+        sql = f"""WITH fechas_inicio AS (
+            SELECT p.nombre_prisma, MIN(CAST(p.hora_prisma AS DATE)) AS fecha_inicio
+            FROM {tabla} p WHERE p.state_prisma = 1 AND p.estado_prisma = 1
+            GROUP BY p.nombre_prisma
+        ),
+        bloques AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha, 
+                MAX(p.hora_prisma) AS hora_prisma,
+                AVG(
+                    CASE 
+                        WHEN p.angulo_vertical LIKE '%°%' AND p.angulo_vertical LIKE '%''%' AND p.angulo_vertical LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_vertical, 1, CHARINDEX('°', p.angulo_vertical) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_vertical, CHARINDEX('°', p.angulo_vertical) + 1, CHARINDEX('''', p.angulo_vertical) - CHARINDEX('°', p.angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_vertical, CHARINDEX('''', p.angulo_vertical) + 1, CHARINDEX('"', p.angulo_vertical) - CHARINDEX('''', p.angulo_vertical) - 1) AS FLOAT) / 3600.0
+                        ELSE
+                            CAST(p.angulo_vertical AS FLOAT)
+                    END
+                ) AS promedio_vertical,
+                FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}) AS bloque_dias,
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            AND p.hora_prisma BETWEEN ? AND ? 
+            GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
+                     FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            b.promedio_vertical AS angulo, 
+            b.tipo_equipo
+        FROM bloques b ORDER BY b.nombre_prisma, b.bloque_dias;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom dias Angulo Vertical fechas: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlCalcularDesplazamientoHorasDAV(tabla, unidad, prismas, idcomponente, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente]
+        
+        sql = f"""WITH promedios_horas AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha,
+                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
+                MAX(p.hora_prisma) AS hora_prisma,
+                AVG(
+                    CASE 
+                        WHEN p.angulo_vertical LIKE '%°%' AND p.angulo_vertical LIKE '%''%' AND p.angulo_vertical LIKE '%"%' THEN
+                            CAST(SUBSTRING(p.angulo_vertical, 1, CHARINDEX('°', p.angulo_vertical) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(p.angulo_vertical, CHARINDEX('°', p.angulo_vertical) + 1, CHARINDEX('''', p.angulo_vertical) - CHARINDEX('°', p.angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(p.angulo_vertical, CHARINDEX('''', p.angulo_vertical) + 1, CHARINDEX('"', p.angulo_vertical) - CHARINDEX('''', p.angulo_vertical) - 1) AS FLOAT) / 3600.0
+                        ELSE
+                            CAST(p.angulo_vertical AS FLOAT)
+                    END
+                ) AS promedio_vertical,
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            pd.promedio_vertical AS angulo, 
+            pd.tipo_equipo
+        FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom horas Angulo Vertical: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+                
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasAHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
