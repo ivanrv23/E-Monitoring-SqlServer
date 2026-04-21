@@ -2854,6 +2854,103 @@ class DesplazamientoModel:
                 conn.close()
     
     @staticmethod
+    def mdlCalcularDesplazamientoHorasDTI(tabla, unidad, prismas, idcomponente, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente] + [unidad]
+        
+        sql = f"""WITH promedios_horas AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha,
+                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
+                MAX(p.hora_prisma) AS hora_prisma,
+                AVG(CAST(p.desplaza_transversal AS FLOAT)) AS promedio_transversal,
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CAST(CASE 
+                WHEN LAG(pd.promedio_transversal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma) IS NULL THEN 0
+                ELSE (pd.promedio_transversal - LAG(pd.promedio_transversal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma)) * ?
+            END AS FLOAT) AS promedio_transversal,
+            pd.tipo_equipo
+        FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom horas DI T: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlCalcularDesplazamientoHorasFechasDTI(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente] + [fechaini] + [fechafin] + [unidad]
+        
+        sql = f"""WITH promedios_horas AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha,
+                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
+                MAX(p.hora_prisma) AS hora_prisma,
+                AVG(CAST(p.desplaza_transversal AS FLOAT)) AS promedio_transversal,
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            AND p.hora_prisma BETWEEN ? AND ? 
+            GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CAST(CASE 
+                WHEN LAG(pd.promedio_transversal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma) IS NULL THEN 0
+                ELSE (pd.promedio_transversal - LAG(pd.promedio_transversal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma)) * ?
+            END AS FLOAT) AS promedio_transversal,
+            pd.tipo_equipo
+        FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom horas DI T fechas: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+                
+    @staticmethod
     def mdlCalcularDesplazamientoDHA(tabla, unidad, prismas, idcomponente):
         conn = None
         placeholders = ', '.join(['?' for _ in prismas])
@@ -4179,7 +4276,104 @@ class DesplazamientoModel:
         finally:
             if conn:
                 conn.close()
-    
+
+    @staticmethod
+    def mdlCalcularDesplazamientoHorasDEI(tabla, unidad, prismas, idcomponente, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente] + [unidad]
+        
+        sql = f"""WITH promedios_horas AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha,
+                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
+                MAX(p.hora_prisma) AS hora_prisma, 
+                AVG(CAST(p.este_target AS FLOAT)) AS promedio_este,
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CAST(CASE 
+                WHEN LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma) IS NULL THEN 0
+                ELSE (pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma)) * ?
+            END AS FLOAT) AS distancia,
+            pd.tipo_equipo
+        FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom horas DI E: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlCalcularDesplazamientoHorasFechasDEI(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        conn = None
+        placeholders = ', '.join(['?' for _ in prismas])
+        params = prismas + [idcomponente] + [fechaini] + [fechafin] + [unidad]
+        
+        sql = f"""WITH promedios_horas AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                CAST(p.hora_prisma AS DATE) AS fecha,
+                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
+                MAX(p.hora_prisma) AS hora_prisma, 
+                AVG(CAST(p.este_target AS FLOAT)) AS promedio_este,
+                i.tipo_equipo
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+            AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
+            AND p.hora_prisma BETWEEN ? AND ? 
+            GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
+                     i.id_instrumentacion, i.tipo_equipo
+        )
+        SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            CAST(CASE 
+                WHEN LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma) IS NULL THEN 0
+                ELSE (pd.promedio_este - LAG(pd.promedio_este) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma)) * ?
+            END AS FLOAT) AS distancia,
+            pd.tipo_equipo
+        FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;"""
+        
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error al consultar prom horas DI E fechas: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+                
     @staticmethod
     def mdlCalcularDesplazamientoFechasDNI(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
