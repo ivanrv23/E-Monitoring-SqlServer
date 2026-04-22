@@ -1282,6 +1282,7 @@ class DesplazamientoModel:
             if conn:
                 conn.close()
     
+    
     @staticmethod
     def mdlCalcularDesplazamiento2DA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         if not prismas:

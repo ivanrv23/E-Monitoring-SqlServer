@@ -503,7 +503,7 @@ class SubirTDR:
                                 impedancia = float(impedancia)
                             except (ValueError, TypeError):
                                 continue
-                            observa = observacion if not pd.isna(observacion) else ""
+                            observa = "" if pd.isna(observacion) else str(observacion).strip()
                             data.append((idsondaje, fecha, hora, profundidad, impedancia, observa))
                         if data:
                             respon = TDRController.ctrlGuardarDataSondajesTDR(proyectoid, data)

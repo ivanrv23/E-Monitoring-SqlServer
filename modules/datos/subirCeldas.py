@@ -431,8 +431,7 @@ class SubirCeldas:
                         frecuen = float(row['frecuen']) if not pd.isna(row['frecuen']) else 0
                         frecu = float(row['frecuencia']) if not pd.isna(row['frecuencia']) else 0
                         tempe = float(row['temperatura']) if not pd.isna(row['temperatura']) else 0
-                        tempe = float(row['temperatura']) if not pd.isna(row['temperatura']) else 0
-                        observa = observacion if not pd.isna(observacion) else ""
+                        observa = "" if pd.isna(observacion) else str(observacion).strip()
                         data.append((idcelda, fecha, hora, frecuen, frecu, tempe, desplaza, observa))
                     if data:
                         respon = CeldaController.ctrlRegistrarDataCelda(proyectoid, data)
@@ -639,7 +638,7 @@ class SubirCeldas:
                                 frecu = float(frecuencia_valor) if not pd.isna(frecuencia_valor) else 0
                                 tempe = float(temperatura_valor) if not pd.isna(temperatura_valor) else 0
                                 # Procesar observación
-                                observa = observacion_valor if not pd.isna(observacion_valor) else ""
+                                observa = "" if pd.isna(observacion_valor) else str(observacion_valor).strip()
                                 sheet_data.append((idcelda, fecha_procesada, hora, digits, frecu, tempe, desplaza_procesada, observa))
                                 fila += 1
                             # Agregar datos de esta hoja al conjunto total

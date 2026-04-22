@@ -1,6 +1,4 @@
-import pandas as pd
 from services.security.apis.conexiones.connection import Connection
-# Eliminamos sqlite3, manejamos excepciones genéricas
 
 class DashboardModel:
     

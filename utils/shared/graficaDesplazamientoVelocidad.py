@@ -4,10 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.patches as mpatches
 import matplotlib.dates as mdates
-import math
-from datetime import datetime, timedelta
+from datetime import datetime
 from PySide6.QtGui import Qt
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QDialog, QApplication,QCheckBox
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QDialog, QWidget, QCheckBox, QSizePolicy
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from utils.common.customToolbar import CustomToolbar 
 from matplotlib.dates import DateFormatter
@@ -19,7 +18,8 @@ from controllers.PrismaController import PrismaController
 from controllers.PiezometroController import PiezometroController
 from controllers.CeldaController import CeldaController
 from controllers.EventosController import EventosController
-from views.EventosDialog import EventosDialog 
+from views.EventosDialog import EventosDialog
+
 class ModalDialog(QDialog):
     def __init__(self, parent, label, date, reading):  # Añadir parent
         super().__init__(parent, Qt.Window)  # Usar Qt.Window
@@ -54,7 +54,6 @@ class ModalDialog(QDialog):
         self.cancel_button.clicked.connect(self.reject)
 
 def limpiar_widget(widget):
-    # Configurar el layout y limpiar el anterior
     if widget.layout() is None:
         layout = QVBoxLayout(widget)
         widget.setLayout(layout)
@@ -66,22 +65,38 @@ def limpiar_widget(widget):
             if widget_to_remove is not None:
                 widget_to_remove.deleteLater()
             else:
-                layout.removeItem(item)
-
-    # Eliminar toolbar anterior si existe en el layout
+                sub_layout = item.layout()
+                if sub_layout is not None:
+                    while sub_layout.count():
+                        sub_item = sub_layout.takeAt(0)
+                        sub_widget = sub_item.widget()
+                        if sub_widget is not None:
+                            sub_widget.deleteLater()
+    # usar try/except para evitar el error si Qt ya lo eliminó
     if hasattr(widget, "toolbar") and widget.toolbar is not None:
-        widget.toolbar.deleteLater()
+        try:
+            widget.toolbar.deleteLater()
+        except RuntimeError:
+            pass
         widget.toolbar = None
-
-    # Eliminar botones anteriores si existen
+    if hasattr(widget, "toolbar_container") and widget.toolbar_container is not None:
+        try:
+            widget.toolbar_container.deleteLater()
+        except RuntimeError:
+            pass
+        widget.toolbar_container = None
     if hasattr(widget, "boton_siguiente") and widget.boton_siguiente is not None:
-        widget.boton_siguiente.deleteLater()
+        try:
+            widget.boton_siguiente.deleteLater()
+        except RuntimeError:
+            pass
         widget.boton_siguiente = None
     if hasattr(widget, "boton_anterior") and widget.boton_anterior is not None:
-        widget.boton_anterior.deleteLater()
+        try:
+            widget.boton_anterior.deleteLater()
+        except RuntimeError:
+            pass
         widget.boton_anterior = None
-    
-    # limpiar memoria
     gc.collect()
 
 def dibujar_eventos(ax, id_proyecto, tipo_inst, instrumentos_dict, fecha_inicio, fecha_fin):
@@ -217,42 +232,29 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     lineatenden, grosortenden, colortenden, fuente = config[7], config[8], config[9], config[10]
     grosorlinea, grosorvertice, decimales, mostrarlluvia, posicionlluvia = config[12], config[13], config[14], config[17], config[18]
 
-    # figure, ax = plt.subplots()
-    # canvas = FigureCanvas(figure)
-    # plt.rcParams['font.family'] = fuente
-    # layout = widget.layout()
-    # layout.addWidget(canvas)
-    # toolbar_layout = QHBoxLayout()
-    # widget.toolbar = CustomToolbar(canvas, widget)
-    # toolbar_layout.addWidget(widget.toolbar)
-    # layout.addLayout(toolbar_layout)
-    
     figure, ax = plt.subplots()
     canvas = FigureCanvas(figure)
     plt.rcParams['font.family'] = fuente
     layout = widget.layout()
-    layout.addWidget(canvas)
 
     # --- INICIO MODIFICACIÓN PASO 2 ---
-    toolbar_layout = QHBoxLayout()
+    toolbar_container = QWidget()
+    widget.toolbar_container = toolbar_container
+    toolbar_layout = QHBoxLayout(toolbar_container)
+    toolbar_layout.setContentsMargins(0, 0, 0, 0)
     widget.toolbar = CustomToolbar(canvas, widget)
     toolbar_layout.addWidget(widget.toolbar)
-    
     check_inspector = QCheckBox("Inspector de Datos")
     check_inspector.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
     toolbar_layout.addWidget(check_inspector)
-
-    # --- NUEVO: CONTROLES DE EVENTOS ---
     check_ev_global = QCheckBox("Ev. Globales")
     check_ev_global.setChecked(True)
     check_ev_global.setStyleSheet("font-size: 11px; margin-left: 5px; color: #007bff; font-weight: bold;")
     toolbar_layout.addWidget(check_ev_global)
-
     check_ev_equipo = QCheckBox("Ev. Equipo")
     check_ev_equipo.setChecked(True)
     check_ev_equipo.setStyleSheet("font-size: 11px; margin-left: 3px; color: #28a745; font-weight: bold;")
     toolbar_layout.addWidget(check_ev_equipo)
-    
     btn_add_evento = QPushButton("+ Evento")
     btn_add_evento.setCheckable(True) # Modo Toggle
     btn_add_evento.setStyleSheet("""
@@ -260,9 +262,12 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
         QPushButton:checked { background-color: #ffcccc; border: 1px solid red; color: red; font-weight: bold; }
     """)
     toolbar_layout.addWidget(btn_add_evento)
-    # -----------------------------------
+    canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    # El contenedor del toolbar solo ocupa lo que necesita
+    toolbar_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    layout.addWidget(canvas)
+    layout.addWidget(toolbar_container)
 
-    layout.addLayout(toolbar_layout)
     barras_pluviometro = None
     if tiempo == "FECHA":
         if modulo != "ANALISIS":
@@ -390,11 +395,11 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         if potenci:
                             lineas.append(potenci)
                             lblecuacion_rcuadrado = lblecuacion_rcuadrado + nombreequipo + ':  ' + ecualbl + '\n'
-
-    if tiempo != "FECHA":
-        labeltendencia.setText(lblecuacion_rcuadrado)
-    else:
-        labeltendencia.setText("")
+    if labeltendencia:
+        if tiempo != "FECHA":
+            labeltendencia.setText(lblecuacion_rcuadrado)
+        else:
+            labeltendencia.setText("")
 
     ax.set_title(titulo, fontsize=titulozise)
     ax.set_xlabel(labelejex, fontsize=ejezise)
@@ -1002,37 +1007,37 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
     canvas = FigureCanvas(figure)
     plt.rcParams['font.family'] = fuente
     layout = widget.layout()
-    layout.addWidget(canvas)
-    toolbar_layout = QHBoxLayout()
+
+    # --- INICIO MODIFICACIÓN PASO 2 ---
+    toolbar_container = QWidget()
+    widget.toolbar_container = toolbar_container
+    toolbar_layout = QHBoxLayout(toolbar_container)
+    toolbar_layout.setContentsMargins(0, 0, 0, 0)
     widget.toolbar = CustomToolbar(canvas, widget)
     toolbar_layout.addWidget(widget.toolbar)
-
-    # 1. Checkbox Inspector
     check_inspector = QCheckBox("Inspector de Datos")
-    check_inspector.setStyleSheet("font-size: 11px; margin-left: 10px; color: #333;")
+    check_inspector.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
     toolbar_layout.addWidget(check_inspector)
-
-    # 2. Checkbox 
     check_ev_global = QCheckBox("Ev. Globales")
     check_ev_global.setChecked(True)
     check_ev_global.setStyleSheet("font-size: 11px; margin-left: 5px; color: #007bff; font-weight: bold;")
     toolbar_layout.addWidget(check_ev_global)
-
     check_ev_equipo = QCheckBox("Ev. Equipo")
     check_ev_equipo.setChecked(True)
     check_ev_equipo.setStyleSheet("font-size: 11px; margin-left: 3px; color: #28a745; font-weight: bold;")
     toolbar_layout.addWidget(check_ev_equipo)
-    
-    # 3. Botón Agregar Evento — SIMPLE
     btn_add_evento = QPushButton("+ Evento")
-    btn_add_evento.setCheckable(True)
+    btn_add_evento.setCheckable(True) # Modo Toggle
     btn_add_evento.setStyleSheet("""
         QPushButton { font-size: 11px; padding: 4px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; }
         QPushButton:checked { background-color: #ffcccc; border: 1px solid red; color: red; font-weight: bold; }
     """)
     toolbar_layout.addWidget(btn_add_evento)
-
-    layout.addLayout(toolbar_layout)
+    canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    # El contenedor del toolbar solo ocupa lo que necesita
+    toolbar_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    layout.addWidget(canvas)
+    layout.addWidget(toolbar_container)
 
     # Configurar eje secundario si hay datos de pluviómetro
     barras_pluviometro = None
@@ -1776,16 +1781,23 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
     canvas = FigureCanvas(figure)
     plt.rcParams['font.family'] = fuente
     layout = widget.layout()
-    layout.addWidget(canvas)
-    toolbar_layout = QHBoxLayout()
+
+    # --- INICIO MODIFICACIÓN PASO 2 ---
+    toolbar_container = QWidget()
+    widget.toolbar_container = toolbar_container
+    toolbar_layout = QHBoxLayout(toolbar_container)
+    toolbar_layout.setContentsMargins(0, 0, 0, 0)
     widget.toolbar = CustomToolbar(canvas, widget)
     toolbar_layout.addWidget(widget.toolbar)
-    
     check_inspector = QCheckBox("Inspector de Datos")
-    check_inspector.setStyleSheet("font-size: 11px; margin-left: 10px; color: #333;")
+    check_inspector.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
     toolbar_layout.addWidget(check_inspector)
-    
-    layout.addLayout(toolbar_layout)
+    canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    # El contenedor del toolbar solo ocupa lo que necesita
+    toolbar_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    layout.addWidget(canvas)
+    layout.addWidget(toolbar_container)
+
     # Graficar datos de desplazamiento
     lineas = []
     if tiempo != "FECHA":
