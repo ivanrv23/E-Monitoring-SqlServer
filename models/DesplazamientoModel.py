@@ -38,64 +38,55 @@ class DesplazamientoModel:
                 
     @staticmethod
     def mdlCalcularDesplazamientoSDA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            -- Subconsulta para encontrar el primer valor histórico (cero absoluto) para cada prisma
-            SELECT 
-                p.nombre_prisma,
-                p.distancia_prisma AS valor_cero,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, distancia_prisma, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        )
-        -- Consulta principal que solo procesa los datos dentro del rango de fechas solicitado
-        SELECT 
-            i.id_instrumentacion, 
-            p.nombre_prisma, 
-            p.hora_prisma,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            (p.distancia_prisma - vc.valor_cero) * ? AS SD,
-            i.tipo_equipo
-        FROM {tabla} p
-        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
-        AND i.nombre_prisma IN ({placeholders})
-        AND i.id_componente = ?
-        AND p.hora_prisma BETWEEN ? AND ?
-        ORDER BY p.nombre_prisma, p.hora_prisma;
-        """
-        
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.distancia_prisma AS valor_cero,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, distancia_prisma, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            )
+            SELECT 
+                i.id_instrumentacion, 
+                datos.nombre_prisma, 
+                datos.hora_prisma,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                (datos.distancia_prisma - vc.valor_cero) * ? AS SD,
+                i.tipo_equipo
+            FROM {tabla} datos
+            INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+            INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+            WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+            AND i.id_componente = ?
+            AND datos.hora_prisma BETWEEN ? AND ?
+            ORDER BY datos.nombre_prisma, datos.hora_prisma;
+            """
+            params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # La lista de prismas se usa dos veces: en la CTE y en el WHERE principal
-            cur.execute(sql, prismas + params) 
-            
+            cur.execute(sql, params) 
             rows = [tuple(row) for row in cur.fetchall()]
-            
-            if rows:
-                return rows
-            else:
-                return None
+            return rows if rows else None
         except Error as e:
             print("Error al consultar DA SD: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
+
     @staticmethod
     def mdlCalcularDesplazamientoFechasSDA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
@@ -137,68 +128,63 @@ class DesplazamientoModel:
 
     @staticmethod
     def mdlCalcularDesplazamientoDiasSDA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma,
-                p.distancia_prisma AS valor_cero,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, distancia_prisma, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.distancia_prisma AS FLOAT)) AS promedio_distancia,
-                FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad}) AS bloque_dias
-            FROM {tabla} p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
-            AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                     FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad})
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (da.promedio_distancia - da.valor_cero) * ? AS SD,
-            da.tipo_equipo
-        FROM DatosAgrupados da
-        ORDER BY da.nombre_prisma, da.bloque_dias;
-        """
-        
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.distancia_prisma AS valor_cero,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, distancia_prisma, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.distancia_prisma AS FLOAT)) AS promedio_distancia,
+                    FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
+                FROM {tabla} datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+                AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                        FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (da.promedio_distancia - da.valor_cero) * ? AS SD,
+                da.tipo_equipo
+            FROM DatosAgrupados da
+            ORDER BY da.nombre_prisma, da.bloque_dias;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             rows = [tuple(row) for row in cur.fetchall()]
-            
-            if rows:
-                return rows
-            else:
-                return None
+            return rows if rows else None
         except Error as e:
             print("Error al consultar prom dias DA SD: " + str(e))
             return None
         finally:
             if conn:
-                conn.close()      
-    
+                conn.close()
+            
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasSDA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -250,68 +236,64 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoHorasSDA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT
-                p.nombre_prisma,
-                p.distancia_prisma AS valor_cero,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, distancia_prisma, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.distancia_prisma AS FLOAT)) AS promedio_distancia,
-                CAST(p.hora_prisma AS DATE) AS fecha_bloque,
-                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque_num
-            FROM {tabla} p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1
-            AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                     CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (da.promedio_distancia - da.valor_cero) * ? AS SD,
-            da.tipo_equipo
-        FROM DatosAgrupados da
-        ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
-        """
-
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT
+                    p_cte.nombre_prisma,
+                    p_cte.distancia_prisma AS valor_cero,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, distancia_prisma, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.distancia_prisma AS FLOAT)) AS promedio_distancia,
+                    CAST(datos.hora_prisma AS DATE) AS fecha_bloque,
+                    DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
+                FROM {tabla} datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
+                AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                        CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (da.promedio_distancia - da.valor_cero) * ? AS SD,
+                da.tipo_equipo
+            FROM DatosAgrupados da
+            ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             rows = [tuple(row) for row in cur.fetchall()]
-            if rows:
-                return rows
-            else:
-                return None
+            return rows if rows else None
         except Error as e:
             print("Error al consultar prom horas DA SD: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
+            
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasSDA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -643,63 +625,59 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamiento3DA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma,
-                p.este_target AS valor_cero_este,
-                p.norte_target AS valor_cero_norte,
-                p.elevacion_target AS valor_cero_elev,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, este_target, norte_target, elevacion_target, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        )
-        SELECT 
-            i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            (SQRT(
-                POWER(p.este_target - vc.valor_cero_este, 2) +
-                POWER(p.norte_target - vc.valor_cero_norte, 2) +
-                POWER(p.elevacion_target - vc.valor_cero_elev, 2)
-            )) * ? AS tresD,
-            i.tipo_equipo
-        FROM {tabla} p 
-        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
-        AND i.nombre_prisma IN ({placeholders})
-        AND i.id_componente = ?
-        AND p.hora_prisma BETWEEN ? AND ?
-        ORDER BY p.nombre_prisma, p.hora_prisma;
-        """
-        
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.este_target AS valor_cero_este,
+                    p_cte.norte_target AS valor_cero_norte,
+                    p_cte.elevacion_target AS valor_cero_elev,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, este_target, norte_target, elevacion_target, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            )
+            SELECT 
+                i.id_instrumentacion, datos.nombre_prisma, datos.hora_prisma,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                (SQRT(
+                    POWER(datos.este_target - vc.valor_cero_este, 2) +
+                    POWER(datos.norte_target - vc.valor_cero_norte, 2) +
+                    POWER(datos.elevacion_target - vc.valor_cero_elev, 2)
+                )) * ? AS tresD,
+                i.tipo_equipo
+            FROM {tabla} datos
+            INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+            INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+            WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+            AND i.id_componente = ?
+            AND datos.hora_prisma BETWEEN ? AND ?
+            ORDER BY datos.nombre_prisma, datos.hora_prisma;
+            """
+            params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
-            if row:
-                return row
-            else:
-                return None
+            return row if row else None
         except Error as e:
             print("Error al consultar DA 3D: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
+                   
     @staticmethod
     def mdlCalcularDesplazamientoFechas3DA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
@@ -743,75 +721,71 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDias3DA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma,
-                p.este_target AS valor_cero_este,
-                p.norte_target AS valor_cero_norte,
-                p.elevacion_target AS valor_cero_elev,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, este_target, norte_target, elevacion_target, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, vc.valor_cero_elev, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.este_target AS FLOAT)) AS promedio_este,
-                AVG(CAST(p.norte_target AS FLOAT)) AS promedio_norte,
-                AVG(CAST(p.elevacion_target AS FLOAT)) AS promedio_elevacion,
-                FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad}) AS bloque_dias
-            FROM {tabla} p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1
-            AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, vc.valor_cero_elev, i.tipo_equipo,
-                     FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad})
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (SQRT(
-                POWER(da.promedio_este - da.valor_cero_este, 2) +
-                POWER(da.promedio_norte - da.valor_cero_norte, 2) +
-                POWER(da.promedio_elevacion - da.valor_cero_elev, 2)
-            )) * ? AS tresD,
-            da.tipo_equipo
-        FROM DatosAgrupados da
-        ORDER BY da.nombre_prisma, da.bloque_dias;
-        """
-        
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.este_target AS valor_cero_este,
+                    p_cte.norte_target AS valor_cero_norte,
+                    p_cte.elevacion_target AS valor_cero_elev,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, este_target, norte_target, elevacion_target, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, vc.valor_cero_elev, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.este_target AS FLOAT)) AS promedio_este,
+                    AVG(CAST(datos.norte_target AS FLOAT)) AS promedio_norte,
+                    AVG(CAST(datos.elevacion_target AS FLOAT)) AS promedio_elevacion,
+                    FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
+                FROM {tabla} datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
+                AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, vc.valor_cero_elev, i.tipo_equipo,
+                        FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (SQRT(
+                    POWER(da.promedio_este - da.valor_cero_este, 2) +
+                    POWER(da.promedio_norte - da.valor_cero_norte, 2) +
+                    POWER(da.promedio_elevacion - da.valor_cero_elev, 2)
+                )) * ? AS tresD,
+                da.tipo_equipo
+            FROM DatosAgrupados da
+            ORDER BY da.nombre_prisma, da.bloque_dias;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
-            if row:
-                return row
-            else:
-                return None
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA 3D: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
+                
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechas3DA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -873,76 +847,72 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoHoras3DA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma,
-                p.este_target AS valor_cero_este,
-                p.norte_target AS valor_cero_norte,
-                p.elevacion_target AS valor_cero_elev,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, este_target, norte_target, elevacion_target, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, vc.valor_cero_elev, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.este_target AS FLOAT)) AS promedio_este,
-                AVG(CAST(p.norte_target AS FLOAT)) AS promedio_norte,
-                AVG(CAST(p.elevacion_target AS FLOAT)) AS promedio_elevacion,
-                CAST(p.hora_prisma AS DATE) AS fecha_bloque,
-                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque_num
-            FROM {tabla} p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1
-            AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, vc.valor_cero_elev, i.tipo_equipo,
-                     CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (SQRT(
-                POWER(da.promedio_este - da.valor_cero_este, 2) +
-                POWER(da.promedio_norte - da.valor_cero_norte, 2) +
-                POWER(da.promedio_elevacion - da.valor_cero_elev, 2)
-            )) * ? AS tresD,
-            da.tipo_equipo
-        FROM DatosAgrupados da
-        ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
-        """
-        
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.este_target AS valor_cero_este,
+                    p_cte.norte_target AS valor_cero_norte,
+                    p_cte.elevacion_target AS valor_cero_elev,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, este_target, norte_target, elevacion_target, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, vc.valor_cero_elev, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.este_target AS FLOAT)) AS promedio_este,
+                    AVG(CAST(datos.norte_target AS FLOAT)) AS promedio_norte,
+                    AVG(CAST(datos.elevacion_target AS FLOAT)) AS promedio_elevacion,
+                    CAST(datos.hora_prisma AS DATE) AS fecha_bloque,
+                    DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
+                FROM {tabla} datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
+                AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, vc.valor_cero_elev, i.tipo_equipo,
+                        CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (SQRT(
+                    POWER(da.promedio_este - da.valor_cero_este, 2) +
+                    POWER(da.promedio_norte - da.valor_cero_norte, 2) +
+                    POWER(da.promedio_elevacion - da.valor_cero_elev, 2)
+                )) * ? AS tresD,
+                da.tipo_equipo
+            FROM DatosAgrupados da
+            ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
-            if row:
-                return row
-            else:
-                return None
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA 3D: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-                
+            
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechas3DA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -1311,63 +1281,60 @@ class DesplazamientoModel:
         finally:
             if conn:
                 conn.close()
+    
     @staticmethod
     def mdlCalcularDesplazamiento2DA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma,
-                p.este_target AS valor_cero_este,
-                p.norte_target AS valor_cero_norte,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, este_target, norte_target, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        )
-        SELECT 
-            i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            (SQRT(
-                POWER(p.este_target - vc.valor_cero_este, 2) +
-                POWER(p.norte_target - vc.valor_cero_norte, 2)
-            )) * ? AS dosD,
-            i.tipo_equipo
-        FROM {tabla} p 
-        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
-        AND i.nombre_prisma IN ({placeholders})
-        AND i.id_componente = ?
-        AND p.hora_prisma BETWEEN ? AND ?
-        ORDER BY p.nombre_prisma, p.hora_prisma;
-        """
-        
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.este_target AS valor_cero_este,
+                    p_cte.norte_target AS valor_cero_norte,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, este_target, norte_target, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            )
+            SELECT 
+                i.id_instrumentacion, datos.nombre_prisma, datos.hora_prisma,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                (SQRT(
+                    POWER(datos.este_target - vc.valor_cero_este, 2) +
+                    POWER(datos.norte_target - vc.valor_cero_norte, 2)
+                )) * ? AS dosD,
+                i.tipo_equipo
+            FROM {tabla} datos
+            INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+            INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+            WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+            AND i.id_componente = ?
+            AND datos.hora_prisma BETWEEN ? AND ?
+            ORDER BY datos.nombre_prisma, datos.hora_prisma;
+            """
+            params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
-            if row:
-                return row
-            else:
-                return None
+            return row if row else None
         except Error as e:
             print("Error al consultar DA 2D: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-                
+                  
     @staticmethod
     def mdlCalcularDesplazamientoFechas2DA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
@@ -1410,72 +1377,68 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDias2DA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma,
-                p.este_target AS valor_cero_este,
-                p.norte_target AS valor_cero_norte,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, este_target, norte_target, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.este_target AS FLOAT)) AS promedio_este,
-                AVG(CAST(p.norte_target AS FLOAT)) AS promedio_norte,
-                FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad}) AS bloque_dias
-            FROM {tabla} p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1
-            AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, i.tipo_equipo,
-                     FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad})
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (SQRT(
-                POWER(da.promedio_este - da.valor_cero_este, 2) +
-                POWER(da.promedio_norte - da.valor_cero_norte, 2)
-            )) * ? AS dosD,
-            da.tipo_equipo
-        FROM DatosAgrupados da
-        ORDER BY da.nombre_prisma, da.bloque_dias;
-        """
-        
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.este_target AS valor_cero_este,
+                    p_cte.norte_target AS valor_cero_norte,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, este_target, norte_target, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.este_target AS FLOAT)) AS promedio_este,
+                    AVG(CAST(datos.norte_target AS FLOAT)) AS promedio_norte,
+                    FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
+                FROM {tabla} datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
+                AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, i.tipo_equipo,
+                        FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (SQRT(
+                    POWER(da.promedio_este - da.valor_cero_este, 2) +
+                    POWER(da.promedio_norte - da.valor_cero_norte, 2)
+                )) * ? AS dosD,
+                da.tipo_equipo
+            FROM DatosAgrupados da
+            ORDER BY da.nombre_prisma, da.bloque_dias;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
-            if row:
-                return row
-            else:
-                return None
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA 2D: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
+            
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechas2DA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -1535,66 +1498,62 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoHoras2DA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma,
-                p.este_target AS valor_cero_este,
-                p.norte_target AS valor_cero_norte,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, este_target, norte_target, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.este_target AS FLOAT)) AS promedio_este,
-                AVG(CAST(p.norte_target AS FLOAT)) AS promedio_norte,
-                CAST(p.hora_prisma AS DATE) AS fecha_bloque,
-                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque_num
-            FROM {tabla} p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1
-            AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, i.tipo_equipo,
-                     CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (SQRT(
-                POWER(da.promedio_este - da.valor_cero_este, 2) +
-                POWER(da.promedio_norte - da.valor_cero_norte, 2)
-            )) * ? AS dosD,
-            da.tipo_equipo
-        FROM DatosAgrupados da
-        ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
-        """
-        
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.este_target AS valor_cero_este,
+                    p_cte.norte_target AS valor_cero_norte,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, este_target, norte_target, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.este_target AS FLOAT)) AS promedio_este,
+                    AVG(CAST(datos.norte_target AS FLOAT)) AS promedio_norte,
+                    CAST(datos.hora_prisma AS DATE) AS fecha_bloque,
+                    DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
+                FROM {tabla} datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
+                AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, i.tipo_equipo,
+                        CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (SQRT(
+                    POWER(da.promedio_este - da.valor_cero_este, 2) +
+                    POWER(da.promedio_norte - da.valor_cero_norte, 2)
+                )) * ? AS dosD,
+                da.tipo_equipo
+            FROM DatosAgrupados da
+            ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
-            if row:
-                return row
-            else:
-                return None
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA 2D: " + str(e))
             return None
@@ -1960,41 +1919,60 @@ class DesplazamientoModel:
                 conn.close()
     
     @staticmethod
-    def mdlCalcularDesplazamientoDLA(tabla, unidad, prismas, idcomponente):
+    def mdlCalcularDesplazamientoDLA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        if not prismas:
+            return None
+            
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente]
-        
-        sql = f"""SELECT 
-            i.id_instrumentacion, 
-            p.nombre_prisma, 
-            p.hora_prisma,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            CAST(p.desplaza_longitudinal AS FLOAT) * ? AS desplaza_longitudinal,
-            i.tipo_equipo
-        FROM {tabla} p 
-        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
-        AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        ORDER BY p.nombre_prisma, p.hora_prisma;"""
-        
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            )
+            SELECT 
+                i.id_instrumentacion, 
+                datos.nombre_prisma, 
+                datos.hora_prisma,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                -- Se mantiene la lógica original: leer el valor y multiplicarlo. No se calcula la diferencia.
+                CAST(datos.desplaza_longitudinal AS FLOAT) * ? AS desplaza_longitudinal,
+                i.tipo_equipo
+            FROM {tabla} datos
+            INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+            INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+            WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+            AND i.id_componente = ?
+            AND datos.hora_prisma BETWEEN ? AND ?
+            ORDER BY datos.nombre_prisma, datos.hora_prisma;
+            """
+            
+            params = prismas + [unidad, idcomponente, fechaini, fechafin]
+            
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
-            if row:
-                return row
-            else:
-                return None
+            
+            return row if row else None
         except Error as e:
             print("Error al consultar DA L: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-                
+            
     @staticmethod
     def mdlCalcularDesplazamientoFechasDLA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
@@ -2034,67 +2012,63 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDiasDLA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma,
-                p.desplaza_longitudinal AS valor_cero,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, desplaza_longitudinal, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.desplaza_longitudinal AS FLOAT)) AS promedio_longitudinal,
-                FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad}) AS bloque_dias
-            FROM {tabla} p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1
-            AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, i.tipo_equipo,
-                     FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad})
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            da.promedio_longitudinal * ? AS promedio_longitudinal,
-            da.tipo_equipo
-        FROM DatosAgrupados da
-        ORDER BY da.nombre_prisma, da.bloque_dias;
-        """
-        
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.desplaza_longitudinal AS valor_cero,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, desplaza_longitudinal, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.desplaza_longitudinal AS FLOAT)) AS promedio_longitudinal,
+                    FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
+                FROM {tabla} datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
+                AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
+                        FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                da.promedio_longitudinal * ? AS promedio_longitudinal,
+                da.tipo_equipo
+            FROM DatosAgrupados da
+            ORDER BY da.nombre_prisma, da.bloque_dias;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
-            if row:
-                return row
-            else:
-                return None
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA L: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
+            
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasDLA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -2150,67 +2124,64 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoHorasDLA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma,
-                p.desplaza_longitudinal AS valor_cero,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, desplaza_longitudinal, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.desplaza_longitudinal AS FLOAT)) AS promedio_longitudinal,
-                CAST(p.hora_prisma AS DATE) AS fecha_bloque,
-                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque_num
-            FROM {tabla} p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1
-            AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, i.tipo_equipo,
-                     CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            da.promedio_longitudinal * ? AS promedio_longitudinal,
-            da.tipo_equipo
-        FROM DatosAgrupados da
-        ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.desplaza_longitudinal AS valor_cero,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, desplaza_longitudinal, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.desplaza_longitudinal AS FLOAT)) AS promedio_longitudinal,
+                    CAST(datos.hora_prisma AS DATE) AS fecha_bloque,
+                    DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
+                FROM {tabla} datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
+                AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
+                        CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                da.promedio_longitudinal * ? AS promedio_longitudinal,
+                da.tipo_equipo
+            FROM DatosAgrupados da
+            ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
-            if row:
-                return row
-            else:
-                return None
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA L: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-                
+               
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasDLA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -2543,56 +2514,53 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDTA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma,
-                p.desplaza_transversal AS valor_cero,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, desplaza_transversal, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        )
-        SELECT 
-            i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            CAST(p.desplaza_transversal AS FLOAT) * ? AS desplaza_transversal,
-            i.tipo_equipo
-        FROM {tabla} p
-        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
-        AND i.nombre_prisma IN ({placeholders})
-        AND i.id_componente = ?
-        AND p.hora_prisma BETWEEN ? AND ?
-        ORDER BY p.nombre_prisma, p.hora_prisma;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.desplaza_transversal AS valor_cero,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, desplaza_transversal, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            )
+            SELECT 
+                i.id_instrumentacion, datos.nombre_prisma, datos.hora_prisma,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                CAST(datos.desplaza_transversal AS FLOAT) * ? AS desplaza_transversal,
+                i.tipo_equipo
+            FROM {tabla} datos
+            INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+            INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+            WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+            AND i.id_componente = ?
+            AND datos.hora_prisma BETWEEN ? AND ?
+            ORDER BY datos.nombre_prisma, datos.hora_prisma;
+            """
+            params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
-            if row:
-                return row
-            else:
-                return None
+            return row if row else None
         except Error as e:
             print("Error al consultar DA T: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
+            
     @staticmethod
     def mdlCalcularDesplazamientoFechasDTA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
@@ -2632,66 +2600,63 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDiasDTA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma,
-                p.desplaza_transversal AS valor_cero,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, desplaza_transversal, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.desplaza_transversal AS FLOAT)) AS promedio_transversal,
-                FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad}) AS bloque_dias
-            FROM {tabla} p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1
-            AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, i.tipo_equipo,
-                     FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad})
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            da.promedio_transversal * ? AS promedio_transversal,
-            da.tipo_equipo
-        FROM DatosAgrupados da
-        ORDER BY da.nombre_prisma, da.bloque_dias;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.desplaza_transversal AS valor_cero,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, desplaza_transversal, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.desplaza_transversal AS FLOAT)) AS promedio_transversal,
+                    FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
+                FROM {tabla} datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
+                AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
+                        FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                da.promedio_transversal * ? AS promedio_transversal,
+                da.tipo_equipo
+            FROM DatosAgrupados da
+            ORDER BY da.nombre_prisma, da.bloque_dias;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
-            if row:
-                return row
-            else:
-                return None
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA T: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-
+            
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasDTA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -2747,67 +2712,64 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoHorasDTA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma,
-                p.desplaza_transversal AS valor_cero,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, desplaza_transversal, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.desplaza_transversal AS FLOAT)) AS promedio_transversal,
-                CAST(p.hora_prisma AS DATE) AS fecha_bloque,
-                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque_num
-            FROM {tabla} p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1
-            AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, i.tipo_equipo,
-                     CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            da.promedio_transversal * ? AS promedio_transversal,
-            da.tipo_equipo
-        FROM DatosAgrupados da
-        ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.desplaza_transversal AS valor_cero,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, desplaza_transversal, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.desplaza_transversal AS FLOAT)) AS promedio_transversal,
+                    CAST(datos.hora_prisma AS DATE) AS fecha_bloque,
+                    DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
+                FROM {tabla} datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
+                AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
+                        CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                da.promedio_transversal * ? AS promedio_transversal,
+                da.tipo_equipo
+            FROM DatosAgrupados da
+            ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
-            if row:
-                return row
-            else:
-                return None
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA T: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-                
+            
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasDTA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -3138,44 +3100,44 @@ class DesplazamientoModel:
                 
     @staticmethod
     def mdlCalcularDesplazamientoDHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma,
-                p.desplaza_altura AS valor_cero,
-                p.hora_prisma AS hora_cero
-            FROM (
-                SELECT
-                    nombre_prisma, desplaza_altura, hora_prisma,
-                    ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla}
-                WHERE nombre_prisma IN ({placeholders})
-            ) p
-            WHERE p.rn = 1
-        )
-        SELECT 
-            i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            CAST(p.desplaza_altura AS FLOAT) * ? AS desplaza_altura,
-            i.tipo_equipo
-        FROM {tabla} p
-        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
-        AND i.nombre_prisma IN ({placeholders})
-        AND i.id_componente = ?
-        AND p.hora_prisma BETWEEN ? AND ?
-        ORDER BY p.nombre_prisma, p.hora_prisma;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma,
+                    p_cte.desplaza_altura AS valor_cero,
+                    p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT
+                        nombre_prisma, desplaza_altura, hora_prisma,
+                        ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla}
+                    WHERE nombre_prisma IN ({placeholders})
+                ) p_cte
+                WHERE p_cte.rn = 1
+            )
+            SELECT 
+                i.id_instrumentacion, datos.nombre_prisma, datos.hora_prisma,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                CAST(datos.desplaza_altura AS FLOAT) * ? AS desplaza_altura,
+                i.tipo_equipo
+            FROM {tabla} datos
+            INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+            INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+            WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+            AND i.id_componente = ?
+            AND datos.hora_prisma BETWEEN ? AND ?
+            ORDER BY datos.nombre_prisma, datos.hora_prisma;
+            """
+            params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -3223,44 +3185,45 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDiasDHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma, p.desplaza_altura AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (
-                SELECT nombre_prisma, desplaza_altura, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla} WHERE nombre_prisma IN ({placeholders})
-            ) p WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.desplaza_altura AS FLOAT)) AS promedio_altura,
-                FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad}) AS bloque_dias
-            FROM {tabla} p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, i.tipo_equipo,
-                     FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad})
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            da.promedio_altura * ? AS promedio_altura,
-            da.tipo_equipo
-        FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.bloque_dias;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.desplaza_altura AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT nombre_prisma, desplaza_altura, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla} WHERE nombre_prisma IN ({placeholders})
+                ) p_cte WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.desplaza_altura AS FLOAT)) AS promedio_altura,
+                    FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
+                FROM {tabla} datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+                AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
+                        FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                da.promedio_altura * ? AS promedio_altura,
+                da.tipo_equipo
+            FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.bloque_dias;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -3268,7 +3231,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-    
+        
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasDHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -3327,44 +3290,45 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoHorasDHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma, p.desplaza_altura AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (
-                SELECT nombre_prisma, desplaza_altura, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla} WHERE nombre_prisma IN ({placeholders})
-            ) p WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.desplaza_altura AS FLOAT)) AS promedio_altura,
-                CAST(p.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque_num
-            FROM {tabla} p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, i.tipo_equipo,
-                     CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            da.promedio_altura * ? AS promedio_altura,
-            da.tipo_equipo
-        FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.desplaza_altura AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (
+                    SELECT nombre_prisma, desplaza_altura, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla} WHERE nombre_prisma IN ({placeholders})
+                ) p_cte WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.desplaza_altura AS FLOAT)) AS promedio_altura,
+                    CAST(datos.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
+                FROM {tabla} datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+                AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
+                        CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                da.promedio_altura * ? AS promedio_altura,
+                da.tipo_equipo
+            FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -3372,7 +3336,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasDHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -3686,35 +3650,33 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDNA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT 
-                p.nombre_prisma, p.norte_target AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (
-                SELECT nombre_prisma, norte_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                FROM {tabla} WHERE nombre_prisma IN ({placeholders})
-            ) p WHERE p.rn = 1
-        )
-        SELECT 
-            i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            (p.norte_target - vc.valor_cero) * ? AS distancia,
-            i.tipo_equipo
-        FROM {tabla} p
-        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.nombre_prisma IN ({placeholders})
-        AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ORDER BY p.nombre_prisma, p.hora_prisma;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.norte_target AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT nombre_prisma, norte_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p_cte WHERE p_cte.rn = 1
+            )
+            SELECT 
+                i.id_instrumentacion, datos.nombre_prisma, datos.hora_prisma,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                (datos.norte_target - vc.valor_cero) * ? AS distancia,
+                i.tipo_equipo
+            FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+            INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+            WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+            AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
+            ORDER BY datos.nombre_prisma, datos.hora_prisma;
+            """
+            params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -3722,7 +3684,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoFechasDNA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
@@ -3762,40 +3724,42 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDiasDNA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT p.nombre_prisma, p.norte_target AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT nombre_prisma, norte_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                  FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.norte_target AS FLOAT)) AS promedio_norte,
-                FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad}) AS bloque_dias
-            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                     FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad})
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (da.promedio_norte - da.valor_cero) * ? AS distancia,
-            da.tipo_equipo
-        FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.bloque_dias;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.norte_target AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT nombre_prisma, norte_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p_cte WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.norte_target AS FLOAT)) AS promedio_norte,
+                    FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
+                FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+                AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                        FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (da.promedio_norte - da.valor_cero) * ? AS distancia,
+                da.tipo_equipo
+            FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.bloque_dias;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -3803,7 +3767,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasDNA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -3859,40 +3823,42 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoHorasDNA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT p.nombre_prisma, p.norte_target AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT nombre_prisma, norte_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                  FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.norte_target AS FLOAT)) AS promedio_norte,
-                CAST(p.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque_num
-            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                     CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (da.promedio_norte - da.valor_cero) * ? AS distancia,
-            da.tipo_equipo
-        FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.norte_target AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT nombre_prisma, norte_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p_cte WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.norte_target AS FLOAT)) AS promedio_norte,
+                    CAST(datos.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
+                FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+                AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                        CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (da.promedio_norte - da.valor_cero) * ? AS distancia,
+                da.tipo_equipo
+            FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -3900,7 +3866,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+          
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasDNA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -3982,31 +3948,33 @@ class DesplazamientoModel:
                   
     @staticmethod
     def mdlCalcularDesplazamientoDEA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT p.nombre_prisma, p.este_target AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT nombre_prisma, este_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                  FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p WHERE p.rn = 1
-        )
-        SELECT 
-            i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            (p.este_target - vc.valor_cero) * ? AS distancia,
-            i.tipo_equipo
-        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.nombre_prisma IN ({placeholders})
-        AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ORDER BY p.nombre_prisma, p.hora_prisma;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.este_target AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT nombre_prisma, este_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p_cte WHERE p_cte.rn = 1
+            )
+            SELECT 
+                i.id_instrumentacion, datos.nombre_prisma, datos.hora_prisma,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                (datos.este_target - vc.valor_cero) * ? AS distancia,
+                i.tipo_equipo
+            FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+            INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+            WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+            AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
+            ORDER BY datos.nombre_prisma, datos.hora_prisma;
+            """
+            params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -4014,7 +3982,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoFechasDEA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
@@ -4054,40 +4022,42 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDiasDEA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT p.nombre_prisma, p.este_target AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT nombre_prisma, este_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                  FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.este_target AS FLOAT)) AS promedio_este,
-                FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad}) AS bloque_dias
-            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                     FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad})
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (da.promedio_este - da.valor_cero) * ? AS distancia,
-            da.tipo_equipo
-        FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.bloque_dias;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.este_target AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT nombre_prisma, este_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p_cte WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.este_target AS FLOAT)) AS promedio_este,
+                    FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
+                FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+                AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                        FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (da.promedio_este - da.valor_cero) * ? AS distancia,
+                da.tipo_equipo
+            FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.bloque_dias;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -4095,7 +4065,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasDEA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -4151,40 +4121,42 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoHorasDEA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT p.nombre_prisma, p.este_target AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT nombre_prisma, este_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                  FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.este_target AS FLOAT)) AS promedio_este,
-                CAST(p.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque_num
-            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                     CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (da.promedio_este - da.valor_cero) * ? AS distancia,
-            da.tipo_equipo
-        FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.este_target AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT nombre_prisma, este_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p_cte WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.este_target AS FLOAT)) AS promedio_este,
+                    CAST(datos.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
+                FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+                AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                        CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (da.promedio_este - da.valor_cero) * ? AS distancia,
+                da.tipo_equipo
+            FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -4192,8 +4164,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-
-
+        
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasDEA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -4726,31 +4697,33 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDZA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT p.nombre_prisma, p.elevacion_target AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT nombre_prisma, elevacion_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                  FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p WHERE p.rn = 1
-        )
-        SELECT 
-            i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            (p.elevacion_target - vc.valor_cero) * ? AS distancia,
-            i.tipo_equipo
-        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.nombre_prisma IN ({placeholders})
-        AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ORDER BY p.nombre_prisma, p.hora_prisma;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.elevacion_target AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT nombre_prisma, elevacion_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p_cte WHERE p_cte.rn = 1
+            )
+            SELECT 
+                i.id_instrumentacion, datos.nombre_prisma, datos.hora_prisma,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                (datos.elevacion_target - vc.valor_cero) * ? AS distancia,
+                i.tipo_equipo
+            FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+            INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+            WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+            AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
+            ORDER BY datos.nombre_prisma, datos.hora_prisma;
+            """
+            params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -4758,7 +4731,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoFechasDZA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
@@ -4798,40 +4771,42 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDiasDZA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT p.nombre_prisma, p.elevacion_target AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT nombre_prisma, elevacion_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                  FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.elevacion_target AS FLOAT)) AS promedio_elevacion,
-                FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad}) AS bloque_dias
-            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                     FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad})
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (da.promedio_elevacion - da.valor_cero) * ? AS distancia,
-            da.tipo_equipo
-        FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.bloque_dias;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.elevacion_target AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT nombre_prisma, elevacion_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p_cte WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.elevacion_target AS FLOAT)) AS promedio_elevacion,
+                    FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
+                FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+                AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                        FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (da.promedio_elevacion - da.valor_cero) * ? AS distancia,
+                da.tipo_equipo
+            FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.bloque_dias;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -4839,7 +4814,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasDZA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -4895,40 +4870,42 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoHorasDZA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = [unidad] + prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH ValoresCero AS (
-            SELECT p.nombre_prisma, p.elevacion_target AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT nombre_prisma, elevacion_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
-                  FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(CAST(p.elevacion_target AS FLOAT)) AS promedio_elevacion,
-                CAST(p.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque_num
-            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.nombre_prisma IN ({placeholders})
-            AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                     CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (da.promedio_elevacion - da.valor_cero) * ? AS distancia,
-            da.tipo_equipo
-        FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.elevacion_target AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT nombre_prisma, elevacion_target, hora_prisma, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+                    FROM {tabla} WHERE nombre_prisma IN ({placeholders})) p_cte WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(CAST(datos.elevacion_target AS FLOAT)) AS promedio_elevacion,
+                    CAST(datos.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
+                FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
+                AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                        CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (da.promedio_elevacion - da.valor_cero) * ? AS distancia,
+                da.tipo_equipo
+            FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -4936,7 +4913,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasDZA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -5534,47 +5511,48 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoAHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH AnguloDecimal AS (
-            SELECT
-                *,
-                CASE 
-                    WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_horizontal AS FLOAT)
-                END AS angulo_dec
-            FROM {tabla}
-            WHERE nombre_prisma IN ({placeholders})
-        ),
-        ValoresCero AS (
-            SELECT 
-                p.nombre_prisma, p.angulo_dec AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn FROM AnguloDecimal) p
-            WHERE p.rn = 1
-        )
-        SELECT 
-            i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            (p.angulo_dec - vc.valor_cero) AS angulo_horizontal,
-            i.tipo_equipo
-        FROM AnguloDecimal p
-        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-        WHERE p.state_prisma = 1 AND p.estado_prisma = 1
-        AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ORDER BY p.nombre_prisma, p.hora_prisma;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH AnguloDecimal AS (
+                SELECT
+                    *,
+                    CASE 
+                        WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_horizontal AS FLOAT)
+                    END AS angulo_dec
+                FROM {tabla}
+                WHERE nombre_prisma IN ({placeholders})
+            ),
+            ValoresCero AS (
+                SELECT 
+                    p_cte.nombre_prisma, p_cte.angulo_dec AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn FROM AnguloDecimal) p_cte
+                WHERE p_cte.rn = 1
+            )
+            SELECT 
+                i.id_instrumentacion, datos.nombre_prisma, datos.hora_prisma,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                (datos.angulo_dec - vc.valor_cero) AS angulo_horizontal,
+                i.tipo_equipo
+            FROM AnguloDecimal datos
+            INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+            INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+            WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
+            AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
+            ORDER BY datos.nombre_prisma, datos.hora_prisma;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -5582,7 +5560,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+         
     @staticmethod
     def mdlCalcularDesplazamientoFechasAHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
@@ -5640,52 +5618,54 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDiasAHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH AnguloDecimal AS (
-            SELECT *,
-                CASE 
-                    WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_horizontal AS FLOAT)
-                END AS angulo_dec
-            FROM {tabla} WHERE nombre_prisma IN ({placeholders})
-        ),
-        ValoresCero AS (
-            SELECT p.nombre_prisma, p.angulo_dec AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn FROM AnguloDecimal) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(p.angulo_dec) AS promedio_angulo,
-                FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad}) AS bloque_dias
-            FROM AnguloDecimal p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                     FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad})
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (da.promedio_angulo - da.valor_cero) AS angulo,
-            da.tipo_equipo
-        FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.bloque_dias;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH AnguloDecimal AS (
+                SELECT *,
+                    CASE 
+                        WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_horizontal AS FLOAT)
+                    END AS angulo_dec
+                FROM {tabla} WHERE nombre_prisma IN ({placeholders})
+            ),
+            ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.angulo_dec AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn FROM AnguloDecimal) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(datos.angulo_dec) AS promedio_angulo,
+                    FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
+                FROM AnguloDecimal datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                        FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (da.promedio_angulo - da.valor_cero) AS angulo,
+                da.tipo_equipo
+            FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.bloque_dias;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -5693,7 +5673,6 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-
 
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasAHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
@@ -5759,52 +5738,54 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoHorasAHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH AnguloDecimal AS (
-            SELECT *,
-                CASE 
-                    WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_horizontal AS FLOAT)
-                END AS angulo_dec
-            FROM {tabla} WHERE nombre_prisma IN ({placeholders})
-        ),
-        ValoresCero AS (
-            SELECT p.nombre_prisma, p.angulo_dec AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn FROM AnguloDecimal) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(p.angulo_dec) AS promedio_angulo,
-                CAST(p.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque_num
-            FROM AnguloDecimal p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                     CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (da.promedio_angulo - da.valor_cero) AS angulo,
-            da.tipo_equipo
-        FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH AnguloDecimal AS (
+                SELECT *,
+                    CASE 
+                        WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_horizontal AS FLOAT)
+                    END AS angulo_dec
+                FROM {tabla} WHERE nombre_prisma IN ({placeholders})
+            ),
+            ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.angulo_dec AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn FROM AnguloDecimal) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(datos.angulo_dec) AS promedio_angulo,
+                    CAST(datos.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
+                FROM AnguloDecimal datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                        CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (da.promedio_angulo - da.valor_cero) AS angulo,
+                da.tipo_equipo
+            FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -5812,7 +5793,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasAHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -5870,42 +5851,43 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoAHI(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = prismas + [idcomponente] + [fechaini, fechafin]
-        
-        sql = f"""
-        WITH AnguloDecimal AS (
-            SELECT
-                *,
-                CASE 
-                    WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_horizontal AS FLOAT)
-                END AS angulo_dec
-            FROM {tabla}
-            WHERE nombre_prisma IN ({placeholders}) AND hora_prisma BETWEEN ? AND ?
-        )
-        SELECT 
-            i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            CAST(CASE 
-                WHEN LAG(p.angulo_dec) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
-                ELSE p.angulo_dec - LAG(p.angulo_dec) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)
-            END AS FLOAT) AS angulo,
-            i.tipo_equipo
-        FROM AnguloDecimal p
-        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
-        ORDER BY p.nombre_prisma, p.hora_prisma;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH AnguloDecimal AS (
+                SELECT
+                    *,
+                    CASE 
+                        WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_horizontal AS FLOAT)
+                    END AS angulo_dec
+                FROM {tabla}
+                WHERE nombre_prisma IN ({placeholders}) AND hora_prisma BETWEEN ? AND ?
+            )
+            SELECT 
+                i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+                (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                CAST(CASE 
+                    WHEN LAG(p.angulo_dec) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                    ELSE p.angulo_dec - LAG(p.angulo_dec) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)
+                END AS FLOAT) AS angulo,
+                i.tipo_equipo
+            FROM AnguloDecimal p
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+            ORDER BY p.nombre_prisma, p.hora_prisma;
+            """
+            params = prismas + [fechaini, fechafin, idcomponente]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + [fechaini, fechafin] + [idcomponente])
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -5913,7 +5895,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+         
     @staticmethod
     def mdlCalcularDesplazamientoFechasAHI(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
@@ -5972,59 +5954,60 @@ class DesplazamientoModel:
         finally:
             if conn:
                 conn.close()
-    
+
     @staticmethod
     def mdlCalcularDesplazamientoDiasAHI(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH AnguloDecimal AS (
-            SELECT *,
-                CASE 
-                    WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_horizontal AS FLOAT)
-                END AS angulo_dec
-            FROM {tabla} WHERE nombre_prisma IN ({placeholders})
-        ),
-        bloques AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE) AS fecha,
-                MAX(p.hora_prisma) AS hora_prisma,
-                AVG(p.angulo_dec) AS promedio_horizontal,
-                FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad}) AS bloque_dias, 
-                i.tipo_equipo
-            FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
-                     FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
-        )
-        SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            CAST(CASE 
-                WHEN LAG(b.promedio_horizontal) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma) IS NULL THEN 0
-                ELSE b.promedio_horizontal - LAG(b.promedio_horizontal) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma)
-            END AS FLOAT) AS angulo, 
-            b.tipo_equipo
-        FROM bloques b ORDER BY b.nombre_prisma, b.bloque_dias;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH AnguloDecimal AS (
+                SELECT *,
+                    CASE 
+                        WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_horizontal AS FLOAT)
+                    END AS angulo_dec
+                FROM {tabla} WHERE nombre_prisma IN ({placeholders})
+            ),
+            bloques AS (
+                SELECT 
+                    i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE) AS fecha,
+                    MAX(p.hora_prisma) AS hora_prisma,
+                    AVG(p.angulo_dec) AS promedio_horizontal,
+                    FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad}) AS bloque_dias, 
+                    i.tipo_equipo
+                FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+                WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+                AND p.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
+                        FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
+            )
+            SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma,
+                (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                CAST(CASE 
+                    WHEN LAG(b.promedio_horizontal) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma) IS NULL THEN 0
+                    ELSE b.promedio_horizontal - LAG(b.promedio_horizontal) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma)
+                END AS FLOAT) AS angulo, 
+                b.tipo_equipo
+            FROM bloques b ORDER BY b.nombre_prisma, b.bloque_dias;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + [idcomponente] + [fechaini, fechafin])
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
             print("Error al consultar prom dias DI Horizontal: " + str(e))
             return None
         finally:
-            if conn: conn.close()
-
+            if conn: conn.close()    
 
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasAHI(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
@@ -6092,47 +6075,49 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoHorasAHI(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH AnguloDecimal AS (
-            SELECT *,
-                CASE 
-                    WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_horizontal AS FLOAT)
-                END AS angulo_dec
-            FROM {tabla} WHERE nombre_prisma IN ({placeholders})
-        ),
-        promedios_horas AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE) AS fecha,
-                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
-                MAX(p.hora_prisma) AS hora_prisma,
-                AVG(p.angulo_dec) AS promedio_horizontal,
-                i.tipo_equipo
-            FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
-        )
-        SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            CAST(CASE 
-                WHEN LAG(pd.promedio_horizontal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.fecha, pd.bloque) IS NULL THEN 0
-                ELSE pd.promedio_horizontal - LAG(pd.promedio_horizontal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.fecha, pd.bloque)
-            END AS FLOAT) AS angulo, 
-            pd.tipo_equipo
-        FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH AnguloDecimal AS (
+                SELECT *,
+                    CASE 
+                        WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_horizontal AS FLOAT)
+                    END AS angulo_dec
+                FROM {tabla} WHERE nombre_prisma IN ({placeholders})
+            ),
+            promedios_horas AS (
+                SELECT 
+                    i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE) AS fecha,
+                    DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
+                    MAX(p.hora_prisma) AS hora_prisma,
+                    AVG(p.angulo_dec) AS promedio_horizontal,
+                    i.tipo_equipo
+                FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+                WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+                AND p.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
+            )
+            SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
+                (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                CAST(CASE 
+                    WHEN LAG(pd.promedio_horizontal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.fecha, pd.bloque) IS NULL THEN 0
+                    ELSE pd.promedio_horizontal - LAG(pd.promedio_horizontal) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.fecha, pd.bloque)
+                END AS FLOAT) AS angulo, 
+                pd.tipo_equipo
+            FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + [idcomponente] + [fechaini, fechafin])
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -6140,7 +6125,6 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-
 
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasAHI(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
@@ -6489,43 +6473,45 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoAVA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH AnguloDecimal AS (
-            SELECT *,
-                CASE 
-                    WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_vertical AS FLOAT)
-                END AS angulo_dec
-            FROM {tabla} WHERE nombre_prisma IN ({placeholders})
-        ),
-        ValoresCero AS (
-            SELECT p.nombre_prisma, p.angulo_dec AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn FROM AnguloDecimal) p
-            WHERE p.rn = 1
-        )
-        SELECT 
-            i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, vc.hora_cero, p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            (p.angulo_dec - vc.valor_cero) AS angulo_vertical,
-            i.tipo_equipo
-        FROM AnguloDecimal p
-        INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
-        AND p.hora_prisma BETWEEN ? AND ?
-        ORDER BY p.nombre_prisma, p.hora_prisma;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH AnguloDecimal AS (
+                SELECT *,
+                    CASE 
+                        WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_vertical AS FLOAT)
+                    END AS angulo_dec
+                FROM {tabla} WHERE nombre_prisma IN ({placeholders})
+            ),
+            ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.angulo_dec AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn FROM AnguloDecimal) p_cte
+                WHERE p_cte.rn = 1
+            )
+            SELECT 
+                i.id_instrumentacion, datos.nombre_prisma, datos.hora_prisma,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, vc.hora_cero, datos.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                (datos.angulo_dec - vc.valor_cero) AS angulo_vertical,
+                i.tipo_equipo
+            FROM AnguloDecimal datos
+            INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+            INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+            WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 AND i.id_componente = ?
+            AND datos.hora_prisma BETWEEN ? AND ?
+            ORDER BY datos.nombre_prisma, datos.hora_prisma;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -6533,7 +6519,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoFechasAVA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
@@ -6591,52 +6577,54 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDiasAVA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH AnguloDecimal AS (
-            SELECT *,
-                CASE 
-                    WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_vertical AS FLOAT)
-                END AS angulo_dec
-            FROM {tabla} WHERE nombre_prisma IN ({placeholders})
-        ),
-        ValoresCero AS (
-            SELECT p.nombre_prisma, p.angulo_dec AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn FROM AnguloDecimal) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(p.angulo_dec) AS promedio_angulo,
-                FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad}) AS bloque_dias
-            FROM AnguloDecimal p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                     FLOOR(DATEDIFF(DAY, vc.hora_cero, p.hora_prisma) / {cantidad})
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (da.promedio_angulo - da.valor_cero) AS angulo,
-            da.tipo_equipo
-        FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.bloque_dias;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH AnguloDecimal AS (
+                SELECT *,
+                    CASE 
+                        WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_vertical AS FLOAT)
+                    END AS angulo_dec
+                FROM {tabla} WHERE nombre_prisma IN ({placeholders})
+            ),
+            ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.angulo_dec AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn FROM AnguloDecimal) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(datos.angulo_dec) AS promedio_angulo,
+                    FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
+                FROM AnguloDecimal datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                        FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (da.promedio_angulo - da.valor_cero) AS angulo,
+                da.tipo_equipo
+            FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.bloque_dias;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -6644,7 +6632,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-
+        
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasAVA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -6709,52 +6697,54 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoHorasAVA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH AnguloDecimal AS (
-            SELECT *,
-                CASE 
-                    WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_vertical AS FLOAT)
-                END AS angulo_dec
-            FROM {tabla} WHERE nombre_prisma IN ({placeholders})
-        ),
-        ValoresCero AS (
-            SELECT p.nombre_prisma, p.angulo_dec AS valor_cero, p.hora_prisma AS hora_cero
-            FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn FROM AnguloDecimal) p
-            WHERE p.rn = 1
-        ),
-        DatosAgrupados AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                MAX(p.hora_prisma) AS hora_bloque,
-                AVG(p.angulo_dec) AS promedio_angulo,
-                CAST(p.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque_num
-            FROM AnguloDecimal p
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN ValoresCero vc ON p.nombre_prisma = vc.nombre_prisma
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                     CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
-        )
-        SELECT
-            da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
-            (da.promedio_angulo - da.valor_cero) AS angulo,
-            da.tipo_equipo
-        FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH AnguloDecimal AS (
+                SELECT *,
+                    CASE 
+                        WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_vertical AS FLOAT)
+                    END AS angulo_dec
+                FROM {tabla} WHERE nombre_prisma IN ({placeholders})
+            ),
+            ValoresCero AS (
+                SELECT p_cte.nombre_prisma, p_cte.angulo_dec AS valor_cero, p_cte.hora_prisma AS hora_cero
+                FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn FROM AnguloDecimal) p_cte
+                WHERE p_cte.rn = 1
+            ),
+            DatosAgrupados AS (
+                SELECT 
+                    i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                    MAX(datos.hora_prisma) AS hora_bloque,
+                    AVG(datos.angulo_dec) AS promedio_angulo,
+                    CAST(datos.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
+                FROM AnguloDecimal datos
+                INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
+                INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
+                WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 AND i.id_componente = ?
+                AND datos.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
+                        CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
+            )
+            SELECT
+                da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
+                (da.promedio_angulo - da.valor_cero) AS angulo,
+                da.tipo_equipo
+            FROM DatosAgrupados da ORDER BY da.nombre_prisma, da.fecha_bloque, da.bloque_num;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + prismas + params)
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -6762,8 +6752,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-
-
+        
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasAVA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -6821,38 +6810,40 @@ class DesplazamientoModel:
                 
     @staticmethod
     def mdlCalcularDesplazamientoAVI(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH AnguloDecimal AS (
-            SELECT *,
-                CASE 
-                    WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_vertical AS FLOAT)
-                END AS angulo_dec
-            FROM {tabla} WHERE nombre_prisma IN ({placeholders}) AND hora_prisma BETWEEN ? AND ?
-        )
-        SELECT 
-            i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            CAST(CASE 
-                WHEN LAG(p.angulo_dec) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
-                ELSE p.angulo_dec - LAG(p.angulo_dec) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)
-            END AS FLOAT) AS angulo,
-            i.tipo_equipo
-        FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
-        ORDER BY p.nombre_prisma, p.hora_prisma;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH AnguloDecimal AS (
+                SELECT *,
+                    CASE 
+                        WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_vertical AS FLOAT)
+                    END AS angulo_dec
+                FROM {tabla} WHERE nombre_prisma IN ({placeholders}) AND hora_prisma BETWEEN ? AND ?
+            )
+            SELECT 
+                i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+                (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                CAST(CASE 
+                    WHEN LAG(p.angulo_dec) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                    ELSE p.angulo_dec - LAG(p.angulo_dec) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)
+                END AS FLOAT) AS angulo,
+                i.tipo_equipo
+            FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+            ORDER BY p.nombre_prisma, p.hora_prisma;
+            """
+            params = prismas + [fechaini, fechafin, idcomponente]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + [fechaini, fechafin] + [idcomponente])
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -6860,7 +6851,6 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-
 
     @staticmethod
     def mdlCalcularDesplazamientoFechasAVI(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
@@ -6923,48 +6913,50 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoDiasAVI(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH AnguloDecimal AS (
-            SELECT *,
-                CASE 
-                    WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_vertical AS FLOAT)
-                END AS angulo_dec
-            FROM {tabla} WHERE nombre_prisma IN ({placeholders})
-        ),
-        bloques AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE) AS fecha,
-                MAX(p.hora_prisma) AS hora_prisma,
-                AVG(p.angulo_dec) AS promedio_vertical,
-                FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad}) AS bloque_dias, 
-                i.tipo_equipo
-            FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
-                     FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
-        )
-        SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            CAST(CASE 
-                WHEN LAG(b.promedio_vertical) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma) IS NULL THEN 0
-                ELSE b.promedio_vertical - LAG(b.promedio_vertical) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma)
-            END AS FLOAT) AS angulo, 
-            b.tipo_equipo
-        FROM bloques b ORDER BY b.nombre_prisma, b.bloque_dias;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH AnguloDecimal AS (
+                SELECT *,
+                    CASE 
+                        WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_vertical AS FLOAT)
+                    END AS angulo_dec
+                FROM {tabla} WHERE nombre_prisma IN ({placeholders})
+            ),
+            bloques AS (
+                SELECT 
+                    i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE) AS fecha,
+                    MAX(p.hora_prisma) AS hora_prisma,
+                    AVG(p.angulo_dec) AS promedio_vertical,
+                    FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad}) AS bloque_dias, 
+                    i.tipo_equipo
+                FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+                WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+                AND p.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
+                        FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
+            )
+            SELECT b.id_instrumentacion, b.nombre_prisma, b.hora_prisma,
+                (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, FIRST_VALUE(b.hora_prisma) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma), b.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                CAST(CASE 
+                    WHEN LAG(b.promedio_vertical) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma) IS NULL THEN 0
+                    ELSE b.promedio_vertical - LAG(b.promedio_vertical) OVER (PARTITION BY b.nombre_prisma ORDER BY b.hora_prisma)
+                END AS FLOAT) AS angulo, 
+                b.tipo_equipo
+            FROM bloques b ORDER BY b.nombre_prisma, b.bloque_dias;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + [idcomponente] + [fechaini, fechafin])
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -6972,7 +6964,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasAVI(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -7039,47 +7031,49 @@ class DesplazamientoModel:
     
     @staticmethod
     def mdlCalcularDesplazamientoHorasAVI(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
+        if not prismas:
+            return None
         conn = None
-        placeholders = ', '.join(['?' for _ in prismas])
-        params = prismas + [idcomponente] + [fechaini, fechafin]
-        sql = f"""
-        WITH AnguloDecimal AS (
-            SELECT *,
-                CASE 
-                    WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_vertical AS FLOAT)
-                END AS angulo_dec
-            FROM {tabla} WHERE nombre_prisma IN ({placeholders})
-        ),
-        promedios_horas AS (
-            SELECT 
-                i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE) AS fecha,
-                DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
-                MAX(p.hora_prisma) AS hora_prisma,
-                AVG(p.angulo_dec) AS promedio_vertical,
-                i.tipo_equipo
-            FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
-            AND p.hora_prisma BETWEEN ? AND ?
-            GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
-        )
-        SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
-            (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
-            CAST(CASE 
-                WHEN LAG(pd.promedio_vertical) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.fecha, pd.bloque) IS NULL THEN 0
-                ELSE pd.promedio_vertical - LAG(pd.promedio_vertical) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.fecha, pd.bloque)
-            END AS FLOAT) AS angulo, 
-            pd.tipo_equipo
-        FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;
-        """
         try:
+            placeholders = ', '.join(['?' for _ in prismas])
+            sql = f"""
+            WITH AnguloDecimal AS (
+                SELECT *,
+                    CASE 
+                        WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_vertical AS FLOAT)
+                    END AS angulo_dec
+                FROM {tabla} WHERE nombre_prisma IN ({placeholders})
+            ),
+            promedios_horas AS (
+                SELECT 
+                    i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE) AS fecha,
+                    DATEPART(HOUR, p.hora_prisma) / {cantidad} AS bloque, 
+                    MAX(p.hora_prisma) AS hora_prisma,
+                    AVG(p.angulo_dec) AS promedio_vertical,
+                    i.tipo_equipo
+                FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+                WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
+                AND p.hora_prisma BETWEEN ? AND ?
+                GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
+            )
+            SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
+                (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+                (CAST(DATEDIFF(SECOND, FIRST_VALUE(pd.hora_prisma) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.hora_prisma), pd.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                CAST(CASE 
+                    WHEN LAG(pd.promedio_vertical) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.fecha, pd.bloque) IS NULL THEN 0
+                    ELSE pd.promedio_vertical - LAG(pd.promedio_vertical) OVER (PARTITION BY pd.nombre_prisma ORDER BY pd.fecha, pd.bloque)
+                END AS FLOAT) AS angulo, 
+                pd.tipo_equipo
+            FROM promedios_horas pd ORDER BY pd.nombre_prisma, pd.fecha, pd.bloque;
+            """
+            params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, prismas + [idcomponente] + [fechaini, fechafin])
+            cur.execute(sql, params)
             row = [tuple(r) for r in cur.fetchall()]
             return row if row else None
         except Error as e:
@@ -7087,7 +7081,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasAVI(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None

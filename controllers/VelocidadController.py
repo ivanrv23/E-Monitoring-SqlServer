@@ -3,82 +3,119 @@ from utils.common.metodosGenerales import MetodosGenerales
 
 class VelocidadController:
     
-    def ctrlDatosPrismasMarcados(idproyecto, prismasmarcados, fechaini, fechafin, tipografico, unidadmedida, tipovelocidad, filtrado, tipopromedio, cantidad):
+    @staticmethod
+    def ctrlDatosPrismasMarcados(idproyecto, prismasmarcados, fechaini, fechafin, tipografico, unidad, tipovelocidad, tipofiltro, tipopromedio, cantidad):
         prismastotales = []
+
+        # =========================
+        # SIN PROMEDIO
+        # =========================
         if tipopromedio == "SPRO":
-            if filtrado == 0: # sin fechas
-                method_name = 'mdlCalcularVelocidad' + tipografico
-                if tipografico == "VI3D":
-                    if tipovelocidad == 0:
-                        method_name = 'mdlCalcularVelocidadPositiva' + tipografico
-                for componente, listaprismas in prismasmarcados:
-                    nombrecomponente, idcomponente, idproy = componente
-                    resultado = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
-                    for tabla, prismas in resultado.items():
-                        prismasdata = getattr(VelocidadModel, method_name)(tabla, unidadmedida, prismas, idcomponente)
-                        if prismasdata:
-                            prismastotales.extend(prismasdata)
-            else: # con fechas
-                method_name = 'mdlCalcularVelocidadFechas' + tipografico
-                if tipografico == "VI3D":
-                    if tipovelocidad == 0:
-                        method_name = 'mdlCalcularVelocidadPositivaFechas' + tipografico
-                for componente, listaprismas in prismasmarcados:
-                    nombrecomponente, idcomponente, idproy = componente
-                    resultado = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
-                    for tabla, prismas in resultado.items():
-                        prismasdata = getattr(VelocidadModel, method_name)(tabla, unidadmedida, prismas, idcomponente, fechaini, fechafin)
-                        if prismasdata:
-                            prismastotales.extend(prismasdata)
+
+            for componente, listaprismas in prismasmarcados:
+                nombrecomponente, idcomponente, idproy = componente
+                resultado = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
+
+                for tabla, prismas in resultado.items():
+
+                    if tipofiltro == 0:
+                        # ✅ MODO HISTÓRICO: Llama al método histórico pero ahora PASANDO LAS FECHAS para optimización.
+                        base_name = 'mdlCalcularVelocidad'
+                        if tipografico == "VI3D" and tipovelocidad == 0:
+                            base_name = 'mdlCalcularVelocidadPositiva'
+                        
+                        method_name = base_name + tipografico
+                        
+                        prismasdata = getattr(VelocidadModel, method_name)(
+                            tabla, unidad, prismas, idcomponente, fechaini, fechafin
+                        )
+                    else:
+                        # ✅ MODO POR FECHAS: Llama al método de fechas existente. NO se altera.
+                        base_name_f = 'mdlCalcularVelocidadFechas'
+                        if tipografico == "VI3D" and tipovelocidad == 0:
+                            base_name_f = 'mdlCalcularVelocidadPositivaFechas'
+
+                        method_name_f = base_name_f + tipografico
+
+                        prismasdata = getattr(VelocidadModel, method_name_f)(
+                            tabla, unidad, prismas, idcomponente, fechaini, fechafin
+                        )
+
+                    if prismasdata:
+                        prismastotales.extend(prismasdata)
+
+        # =========================
+        # PROMEDIO EN DÍAS
+        # =========================
         elif tipopromedio == "PDIA":
-            if filtrado == 0: # sin fechas
-                method_name = 'mdlCalcularVelocidadDias' + tipografico
-                if tipografico == "VI3D":
-                    if tipovelocidad == 0:
-                        method_name = 'mdlCalcularVelocidadDiasPositiva' + tipografico
-                for componente, listaprismas in prismasmarcados:
-                    nombrecomponente, idcomponente, idproy = componente
-                    resultado = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
-                    for tabla, prismas in resultado.items():
-                        prismasdata = getattr(VelocidadModel, method_name)(tabla, unidadmedida, prismas, idcomponente, cantidad)
-                        if prismasdata:
-                            prismastotales.extend(prismasdata)
-            else: # con fechas
-                method_name = 'mdlCalcularVelocidadDiasFechas' + tipografico
-                if tipografico == "VI3D":
-                    if tipovelocidad == 0:
-                        method_name = 'mdlCalcularVelocidadDiasPositivaFechas' + tipografico
-                for componente, listaprismas in prismasmarcados:
-                    nombrecomponente, idcomponente, idproy = componente
-                    resultado = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
-                    for tabla, prismas in resultado.items():
-                        prismasdata = getattr(VelocidadModel, method_name)(tabla, unidadmedida, prismas, idcomponente, fechaini, fechafin, cantidad)
-                        if prismasdata:
-                            prismastotales.extend(prismasdata)
-        else:
-            if filtrado == 0: # sin fechas
-                method_name = 'mdlCalcularVelocidadHoras' + tipografico
-                if tipografico == "VI3D":
-                    if tipovelocidad == 0:
-                        method_name = 'mdlCalcularVelocidadHorasPositiva' + tipografico
-                for componente, listaprismas in prismasmarcados:
-                    nombrecomponente, idcomponente, idproy = componente
-                    resultado = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
-                    for tabla, prismas in resultado.items():
-                        prismasdata = getattr(VelocidadModel, method_name)(tabla, unidadmedida, prismas, idcomponente, cantidad)
-                        if prismasdata:
-                            prismastotales.extend(prismasdata)
-            else: # con fechas
-                method_name = 'mdlCalcularVelocidadHorasFechas' + tipografico
-                if tipografico == "VI3D":
-                    if tipovelocidad == 0:
-                        method_name = 'mdlCalcularVelocidadHorasPositivaFechas' + tipografico
-                for componente, listaprismas in prismasmarcados:
-                    nombrecomponente, idcomponente, idproy = componente
-                    resultado = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
-                    for tabla, prismas in resultado.items():
-                        prismasdata = getattr(VelocidadModel, method_name)(tabla, unidadmedida, prismas, idcomponente, fechaini, fechafin, cantidad)
-                        if prismasdata:
-                            prismastotales.extend(prismasdata)
+
+            for componente, listaprismas in prismasmarcados:
+                nombrecomponente, idcomponente, idproy = componente
+                resultado = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
+
+                for tabla, prismas in resultado.items():
+
+                    if tipofiltro == 0:
+                        # ✅ MODO HISTÓRICO: Llama al método histórico pero ahora PASANDO LAS FECHAS para optimización.
+                        base_name = 'mdlCalcularVelocidadDias'
+                        if tipografico == "VI3D" and tipovelocidad == 0:
+                            base_name = 'mdlCalcularVelocidadDiasPositiva'
+
+                        method_name = base_name + tipografico
+
+                        prismasdata = getattr(VelocidadModel, method_name)(
+                            tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad
+                        )
+                    else:
+                        # ✅ MODO POR FECHAS: Llama al método de fechas existente. NO se altera.
+                        base_name_f = 'mdlCalcularVelocidadDiasFechas'
+                        if tipografico == "VI3D" and tipovelocidad == 0:
+                            base_name_f = 'mdlCalcularVelocidadDiasPositivaFechas'
+
+                        method_name_f = base_name_f + tipografico
+                        
+                        prismasdata = getattr(VelocidadModel, method_name_f)(
+                            tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad
+                        )
+
+                    if prismasdata:
+                        prismastotales.extend(prismasdata)
+
+        # =========================
+        # PROMEDIO EN HORAS
+        # =========================
+        else: # Asume "PHOR" o cualquier otro valor para promedio por horas
+
+            for componente, listaprismas in prismasmarcados:
+                nombrecomponente, idcomponente, idproy = componente
+                resultado = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
+
+                for tabla, prismas in resultado.items():
+
+                    if tipofiltro == 0:
+                        # ✅ MODO HISTÓRICO: Llama al método histórico pero ahora PASANDO LAS FECHAS para optimización.
+                        base_name = 'mdlCalcularVelocidadHoras'
+                        if tipografico == "VI3D" and tipovelocidad == 0:
+                            base_name = 'mdlCalcularVelocidadHorasPositiva'
+                        
+                        method_name = base_name + tipografico
+
+                        prismasdata = getattr(VelocidadModel, method_name)(
+                            tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad
+                        )
+                    else:
+                        # ✅ MODO POR FECHAS: Llama al método de fechas existente. NO se altera.
+                        base_name_f = 'mdlCalcularVelocidadHorasFechas'
+                        if tipografico == "VI3D" and tipovelocidad == 0:
+                            base_name_f = 'mdlCalcularVelocidadHorasPositivaFechas'
+                        
+                        method_name_f = base_name_f + tipografico
+
+                        prismasdata = getattr(VelocidadModel, method_name_f)(
+                            tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad
+                        )
+
+                    if prismasdata:
+                        prismastotales.extend(prismasdata)
+
         return prismastotales
-    
