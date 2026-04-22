@@ -254,7 +254,9 @@ class ConexionDB:
         inputLecturas = dialogo.findChild(QTextEdit, 'input_consulta_lecturas')
         comboEstados = dialogo.findChild(QComboBox, "cb_estados")
         lblrespuesta = dialogo.findChild(QLabel, "label_mensaje")
+        btnProbarConexion = dialogo.findChild(QPushButton, "btn_probar_conexion")
         botonGuardar = dialogo.findChild(QPushButton, "btn_registrar")
+        
         # Llenar proyectos
         proyectos = InterfazController.ctrlListarProyectos()
         if proyectos:
@@ -270,6 +272,57 @@ class ConexionDB:
         # Llenar estados
         comboEstados.addItem("Conectado", 1)
         comboEstados.addItem("Desconectado", 0)
+        def probarConexion():
+            servidor = inputServer.text().strip()
+            puerto = inputPuerto.text().strip() or "1433"
+            database = inputDatabase.text().strip()
+            usuario = inputUsuario.text().strip()
+            contraseña = inputPassword.text().strip()
+
+            # Validaciones básicas antes de intentar conectar
+            if not servidor or not database or not usuario or not contraseña:
+                lblrespuesta.setText("Complete los datos antes de probar la conexión.")
+                lblrespuesta.setStyleSheet("color: red;")
+                return
+
+            lblrespuesta.setText("Probando conexión...")
+            lblrespuesta.setStyleSheet("color: blue;")
+            lblrespuesta.repaint()
+
+            driver = '{ODBC Driver 17 for SQL Server}'
+
+            conn_str = (
+                f'DRIVER={driver};'
+                f'SERVER={servidor},{puerto};'
+                f'DATABASE={database};'
+                f'UID={usuario};'
+                f'PWD={contraseña};'
+                'TrustServerCertificate=yes;'
+                'Connection Timeout=3;'
+            )
+
+            try:
+                conn = pyodbc.connect(conn_str)
+                conn.close()
+
+                lblrespuesta.setText("✔ Conexión Exitosa")
+                lblrespuesta.setStyleSheet("color: green; font-weight: bold;")
+
+            except Exception as e:
+                error_msg = str(e)
+
+                if "Login failed" in error_msg:
+                    texto_error = "Usuario o contraseña incorrectos"
+                elif "server was not found" in error_msg or "timeout" in error_msg:
+                    texto_error = "No se encuentra el servidor (IP/Puerto)"
+                elif "Cannot open database" in error_msg:
+                    texto_error = f"La base de datos '{database}' no existe"
+                else:
+                    texto_error = "Falló la conexión"
+
+                lblrespuesta.setText(texto_error)
+                lblrespuesta.setStyleSheet("color: red; font-weight: bold;")
+                
         def guardarInfoConexion():
             idproyecto = comboProyectos.currentData()
             instrumento = comboInstrumentos.currentText()
@@ -332,6 +385,7 @@ class ConexionDB:
                 lblrespuesta.setText("Error al registrar.")
                 lblrespuesta.setStyleSheet("color: red;")
         # conectar botones
+        btnProbarConexion.clicked.connect(probarConexion)
         botonGuardar.clicked.connect(guardarInfoConexion)
         dialogo.exec()
     
