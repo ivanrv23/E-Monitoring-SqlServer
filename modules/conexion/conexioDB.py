@@ -149,8 +149,7 @@ class ConexionDB:
                 elif "Cannot open database" in error_msg:
                     texto_error = f"Error: La base de datos '{txt_database.text()}' no existe"
                 else:
-                    texto_error = "Falló la Conexión (Ver consola)"
-                    print(error_msg)
+                    texto_error = "Falló la Conexión"
                 lbl_estado.setText(texto_error)
                 lbl_estado.setStyleSheet("background-color: #f8d7da; color: #721c24; border-radius: 4px; padding: 6px;")
         def guardar():
