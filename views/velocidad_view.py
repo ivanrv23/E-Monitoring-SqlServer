@@ -24,7 +24,7 @@ class VelocidadView:
     nameproyecto = "SIN PROYECTO"
     estadochecklist = True
     estadoPagina = True
-    fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(90)
+    fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(365)
     
     def inicializarVistaVelocidad(main, proyectoid, proyectoname, fechaini, fechafin):
         VelocidadView.main = main
