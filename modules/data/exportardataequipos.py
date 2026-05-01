@@ -221,7 +221,7 @@ class ExportarData():
         # Ajustar el ancho de las columnas (A hasta K)
         for col in range(1, 12):
             hoja.column_dimensions[chr(64 + col)].width = 20
-        # Ajustar el alto de las filas 1 a 4 para el logo (3.5 cm ≈ 99 puntos, 4 filas de 25 puntos)
+        # Ajustar el alto de las filas 1 a 4 para el logo
         for row in range(1, 5):
             hoja.row_dimensions[row].height = 25
         # ---- LOGO (A1:A4) ----
@@ -270,7 +270,6 @@ class ExportarData():
             celda.font = Font(size=14, bold=True, color="FFFFFF")
             celda.alignment = Alignment(horizontal="center", vertical="center")
             celda.fill = color_fondo
-            # El borde se aplica en el bucle anterior
         # ---- ENCABEZADOS DETALLADOS (ahora en fila 10) ----
         encabezados = [
             "Hito", "Fecha", "Hora", "Este", "Norte", "Elevación",

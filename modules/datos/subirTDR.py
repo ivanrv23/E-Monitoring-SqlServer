@@ -384,21 +384,21 @@ class SubirTDR:
             if not file_name or not file_name.endswith('.xlsx'):
                 continue
             try:
-                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=16, engine='openpyxl')
+                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=13, engine='openpyxl')
                 encabezados_archivo = [str(col).strip() for col in df_header.iloc[0, :len(encabezado)]]
                 if encabezados_archivo != encabezado:
                     erroneos.append(file_name.split("/")[-1])
                     continue
                 wb = load_workbook(file_name, data_only=True)
                 hoja = wb.active
-                nombretdr = hoja["B13"].value
-                coordeste = hoja["B14"].value
-                coordnorte = hoja["B15"].value
-                superficie = hoja["B16"].value
-                profundo = hoja["D13"].value
-                inclinacion = hoja["D14"].value
-                azimuth = hoja["D15"].value
-                comentario = hoja["D16"].value
+                nombretdr = hoja["B10"].value
+                coordeste = hoja["B11"].value
+                coordnorte = hoja["B12"].value
+                superficie = hoja["B13"].value
+                profundo = hoja["D10"].value
+                inclinacion = hoja["D11"].value
+                azimuth = hoja["D12"].value
+                comentario = hoja["D13"].value
                 wb.close()
                 if pd.isna(nombretdr) or proyectoid == 0 or not idcomponente:
                     erroneos.append(file_name.split("/")[-1])
@@ -455,7 +455,7 @@ class SubirTDR:
                     if respues:
                         idsondaje = respues
                 if idsondaje is not None:
-                    df = pd.read_excel(file_name, header=None, skiprows=17, engine='openpyxl')
+                    df = pd.read_excel(file_name, header=None, skiprows=14, engine='openpyxl')
                     df.columns = ['fecha', 'hora', 'profundidad', 'impedancia', 'observacion']
                     # Obtener la primera fila de 'fecha' y 'hora'
                     df['fecha'] = pd.to_datetime(df['fecha'], errors='coerce')

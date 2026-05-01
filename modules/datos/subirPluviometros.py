@@ -299,7 +299,7 @@ class SubirPluviometros:
             data = []
             try:
                 # Validación de encabezado
-                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=16, engine='openpyxl')
+                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=12, engine='openpyxl')
                 encabezados_archivo = [str(col).strip() for col in df_header.iloc[0, :len(encabezado)]]
                 
                 if encabezados_archivo != encabezado:
@@ -310,12 +310,12 @@ class SubirPluviometros:
                 wb = load_workbook(file_name, data_only=True)
                 hoja = wb.active
                 
-                nombrepluvio = hoja["B14"].value
-                codigopluvio = hoja["B15"].value
-                coordeste = hoja["B16"].value
-                coordnorte = hoja["D14"].value
-                superficie = hoja["D15"].value
-                comentario = hoja["D16"].value
+                nombrepluvio = hoja["B10"].value
+                codigopluvio = hoja["B11"].value
+                coordeste = hoja["B12"].value
+                coordnorte = hoja["D10"].value
+                superficie = hoja["D11"].value
+                comentario = hoja["D12"].value
                 wb.close()
 
                 # Validación de metadatos
@@ -363,7 +363,7 @@ class SubirPluviometros:
 
                 # Procesamiento de datos de precipitación
                 if idpluviometro is not None:
-                    df = pd.read_excel(file_name, header=None, skiprows=17, engine='openpyxl')
+                    df = pd.read_excel(file_name, header=None, skiprows=13, engine='openpyxl')
                     df.columns = ['fecha', 'hora', 'precipitacion', 'observacion']
 
                     for _, row in df.iterrows():

@@ -286,17 +286,17 @@ class SubirAcelerografos:
             if not file_name or not file_name.endswith('.xlsx'):
                 continue
             try:
-                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=15, engine='openpyxl')
+                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=11, engine='openpyxl')
                 encabezados_archivo = [str(col).strip() for col in df_header.iloc[0, :len(encabezado)]]
                 if encabezados_archivo != encabezado:
                     erroneos.append(file_name.split("/")[-1])
                     continue
                 wb = load_workbook(file_name, data_only=True)
                 hoja = wb.active
-                nombresismo = hoja["B14"].value
-                coordeste = hoja["B15"].value
-                coordnorte = hoja["D14"].value
-                coordnivel = hoja["D15"].value
+                nombresismo = hoja["B10"].value
+                coordeste = hoja["B11"].value
+                coordnorte = hoja["D10"].value
+                coordnivel = hoja["D11"].value
                 wb.close()
                 if pd.isna(nombresismo) or proyectoid == 0 or not idcomponente:
                     erroneos.append(file_name.split("/")[-1])
@@ -332,7 +332,7 @@ class SubirAcelerografos:
                     if respues:
                         idacelerografo = respues
                 if idacelerografo is not None:
-                    df = pd.read_excel(file_name, header=None, skiprows=16, engine='openpyxl')
+                    df = pd.read_excel(file_name, header=None, skiprows=12, engine='openpyxl')
                     df.columns = ['fecha', 'hora', 'magnitud', 'distancia', 'observacion']
                     for _, row in df.iterrows():
                         fecha = row['fecha']
