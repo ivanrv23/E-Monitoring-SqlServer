@@ -20,6 +20,163 @@ from controllers.CeldaController import CeldaController
 from controllers.EventosController import EventosController
 from views.EventosDialog import EventosDialog
 
+# ============================================================
+# CONFIGURACIÓN GLOBAL DE SUAVIZADO
+# False = líneas rectas (comportamiento original)
+# True  = curvas suavizadas tipo Excel/ECharts
+# ============================================================
+SUAVIZADO_TENSION = 0.2  # 0.0=recto, 0.5=máximo suavizado
+
+
+def suavizar_con_bezier(x_num, y_num, tension=0.2):
+    """
+    Suaviza una línea usando curvas de Bézier cúbicas.
+
+    GARANTÍAS PARA DATOS DE SENSORES:
+    - La curva pasa EXACTAMENTE por todos los puntos originales
+    - No se inventan lecturas intermedias
+    - Solo se suavizan las esquinas (igual que Excel y ECharts)
+    - El hover sigue usando los datos reales originales
+
+    Parámetros:
+    -----------
+    x_num    : np.array de float (fechas ya convertidas a número matplotlib,
+                o días/horas según el modo)
+    y_num    : np.array de float (lecturas reales del sensor)
+    tension  : float 0.0-0.5
+                0.0 = sin suavizado (línea recta)
+                0.2 = suavizado moderado (recomendado sensores)
+                0.5 = máximo (igual que ECharts default)
+
+    Retorna:
+    --------
+    (x_bezier, y_bezier) : arrays listos para ax.plot()
+                           SOLO para la representación visual.
+    """
+    x = np.asarray(x_num, dtype=float)
+    y = np.asarray(y_num, dtype=float)
+
+    # --- Limpieza robusta ---
+    mask = np.isfinite(x) & np.isfinite(y)
+    x = x[mask]
+    y = y[mask]
+    n = len(x)
+
+    # Mínimo 3 puntos para suavizar (con 2 es una recta de todas formas)
+    if n < 3:
+        return x, y
+
+    PASOS = 30  # Puntos por segmento bézier
+    x_out = []
+    y_out = []
+
+    for i in range(n - 1):
+        x0, y0 = x[i],   y[i]       # Punto real inicio
+        x3, y3 = x[i+1], y[i+1]     # Punto real fin
+
+        # Punto de control 1 (salida desde x0,y0)
+        # Usa el punto anterior para calcular la tangente
+        if i == 0:
+            cp1x = x0 + (x3 - x0) * tension
+            cp1y = y0 + (y3 - y0) * tension
+        else:
+            x_prev, y_prev = x[i-1], y[i-1]
+            cp1x = x0 + (x3 - x_prev) * tension
+            cp1y = y0 + (y3 - y_prev) * tension
+
+        # Punto de control 2 (entrada hacia x3,y3)
+        # Usa el punto siguiente para calcular la tangente
+        if i == n - 2:
+            cp2x = x3 - (x3 - x0) * tension
+            cp2y = y3 - (y3 - y0) * tension
+        else:
+            x_next, y_next = x[i+2], y[i+2]
+            cp2x = x3 - (x_next - x0) * tension
+            cp2y = y3 - (y_next - y0) * tension
+
+        # Curva Bézier cúbica paramétrica
+        # endpoint=True solo en el último segmento para no duplicar puntos
+        es_ultimo = (i == n - 2)
+        t = np.linspace(0, 1, PASOS, endpoint=es_ultimo)
+
+        bx = ((1-t)**3 * x0 +
+              3*(1-t)**2 * t * cp1x +
+              3*(1-t)    * t**2 * cp2x +
+              t**3 * x3)
+
+        by = ((1-t)**3 * y0 +
+              3*(1-t)**2 * t * cp1y +
+              3*(1-t)    * t**2 * cp2y +
+              t**3 * y3)
+
+        x_out.append(bx)
+        y_out.append(by)
+
+    return np.concatenate(x_out), np.concatenate(y_out)
+
+
+def _x_a_numerico(x_data, tiempo):
+    """
+    Convierte x_data al formato float que necesita suavizar_con_bezier.
+    Para tiempo=FECHA convierte fechas a número matplotlib.
+    Para otros modos simplemente castea a float.
+    """
+    x_arr = np.asarray(x_data)
+    if tiempo == "FECHA":
+        try:
+            if hasattr(x_arr, 'dtype'):
+                if np.issubdtype(x_arr.dtype, np.datetime64) or x_arr.dtype == object:
+                    return mdates.date2num(x_arr)
+            return x_arr.astype(float)
+        except Exception:
+            return x_arr.astype(float)
+    else:
+        return x_arr.astype(float)
+
+def plot_linea_suavizada(ax, x_data, y_data, tiempo, activo=False, **kwargs): # <-- Agregamos activo=False
+    marker     = kwargs.pop('marker', None)
+    markersize = kwargs.pop('markersize', 6)
+    estilo_linea = kwargs.get('linestyle', '-') 
+
+    if not activo: # <-- Cambiado de SUAVIZADO_ESTADO a activo
+        if marker:
+            kwargs['marker']     = marker
+            kwargs['markersize'] = markersize
+        linea, = ax.plot(x_data, y_data, **kwargs)
+        return linea
+
+    # ---- Modo suavizado ----
+    x_num = _x_a_numerico(x_data, tiempo)
+    y_num = np.asarray(y_data, dtype=float)
+    x_s, y_s = suavizar_con_bezier(x_num, y_num, SUAVIZADO_TENSION)
+
+    label      = kwargs.pop('label', '_nolegend_')
+    
+    # --- CAPA 1: Curva visual ---
+    kwargs_visual = kwargs.copy()
+    kwargs_visual['label'] = '_nolegend_'
+    linea_visual, = ax.plot(x_s, y_s, **kwargs_visual)
+    color_final = linea_visual.get_color()
+
+    # --- CAPA 2: Marcadores ---
+    if marker:
+        ax.plot(x_data, y_data, marker=marker, markersize=markersize,
+                linestyle='none', color=color_final, zorder=linea_visual.get_zorder() + 1,
+                label='_nolegend_')
+
+    # --- CAPA 3: Línea fantasma ---
+    linea_real, = ax.plot(
+        x_data, y_data,
+        linestyle='none', marker='none',
+        color=color_final, label=label,
+        alpha=0, zorder=0
+    )
+    
+    # IMPORTANTE: Guardar estilo para la leyenda
+    linea_real._estilo_puro = estilo_linea
+    
+    return linea_real
+
 class ModalDialog(QDialog):
     def __init__(self, parent, label, date, reading):  # Añadir parent
         super().__init__(parent, Qt.Window)  # Usar Qt.Window
@@ -228,6 +385,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     limpiar_widget(widget)
 
     config = SoftwareConfiguracion.obtenerDataSoftware()
+    SUAVIZADO_ESTADO = True if config[20] == 1 else False
     titulozise, ejezise, etiquesize, leyendazise, vertices = config[0], config[1], config[2], config[3], config[6]
     lineatenden, grosortenden, colortenden, fuente = config[7], config[8], config[9], config[10]
     grosorlinea, grosorvertice, decimales, mostrarlluvia, posicionlluvia = config[12], config[13], config[14], config[17], config[18]
@@ -353,17 +511,37 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
         else:
             equipo = idinstrumento
         estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idinstrumento, 0)
+        
+        # ── ANTES: linea, = ax.plot(...)
+        # ── AHORA: plot_linea_suavizada(...)
         if estilo:
             if vertices == 1:
-                linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], linestyle=estilo[3], marker='o', markersize=estilo[4] + 4, linewidth=estilo[4], color=estilo[5], label=nombreequipo)
+                linea = plot_linea_suavizada(
+                    ax, datos_equipo['Fecha'], datos_equipo[tipo], tiempo, activo=SUAVIZADO_ESTADO,
+                    linestyle=estilo[3], marker='o',
+                    markersize=estilo[4] + 4, linewidth=estilo[4],
+                    color=estilo[5], label=nombreequipo
+                )
             else:
-                linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], linestyle=estilo[3], linewidth=estilo[4], color=estilo[5], label=nombreequipo)
+                linea = plot_linea_suavizada(
+                    ax, datos_equipo['Fecha'], datos_equipo[tipo], tiempo, activo=SUAVIZADO_ESTADO,
+                    linestyle=estilo[3], linewidth=estilo[4],
+                    color=estilo[5], label=nombreequipo
+                )
         else:
             if vertices == 1:
-                linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], marker='o', markersize=grosorvertice, linewidth=grosorlinea, label=nombreequipo)
+                linea = plot_linea_suavizada(
+                    ax, datos_equipo['Fecha'], datos_equipo[tipo], tiempo, activo=SUAVIZADO_ESTADO,
+                    marker='o', markersize=grosorvertice,
+                    linewidth=grosorlinea, label=nombreequipo
+                )
             else:
-                linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], linewidth=grosorlinea, label=nombreequipo)
+                linea = plot_linea_suavizada(
+                    ax, datos_equipo['Fecha'], datos_equipo[tipo], tiempo, activo=SUAVIZADO_ESTADO,
+                    linewidth=grosorlinea, label=nombreequipo
+                )
         lineas.append(linea)
+        # El resto del bucle (tendencias, etc.) NO cambia
 
         if equipostendencia:
             for instru, regresion, grado in equipostendencia:
@@ -569,8 +747,26 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
 
             leyenda_elementos = lineas + ([barras_pluviometro] if barras_pluviometro else [])
             leyenda_labels = [line.get_label() for line in lineas] + (["Precipitación"] if barras_pluviometro else [])
+            # --- TRUCO PARA MODO SUAVIZADO ---
+            if SUAVIZADO_ESTADO:
+                for line in lineas:
+                    if hasattr(line, '_estilo_puro'):
+                        line.set_linestyle(line._estilo_puro) # Mostrar estilo en leyenda
+                        line.set_alpha(1.0)                   # Mostrar color en leyenda
 
-            legend = ax.legend(handles=leyenda_elementos, labels=leyenda_labels, loc='upper center', bbox_to_anchor=(0.5, 0), ncol=ncols, frameon=False, fontsize=leyendazise, borderaxespad=0.8)
+            # Crear la leyenda con los estilos activados temporalmente
+            legend = ax.legend(handles=leyenda_elementos, labels=leyenda_labels, 
+                               loc='upper center', bbox_to_anchor=(0.5, 0), 
+                               ncol=ncols, frameon=False, fontsize=leyendazise, 
+                               borderaxespad=0.8)
+
+            # --- RESTAURAR ESTADO INVISIBLE ---
+            if SUAVIZADO_ESTADO:
+                for line in lineas:
+                    if hasattr(line, '_estilo_puro'):
+                        line.set_linestyle('none') # Volver a ocultar en el gráfico
+                        line.set_alpha(0)          # Volver a ocultar en el gráfico
+                        
             renderer = canvas.get_renderer()
             canvas.draw()
             fig_bbox = figure.bbox
@@ -997,6 +1193,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
     # Limpiar el widget
     limpiar_widget(widget)
     config = SoftwareConfiguracion.obtenerDataSoftware()
+    SUAVIZADO_ESTADO = True if config[20] == 1 else False
     titulozise, ejezise, etiquesize, leyendazise, cotasize = config[0], config[1], config[2], config[3], config[4]
     mostrarcota, vertices, lineatenden, grosortenden, colortenden = config[5], config[6], config[7], config[8], config[9]
     fuente, grosorlinea, grosorvertice, decimales = config[10], config[12], config[13], config[14]
@@ -1122,14 +1319,29 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
             estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idinstrumento, 0)
             if estilo:
                 if vertices == 1:
-                    linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], marker='o', markersize=estilo[4] + 4, linestyle=estilo[3], linewidth=estilo[4], color=estilo[5], label=nombreequipo)
+                    linea = plot_linea_suavizada(
+                        ax, datos_equipo['Fecha'], datos_equipo[tipo], tiempo, activo=SUAVIZADO_ESTADO,
+                        marker='o', markersize=estilo[4] + 4,
+                        linestyle=estilo[3], linewidth=estilo[4],
+                        color=estilo[5], label=nombreequipo
+                    )
                 else:
-                    linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], linestyle=estilo[3], linewidth=estilo[4], color=estilo[5], label=nombreequipo)
+                    linea = plot_linea_suavizada(
+                        ax, datos_equipo['Fecha'], datos_equipo[tipo], tiempo, activo=SUAVIZADO_ESTADO,
+                        linestyle=estilo[3], linewidth=estilo[4],
+                        color=estilo[5], label=nombreequipo
+                    )
             else:
                 if vertices == 1:
-                    linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], marker='o', label=nombreequipo)
+                    linea = plot_linea_suavizada(
+                        ax, datos_equipo['Fecha'], datos_equipo[tipo], tiempo, activo=SUAVIZADO_ESTADO,
+                        marker='o', label=nombreequipo
+                    )
                 else:
-                    linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], label=nombreequipo)
+                    linea = plot_linea_suavizada(
+                        ax, datos_equipo['Fecha'], datos_equipo[tipo], tiempo, activo=SUAVIZADO_ESTADO,
+                        label=nombreequipo
+                    )
             lineas.append(linea)
 
             # graficar cota piezometrica
@@ -1447,7 +1659,25 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
             ncols = calculate_columns()
             leyenda_elementos = lineas + ([barras_pluviometro] if barras_pluviometro else [])
             leyenda_labels = [line.get_label() for line in lineas] + (["Precipitación"] if barras_pluviometro else [])
-            legend = ax.legend(handles=leyenda_elementos, labels=leyenda_labels, loc='upper center', bbox_to_anchor=(0.5, 0), ncol=ncols, frameon=False, fontsize=leyendazise, borderaxespad=0.8)
+            # --- TRUCO PARA MODO SUAVIZADO ---
+            if SUAVIZADO_ESTADO:
+                for line in lineas:
+                    if hasattr(line, '_estilo_puro'):
+                        line.set_linestyle(line._estilo_puro) # Mostrar estilo en leyenda
+                        line.set_alpha(1.0)                   # Mostrar color en leyenda
+
+            # Crear la leyenda con los estilos activados temporalmente
+            legend = ax.legend(handles=leyenda_elementos, labels=leyenda_labels, 
+                               loc='upper center', bbox_to_anchor=(0.5, 0), 
+                               ncol=ncols, frameon=False, fontsize=leyendazise, 
+                               borderaxespad=0.8)
+
+            # --- RESTAURAR ESTADO INVISIBLE ---
+            if SUAVIZADO_ESTADO:
+                for line in lineas:
+                    if hasattr(line, '_estilo_puro'):
+                        line.set_linestyle('none') # Volver a ocultar en el gráfico
+                        line.set_alpha(0)          # Volver a ocultar en el gráfico
             renderer = canvas.get_renderer()
             canvas.draw()
             fig_bbox = figure.bbox
@@ -1774,6 +2004,7 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
     limpiar_widget(widget)
     # crear figura
     config = SoftwareConfiguracion.obtenerDataSoftware()
+    SUAVIZADO_ESTADO = True if config[20] == 1 else False
     titulozise, ejezise, etiquesize, leyendazise = config[0], config[1], config[2], config[3]
     vertices, fuente, grosorlinea, grosorvertice, decimales = config[6], config[10], config[12], config[13], config[14]
     
@@ -1811,14 +2042,32 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
         estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idinstrumento, 0)
         if estilo:
             if vertices == 1:
-                linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], marker='o', markersize=estilo[4] + 4, linestyle=estilo[3], linewidth=estilo[4], color=estilo[5], label=nombreequipo)
+                linea = plot_linea_suavizada(
+                    ax, datos_equipo['Fecha'], datos_equipo[tipo], tiempo, activo=SUAVIZADO_ESTADO,
+                    marker='o', markersize=estilo[4] + 4,
+                    linestyle=estilo[3], linewidth=estilo[4],
+                    color=estilo[5], label=nombreequipo
+                )
             else:
-                linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], linestyle=estilo[3], linewidth=estilo[4], color=estilo[5], label=nombreequipo)
+                linea = plot_linea_suavizada(
+                    ax, datos_equipo['Fecha'], datos_equipo[tipo], tiempo, activo=SUAVIZADO_ESTADO,
+                    linestyle=estilo[3], linewidth=estilo[4],
+                    color=estilo[5], label=nombreequipo
+                )
         else:
             if vertices == 1:
-                linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], marker='o', markersize=grosorvertice, linewidth=grosorlinea, linestyle='-', label=nombreequipo)
+                linea = plot_linea_suavizada(
+                    ax, datos_equipo['Fecha'], datos_equipo[tipo], tiempo, activo=SUAVIZADO_ESTADO,
+                    marker='o', markersize=grosorvertice,
+                    linewidth=grosorlinea, linestyle='-',
+                    label=nombreequipo
+                )
             else:
-                linea, = ax.plot(datos_equipo['Fecha'], datos_equipo[tipo], linewidth=grosorlinea, linestyle='-', label=nombreequipo)
+                linea = plot_linea_suavizada(
+                    ax, datos_equipo['Fecha'], datos_equipo[tipo], tiempo, activo=SUAVIZADO_ESTADO,
+                    linewidth=grosorlinea, linestyle='-',
+                    label=nombreequipo
+                )
         lineas.append(linea)
         # Resaltar el primer y Punto Final
         if tiempo != "FECHA":
@@ -1921,7 +2170,27 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
         try:
             ncols = calculate_columns()
             leyenda_labels = [line.get_label() for line in lineas]
-            legend = ax.legend(handles=lineas, labels=leyenda_labels, loc='upper center', bbox_to_anchor=(0.5, 0), ncol=ncols, frameon=False, fontsize=leyendazise, borderaxespad=0.8)
+            # --- ACTIVAR VISIBILIDAD SOLO EN LÍNEAS SUAVIZADAS ---
+            if SUAVIZADO_ESTADO:
+                for item in lineas:
+                    # Solo aplicamos a líneas que vienen de plot_linea_suavizada
+                    if hasattr(item, '_estilo_puro'):
+                        item.set_linestyle(item._estilo_puro)
+                        item.set_alpha(1.0)
+
+            # Crear la leyenda
+            legend = ax.legend(handles=lineas, labels=leyenda_labels, 
+                               loc='upper center', bbox_to_anchor=(0.5, 0), 
+                               ncol=ncols, frameon=False, fontsize=leyendazise, 
+                               borderaxespad=0.8)
+
+            # --- VOLVER A OCULTAR ---
+            if SUAVIZADO_ESTADO:
+                for item in lineas:
+                    if hasattr(item, '_estilo_puro'):
+                        item.set_linestyle('none')
+                        item.set_alpha(0)
+
             renderer = canvas.get_renderer()
             canvas.draw()
             fig_bbox = figure.bbox

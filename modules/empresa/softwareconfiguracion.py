@@ -26,6 +26,7 @@ class SoftwareConfiguracion:
     mostrarpluvio = 0
     celda = 1
     filtrado = 1
+    suavizado = 0
     version = "5.3.0"
        
     # MOSTRAR DIALOGO DE AJUSTES DE SOFTWARE
@@ -66,6 +67,7 @@ class SoftwareConfiguracion:
         radioLluviaAbajo = dialog.findChild(QRadioButton, "radio_lluvia_abajo")
         radioCeldaPositiva = dialog.findChild(QRadioButton, "radio_celdas_positivas")
         radioCeldaNegativa = dialog.findChild(QRadioButton, "radio_celdas_negativas")
+        checkSuavizado = dialog.findChild(QCheckBox, "check_suavizado") 
         labelmensaje = dialog.findChild(QLabel, "label_mensaje")
         confirmarAjustes = dialog.findChild(QPushButton, "btn_aceptar")
         # cargar combo
@@ -131,6 +133,9 @@ class SoftwareConfiguracion:
                 radioCeldaPositiva.setChecked(True)
             else:
                 radioCeldaNegativa.setChecked(True)
+            
+            if len(respuesta) > 21: # Verificación de seguridad
+                checkSuavizado.setChecked(True if respuesta[21] == 1 else False)
         else:
             spinTitulo.setValue(SoftwareConfiguracion.titulo)
             spinEjes.setValue(SoftwareConfiguracion.ejes)
@@ -177,6 +182,9 @@ class SoftwareConfiguracion:
                 radioCeldaPositiva.setChecked(True)
             else:
                 radioCeldaNegativa.setChecked(True)
+            
+            checkSuavizado.setChecked(True if SoftwareConfiguracion.suavizado == 1 else False)
+            
         def cambiarColor():
             colorcito = QColorDialog.getColor()
             if colorcito.isValid():
@@ -224,6 +232,8 @@ class SoftwareConfiguracion:
                 velocidadcelda = 0
             elif radioCeldaNegativa.isChecked():
                 velocidadcelda = 1
+                
+            suavizado_valor = 1 if checkSuavizado.isChecked() else 0
             # Lista de datos que se enviarán al controlador
             lista_datos = {
                 "titulo": titulo,
@@ -245,7 +255,8 @@ class SoftwareConfiguracion:
                 "filtrofecha": filtrofecha,
                 "precipitacion": lluvia,
                 "mostrarlluvia": poslluvia,
-                "velocidad_celda": velocidadcelda
+                "velocidad_celda": velocidadcelda,
+                "suavizado": suavizado_valor   
             }
             respuesta = EmpresaController.ctrlRegistrarActualizarAjustesSoftware(lista_datos)
             if respuesta:
@@ -284,6 +295,7 @@ class SoftwareConfiguracion:
             SoftwareConfiguracion.precipitacion = respuesta[18]
             SoftwareConfiguracion.mostrarpluvio = respuesta[19]
             SoftwareConfiguracion.celda = respuesta[20]
+            SoftwareConfiguracion.suavizado = respuesta[21] if len(respuesta) > 21 else 0
     
     def obtenerDataSoftware():
         data = [
@@ -307,6 +319,7 @@ class SoftwareConfiguracion:
             SoftwareConfiguracion.precipitacion,
             SoftwareConfiguracion.mostrarpluvio,
             SoftwareConfiguracion.celda,
+            SoftwareConfiguracion.suavizado,
             SoftwareConfiguracion.version
         ]
         return data

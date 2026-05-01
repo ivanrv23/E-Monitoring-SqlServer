@@ -8,3 +8,6 @@ INCLUDE (este_target, norte_target, elevacion_target, state_prisma, estado_prism
 -- Esto acelera el JOIN con los componentes
 CREATE INDEX idx_instrumentacion_comp 
 ON instrumentacion (id_componente, nombre_equipo);
+
+ALTER TABLE configuraciongrafica ADD suavizado_grafica INT DEFAULT 0;
+UPDATE configuraciongrafica SET suavizado_grafica = 0 WHERE suavizado_grafica IS NULL;
