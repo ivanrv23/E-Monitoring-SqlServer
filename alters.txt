@@ -1,0 +1,10 @@
+-- Índice para la tabla de datos (donde están los prismas)
+-- Esto acelera drásticamente el filtrado por nombre y fecha
+CREATE INDEX idx_prisma_datos_perf 
+ON TuTablaDePrismas (nombre_prisma, hora_prisma) 
+INCLUDE (este_target, norte_target, elevacion_target, state_prisma, estado_prisma);
+
+-- Índice para la tabla de instrumentación
+-- Esto acelera el JOIN con los componentes
+CREATE INDEX idx_instrumentacion_comp 
+ON instrumentacion (id_componente, nombre_equipo);

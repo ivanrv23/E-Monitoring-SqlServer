@@ -18,6 +18,28 @@ from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 from controllers.UmbralController import UmbralController
 from utils.shared.graficarUmbrales import GraficarUmbrales
 from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
+
+from PySide6.QtCore import QThread, Signal
+
+class DataWorker(QThread):
+    # Señal que enviará los datos a la interfaz al terminar
+    data_ready = Signal(list)
+
+    def __init__(self, params):
+        super().__init__()
+        self.params = params
+
+    def run(self):
+        # Llama a tu controlador original con sus parámetros de siempre
+        # La magia es que esto ocurre en un hilo separado
+        try:
+            from controllers.DesplazamientoController import DesplazamientoController
+            datos = DesplazamientoController.ctrlDatosPrismasMarcados(*self.params)
+            self.data_ready.emit(datos)
+        except Exception as e:
+            print(f"Error en hilo de datos: {e}")
+            self.data_ready.emit([])
+        
 class DesplazamientoView:
     main = None
     idproyecto = None
@@ -205,35 +227,57 @@ class DesplazamientoView:
             SondajetdrView.reiniciarVistaTDR(DesplazamientoView.main, DesplazamientoView.idproyecto, DesplazamientoView.nameproyecto)
             AnalisisView.reiniciarVistaAnalisis(DesplazamientoView.main, DesplazamientoView.idproyecto, DesplazamientoView.nameproyecto)
     
+    # Variable para que Python no borre el hilo mientras trabaja
+    worker = None 
+
     def obtenerMostrarPrismasMarcados(tree_actual):
         lista = EquiposDesplazamiento.obtener_todos_elementos_marcados(tree_actual)
-        if lista:
-            prismasmarcados = DesplazamientoView.obtenerListaEquiposMarcados(lista, "Prismas")
-            if len(prismasmarcados) > 0:
-                combo_promedios = DesplazamientoView.main.findChild(QComboBox, "combo_promedio_desplaza")
-                spin_promedio = DesplazamientoView.main.findChild(QSpinBox, "spin_promedio_desplaza")
-                tipopromedio = combo_promedios.currentData()
-                if tipopromedio == "SPRO":
-                    spin_promedio.setEnabled(False)
-                else:
-                    spin_promedio.setEnabled(True)
-                numeropromedio = spin_promedio.value()
-                tipo_grafico_desplazamiento = DesplazamientoView.main.findChild(QComboBox, "combo_tipos_desplazamiento")
-                tipografico = tipo_grafico_desplazamiento.currentData()
-                combotipomedida = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza")
-                tipomedida = combotipomedida.currentData()
-                combotipofecha = DesplazamientoView.main.findChild(QComboBox, "combo_tiempo_desplaza")
-                tipotiempo = combotipofecha.currentData()
-                config = SoftwareConfiguracion.obtenerDataSoftware()
-                filtrado = config[16]
-                datos = DesplazamientoController.ctrlDatosPrismasMarcados(DesplazamientoView.idproyecto, prismasmarcados, DesplazamientoView.fechainicial, DesplazamientoView.fechafinal, tipografico, tipomedida, filtrado, tipopromedio, numeropromedio)
-                if len(datos) > 0:
-                    DesplazamientoView.graficarPrismasDesplazamiento(lista, datos, tipografico, tipomedida, tipotiempo)
-            else:
-                DesplazamientoView.limpiarGraficaDesplazamiento()
-        else:
+        if not lista:
             DesplazamientoView.limpiarGraficaDesplazamiento()
-    
+            return
+
+        prismasmarcados = DesplazamientoView.obtenerListaEquiposMarcados(lista, "Prismas")
+        if len(prismasmarcados) == 0:
+            DesplazamientoView.limpiarGraficaDesplazamiento()
+            return
+
+        # --- A. CAPTURAR VALORES DE LA UI (Hilo Principal) ---
+        combo_promedios = DesplazamientoView.main.findChild(QComboBox, "combo_promedio_desplaza")
+        spin_promedio = DesplazamientoView.main.findChild(QSpinBox, "spin_promedio_desplaza")
+        tipopromedio = combo_promedios.currentData()
+        
+        if tipopromedio == "SPRO":
+            spin_promedio.setEnabled(False)
+        else:
+            spin_promedio.setEnabled(True)
+        
+        numeropromedio = spin_promedio.value()
+        tipografico = DesplazamientoView.main.findChild(QComboBox, "combo_tipos_desplazamiento").currentData()
+        tipomedida = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza").currentData()
+        tipotiempo = DesplazamientoView.main.findChild(QComboBox, "combo_tiempo_desplaza").currentData()
+        config = SoftwareConfiguracion.obtenerDataSoftware()
+        filtrado = config[16]
+
+        # --- B. PREPARAR LANZAMIENTO (Hilo Secundario) ---
+        params = (DesplazamientoView.idproyecto, prismasmarcados, DesplazamientoView.fechainicial, 
+                  DesplazamientoView.fechafinal, tipografico, tipomedida, filtrado, tipopromedio, numeropromedio)
+
+        # Mostrar que el sistema está trabajando
+        DesplazamientoView.main.setCursor(Qt.WaitCursor)
+
+        # Crear y configurar el hilo
+        DesplazamientoView.worker = DataWorker(params)
+        
+        # Al terminar, graficamos y devolvemos el cursor a la normalidad
+        DesplazamientoView.worker.data_ready.connect(lambda datos: [
+            DesplazamientoView.graficarPrismasDesplazamiento(lista, datos, tipografico, tipomedida, tipotiempo) 
+            if len(datos) > 0 else DesplazamientoView.limpiarGraficaDesplazamiento(),
+            DesplazamientoView.main.unsetCursor()
+        ])
+
+        # ¡Lanzar!
+        DesplazamientoView.worker.start()
+        
     def obtenerListaEquiposMarcados(lista, tipolista):
         equiposmarcados = []
         for region, instrumentos in lista.items():

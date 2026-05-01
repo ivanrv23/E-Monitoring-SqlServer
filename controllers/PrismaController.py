@@ -9,13 +9,13 @@ class PrismaController:
         if fechasa:
             if fechasa[0]:
                 fechamax = fechasa[0]
-                fechamin = MetodosGenerales.obtenerFechasRangoUnyear(fechamax, 90)
+                fechamin = MetodosGenerales.obtenerFechasRangoUnyear(fechamax, 365)
                 return fechamin, fechamax
             else:
-                fechamin, fechamax = MetodosGenerales.obtenerRangoFechas(90)
+                fechamin, fechamax = MetodosGenerales.obtenerRangoFechas(365)
                 return fechamin, fechamax
         else:
-            fechamin, fechamax = MetodosGenerales.obtenerRangoFechas(90)
+            fechamin, fechamax = MetodosGenerales.obtenerRangoFechas(365)
             return fechamin, fechamax
     
     def ctrlObtenerPrismasFechaUnicos(proyecto, fechaini, fechafin):

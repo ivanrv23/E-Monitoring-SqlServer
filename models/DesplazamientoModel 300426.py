@@ -18,13 +18,17 @@ class DesplazamientoModel:
                       AND i.nombre_equipo IN ({placeholders});"""
             
             cur = conn.cursor()
-            cur.arraysize = 1000
             # Parametros posicionales exactos
             params = [componente, tablaauto] + prismas
             cur.execute(sql, params)
             
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            # Fidelidad de Output: Convertir pyodbc.Row a tuple para imitar SQLite
+            results = [tuple(row) for row in cur.fetchall()]
+            
+            if results:
+                return results
+            else:
+                return None
         except Error as e:
             print("Error al obtener prismas marcados:", e)
             return None  
@@ -73,9 +77,8 @@ class DesplazamientoModel:
             params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params) 
-            rows = list(map(tuple, cur.fetchall()))
+            rows = [tuple(row) for row in cur.fetchall()]
             return rows if rows else None
         except Error as e:
             print("Error al consultar DA SD: " + str(e))
@@ -108,11 +111,14 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
             
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            rows = [tuple(row) for row in cur.fetchall()]
+            
+            if rows:
+                return rows
+            else:
+                return None
         except Error as e:
             print("Error al consultar DA SD fechas: " + str(e))
             return None
@@ -169,9 +175,8 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
+            rows = [tuple(row) for row in cur.fetchall()]
             return rows if rows else None
         except Error as e:
             print("Error al consultar prom dias DA SD: " + str(e))
@@ -214,11 +219,14 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
             
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            rows = [tuple(row) for row in cur.fetchall()]
+            
+            if rows:
+                return rows
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DA SD fechas: " + str(e))
             return None
@@ -276,9 +284,8 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
+            rows = [tuple(row) for row in cur.fetchall()]
             return rows if rows else None
         except Error as e:
             print("Error al consultar prom horas DA SD: " + str(e))
@@ -314,11 +321,14 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
             
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            rows = [tuple(row) for row in cur.fetchall()]
+            
+            if rows:
+                return rows
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DA SD fechas: " + str(e))
             return None
@@ -355,10 +365,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI SD: " + str(e))
             return None
@@ -393,10 +405,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI SD fechas: " + str(e))
             return None
@@ -441,10 +455,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI SD: " + str(e))
             return None
@@ -495,10 +511,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI SD fechas: " + str(e))
             return None
@@ -543,10 +561,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            rows = [tuple(row) for row in cur.fetchall()]
+            if rows:
+                return rows
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI SD: " + str(e))
             return None
@@ -590,10 +610,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI SD fechas: " + str(e))
             return None
@@ -646,10 +668,9 @@ class DesplazamientoModel:
             params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DA 3D: " + str(e))
             return None
@@ -685,10 +706,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DA 3D fechas: " + str(e))
             return None
@@ -753,10 +776,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA 3D: " + str(e))
             return None
@@ -810,10 +832,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DA 3D fechas: " + str(e))
             return None
@@ -879,10 +903,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA 3D: " + str(e))
             return None
@@ -929,10 +952,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DA 3D fechas: " + str(e))
             return None
@@ -971,10 +996,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI 3D: " + str(e))
             return None
@@ -1013,10 +1040,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI 3D fechas: " + str(e))
             return None
@@ -1067,10 +1096,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI 3D: " + str(e))
             return None
@@ -1127,10 +1158,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI 3D fechas: " + str(e))
             return None
@@ -1181,10 +1214,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI 3D: " + str(e))
             return None
@@ -1234,10 +1269,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI 3D fechas: " + str(e))
             return None
@@ -1289,10 +1326,9 @@ class DesplazamientoModel:
             params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DA 2D: " + str(e))
             return None
@@ -1327,10 +1363,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DA 2D fechas: " + str(e))
             return None
@@ -1392,10 +1430,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA 2D: " + str(e))
             return None
@@ -1447,10 +1484,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DA 2D fechas: " + str(e))
             return None
@@ -1513,10 +1552,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA 2D: " + str(e))
             return None
@@ -1561,10 +1599,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DA 2D fechas: " + str(e))
             return None
@@ -1602,10 +1642,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI 2D: " + str(e))
             return None
@@ -1643,10 +1685,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI 2D fechas: " + str(e))
             return None
@@ -1695,10 +1739,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI 2D: " + str(e))
             return None
@@ -1753,10 +1799,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI 2D fechas: " + str(e))
             return None
@@ -1805,10 +1853,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI 2D: " + str(e))
             return None
@@ -1856,10 +1906,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI 2D fechas: " + str(e))
             return None
@@ -1911,10 +1963,10 @@ class DesplazamientoModel:
             
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            
+            return row if row else None
         except Error as e:
             print("Error al consultar DA L: " + str(e))
             return None
@@ -1946,10 +1998,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DA L fechas: " + str(e))
             return None
@@ -2006,10 +2060,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA L: " + str(e))
             return None
@@ -2057,10 +2110,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DA L fechas: " + str(e))
             return None
@@ -2118,10 +2173,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA L: " + str(e))
             return None
@@ -2162,10 +2216,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DA L fechas: " + str(e))
             return None
@@ -2200,10 +2256,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI L: " + str(e))
             return None
@@ -2238,10 +2296,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI L fechas: " + str(e))
             return None
@@ -2286,10 +2346,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI L: " + str(e))
             return None
@@ -2340,10 +2402,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI L fechas: " + str(e))
             return None
@@ -2387,10 +2451,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI L: " + str(e))
             return None
@@ -2434,10 +2500,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI L fechas: " + str(e))
             return None
@@ -2484,10 +2552,9 @@ class DesplazamientoModel:
             params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DA T: " + str(e))
             return None
@@ -2519,10 +2586,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DA T fechas: " + str(e))
             return None
@@ -2579,10 +2648,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA T: " + str(e))
             return None
@@ -2630,10 +2698,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DA T fechas: " + str(e))
             return None
@@ -2691,10 +2761,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA T: " + str(e))
             return None
@@ -2735,10 +2804,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DA T fechas: " + str(e))
             return None
@@ -2772,10 +2843,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI T: " + str(e))
             return None
@@ -2810,10 +2883,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI T fechas: " + str(e))
             return None
@@ -2857,10 +2932,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI T: " + str(e))
             return None
@@ -2911,10 +2988,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI T fechas: " + str(e))
             return None
@@ -2958,10 +3037,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI T: " + str(e))
             return None
@@ -3005,10 +3086,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI T fechas: " + str(e))
             return None
@@ -3055,10 +3138,9 @@ class DesplazamientoModel:
             params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DA H: " + str(e))
             return None
@@ -3089,10 +3171,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DA H fechas: " + str(e))
             return None
@@ -3140,10 +3224,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA H: " + str(e))
             return None
@@ -3193,10 +3276,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DA H fechas: " + str(e))
             return None
@@ -3244,10 +3329,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA H: " + str(e))
             return None
@@ -3287,10 +3371,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DA H fechas: " + str(e))
             return None
@@ -3324,10 +3410,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DI H: " + str(e))
             return None
@@ -3361,10 +3446,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI H fechas: " + str(e))
             return None
@@ -3405,10 +3492,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DI H: " + str(e))
             return None
@@ -3459,10 +3545,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI H fechas: " + str(e))
             return None
@@ -3502,10 +3590,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DI H: " + str(e))
             return None
@@ -3549,10 +3636,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI H fechas: " + str(e))
             return None
@@ -3588,10 +3677,9 @@ class DesplazamientoModel:
             params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DA N: " + str(e))
             return None
@@ -3622,10 +3710,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DA N fechas: " + str(e))
             return None
@@ -3670,10 +3760,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA N: " + str(e))
             return None
@@ -3720,10 +3809,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DA N fechas: " + str(e))
             return None
@@ -3768,10 +3859,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA N: " + str(e))
             return None
@@ -3811,10 +3901,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DA N fechas: " + str(e))
             return None
@@ -3846,10 +3938,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DI N: " + str(e))
             return None
@@ -3884,10 +3975,9 @@ class DesplazamientoModel:
             params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DA E: " + str(e))
             return None
@@ -3918,10 +4008,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DA E fechas: " + str(e))
             return None
@@ -3966,10 +4058,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA E: " + str(e))
             return None
@@ -4016,10 +4107,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DA E fechas: " + str(e))
             return None
@@ -4064,10 +4157,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA E: " + str(e))
             return None
@@ -4107,10 +4199,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DA E fechas: " + str(e))
             return None
@@ -4141,10 +4235,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DI E: " + str(e))
             return None
@@ -4178,10 +4271,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI E fechas: " + str(e))
             return None
@@ -4221,10 +4316,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DI E: " + str(e))
             return None
@@ -4274,10 +4368,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI E fechas: " + str(e))
             return None
@@ -4316,10 +4412,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DI E: " + str(e))
             return None
@@ -4362,10 +4457,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI E fechas: " + str(e))
             return None
@@ -4400,10 +4497,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI N fechas: " + str(e))
             return None
@@ -4443,10 +4542,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DI N: " + str(e))
             return None
@@ -4496,10 +4594,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI N fechas: " + str(e))
             return None
@@ -4538,10 +4638,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DI N: " + str(e))
             return None
@@ -4584,10 +4683,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI N fechas: " + str(e))
             return None
@@ -4623,10 +4724,9 @@ class DesplazamientoModel:
             params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DA Z: " + str(e))
             return None
@@ -4657,10 +4757,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DA Z fechas: " + str(e))
             return None
@@ -4705,10 +4807,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA Z: " + str(e))
             return None
@@ -4755,10 +4856,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DA Z fechas: " + str(e))
             return None
@@ -4803,10 +4906,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin, unidad]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA Z: " + str(e))
             return None
@@ -4846,10 +4948,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DA Z fechas: " + str(e))
             return None
@@ -4880,10 +4984,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DI Z: " + str(e))
             return None
@@ -4916,10 +5019,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI Z fechas: " + str(e))
             return None
@@ -4959,10 +5064,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DI Z: " + str(e))
             return None
@@ -5012,10 +5116,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI Z fechas: " + str(e))
             return None
@@ -5054,10 +5160,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DI Z: " + str(e))
             return None
@@ -5100,10 +5205,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI Z fechas: " + str(e))
             return None
@@ -5139,10 +5246,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar Angulo Horizontal: " + str(e))
             return None
@@ -5182,10 +5288,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar Angulo Horizontal fechas: " + str(e))
             return None
@@ -5230,10 +5338,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias Angulo Horizontal: " + str(e))
             return None
@@ -5289,10 +5396,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias Angulo Horizontal fechas: " + str(e))
             return None
@@ -5336,10 +5445,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas Angulo Horizontal: " + str(e))
             return None
@@ -5389,10 +5497,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas Angulo Horizontal fechas: " + str(e))
             return None
@@ -5443,10 +5553,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DA Horizontal: " + str(e))
             return None
@@ -5495,10 +5604,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DA Horizontal fechas: " + str(e))
             return None
@@ -5555,10 +5666,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA Horizontal: " + str(e))
             return None
@@ -5614,10 +5724,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DA Horizontal fechas: " + str(e))
             return None
@@ -5674,10 +5786,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA Horizontal: " + str(e))
             return None
@@ -5726,10 +5837,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DA Horizontal fechas: " + str(e))
             return None
@@ -5775,10 +5888,9 @@ class DesplazamientoModel:
             params = prismas + [fechaini, fechafin, idcomponente]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DI Horizontal: " + str(e))
             return None
@@ -5831,10 +5943,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI Horizontal fechas: " + str(e))
             return None
@@ -5887,10 +6001,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DI Horizontal: " + str(e))
             return None
@@ -5948,10 +6061,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI Horizontal fechas: " + str(e))
             return None
@@ -6003,10 +6118,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DI Horizontal: " + str(e))
             return None
@@ -6057,10 +6171,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI Horizontal fechas: " + str(e))
             return None
@@ -6094,10 +6210,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar Angulo Vertical: " + str(e))
             return None
@@ -6135,10 +6250,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar Angulo Vertical fechas: " + str(e))
             return None
@@ -6183,10 +6300,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias Angulo Vertical: " + str(e))
             return None
@@ -6243,10 +6359,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias Angulo Vertical fechas: " + str(e))
             return None
@@ -6290,10 +6408,9 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas Angulo Vertical: " + str(e))
             return None
@@ -6342,10 +6459,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas Angulo Vertical fechas: " + str(e))
             return None
@@ -6393,10 +6512,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DA Vertical: " + str(e))
             return None
@@ -6445,10 +6563,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DA Vertical fechas: " + str(e))
             return None
@@ -6505,10 +6625,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DA Vertical: " + str(e))
             return None
@@ -6564,10 +6683,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DA Vertical fechas: " + str(e))
             return None
@@ -6624,10 +6745,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DA Vertical: " + str(e))
             return None
@@ -6676,10 +6796,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DA Vertical fechas: " + str(e))
             return None
@@ -6722,10 +6844,9 @@ class DesplazamientoModel:
             params = prismas + [fechaini, fechafin, idcomponente]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar DI Vertical: " + str(e))
             return None
@@ -6778,10 +6899,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar DI Vertical fechas: " + str(e))
             return None
@@ -6834,10 +6957,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom dias DI Vertical: " + str(e))
             return None
@@ -6895,10 +7017,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom dias DI Vertical fechas: " + str(e))
             return None
@@ -6950,10 +7074,9 @@ class DesplazamientoModel:
             params = prismas + [idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            return row if row else None
         except Error as e:
             print("Error al consultar prom horas DI Vertical: " + str(e))
             return None
@@ -7004,10 +7127,12 @@ class DesplazamientoModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.arraysize = 1000
             cur.execute(sql, params)
-            rows = list(map(tuple, cur.fetchall()))
-            return rows if rows else None
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
         except Error as e:
             print("Error al consultar prom horas DI Vertical fechas: " + str(e))
             return None
