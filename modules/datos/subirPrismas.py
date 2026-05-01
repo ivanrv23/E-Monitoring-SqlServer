@@ -593,12 +593,12 @@ class SubirPrismas:
             if not file_name or not file_name.endswith('.xlsx'):
                 continue
             try:
-                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=10, engine='openpyxl')
+                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=6, engine='openpyxl')
                 encabezados_archivo = [str(col).strip() for col in df_header.iloc[0, :len(encabezado)]]
                 if encabezados_archivo != encabezado:
                     erroneos.append(file_name.split("/")[-1])
                     continue
-                df = pd.read_excel(file_name, header=None, skiprows=11, engine='openpyxl')
+                df = pd.read_excel(file_name, header=None, skiprows=7, engine='openpyxl')
                 df.columns = ['nombre', 'fecha', 'hora', 'este', 'norte', 'elevacion', 'distancia', 'horizontal', 'vertical']
                 for _, row in df.iterrows():
                     nombre = str(row['nombre']).strip()

@@ -324,15 +324,15 @@ class SubirCotasTerreno:
             if not file_name or not file_name.endswith('.xlsx'):
                 continue
             try:
-                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=13, engine='openpyxl')
+                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=11, engine='openpyxl')
                 encabezados_archivo = [str(col).strip() for col in df_header.iloc[0, :len(encabezado)]]
                 if encabezados_archivo != encabezado:
                     erroneos.append(file_name.split("/")[-1])
                     continue
                 wb = load_workbook(file_name, data_only=True)
                 hoja = wb.active
-                nombrecota = hoja["C12"].value
-                comentario = hoja["C13"].value
+                nombrecota = hoja["C10"].value
+                comentario = hoja["C11"].value
                 wb.close()
                 if pd.isna(nombrecota) or proyectoid == 0 or not idcomponente:
                     erroneos.append(file_name.split("/")[-1])
@@ -346,7 +346,7 @@ class SubirCotasTerreno:
                     if respues:
                         idterreno = respues
                 if idterreno is not None:
-                    df = pd.read_excel(file_name, header=None, skiprows=14, engine='openpyxl')
+                    df = pd.read_excel(file_name, header=None, skiprows=12, engine='openpyxl')
                     df.columns = ['fecha', 'hora', 'cota', 'observacion']
                     for _, row in df.iterrows():
                         fecha = row['fecha']

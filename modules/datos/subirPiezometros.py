@@ -243,7 +243,7 @@ class SubirPiezometros:
             if not file_name or not file_name.endswith('.xlsx'):
                 continue
             try:
-                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=14, engine='openpyxl')
+                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=13, engine='openpyxl')
                 encabezado_archivomb = [str(col).strip() for col in df_header.iloc[0, :len(encabezadomb)]]
                 encabezado_archivokpa = [str(col).strip() for col in df_header.iloc[0, :len(encabezadokpa)]]
                 if encabezado_archivomb == encabezadomb:
@@ -256,24 +256,24 @@ class SubirPiezometros:
                 wb = load_workbook(file_name, data_only=True)
                 hoja = wb.active
                 # obtener data general
-                nombrepiezo = hoja["B9"].value
-                seriepiezo = hoja["B10"].value
-                coordeste = hoja["B11"].value
-                coordnorte = hoja["B12"].value
-                instalacion = hoja["B13"].value
-                fundacion = hoja["B14"].value
-                superficie = hoja["E9"].value
-                inclinacion = hoja["E10"].value
-                azimuth = hoja["E11"].value
-                cf = hoja["E12"].value
-                tk = hoja["E13"].value
-                frecuenciaini = hoja["E14"].value
-                temperaini = hoja["G9"].value
-                presionini = hoja["G10"].value
-                conversion = hoja["G11"].value
-                constantea = hoja["G12"].value
-                constanteb = hoja["G13"].value
-                constantec = hoja["G14"].value
+                nombrepiezo = hoja["B8"].value
+                seriepiezo = hoja["B9"].value
+                coordeste = hoja["B10"].value
+                coordnorte = hoja["B11"].value
+                instalacion = hoja["B12"].value
+                fundacion = hoja["B13"].value
+                superficie = hoja["E8"].value
+                inclinacion = hoja["E9"].value
+                azimuth = hoja["E10"].value
+                cf = hoja["E11"].value
+                tk = hoja["E12"].value
+                frecuenciaini = hoja["E13"].value
+                temperaini = hoja["G8"].value
+                presionini = hoja["G9"].value
+                conversion = hoja["G10"].value
+                constantea = hoja["G11"].value
+                constanteb = hoja["G12"].value
+                constantec = hoja["G13"].value
                 comentario = ""
                 wb.close()
                 # Validar datos
@@ -359,7 +359,7 @@ class SubirPiezometros:
                     if respues:
                         idpiezometro = respues
                 if idpiezometro is not None:
-                    df = pd.read_excel(file_name, header=None, skiprows=15, engine='openpyxl')
+                    df = pd.read_excel(file_name, header=None, skiprows=14, engine='openpyxl')
                     df.columns = ['fecha', 'hora', 'frecuencia', 'temperatura', 'presion', 'mca', 'observacion']
                     for _, row in df.iterrows():
                         fecha = row['fecha']
@@ -818,24 +818,24 @@ class SubirPiezometros:
             if not file_name or not file_name.endswith('.xlsx'):
                 continue
             try:
-                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=26, engine='openpyxl')
+                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=20, engine='openpyxl')
                 encabezados_archivo = [str(col).strip() for col in df_header.iloc[0, :len(encabezado)]]
                 if encabezados_archivo != encabezado:
                     erroneos.append(file_name.split("/")[-1])
                     continue
                 wb = load_workbook(file_name, data_only=True)
                 hoja = wb.active
-                nombrepiezo = hoja["C16"].value
-                codigopiezo = hoja["C17"].value
-                cotafondo = hoja["C18"].value
-                fundacion = hoja["C19"].value
-                coordeste = hoja["C20"].value
-                coordnorte = hoja["C21"].value
-                superficie = hoja["C22"].value
-                inclinacion = hoja["C23"].value
-                azimuth = hoja["C24"].value
-                stickup = hoja["C25"].value
-                comentario = hoja["C26"].value
+                nombrepiezo = hoja["C10"].value
+                codigopiezo = hoja["C11"].value
+                cotafondo = hoja["C12"].value
+                fundacion = hoja["C13"].value
+                coordeste = hoja["C14"].value
+                coordnorte = hoja["C15"].value
+                superficie = hoja["C16"].value
+                inclinacion = hoja["C17"].value
+                azimuth = hoja["C18"].value
+                stickup = hoja["C19"].value
+                comentario = hoja["C20"].value
                 wb.close()
                 if pd.isna(nombrepiezo) or proyectoid == 0 or not idcomponente:
                     erroneos.append(file_name.split("/")[-1])
@@ -905,7 +905,7 @@ class SubirPiezometros:
                     if respues:
                         idpiezometro = respues
                 if idpiezometro is not None:
-                    df = pd.read_excel(file_name, header=None, skiprows=27, engine='openpyxl')
+                    df = pd.read_excel(file_name, header=None, skiprows=21, engine='openpyxl')
                     df.columns = ['fecha', 'hora', 'nivel', 'observacion']
                     for _, row in df.iterrows():
                         fecha = row['fecha']

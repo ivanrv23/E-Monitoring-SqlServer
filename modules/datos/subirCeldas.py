@@ -288,25 +288,25 @@ class SubirCeldas:
             if not file_name or not file_name.endswith('.xlsx'):
                 continue
             try:
-                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=14, engine='openpyxl')
+                df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=13, engine='openpyxl')
                 encabezados_archivo = [str(col).strip() for col in df_header.iloc[0, :len(encabezado)]]
                 if encabezados_archivo != encabezado:
                     erroneos.append(file_name.split("/")[-1])
                     continue
                 wb = load_workbook(file_name, data_only=True)
                 hoja = wb.active
-                nombrecelda = hoja["B9"].value
-                marcacelda = hoja["B10"].value
-                modelocelda = hoja["B11"].value
-                seriecelda = hoja["B12"].value
-                cf = hoja["B13"].value
-                tk = hoja["B14"].value
-                instalacion = hoja["F9"].value
-                fundacion = hoja["F10"].value
-                coordeste = hoja["F11"].value
-                coordnorte = hoja["F12"].value
-                superficie = hoja["F13"].value
-                rangocelda = hoja["F14"].value
+                nombrecelda = hoja["B8"].value
+                marcacelda = hoja["B9"].value
+                modelocelda = hoja["B10"].value
+                seriecelda = hoja["B11"].value
+                cf = hoja["B12"].value
+                tk = hoja["B13"].value
+                instalacion = hoja["F8"].value
+                fundacion = hoja["F9"].value
+                coordeste = hoja["F10"].value
+                coordnorte = hoja["F11"].value
+                superficie = hoja["F12"].value
+                rangocelda = hoja["F13"].value
                 wb.close()
                 if pd.isna(nombrecelda) or proyectoid == 0 or not idcomponente:
                     erroneos.append(file_name.split("/")[-1])
@@ -395,7 +395,7 @@ class SubirCeldas:
                     if respues:
                         idcelda = respues
                 if idcelda is not None:
-                    df = pd.read_excel(file_name, header=None, skiprows=15, engine='openpyxl')
+                    df = pd.read_excel(file_name, header=None, skiprows=14, engine='openpyxl')
                     df.columns = ['fecha', 'hora', 'frecuen', 'frecuencia', 'temperatura', 'desplaza', 'observacion']
                     for _, row in df.iterrows():
                         fecha = row['fecha']
