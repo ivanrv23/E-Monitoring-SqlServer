@@ -138,11 +138,12 @@ def plot_linea_suavizada(ax, x_data, y_data, tiempo, activo=False, **kwargs): # 
     markersize = kwargs.pop('markersize', 6)
     estilo_linea = kwargs.get('linestyle', '-') 
 
-    if not activo: # <-- Cambiado de SUAVIZADO_ESTADO a activo
+    if not activo:
         if marker:
             kwargs['marker']     = marker
             kwargs['markersize'] = markersize
         linea, = ax.plot(x_data, y_data, **kwargs)
+        linea._estilo_puro = estilo_linea
         return linea
 
     # ---- Modo suavizado ----
