@@ -345,3 +345,69 @@ class MetodosGenerales:
                 agrupados[tipo] = []
             agrupados[tipo].append(nombre)
         return agrupados
+    
+    @staticmethod
+    def exportarDataInstrumentacion(datos, titulo_lectura, prefijo_archivo):
+        if not datos:
+            return
+
+        import pandas as pd
+        from PySide6.QtWidgets import QFileDialog, QMessageBox
+        import os
+        from datetime import datetime
+
+        try:
+            # 1. Crear el DataFrame inicial con las columnas de la consulta
+            # Indice 2: Fecha, Indice 1: Equipo, Indice 5: Lectura
+            df = pd.DataFrame(datos)
+            df = df[[2, 1, 5]].copy()
+            df.columns = ['Fecha', 'Equipo', titulo_lectura]
+
+            # 2. Configurar el dialogo de guardado
+            nombre_sugerido = f"{prefijo_archivo}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            filtro_formatos = "Archivo CSV (*.csv);;Libro de Excel (*.xlsx)"
+            
+            ruta, filtro = QFileDialog.getSaveFileName(
+                None, "Exportar Datos", nombre_sugerido, filtro_formatos
+            )
+
+            if not ruta:
+                return
+
+            # 3. Procesar segun el formato elegido
+            if "CSV" in filtro or ruta.lower().endswith('.csv'):
+                if not ruta.lower().endswith('.csv'):
+                    ruta += '.csv'
+                
+                # Exportacion simple en formato vertical
+                df.to_csv(ruta, index=False, sep=',', encoding='utf-8-sig')
+
+            else:
+                if not ruta.lower().endswith('.xlsx'):
+                    ruta += '.xlsx'
+                
+                # Crear matriz: Fechas en filas y Equipos en columnas
+                df_pivot = df.pivot_table(
+                    index='Fecha', 
+                    columns='Equipo', 
+                    values=titulo_lectura
+                )
+                
+                # Resetear el indice para que Fecha sea una columna normal
+                df_final = df_pivot.reset_index()
+
+                # Desactivar el estilo de encabezado predeterminado de Pandas (evita negritas)
+                from pandas.io.formats.excel import ExcelFormatter
+                ExcelFormatter.header_style = None
+
+                # Escribir a Excel manteniendo tipos de datos pero sin estilos de celda
+                with pd.ExcelWriter(ruta, engine='openpyxl') as writer:
+                    df_final.to_excel(writer, index=False)
+
+            # 4. Notificar exito
+            if os.path.exists(ruta):
+                QMessageBox.information(None, "Exportacion", "Los datos se han exportado correctamente.")
+
+        except Exception as e:
+            print(f"Error en exportacion: {str(e)}")
+            QMessageBox.critical(None, "Error", f"No se pudo realizar la exportacion: {str(e)}")

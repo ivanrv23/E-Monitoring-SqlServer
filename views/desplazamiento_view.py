@@ -47,6 +47,7 @@ class DesplazamientoView:
     estadochecklist = True
     estadoPagina = True
     fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(365)
+    datos_memoria = []
     
     def inicializarVistaDesplazamiento(main, proyectoid, proyectoname, fechaini, fechafin):
         DesplazamientoView.main = main
@@ -148,7 +149,11 @@ class DesplazamientoView:
             btnReporteGeneral.clicked.connect(lambda: DesplazamientoView.mostrarDialogoReporteDesplazamiento(tree_actual_desplaza, widget_grafico, combo_tipo_grafico, "General"))
             btnAplicarUmbralPersonalizado = main.findChild(QPushButton, "btn_umbral_personalizado_D")
             btnAplicarUmbralPersonalizado.clicked.connect(DesplazamientoView.graficarUmbralesPersonalizado)
- 
+
+            btnExportarD = main.findChild(QPushButton, "btn_exportar_desplazamiento")
+            if btnExportarD:
+                btnExportarD.clicked.connect(DesplazamientoView.ejecutar_exportacion_grafica)
+                
             DesplazamientoView.estadoPagina = False
     
     def graficarUmbralesPersonalizado():
@@ -268,15 +273,22 @@ class DesplazamientoView:
         # Crear y configurar el hilo
         DesplazamientoView.worker = DataWorker(params)
         
-        # Al terminar, graficamos y devolvemos el cursor a la normalidad
-        DesplazamientoView.worker.data_ready.connect(lambda datos: [
-            DesplazamientoView.graficarPrismasDesplazamiento(lista, datos, tipografico, tipomedida, tipotiempo) 
-            if len(datos) > 0 else DesplazamientoView.limpiarGraficaDesplazamiento(),
-            DesplazamientoView.main.unsetCursor()
-        ])
+        DesplazamientoView.worker.data_ready.connect(
+            lambda datos: DesplazamientoView.finalizar_consulta_desplazamiento(lista, datos, tipografico, tipomedida, tipotiempo)
+        )
 
         # ¡Lanzar!
         DesplazamientoView.worker.start()
+    
+    @staticmethod
+    def finalizar_consulta_desplazamiento(lista, datos, tipografico, tipomedida, tipotiempo):
+        DesplazamientoView.datos_memoria = datos # <-- GUARDAR DATA
+        
+        if len(datos) > 0:
+            DesplazamientoView.graficarPrismasDesplazamiento(lista, datos, tipografico, tipomedida, tipotiempo)
+        else:
+            DesplazamientoView.limpiarGraficaDesplazamiento()
+        DesplazamientoView.main.unsetCursor()
         
     def obtenerListaEquiposMarcados(lista, tipolista):
         equiposmarcados = []
@@ -522,4 +534,16 @@ class DesplazamientoView:
                 botonvoz.setEnabled(False)
                 hilo_asistente = threading.Thread(target=AsistenteVoz.analizarDesplazamiento, args=(DesplazamientoView.idproyecto, prismasmarcados, DesplazamientoView.fechainicial, DesplazamientoView.fechafinal, tipografico, botonvoz))
                 hilo_asistente.start()
+    
+    @staticmethod
+    def ejecutar_exportacion_grafica():
+        if DesplazamientoView.datos_memoria:
+            MetodosGenerales.exportarDataInstrumentacion(
+                DesplazamientoView.datos_memoria, 
+                "Desplazamiento", 
+                "EXPORT_DESPLAZAMIENTO"
+            )
+        else:
+            from utils.common.alertas import mostrar_mensaje
+            mostrar_mensaje("Exportar", "No hay datos en pantalla para exportar.", "advertencia")
     

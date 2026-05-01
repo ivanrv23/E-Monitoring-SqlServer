@@ -46,6 +46,7 @@ class VelocidadView:
     estadochecklist = True
     estadoPagina = True
     fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(365)
+    datos_memoria = []
     
     def inicializarVistaVelocidad(main, proyectoid, proyectoname, fechaini, fechafin):
         VelocidadView.main = main
@@ -133,6 +134,10 @@ class VelocidadView:
             btnReporteGeneral.clicked.connect(lambda: VelocidadView.mostrarDialogoReporteVelocidad(tree_actual_velocidad, widget_grafico, combo_tipo_grafico, "General"))
             btnAplicarUmbralPersonalizado = main.findChild(QPushButton, "btn_umbral_personalizado_V")
             btnAplicarUmbralPersonalizado.clicked.connect(VelocidadView.graficarUmbralesPersonalizado)
+                        
+            btnExportarV = main.findChild(QPushButton, "btn_exportar_velocidad")
+            if btnExportarV:
+                btnExportarV.clicked.connect(VelocidadView.ejecutar_exportacion_grafica)
             VelocidadView.estadoPagina = False
     
     def graficarUmbralesPersonalizado():
@@ -306,14 +311,14 @@ class VelocidadView:
 
     @staticmethod
     def finalizar_consulta_velocidad(lista, datos, tipografico, tipomedida, tipotiempo):
-        # Esta función corre en el hilo principal automáticamente
+        VelocidadView.datos_memoria = datos # <-- GUARDAR DATA
+        
         if len(datos) > 0:
             VelocidadView.graficarPrismasVelocidad(lista, datos, tipografico, tipomedida, tipotiempo)
         else:
             VelocidadView.limpiarGraficaVelocidad()
-        
-        # Restaurar el cursor
         VelocidadView.main.unsetCursor()
+        
     def obtenerListaEquiposMarcados(lista, tipolista):
         equiposmarcados = []
         for region, instrumentos in lista.items():
@@ -567,4 +572,16 @@ class VelocidadView:
                 botonvoz.setEnabled(False)
                 hilo_asistente = threading.Thread(target=AsistenteVoz.analizarVelocidad, args=(VelocidadView.idproyecto, prismasmarcados, VelocidadView.fechainicial, VelocidadView.fechafinal, tipografico, botonvoz))
                 hilo_asistente.start()
+                
+    @staticmethod
+    def ejecutar_exportacion_grafica():
+        if VelocidadView.datos_memoria:
+            MetodosGenerales.exportarDataInstrumentacion(
+                VelocidadView.datos_memoria, 
+                "Velocidad", 
+                "EXPORT_VELOCIDAD"
+            )
+        else:
+            from utils.common.alertas import mostrar_mensaje
+            mostrar_mensaje("Exportar", "No hay datos en pantalla para exportar.", "advertencia")
     

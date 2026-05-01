@@ -73,4 +73,5 @@ class ListaIconos:
         "clipboard":"resources/iconos/fontawesome/solid/clipboard.svg",
         "nuevo": "resources/iconos/fontawesome/solid/plus.svg",
         "reloj": "resources/iconos/fontawesome/solid/clock.svg",
+        "exportar_grafico": "resources/iconos/fontawesome/solid/file.svg",
     }

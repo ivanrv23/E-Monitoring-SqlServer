@@ -235,6 +235,9 @@ class MainView:
             #UMBRAL PERSONALIZADO
             btn_umbral_desplazamiento_personalizado= MainView.main_window.findChild(QPushButton, "btn_umbral_personalizado_D")
             cargarIcono(btn_umbral_desplazamiento_personalizado, ListaIconos.ICONOS["umbral2"])
+            
+            btn_expotar_desplazamiento= MainView.main_window.findChild(QPushButton, "btn_exportar_desplazamiento")
+            cargarIcono(btn_expotar_desplazamiento, ListaIconos.ICONOS["exportar_grafico"])
 
             ############################## BOTONES VELOCIDAD #############################
             btn_refrescar_vista_desplazamiento = MainView.main_window.findChild(QPushButton, "btn_refrescar_vista_velocidad")
@@ -262,6 +265,9 @@ class MainView:
             #UMBRAL PERSONALIZADO
             btn_umbral_velocidad_personalizado= MainView.main_window.findChild(QPushButton, "btn_umbral_personalizado_V")
             cargarIcono(btn_umbral_velocidad_personalizado, ListaIconos.ICONOS["umbral2"])
+            
+            btn_expotar_velocidad= MainView.main_window.findChild(QPushButton, "btn_exportar_velocidad")
+            cargarIcono(btn_expotar_velocidad, ListaIconos.ICONOS["exportar_grafico"])
 
             ############################## BOTONES INCLINÓMETROS #############################
             btn_refrescar_inclinometros = MainView.main_window.findChild(QPushButton, "btn_refrescar_vista_inclinometros")
