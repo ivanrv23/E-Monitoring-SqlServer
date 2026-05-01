@@ -41,8 +41,8 @@ class ExportarData():
         formato = "yyyy-MM-dd HH:mm:ss"
         # cargar fechas actuales
         if fechainicial:
-            datetime_inicial = QDateTime.fromString(fechainicial, formato)
-            datetime_final = QDateTime.fromString(fechafinal, formato)
+            datetime_inicial = QDateTime.fromString(str(fechainicial), formato)
+            datetime_final = QDateTime.fromString(str(fechafinal), formato)
             if datetime_inicial.isValid() and datetime_final.isValid():
                 dateinicio.setDateTime(datetime_inicial)
                 datefin.setDateTime(datetime_final)
@@ -192,7 +192,7 @@ class ExportarData():
                     hoja = libro.create_sheet(title=nameprisma)
                 # Configurar la hoja (común para todas)
                 ExportarData.configurarCabeceraHojaPrismas(hoja, proyectoname, nameprisma, logo)
-                # Insertar datos en la tabla comenzando desde la fila 12
+                # Insertar datos en la tabla comenzando desde la fila 11
                 for fila in prismasdata:
                     hoja.append(fila)
                 cont += 1
@@ -211,48 +211,58 @@ class ExportarData():
     
     def configurarCabeceraHojaPrismas(hoja, proyectoname, nameprisma, logo):
         # Definir colores, bordes, y otros atributos comunes
-        color_fondo = PatternFill(start_color="00796B", end_color="00796B", fill_type="solid")
-        borde_negro = Border(left=Side(style="thin", color="000000"), right=Side(style="thin", color="000000"),
-                            top=Side(style="thin", color="000000"), bottom=Side(style="thin", color="000000"))
-        # Ajustar el ancho de las columnas para mejor presentación
-        for col in range(1, 12):  # 11 columnas de ancho
+        color_fondo = PatternFill(start_color="3C3C3C", end_color="3C3C3C", fill_type="solid")
+        borde_negro = Border(
+            left=Side(style="thin", color="000000"),
+            right=Side(style="thin", color="000000"),
+            top=Side(style="thin", color="000000"),
+            bottom=Side(style="thin", color="000000"),
+        )
+        # Ajustar el ancho de las columnas (A hasta K)
+        for col in range(1, 12):
             hoja.column_dimensions[chr(64 + col)].width = 20
-        # Ajustar el alto de las filas de 1 a 5 para el área de la imagen
-        for row in range(1, 6):
+        # Ajustar el alto de las filas 1 a 4 para el logo (3.5 cm ≈ 99 puntos, 4 filas de 25 puntos)
+        for row in range(1, 5):
             hoja.row_dimensions[row].height = 25
-        # Ruta de la imagen
+        # ---- LOGO (A1:A4) ----
         if logo:
             imagen_stream = MetodosGenerales.convertirBlobImagen(logo)
             imagen = ExcelImage(imagen_stream)
         else:
             ui_file_path = resource_path("resources/logo.png")
             imagen = ExcelImage(ui_file_path)
-        imagen.width = 600
-        imagen.height = 150
+        # Tamaño cuadrado 3.5 cm x 3.5 cm
+        imagen.width = 132
+        imagen.height = 132
         imagen.anchor = "A1"
-        hoja.merge_cells("A1:E5")
+        hoja.merge_cells("A1:A4")
         hoja.add_image(imagen)
-        # Agregar el título
-        hoja.merge_cells("F1:K5")
-        celda_titulo = hoja["F1"]
-        celda_titulo.value = f"MONITOREO DE HITOS TOPOGRÁFICOS {proyectoname.upper()}"
+        # ---- TÍTULO (B1:K4) ----
+        hoja.merge_cells("B1:K4")
+        celda_titulo = hoja["B1"]
+        celda_titulo.value = f"MONITOREO DE HITOS TOPOGRÁFICOS - {proyectoname.upper()}"
         celda_titulo.font = Font(size=18, bold=True)
         celda_titulo.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        # Agregar el subtítulo
-        hoja.merge_cells("A7:K8")
-        celda_subtitulo1 = hoja["A7"]
-        celda_subtitulo1.value = f"Hito Topográfico {nameprisma}"
-        celda_subtitulo1.font = Font(size=16, bold=True, color="FFFFFF")
-        celda_subtitulo1.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        celda_subtitulo1.fill = color_fondo
-        # Agregar bordes a las celdas fusionadas
-        for rango in ["A1:E5", "F1:K5", "A7:K8", "A10:C10", "D10:F10", "G10:H10", "I10:J10"]:
+        # ---- SUBTÍTULO (ahora en A6:K7) ----
+        hoja.merge_cells("A6:K7")
+        celda_subtitulo = hoja["A6"]
+        celda_subtitulo.value = f"Hito Topográfico: {nameprisma}"
+        celda_subtitulo.font = Font(size=16, bold=True, color="FFFFFF")
+        celda_subtitulo.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        celda_subtitulo.fill = color_fondo
+        # ---- BORDES para las celdas fusionadas ----
+        for rango in ["A1:A4", "B1:K4", "A6:K7",
+                    "A9:C9", "D9:G9", "H9:I9", "J9:K9"]:
             for fila_celdas in hoja[rango]:
                 for celda in fila_celdas:
                     celda.border = borde_negro
-        # Definir cabeceras y formatos
-        cabeceras = [("A10:C10", "Datos"), ("D10:G10", "Coordenadas"), 
-                    ("H10:I10", "Desplazamiento (m)"), ("J10:K10", "Velocidad (cm/día)")]
+        # ---- CABECERAS DE GRUPO (ahora en fila 9) ----
+        cabeceras = [
+            ("A9:C9", "Datos"),
+            ("D9:G9", "Coordenadas"),
+            ("H9:I9", "Desplazamiento (m)"),
+            ("J9:K9", "Velocidad (cm/día)"),
+        ]
         for rango, texto in cabeceras:
             hoja.merge_cells(rango)
             celda = hoja[rango.split(":")[0]]
@@ -260,11 +270,14 @@ class ExportarData():
             celda.font = Font(size=14, bold=True, color="FFFFFF")
             celda.alignment = Alignment(horizontal="center", vertical="center")
             celda.fill = color_fondo
-        # Fila de encabezados detallados
-        encabezados = ["Hito", "Fecha", "Hora", "Este", "Norte", "Elevación", "Distancia", "Incremental", "Acumulado", "Incremental", "Acumulado"]
+            # El borde se aplica en el bucle anterior
+        # ---- ENCABEZADOS DETALLADOS (ahora en fila 10) ----
+        encabezados = [
+            "Hito", "Fecha", "Hora", "Este", "Norte", "Elevación",
+            "Distancia", "Incremental", "Acumulado", "Incremental", "Acumulado"
+        ]
         for col, encabezado in enumerate(encabezados, 1):
-            hoja[chr(64 + col) + "11"].value = encabezado
-            celda = hoja[chr(64 + col) + "11"]
+            celda = hoja.cell(row=10, column=col, value=encabezado)
             celda.font = Font(bold=True, color="FFFFFF")
             celda.alignment = Alignment(horizontal="center", vertical="center")
             celda.fill = color_fondo
@@ -380,7 +393,7 @@ class ExportarData():
                     ExportarData.configurarCabeceraHojaPiezometroManual(hoja, infopiezo, nameproyecto, namepiezo, logo)
                 # Insertar datos en la tabla comenzando desde la fila 12
                 for fila in datospiezo:
-                    hoja.append(fila)
+                    hoja.append(list(fila))
                 cont += 1
         rutaexcel = resource_path("resources/workspace/dataequipos.xlsx")
         libro.save(rutaexcel)
