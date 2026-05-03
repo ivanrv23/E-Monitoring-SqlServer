@@ -212,6 +212,19 @@ class ModalDialog(QDialog):
         self.cancel_button.clicked.connect(self.reject)
 
 def limpiar_widget(widget):
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+
+    # 1. Cierre síncrono de figuras de Matplotlib (Crucial para estabilidad)
+    for child in widget.findChildren(FigureCanvas):
+        try:
+            if hasattr(child, 'figure'):
+                plt.close(child.figure) # Cerramos la figura
+                child.figure.clear()    # Limpiamos ejes
+        except Exception:
+            pass
+
+    # 2. Limpieza de Layouts y Sub-Layouts
     if widget.layout() is None:
         layout = QVBoxLayout(widget)
         widget.setLayout(layout)
@@ -221,6 +234,7 @@ def limpiar_widget(widget):
             item = layout.takeAt(0)
             widget_to_remove = item.widget()
             if widget_to_remove is not None:
+                widget_to_remove.hide() # Ocultar antes de borrar evita crashes visuales
                 widget_to_remove.deleteLater()
             else:
                 sub_layout = item.layout()
@@ -229,34 +243,26 @@ def limpiar_widget(widget):
                         sub_item = sub_layout.takeAt(0)
                         sub_widget = sub_item.widget()
                         if sub_widget is not None:
+                            sub_widget.hide()
                             sub_widget.deleteLater()
-    # usar try/except para evitar el error si Qt ya lo eliminó
-    if hasattr(widget, "toolbar") and widget.toolbar is not None:
-        try:
-            widget.toolbar.deleteLater()
-        except RuntimeError:
-            pass
-        widget.toolbar = None
-    if hasattr(widget, "toolbar_container") and widget.toolbar_container is not None:
-        try:
-            widget.toolbar_container.deleteLater()
-        except RuntimeError:
-            pass
-        widget.toolbar_container = None
-    if hasattr(widget, "boton_siguiente") and widget.boton_siguiente is not None:
-        try:
-            widget.boton_siguiente.deleteLater()
-        except RuntimeError:
-            pass
-        widget.boton_siguiente = None
-    if hasattr(widget, "boton_anterior") and widget.boton_anterior is not None:
-        try:
-            widget.boton_anterior.deleteLater()
-        except RuntimeError:
-            pass
-        widget.boton_anterior = None
-    gc.collect()
 
+    # 3. Limpieza de atributos dinámicos (Toolbar, Botones de navegación)
+    # He unificado esto para que no haya errores de RuntimeError
+    for attr in ["toolbar", "toolbar_container", "boton_siguiente", "boton_anterior"]:
+        if hasattr(widget, attr):
+            obj = getattr(widget, attr)
+            if obj is not None:
+                try:
+                    if hasattr(obj, 'hide'): obj.hide()
+                    obj.deleteLater()
+                except Exception:
+                    pass
+            # Seteamos a None para que nadie intente usar el objeto borrado
+            setattr(widget, attr, None)
+
+    # 4. Forzar liberación de memoria
+    gc.collect()
+    
 def dibujar_eventos(ax, id_proyecto, tipo_inst, instrumentos_dict, fecha_inicio, fecha_fin):
     globales = []
     especificos = []

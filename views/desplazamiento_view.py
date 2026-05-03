@@ -19,7 +19,7 @@ from controllers.UmbralController import UmbralController
 from utils.shared.graficarUmbrales import GraficarUmbrales
 from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
 
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Signal, QTimer
 
 class DataWorker(QThread):
     # Señal que enviará los datos a la interfaz al terminar
@@ -28,17 +28,29 @@ class DataWorker(QThread):
     def __init__(self, params):
         super().__init__()
         self.params = params
+        self._is_killed = False # Bandera para anular el hilo
 
     def run(self):
-        # Llama a tu controlador original con sus parámetros de siempre
-        # La magia es que esto ocurre en un hilo separado
         try:
+            # Si se marcó como anulado antes de empezar, salimos inmediatamente
+            if self._is_killed:
+                return
+
             from controllers.DesplazamientoController import DesplazamientoController
+            # Llamada al controlador (esto es lo que tarda)
             datos = DesplazamientoController.ctrlDatosPrismasMarcados(*self.params)
-            self.data_ready.emit(datos)
+            
+            # Solo emitimos la señal si el hilo no ha sido anulado por una nueva petición
+            if not self._is_killed:
+                self.data_ready.emit(datos)
         except Exception as e:
             print(f"Error en hilo de datos: {e}")
-            self.data_ready.emit([])
+            if not self._is_killed:
+                self.data_ready.emit([])
+
+    def abort(self):
+        """ Anula este hilo para que no envíe datos a la UI """
+        self._is_killed = True
         
 class DesplazamientoView:
     main = None
@@ -232,10 +244,38 @@ class DesplazamientoView:
             SondajetdrView.reiniciarVistaTDR(DesplazamientoView.main, DesplazamientoView.idproyecto, DesplazamientoView.nameproyecto)
             AnalisisView.reiniciarVistaAnalisis(DesplazamientoView.main, DesplazamientoView.idproyecto, DesplazamientoView.nameproyecto)
     
-    # Variable para que Python no borre el hilo mientras trabaja
+    # Variables de clase (Asegúrate de que existan)
     worker = None 
+    timer_consulta = None 
 
+    @staticmethod
     def obtenerMostrarPrismasMarcados(tree_actual):
+        """ Maneja el temporizador para agrupar clics rápidos (Debounce) """
+        if DesplazamientoView.timer_consulta is None:
+            DesplazamientoView.timer_consulta = QTimer()
+            DesplazamientoView.timer_consulta.setSingleShot(True)
+            DesplazamientoView.timer_consulta.timeout.connect(
+                lambda: DesplazamientoView.iniciar_hilo_final(tree_actual)
+            )
+
+        # Cada clic (o marcado en bloque) reinicia este reloj de 300ms
+        DesplazamientoView.timer_consulta.stop()
+        DesplazamientoView.timer_consulta.start(300) 
+
+    @staticmethod
+    def iniciar_hilo_final(tree_actual):
+        """ Mata cualquier hilo viejo y lanza la consulta definitiva """
+        # 1. Cancelación de peticiones anteriores para no saturar
+        if DesplazamientoView.worker is not None and DesplazamientoView.worker.isRunning():
+            try:
+                DesplazamientoView.worker.data_ready.disconnect() # Desconectar eventos
+                DesplazamientoView.worker.abort()                # Marcar como anulado
+                DesplazamientoView.worker.terminate()            # Forzar parada
+                DesplazamientoView.worker.wait()                 # Limpiar memoria
+            except:
+                pass
+
+        # 2. Obtener lo que quedó marcado al final de los clics
         lista = EquiposDesplazamiento.obtener_todos_elementos_marcados(tree_actual)
         if not lista:
             DesplazamientoView.limpiarGraficaDesplazamiento()
@@ -246,48 +286,41 @@ class DesplazamientoView:
             DesplazamientoView.limpiarGraficaDesplazamiento()
             return
 
-        # --- A. CAPTURAR VALORES DE LA UI (Hilo Principal) ---
+        # 3. Capturar valores de la interfaz (Hilo Principal)
         combo_promedios = DesplazamientoView.main.findChild(QComboBox, "combo_promedio_desplaza")
         spin_promedio = DesplazamientoView.main.findChild(QSpinBox, "spin_promedio_desplaza")
         tipopromedio = combo_promedios.currentData()
         
-        if tipopromedio == "SPRO":
-            spin_promedio.setEnabled(False)
-        else:
-            spin_promedio.setEnabled(True)
-        
+        spin_promedio.setEnabled(tipopromedio != "SPRO")
         numeropromedio = spin_promedio.value()
+        
         tipografico = DesplazamientoView.main.findChild(QComboBox, "combo_tipos_desplazamiento").currentData()
         tipomedida = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza").currentData()
         tipotiempo = DesplazamientoView.main.findChild(QComboBox, "combo_tiempo_desplaza").currentData()
         config = SoftwareConfiguracion.obtenerDataSoftware()
         filtrado = config[16]
 
-        # --- B. PREPARAR LANZAMIENTO (Hilo Secundario) ---
         params = (DesplazamientoView.idproyecto, prismasmarcados, DesplazamientoView.fechainicial, 
                   DesplazamientoView.fechafinal, tipografico, tipomedida, filtrado, tipopromedio, numeropromedio)
 
-        # Mostrar que el sistema está trabajando
+        # 4. Iniciar proceso
         DesplazamientoView.main.setCursor(Qt.WaitCursor)
-
-        # Crear y configurar el hilo
         DesplazamientoView.worker = DataWorker(params)
-        
         DesplazamientoView.worker.data_ready.connect(
-            lambda datos: DesplazamientoView.finalizar_consulta_desplazamiento(lista, datos, tipografico, tipomedida, tipotiempo)
+            lambda datos: DesplazamientoView.finalizar_flujo(lista, datos, tipografico, tipomedida, tipotiempo)
         )
-
-        # ¡Lanzar!
         DesplazamientoView.worker.start()
-    
+
     @staticmethod
-    def finalizar_consulta_desplazamiento(lista, datos, tipografico, tipomedida, tipotiempo):
-        DesplazamientoView.datos_memoria = datos # <-- GUARDAR DATA
+    def finalizar_flujo(lista, datos, tipografico, tipomedida, tipotiempo):
+        """ Recibe la data final y manda a graficar """
+        DesplazamientoView.datos_memoria = datos
         
         if len(datos) > 0:
             DesplazamientoView.graficarPrismasDesplazamiento(lista, datos, tipografico, tipomedida, tipotiempo)
         else:
             DesplazamientoView.limpiarGraficaDesplazamiento()
+            
         DesplazamientoView.main.unsetCursor()
         
     def obtenerListaEquiposMarcados(lista, tipolista):

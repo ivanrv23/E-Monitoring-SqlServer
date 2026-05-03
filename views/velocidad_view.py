@@ -19,25 +19,35 @@ from controllers.UmbralController import UmbralController
 from utils.shared.graficarUmbrales import GraficarUmbrales
 from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
 
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Signal, QTimer
 
 class DataWorkerVelocidad(QThread):
     # Señal que enviará los datos cuando termine
     data_ready = Signal(list)
-    error_occurred = Signal(str)
 
     def __init__(self, params):
         super().__init__()
         self.params = params
+        self._is_killed = False # Bandera para ignorar resultados obsoletos
 
     def run(self):
         try:
+            if self._is_killed: return
+            
             from controllers.VelocidadController import VelocidadController
             # Llamada al controlador original
             datos = VelocidadController.ctrlDatosPrismasMarcados(*self.params)
-            self.data_ready.emit(datos)
+            
+            if not self._is_killed:
+                self.data_ready.emit(datos)
         except Exception as e:
-            self.error_occurred.emit(str(e))
+            print(f"Error en hilo de velocidad: {e}")
+            if not self._is_killed:
+                self.data_ready.emit([])
+
+    def abort(self):
+        """ Anula este hilo para que no envíe datos a la UI """
+        self._is_killed = True
 
 class VelocidadView:
     main = None
@@ -240,36 +250,62 @@ class VelocidadView:
             SondajetdrView.reiniciarVistaTDR(VelocidadView.main, VelocidadView.idproyecto, VelocidadView.nameproyecto)
             AnalisisView.reiniciarVistaAnalisis(VelocidadView.main, VelocidadView.idproyecto, VelocidadView.nameproyecto)
     
-    # Variable para mantener el hilo vivo
+    # Asegúrate de que estas variables estén en la clase
     worker_velocidad = None 
+    timer_consulta = None
 
+    @staticmethod
     def obtenerMostrarPrismasMarcados(tree_actual):
+        """ Portero (Debounce): Agrupa clics rápidos """
+        if VelocidadView.timer_consulta is None:
+            VelocidadView.timer_consulta = QTimer()
+            VelocidadView.timer_consulta.setSingleShot(True)
+            VelocidadView.timer_consulta.timeout.connect(
+                lambda: VelocidadView.iniciar_peticion_final(tree_actual)
+            )
+
+        # 300ms para que la UI se sienta instantánea pero agrupe los clics en bloque
+        VelocidadView.timer_consulta.stop()
+        VelocidadView.timer_consulta.start(300) 
+
+    @staticmethod
+    def iniciar_peticion_final(tree_actual):
+        """ Motor: Mata procesos viejos y lanza la consulta definitiva """
+        # 1. Cancelar cualquier hilo previo que esté trabajando en una selección vieja
+        if VelocidadView.worker_velocidad is not None and VelocidadView.worker_velocidad.isRunning():
+            try:
+                VelocidadView.worker_velocidad.data_ready.disconnect()
+                VelocidadView.worker_velocidad.abort()
+                VelocidadView.worker_velocidad.terminate()
+                VelocidadView.worker_velocidad.wait()
+            except:
+                pass
+
+        # 2. Captura de la selección final del árbol
         lista = EquiposVelocidad.obtener_todos_elementos_marcados(tree_actual)
         if not lista:
             VelocidadView.limpiarGraficaVelocidad()
+            VelocidadView.main.unsetCursor()
             return
 
         prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
         if len(prismasmarcados) == 0:
             VelocidadView.limpiarGraficaVelocidad()
+            VelocidadView.main.unsetCursor()
             return
 
-        # --- A. CAPTURAR DATOS DE LA UI (Hilo Principal) ---
+        # 3. Capturar datos de la UI (Sincrónico y rápido)
         try:
             combo_promedios = VelocidadView.main.findChild(QComboBox, "combo_promedio_velocidad")
             spin_promedio = VelocidadView.main.findChild(QSpinBox, "spin_promedio_velocidad")
             tipopromedio = combo_promedios.currentData()
-            
-            if tipopromedio == "SPRO":
-                spin_promedio.setEnabled(False)
-            else:
-                spin_promedio.setEnabled(True)
-            
+            spin_promedio.setEnabled(tipopromedio != "SPRO")
             numeropromedio = spin_promedio.value()
+            
             tipografico = VelocidadView.main.findChild(QComboBox, "combo_tipos_velocidad").currentData()
             tipomedida = VelocidadView.main.findChild(QComboBox, "combo_medida_velocidad").currentData()
             
-            # Lógica de conversión de unidades (se queda en el principal)
+            # Tu lógica de conversión de unidades
             if tipomedida == "MD": unidadmedida = 1
             elif tipomedida == "CMD": unidadmedida = 100
             elif tipomedida == "MMD": unidadmedida = 1000
@@ -278,45 +314,35 @@ class VelocidadView:
             else: unidadmedida = 1000/24
 
             tipotiempo = VelocidadView.main.findChild(QComboBox, "combo_tiempo_velocidad").currentData()
-            
             config = SoftwareConfiguracion.obtenerDataSoftware()
             velocprisma, filtrado = config[15], config[16]
 
-            # Mostrar cursor de espera
-            VelocidadView.main.setCursor(Qt.WaitCursor)
-
-            # --- B. PREPARAR LANZAMIENTO DEL HILO ---
             params = (VelocidadView.idproyecto, prismasmarcados, VelocidadView.fechainicial, 
                       VelocidadView.fechafinal, tipografico, unidadmedida, velocprisma, 
                       filtrado, tipopromedio, numeropromedio)
 
+            # 4. Lanzar el nuevo trabajador
+            VelocidadView.main.setCursor(Qt.WaitCursor)
             VelocidadView.worker_velocidad = DataWorkerVelocidad(params)
-            
-            # Conectar la señal de éxito
             VelocidadView.worker_velocidad.data_ready.connect(
-                lambda datos: VelocidadView.finalizar_consulta_velocidad(lista, datos, tipografico, tipomedida, tipotiempo)
+                lambda datos: VelocidadView.finalizar_flujo_velocidad(lista, datos, tipografico, tipomedida, tipotiempo)
             )
-            
-            # Conectar la señal de error
-            VelocidadView.worker_velocidad.error_occurred.connect(
-                lambda err: [print(f"Error: {err}"), VelocidadView.main.unsetCursor()]
-            )
-
-            # Lanzar hilo
             VelocidadView.worker_velocidad.start()
 
         except Exception as e:
-            print(f"Error al iniciar consulta de velocidad: {e}")
+            print(f"Error al iniciar hilo: {e}")
             VelocidadView.main.unsetCursor()
 
     @staticmethod
-    def finalizar_consulta_velocidad(lista, datos, tipografico, tipomedida, tipotiempo):
-        VelocidadView.datos_memoria = datos # <-- GUARDAR DATA
+    def finalizar_flujo_velocidad(lista, datos, tipografico, tipomedida, tipotiempo):
+        """ Cierre: Recibe la data del hilo y manda a dibujar """
+        VelocidadView.datos_memoria = datos
         
         if len(datos) > 0:
             VelocidadView.graficarPrismasVelocidad(lista, datos, tipografico, tipomedida, tipotiempo)
         else:
             VelocidadView.limpiarGraficaVelocidad()
+        
         VelocidadView.main.unsetCursor()
         
     def obtenerListaEquiposMarcados(lista, tipolista):
