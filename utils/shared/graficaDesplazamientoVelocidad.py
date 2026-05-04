@@ -133,17 +133,21 @@ def _x_a_numerico(x_data, tiempo):
     else:
         return x_arr.astype(float)
 
-def plot_linea_suavizada(ax, x_data, y_data, tiempo, activo=False, **kwargs): # <-- Agregamos activo=False
-    marker     = kwargs.pop('marker', None)
+def plot_linea_suavizada(ax, x_data, y_data, tiempo, activo=False, **kwargs):
+    marker = kwargs.pop('marker', None)
     markersize = kwargs.pop('markersize', 6)
-    estilo_linea = kwargs.get('linestyle', '-') 
+    estilo_linea = kwargs.get('linestyle', '-')
+    
+    # Esta lista guardará los objetos visuales (curva y puntos)
+    objetos_vinculados = []
 
     if not activo:
         if marker:
-            kwargs['marker']     = marker
+            kwargs['marker'] = marker
             kwargs['markersize'] = markersize
         linea, = ax.plot(x_data, y_data, **kwargs)
         linea._estilo_puro = estilo_linea
+        linea._asociados = [] # No tiene capas extra
         return linea
 
     # ---- Modo suavizado ----
@@ -151,33 +155,96 @@ def plot_linea_suavizada(ax, x_data, y_data, tiempo, activo=False, **kwargs): # 
     y_num = np.asarray(y_data, dtype=float)
     x_s, y_s = suavizar_con_bezier(x_num, y_num, SUAVIZADO_TENSION)
 
-    label      = kwargs.pop('label', '_nolegend_')
-    
+    label = kwargs.pop('label', '_nolegend_')
+
     # --- CAPA 1: Curva visual ---
     kwargs_visual = kwargs.copy()
     kwargs_visual['label'] = '_nolegend_'
     linea_visual, = ax.plot(x_s, y_s, **kwargs_visual)
     color_final = linea_visual.get_color()
+    objetos_vinculados.append(linea_visual) # <--- AGREGADO
 
     # --- CAPA 2: Marcadores ---
     if marker:
-        ax.plot(x_data, y_data, marker=marker, markersize=markersize,
+        puntos, = ax.plot(x_data, y_data, marker=marker, markersize=markersize,
                 linestyle='none', color=color_final, zorder=linea_visual.get_zorder() + 1,
                 label='_nolegend_')
+        objetos_vinculados.append(puntos) # <--- AGREGADO
 
-    # --- CAPA 3: Línea fantasma ---
+    # --- CAPA 3: Línea fantasma (La que va a la LEYENDA) ---
     linea_real, = ax.plot(
         x_data, y_data,
         linestyle='none', marker='none',
         color=color_final, label=label,
         alpha=0, zorder=0
     )
-    
-    # IMPORTANTE: Guardar estilo para la leyenda
+
     linea_real._estilo_puro = estilo_linea
-    
+    # GUARDAMOS LOS HIJOS: Esto permite que al tocar la leyenda, 
+    # la línea real sepa qué otros objetos ocultar
+    linea_real._asociados = objetos_vinculados 
+
     return linea_real
 
+def configurar_evento_leyenda(canvas, legend, handles):
+    """
+    Configura la interacción con la leyenda con alta precisión.
+    """
+    map_leyenda_a_grafico = {}
+    
+    # Obtenemos las líneas de la leyenda
+    lineas_leyenda = legend.get_lines()
+    
+    for leg_line, orig_line in zip(lineas_leyenda, handles):
+        # 1. Bajamos el pickradius a 5 para evitar solapamientos
+        # Si ves que aún se marcan dos, bájalo a 3 o 4.
+        leg_line.set_picker(3) 
+        map_leyenda_a_grafico[leg_line] = orig_line
+
+    def on_pick(event):
+        # El evento 'pick_event' a veces detecta varios artistas si están muy cerca.
+        # Matplotlib procesa todos los que estén bajo el mouse.
+        
+        leg_line = event.artist
+        
+        # Verificamos que el artista clickeado sea uno de nuestros iconos de leyenda
+        if leg_line not in map_leyenda_a_grafico:
+            return
+
+        orig_line = map_leyenda_a_grafico[leg_line]
+        
+        # Cambiamos visibilidad
+        nuevo_estado = not orig_line.get_visible()
+        
+        # Aplicar a la línea principal (la de la leyenda)
+        orig_line.set_visible(nuevo_estado)
+        
+        # Aplicar a sus capas asociadas (suavizado, puntos, etc.)
+        if hasattr(orig_line, '_asociados'):
+            for obj in orig_line._asociados:
+                obj.set_visible(nuevo_estado)
+        
+        # Feedback visual en la leyenda
+        # Usamos alpha 1.0 para activo y 0.15 para inactivo (más tenue)
+        leg_line.set_alpha(1.0 if nuevo_estado else 0.15)
+        
+        # Opcional: También podemos atenuar el texto de la leyenda
+        # Buscamos el texto que corresponde a esta línea
+        try:
+            # En la leyenda, los textos suelen estar en la misma posición de índice
+            idx = lineas_leyenda.index(leg_line)
+            legend.get_texts()[idx].set_alpha(1.0 if nuevo_estado else 0.3)
+        except:
+            pass
+
+        canvas.draw_idle()
+
+    # IMPORTANTE: Antes de conectar, desconectamos eventos pick previos 
+    # para evitar que se acumulen al redimensionar la ventana
+    if hasattr(canvas, '_leyenda_gid'):
+        canvas.mpl_disconnect(canvas._leyenda_gid)
+    
+    canvas._leyenda_gid = canvas.mpl_connect('pick_event', on_pick)
 class ModalDialog(QDialog):
     def __init__(self, parent, label, date, reading):  # Añadir parent
         super().__init__(parent, Qt.Window)  # Usar Qt.Window
@@ -751,29 +818,35 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     def actualizar_leyenda():
         try:
             ncols = calculate_columns()
-
             leyenda_elementos = lineas + ([barras_pluviometro] if barras_pluviometro else [])
             leyenda_labels = [line.get_label() for line in lineas] + (["Precipitación"] if barras_pluviometro else [])
-            # --- TRUCO PARA MODO SUAVIZADO ---
+            
             if SUAVIZADO_ESTADO:
                 for line in lineas:
                     if hasattr(line, '_estilo_puro'):
-                        line.set_linestyle(line._estilo_puro) # Mostrar estilo en leyenda
-                        line.set_alpha(1.0)                   # Mostrar color en leyenda
+                        line.set_linestyle(line._estilo_puro)
+                        line.set_alpha(1.0)
 
-            # Crear la leyenda con los estilos activados temporalmente
             legend = ax.legend(handles=leyenda_elementos, labels=leyenda_labels, 
-                               loc='upper center', bbox_to_anchor=(0.5, 0), 
-                               ncol=ncols, frameon=False, fontsize=leyendazise, 
-                               borderaxespad=0.8)
+                            loc='upper center', bbox_to_anchor=(0.5, 0), 
+                            ncol=ncols, frameon=False, fontsize=leyendazise, 
+                            borderaxespad=0.8)
 
-            # --- RESTAURAR ESTADO INVISIBLE ---
+            # --- CAMBIO CLAVE: CONECTAR INTERACCIÓN ---
+            # Pasamos los elementos reales de la leyenda para que sean interactivos
+            configurar_evento_leyenda(canvas, legend, leyenda_elementos)
+            # ------------------------------------------
+
             if SUAVIZADO_ESTADO:
                 for line in lineas:
                     if hasattr(line, '_estilo_puro'):
-                        line.set_linestyle('none') # Volver a ocultar en el gráfico
-                        line.set_alpha(0)          # Volver a ocultar en el gráfico
-                        
+                        # Restauramos el estado fantasma, pero respetamos si el usuario lo apagó
+                        # Si la línea está visible (on), se mantiene transparente en el gráfico
+                        # Si la línea está oculta (off), se queda oculta.
+                        if line.get_visible():
+                            line.set_linestyle('none')
+                            line.set_alpha(0)
+
             renderer = canvas.get_renderer()
             canvas.draw()
             fig_bbox = figure.bbox
