@@ -12,22 +12,29 @@ class EquiposVelocidad:
     def validarMarcadoCheckbox(parent_item, column, obtenerEquiposMarcados):
         codigo = parent_item.text(1)
         estado = parent_item.checkState(0)
-        if estado != Qt.CheckState.PartiallyChecked:
-            # comprobar si el código es numérico (primer nivel)
+        
+        if estado == Qt.CheckState.PartiallyChecked:
+            return
+
+        # Bloqueamos señales para que el árbol no procese eventos internos por cada hijo
+        tree_widget = parent_item.treeWidget()
+        tree_widget.blockSignals(True)
+
+        try:
             if codigo.isdigit():
-                if codigo == "0": # COMPONENTE
-                    EquiposVelocidad.marcardesmarcar_todos_hijos(parent_item, estado)
-                    # Ocultar info
-                else:
-                    EquiposVelocidad.marcardesmarcar_todos_hijos(parent_item, estado)
+                EquiposVelocidad.marcardesmarcar_todos_hijos(parent_item, estado)
+                if codigo != "0": 
                     EquiposVelocidad.actualizar_estado_padre_hijos(parent_item)     
-            else:  # child (Hijos del parent)
+            else:  
                 EquiposVelocidad.marcardesmarcar_todos_hijos(parent_item, estado)
                 EquiposVelocidad.actualizar_estado_padre_hijos(parent_item)
-            # graficar
-            obtenerEquiposMarcados()
+        finally:
+            tree_widget.blockSignals(False)
+            
+        # Refrescamos la gráfica UNA SOLA VEZ al final
+        obtenerEquiposMarcados()
           
-    def validarOpcionesMenuCheckbox(point, main, treeWidget, reiniciarvistas):
+    def validarOpcionesMenuCheckbox(point, main, treeWidget, reiniciarvistas, callback_graficar):
         item = treeWidget.itemAt(point)
         if item:
             tipo = item.text(1)
@@ -244,3 +251,29 @@ class EquiposVelocidad:
                     if pluviometros:
                         TreeCheckbox.crearNuevoGrupoCheckboxesSimple(tree_widget, namezona, idzona, proyecto_id, "Pluviómetros", "2", pluviometros, "pluviometro")
         
+    @staticmethod
+    def marcar_desmarcar_proyecto_completo(treeWidget, estado, callback_graficar):
+        treeWidget.blockSignals(True)
+        try:
+            for i in range(treeWidget.topLevelItemCount()):
+                componente = treeWidget.topLevelItem(i)
+                componente.setCheckState(0, estado)
+                EquiposVelocidad.marcardesmarcar_todos_hijos(componente, estado)
+        finally:
+            treeWidget.blockSignals(False)
+        callback_graficar()
+        
+    @staticmethod
+    def abrirMenuGlobalProyecto(pos_global, treeWidget, callback_graficar):
+        """ Menú que se abre solo para acciones globales del proyecto """
+        menu = QMenu()
+        marcar_todo = menu.addAction("Marcar Todo el Proyecto")
+        desmarcar_todo = menu.addAction("Desmarcar Todo el Proyecto")
+        
+        marcar_todo.triggered.connect(lambda: EquiposVelocidad.marcar_desmarcar_proyecto_completo(
+            treeWidget, Qt.Checked, callback_graficar))
+        
+        desmarcar_todo.triggered.connect(lambda: EquiposVelocidad.marcar_desmarcar_proyecto_completo(
+            treeWidget, Qt.Unchecked, callback_graficar))
+
+        menu.exec(pos_global)

@@ -73,6 +73,9 @@ class VelocidadView:
             tree_actual_velocidad.itemClicked.connect(VelocidadView.checkProyectoActualVelocidad)
             tree_actual_velocidad.setContextMenuPolicy(Qt.CustomContextMenu)
             tree_actual_velocidad.customContextMenuRequested.connect(VelocidadView.clicderechoProyectoActualVelocidad)
+            header = tree_actual_velocidad.header()
+            header.setContextMenuPolicy(Qt.CustomContextMenu)
+            header.customContextMenuRequested.connect(VelocidadView.clicderechoEncabezadoProyecto)
             botonRefrescarVelocidad = main.findChild(QPushButton, "btn_refrescar_vista_velocidad")
             botonRefrescarVelocidad.clicked.connect(lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual_velocidad))
             btn_umbral_velocidad = main.findChild(QPushButton, "btn_umbral_velocidad")
@@ -149,7 +152,17 @@ class VelocidadView:
             if btnExportarV:
                 btnExportarV.clicked.connect(VelocidadView.ejecutar_exportacion_grafica)
             VelocidadView.estadoPagina = False
-    
+            
+    def clicderechoEncabezadoProyecto(point):
+        tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_velocidad")
+        pos_global = tree_actual.header().mapToGlobal(point)
+        
+        EquiposVelocidad.abrirMenuGlobalProyecto(
+            pos_global, 
+            tree_actual, 
+            lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)
+        )
+        
     def graficarUmbralesPersonalizado():
         if VelocidadView.idproyecto:
             widget_grafico = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")
@@ -222,7 +235,15 @@ class VelocidadView:
         
     def clicderechoProyectoActualVelocidad(point):
         treeWidget =  VelocidadView.main.findChild(QTreeWidget, "tree_actual_velocidad")
-        EquiposVelocidad.validarOpcionesMenuCheckbox(point, VelocidadView.main, treeWidget, VelocidadView.reiniciarVistasAfectadas)
+        
+        # Añade el lambda al final para enviar la función de graficado
+        EquiposVelocidad.validarOpcionesMenuCheckbox(
+            point, 
+            VelocidadView.main, 
+            treeWidget, 
+            VelocidadView.reiniciarVistasAfectadas,
+            lambda: VelocidadView.obtenerMostrarPrismasMarcados(treeWidget)
+        )
     
     def reiniciarVistasAfectadas(tipoequipo="Todos"):
         from views.datos_view import DatosView

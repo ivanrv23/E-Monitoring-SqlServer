@@ -76,6 +76,10 @@ class DesplazamientoView:
             tree_actual_desplaza.itemClicked.connect(DesplazamientoView.checkProyectoActualDesplazamiento)
             tree_actual_desplaza.setContextMenuPolicy(Qt.CustomContextMenu)
             tree_actual_desplaza.customContextMenuRequested.connect(DesplazamientoView.clicderechoProyectoActualDesplazamiento)
+            # Habilitar clic derecho en el encabezado (Header)
+            header = tree_actual_desplaza.header()
+            header.setContextMenuPolicy(Qt.CustomContextMenu)
+            header.customContextMenuRequested.connect(DesplazamientoView.clicderechoEncabezadoProyecto)
             botonRefrescarDesplazamiento = main.findChild(QPushButton, "btn_refrescar_vista_desplazamiento")
             botonRefrescarDesplazamiento.clicked.connect(lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(tree_actual_desplaza))
             # Cargar Unidades de Medida
@@ -168,6 +172,17 @@ class DesplazamientoView:
                 
             DesplazamientoView.estadoPagina = False
     
+    def clicderechoEncabezadoProyecto(point):
+        tree_actual = DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+        # Obtenemos la posición global desde el Header
+        pos_global = tree_actual.header().mapToGlobal(point)
+        
+        EquiposDesplazamiento.abrirMenuGlobalProyecto(
+            pos_global, 
+            tree_actual, 
+            lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(tree_actual)
+        )
+        
     def graficarUmbralesPersonalizado():
         if DesplazamientoView.idproyecto:
             widget_grafico = DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento")
@@ -213,11 +228,19 @@ class DesplazamientoView:
     def checkProyectoActualDesplazamiento(parent_item, column):
         treeWidget =  DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
         EquiposDesplazamiento.validarMarcadoCheckbox(parent_item, column, lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(treeWidget))
-        
+    
     def clicderechoProyectoActualDesplazamiento(point):
         treeWidget =  DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-        EquiposDesplazamiento.validarOpcionesMenuCheckbox(point, DesplazamientoView.main, treeWidget, DesplazamientoView.reiniciarVistasAfectadas)
-    
+        
+        # Agregamos el argumento extra: la función que dispara la gráfica
+        EquiposDesplazamiento.validarOpcionesMenuCheckbox(
+            point, 
+            DesplazamientoView.main, 
+            treeWidget, 
+            DesplazamientoView.reiniciarVistasAfectadas,
+            lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(treeWidget)
+        )
+        
     def reiniciarVistasAfectadas(tipoequipo="Todos"):
         from views.datos_view import DatosView
         from views.visor_view import VisorView
