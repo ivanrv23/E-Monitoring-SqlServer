@@ -208,7 +208,7 @@ class UsuarioModel:
     def mdlObtenerConexiones():
         conn = None
         sql = """SELECT p.nombre_proyecto, c.instrumento_conexion, c.servidor_conexion, c.puerto_conexion, c.database_conexion, c.usuario_conexion,
-        c.grupos_conexion, c.lecturas_conexion, c.dato_conexion, c.frecuencia_conexion, c.estado_conexion, c.id_conexion, c.id_proyecto
+        c.grupos_conexion, c.lecturas_conexion, c.dato_conexion, c.frecuencia_conexion, c.estado_conexion, c.id_conexion, c.id_proyecto, c.password_conexion
         FROM conexiones c INNER JOIN proyectos p ON c.id_proyecto = p.id_proyecto;"""
         try:
             conn = Connection.connectionDB()

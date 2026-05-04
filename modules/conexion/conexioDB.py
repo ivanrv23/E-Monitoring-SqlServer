@@ -197,7 +197,7 @@ class ConexionDB:
         conexiones = UsuarioController.ctrlObtenerConexiones()
         if conexiones:
             tabladatos.setRowCount(len(conexiones))
-            tabladatos.setColumnCount(13)
+            tabladatos.setColumnCount(14)
             for fila, datos_fila in enumerate(conexiones):
                 for columna, dato in enumerate(datos_fila):
                     texto = ESTADOS.get(dato, str(dato)) if columna == 10 else str(dato)
@@ -207,12 +207,13 @@ class ConexionDB:
             tabladatos.setColumnHidden(7, True)
             tabladatos.setColumnHidden(11, True)
             tabladatos.setColumnHidden(12, True)
+            tabladatos.setColumnHidden(13, True)
         def refrescarTabla():
             conexiones = UsuarioController.ctrlObtenerConexiones()
             tabladatos.clearContents()
             if conexiones:
                 tabladatos.setRowCount(len(conexiones))
-                tabladatos.setColumnCount(13)
+                tabladatos.setColumnCount(14)
                 for fila, datos_fila in enumerate(conexiones):
                     for columna, dato in enumerate(datos_fila):
                         texto = ESTADOS.get(dato, str(dato)) if columna == 10 else str(dato)
@@ -222,6 +223,7 @@ class ConexionDB:
                 tabladatos.setColumnHidden(7, True)
                 tabladatos.setColumnHidden(11, True)
                 tabladatos.setColumnHidden(12, True)
+                tabladatos.setColumnHidden(13, True)
         def aceptarConexiones():
             dialog.close()
         # Inicializar botones
@@ -412,15 +414,16 @@ class ConexionDB:
         estado = table.model().data(table.model().index(row, 10), Qt.DisplayRole)
         idconexion = table.model().data(table.model().index(row, 11), Qt.DisplayRole)
         idproyecto = table.model().data(table.model().index(row, 12), Qt.DisplayRole)
-        ConexionDB.generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success)
+        password = table.model().data(table.model().index(row, 13), Qt.DisplayRole)
+        ConexionDB.generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, password, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success)
     
-    def generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success=None):
+    def generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, password, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success=None):
         # Crear menú contextual
         menu = QMenu()
         edit_action = QAction("Editar Conexión", table)
         delete_action = QAction("Eliminar Conexión", table)
         # Conectar las acciones con los valores de la fila
-        edit_action.triggered.connect(lambda: ConexionDB.dialogoActualizarConexion(instrumento, servidor, puerto, database, usuario, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success))
+        edit_action.triggered.connect(lambda: ConexionDB.dialogoActualizarConexion(instrumento, servidor, puerto, database, usuario, password, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success))
         delete_action.triggered.connect(lambda: ConexionDB.delete_row_conexion(idconexion, instrumento, servidor, on_success))
         # Añadir las acciones al menú
         menu.addAction(edit_action)
@@ -428,7 +431,7 @@ class ConexionDB:
         # Mostrar menú contextual en la posición del clic
         menu.exec(table.viewport().mapToGlobal(position))
     
-    def dialogoActualizarConexion(instrumento, servidor, puerto, database, usuario, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success=None):
+    def dialogoActualizarConexion(instrumento, servidor, puerto, database, usuario, password, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success=None):
         loaderLoading = QUiLoader()
         ui_file_path = resource_path("ui/nuevaconexion.ui")
         ui_file = loaderLoading.load(ui_file_path, None)
@@ -451,6 +454,7 @@ class ConexionDB:
         inputLecturas = dialogo.findChild(QTextEdit, 'input_consulta_lecturas')
         comboEstados = dialogo.findChild(QComboBox, "cb_estados")
         lblrespuesta = dialogo.findChild(QLabel, "label_mensaje")
+        btnProbarConexion = dialogo.findChild(QPushButton, "btn_probar_conexion")
         botonGuardar = dialogo.findChild(QPushButton, "btn_registrar")
         # Llenar proyectos
         proyectos = InterfazController.ctrlListarProyectos()
@@ -474,7 +478,7 @@ class ConexionDB:
         inputPuerto.setText(str(puerto))
         inputDatabase.setText(str(database))
         inputUsuario.setText(str(usuario))
-        inputPassword.setText("")
+        inputPassword.setText(str(password))
         inputGrupos.setPlainText(str(consultagrupos))
         inputLecturas.setPlainText(str(consultalecturas))
         inputDato.setText(ultimoid)
@@ -540,8 +544,60 @@ class ConexionDB:
             else:
                 lblrespuesta.setText("Error al editar.")
                 lblrespuesta.setStyleSheet("color: red;")
+        def probarConexion():
+            servidor = inputServer.text().strip()
+            puerto = inputPuerto.text().strip() or "1433"
+            database = inputDatabase.text().strip()
+            usuario = inputUsuario.text().strip()
+            contraseña = inputPassword.text().strip()
+
+            # Validaciones básicas antes de intentar conectar
+            if not servidor or not database or not usuario or not contraseña:
+                lblrespuesta.setText("Complete los datos antes de probar la conexión.")
+                lblrespuesta.setStyleSheet("color: red;")
+                return
+
+            lblrespuesta.setText("Probando conexión...")
+            lblrespuesta.setStyleSheet("color: blue;")
+            lblrespuesta.repaint()
+
+            driver = '{ODBC Driver 17 for SQL Server}'
+
+            conn_str = (
+                f'DRIVER={driver};'
+                f'SERVER={servidor},{puerto};'
+                f'DATABASE={database};'
+                f'UID={usuario};'
+                f'PWD={contraseña};'
+                'TrustServerCertificate=yes;'
+                'Connection Timeout=3;'
+            )
+
+            try:
+                conn = pyodbc.connect(conn_str)
+                conn.close()
+
+                lblrespuesta.setText("✔ Conexión Exitosa")
+                lblrespuesta.setStyleSheet("color: green; font-weight: bold;")
+
+            except Exception as e:
+                error_msg = str(e)
+
+                if "Login failed" in error_msg:
+                    texto_error = "Usuario o contraseña incorrectos"
+                elif "server was not found" in error_msg or "timeout" in error_msg:
+                    texto_error = "No se encuentra el servidor (IP/Puerto)"
+                elif "Cannot open database" in error_msg:
+                    texto_error = f"La base de datos '{database}' no existe"
+                else:
+                    texto_error = "Falló la conexión"
+
+                lblrespuesta.setText(texto_error)
+                lblrespuesta.setStyleSheet("color: red; font-weight: bold;")
+        
         # conectar botones
         botonGuardar.clicked.connect(actualizarInfoConexion)
+        btnProbarConexion.clicked.connect(probarConexion)
         dialogo.exec()
     
     def delete_row_conexion(idconexion, instrumento, servidor, on_success=None):
