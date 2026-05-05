@@ -198,3 +198,9 @@ class InterfazController:
     def ctrlListarArchivosLidar(id_componente):
         respuesta = InterfazModel.mdlListarArchivosLidar(id_componente)
         return respuesta
+    
+    def ctrlGuardarPreferenciasMarcado(idproyecto, modulo, preferencias):
+        return InterfazModel.mdlGuardarPreferenciasMarcado(idproyecto, modulo, preferencias)
+
+    def ctrlObtenerPreferenciasMarcado(idproyecto, modulo):
+        return InterfazModel.mdlObtenerPreferenciasMarcado(idproyecto, modulo)

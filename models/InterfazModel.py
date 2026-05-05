@@ -686,3 +686,40 @@ class InterfazModel:
         finally:
             if conn:
                 conn.close()
+                
+    @staticmethod
+    def mdlGuardarPreferenciasMarcado(idproyecto, modulo, lista_preferencias):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            # Limpiar configuracion previa
+            cur.execute("DELETE FROM preferencias_marcado WHERE id_proyecto = ? AND modulo = ?", (idproyecto, modulo))
+            # Insertar nuevos registros
+            sql = "INSERT INTO preferencias_marcado (id_proyecto, modulo, id_componente, id_instrumentacion) VALUES (?, ?, ?, ?)"
+            for id_comp, id_inst in lista_preferencias:
+                cur.execute(sql, (idproyecto, modulo, id_comp, id_inst))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error mdlGuardarPreferenciasMarcado:", e)
+            return False
+        finally:
+            if conn: conn.close()
+
+    @staticmethod
+    def mdlObtenerPreferenciasMarcado(idproyecto, modulo):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            sql = "SELECT id_componente, id_instrumentacion FROM preferencias_marcado WHERE id_proyecto = ? AND modulo = ?"
+            cur = conn.cursor()
+            cur.execute(sql, (idproyecto, modulo))
+            rows = cur.fetchall()
+            return [tuple(row) for row in rows]
+        except Exception as e:
+            print("Error mdlObtenerPreferenciasMarcado:", e)
+            return []
+        finally:
+            if conn: conn.close()
+            

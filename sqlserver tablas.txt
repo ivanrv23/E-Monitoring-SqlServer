@@ -792,3 +792,16 @@ CREATE TABLE Software_EventosGrafica (
 
 -- Índice para búsquedas rápidas al graficar
 CREATE INDEX IDX_Eventos_Proyecto_Fecha ON Software_EventosGrafica(id_proyecto, fecha_evento);
+
+CREATE TABLE preferencias_marcado (
+    id_preferencia INT IDENTITY(1,1) PRIMARY KEY,
+    id_proyecto INT NOT NULL,
+    modulo VARCHAR(50) NOT NULL, -- Ejemplo: 'DESPLAZAMIENTO' o 'DATOS'
+    id_componente INT NOT NULL,
+    id_instrumentacion INT NULL  -- Si es NULL, se marca todo el componente
+);
+GO
+
+-- Índice para mejorar la velocidad de carga
+CREATE INDEX idx_preferencias_proy_mod ON preferencias_marcado (id_proyecto, modulo);
+GO

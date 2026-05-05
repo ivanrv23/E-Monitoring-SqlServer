@@ -1062,3 +1062,203 @@ class Personalizacion:
         botoncancelar.clicked.connect(cancelarPersonalizacion)
         dialogo.exec()
     
+    @staticmethod
+    def dialogoConfigurarMarcadoPredeterminado(tree_referencia, preferencias_actuales, fn_guardar):
+        def limpiar_id(valor):
+            if valor is None or str(valor).strip() == "" or str(valor).lower() == "none":
+                return None
+            try:
+                return int(float(valor))
+            except (ValueError, TypeError):
+                return None
+
+        dialogo = QDialog()
+        dialogo.setWindowTitle("Configurar Plantilla de Marcado")
+        dialogo.setMinimumSize(500, 650)
+        dialogo.setStyleSheet("background-color: #ffffff;")
+        
+        layout_principal = QVBoxLayout(dialogo)
+        layout_principal.setContentsMargins(20, 20, 20, 20)
+        layout_principal.setSpacing(15)
+        
+        # --- Cabecera y Herramientas ---
+        toolbar = QHBoxLayout()
+        lbl_instrucciones = QLabel("Seleccione los equipos que aparecerán marcados por defecto:")
+        lbl_instrucciones.setStyleSheet("color: #555; font-size: 12px; font-weight: 500;")
+        
+        btn_all = QPushButton("Marcar Todo")
+        btn_none = QPushButton("Desmarcar Todo")
+        
+        estilo_botones_top = """
+            QPushButton { 
+                background-color: #f8f9fa; color: #0078d7; 
+                border: 1px solid #dee2e6; border-radius: 4px; 
+                padding: 4px 12px; font-size: 11px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #e8f2ff; border-color: #0078d7; }
+            QPushButton:pressed { background-color: #d0e3ff; }
+        """
+        btn_all.setStyleSheet(estilo_botones_top)
+        btn_none.setStyleSheet(estilo_botones_top)
+        
+        toolbar.addWidget(lbl_instrucciones)
+        toolbar.addStretch()
+        toolbar.addWidget(btn_all)
+        toolbar.addWidget(btn_none)
+        layout_principal.addLayout(toolbar)
+
+        # --- Árbol de Configuración con Estilo Profesional ---
+        tree_config = QTreeWidget()
+        tree_config.setHeaderHidden(True)
+        tree_config.setColumnCount(3)
+        tree_config.setColumnHidden(1, True)
+        tree_config.setColumnHidden(2, True)
+        tree_config.setIndentation(20)
+        tree_config.setAnimated(True)
+        
+        # Solución al error visual: Definimos colores explícitos para selección
+        tree_config.setStyleSheet("""
+            QTreeWidget { 
+                border: 1px solid #e0e0e0; border-radius: 8px; 
+                background-color: #ffffff; outline: 0;
+            }
+            QTreeWidget::item { 
+                padding: 8px; border-bottom: 1px solid #f8f9fa; color: #333;
+            }
+            QTreeWidget::item:hover { 
+                background-color: #f1f7ff; 
+            }
+            QTreeWidget::item:selected { 
+                background-color: #e8f2ff; color: #0078d7; 
+            }
+            QTreeWidget::item:selected:active {
+                background-color: #e8f2ff; color: #0078d7;
+            }
+            QTreeWidget::item:selected:!active {
+                background-color: #f8f9fa; color: #333;
+            }
+            QCheckBox::indicator { width: 16px; height: 16px; }
+        """)
+
+        # Cargar preferencias en un set para búsqueda rápida
+        set_prefs = set()
+        for p in preferencias_actuales:
+            idz = limpiar_id(p[0])
+            idi = limpiar_id(p[1])
+            if idz is not None:
+                set_prefs.add((idz, idi))
+
+        def copiar_y_sincronizar(item_orig, parent_dest, id_zona):
+            for i in range(item_orig.childCount()):
+                h_orig = item_orig.child(i)
+                h_dest = QTreeWidgetItem(parent_dest)
+                h_dest.setText(0, h_orig.text(0))
+                h_dest.setText(1, h_orig.text(1))
+                h_dest.setText(2, h_orig.text(2))
+                h_dest.setFlags(h_dest.flags() | Qt.ItemIsUserCheckable)
+                
+                tipo = h_orig.text(1).lower()
+                es_equipo = tipo in ["prisma", "pluviometro"]
+                id_equipo = limpiar_id(h_orig.text(2)) if es_equipo else None
+                
+                # Lógica: Marcado si está el ID específico o si la ZONA está marcada completa
+                if (id_zona, id_equipo) in set_prefs or (id_zona, None) in set_prefs:
+                    h_dest.setCheckState(0, Qt.Checked)
+                else:
+                    h_dest.setCheckState(0, Qt.Unchecked)
+                
+                copiar_y_sincronizar(h_orig, h_dest, id_zona)
+
+        tree_config.blockSignals(True)
+        for i in range(tree_referencia.topLevelItemCount()):
+            root_orig = tree_referencia.topLevelItem(i)
+            id_z = limpiar_id(root_orig.text(2))
+            
+            root_dest = QTreeWidgetItem(tree_config)
+            root_dest.setText(0, root_orig.text(0))
+            root_dest.setText(1, root_orig.text(1))
+            root_dest.setText(2, root_orig.text(2))
+            root_dest.setFlags(root_dest.flags() | Qt.ItemIsUserCheckable)
+            
+            if (id_z, None) in set_prefs:
+                root_dest.setCheckState(0, Qt.Checked)
+            else:
+                root_dest.setCheckState(0, Qt.Unchecked)
+            
+            copiar_y_sincronizar(root_orig, root_dest, id_z)
+        
+        # Recalcular jerarquía para estados parciales
+        def refrescar_jerarquia(item):
+            for k in range(item.childCount()): refrescar_jerarquia(item.child(k))
+            if item.childCount() > 0:
+                sts = [item.child(k).checkState(0) for k in range(item.childCount())]
+                if all(s == Qt.Checked for s in sts): item.setCheckState(0, Qt.Checked)
+                elif all(s == Qt.Unchecked for s in sts): item.setCheckState(0, Qt.Unchecked)
+                else: item.setCheckState(0, Qt.PartiallyChecked)
+
+        for i in range(tree_config.topLevelItemCount()): 
+            refrescar_jerarquia(tree_config.topLevelItem(i))
+        tree_config.blockSignals(False)
+
+        # --- Lógica de Interacción ---
+        def global_check(state):
+            tree_config.blockSignals(True)
+            for i in range(tree_config.topLevelItemCount()):
+                root = tree_config.topLevelItem(i); root.setCheckState(0, state)
+                def recursion(it, st):
+                    for k in range(it.childCount()): it.child(k).setCheckState(0, st); recursion(it.child(k), st)
+                recursion(root, state)
+            tree_config.blockSignals(False)
+
+        btn_all.clicked.connect(lambda: global_check(Qt.Checked))
+        btn_none.clicked.connect(lambda: global_check(Qt.Unchecked))
+
+        def on_change(item, col):
+            tree_config.blockSignals(True)
+            def set_hijos(it, st):
+                for k in range(it.childCount()): it.child(k).setCheckState(0, st); set_hijos(it.child(k), st)
+            set_hijos(item, item.checkState(0))
+            def set_padres(it):
+                p = it.parent()
+                if p:
+                    sts = [p.child(k).checkState(0) for k in range(p.childCount())]
+                    p.setCheckState(0, Qt.Checked if all(s == Qt.Checked for s in sts) else Qt.Unchecked if all(s == Qt.Unchecked for s in sts) else Qt.PartiallyChecked)
+                    set_padres(p)
+            set_padres(item); tree_config.blockSignals(False)
+
+        tree_config.itemChanged.connect(on_change)
+
+        # --- Botón Guardar Principal ---
+        btn_save = QPushButton("GUARDAR CONFIGURACIÓN")
+        btn_save.setFixedHeight(45)
+        btn_save.setCursor(Qt.PointingHandCursor)
+        btn_save.setStyleSheet("""
+            QPushButton { 
+                background-color: #2ecc71; color: white; 
+                font-size: 13px; font-weight: bold; border-radius: 6px; border: none;
+            }
+            QPushButton:hover { background-color: #27ae60; }
+            QPushButton:pressed { background-color: #1e8449; }
+        """)
+        
+        def recolectar_y_enviar():
+            res = []
+            for i in range(tree_config.topLevelItemCount()):
+                it = tree_config.topLevelItem(i); idz = limpiar_id(it.text(2))
+                if it.checkState(0) == Qt.Checked:
+                    res.append((idz, None))
+                elif it.checkState(0) == Qt.PartiallyChecked:
+                    def buscar(p):
+                        for j in range(p.childCount()):
+                            h = p.child(j)
+                            if h.text(1).lower() in ["prisma", "pluviometro"] and h.checkState(0) == Qt.Checked:
+                                res.append((idz, limpiar_id(h.text(2))))
+                            buscar(h)
+                    buscar(it)
+            if fn_guardar(res): dialogo.accept()
+
+        btn_save.clicked.connect(recolectar_y_enviar)
+        layout_principal.addWidget(tree_config)
+        layout_principal.addWidget(btn_save)
+        
+        return dialogo.exec() == QDialog.Accepted

@@ -278,3 +278,80 @@ class EquiposDesplazamiento:
             treeWidget, Qt.Unchecked, callback_graficar))
 
         menu.exec(pos_global)
+        
+    @staticmethod
+    def recalcular_jerarquia_visual(item):
+        """
+        Recorre los hijos primero y luego actualiza el estado del padre.
+        Esto asegura que los iconos (Checked, Unchecked, PartiallyChecked) sean correctos.
+        """
+        # 1. Ir hasta el fondo de la rama primero (recursión)
+        for i in range(item.childCount()):
+            EquiposDesplazamiento.recalcular_jerarquia_visual(item.child(i))
+        
+        # 2. Si el item tiene hijos, determinar su estado basado en ellos
+        if item.childCount() > 0:
+            estados_hijos = [item.child(k).checkState(0) for k in range(item.childCount())]
+            
+            if all(s == Qt.Checked for s in estados_hijos):
+                item.setCheckState(0, Qt.Checked)
+            elif all(s == Qt.Unchecked for s in estados_hijos):
+                item.setCheckState(0, Qt.Unchecked)
+            else:
+                item.setCheckState(0, Qt.PartiallyChecked)
+                
+    @staticmethod
+    def aplicar_marcado_predeterminado(treeWidget, preferencias, callback_graficar):
+        if preferencias is None: return
+
+        # Diccionario para búsqueda rápida
+        dict_pref = {}
+        for id_c, id_i in preferencias:
+            id_c_int = int(id_c)
+            if id_c_int not in dict_pref: dict_pref[id_c_int] = []
+            dict_pref[id_c_int].append(id_i if id_i is None else int(id_i))
+
+        treeWidget.blockSignals(True)
+        try:
+            # 1. Desmarcar todo el árbol para empezar de cero
+            for i in range(treeWidget.topLevelItemCount()):
+                item_root = treeWidget.topLevelItem(i)
+                item_root.setCheckState(0, Qt.Unchecked)
+                EquiposDesplazamiento.marcardesmarcar_todos_hijos(item_root, Qt.Unchecked)
+
+            # 2. Marcar según la base de datos
+            for i in range(treeWidget.topLevelItemCount()):
+                item_zona = treeWidget.topLevelItem(i)
+                id_zona_actual = int(item_zona.text(2))
+                
+                if id_zona_actual in dict_pref:
+                    opciones = dict_pref[id_zona_actual]
+                    
+                    if None in opciones:
+                        # Caso: El usuario marcó toda la zona
+                        item_zona.setCheckState(0, Qt.Checked)
+                        EquiposDesplazamiento.marcardesmarcar_todos_hijos(item_zona, Qt.Checked)
+                    else:
+                        # Caso: Marcado selectivo de equipos internos
+                        def marcar_recursivo(padre):
+                            for j in range(padre.childCount()):
+                                hijo = padre.child(j)
+                                # Verificamos si es un equipo final (no es un código numérico simple)
+                                if not hijo.text(1).isdigit():
+                                    id_inst_hijo = int(hijo.text(2))
+                                    if id_inst_hijo in opciones:
+                                        hijo.setCheckState(0, Qt.Checked)
+                                marcar_recursivo(hijo)
+                        
+                        marcar_recursivo(item_zona)
+
+            # 3. PASO FINAL CRUCIAL: Recalcular visualmente todo el árbol
+            # Esto pone los cuadritos de "PartiallyChecked" donde corresponde
+            for i in range(treeWidget.topLevelItemCount()):
+                EquiposDesplazamiento.recalcular_jerarquia_visual(treeWidget.topLevelItem(i))
+                
+        finally:
+            treeWidget.blockSignals(False)
+            # 4. Refrescar la gráfica una sola vez
+            callback_graficar()
+            

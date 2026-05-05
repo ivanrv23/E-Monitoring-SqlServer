@@ -1,5 +1,5 @@
 import threading
-from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox)
+from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox,QMenu)
 from PySide6.QtCore import Qt
 from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica
 from utils.shared.graficaDesplazamientoVelocidad import limpiar_widget
@@ -18,6 +18,7 @@ from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 from controllers.UmbralController import UmbralController
 from utils.shared.graficarUmbrales import GraficarUmbrales
 from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
+from controllers.InterfazController import InterfazController
 
 from PySide6.QtCore import QThread, Signal, QTimer
 
@@ -174,14 +175,47 @@ class DesplazamientoView:
     
     def clicderechoEncabezadoProyecto(point):
         tree_actual = DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-        # Obtenemos la posición global desde el Header
         pos_global = tree_actual.header().mapToGlobal(point)
         
-        EquiposDesplazamiento.abrirMenuGlobalProyecto(
-            pos_global, 
-            tree_actual, 
-            lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(tree_actual)
-        )
+        menu = QMenu()
+        menu.addAction("Marcar Todo").triggered.connect(lambda: EquiposDesplazamiento.marcar_desmarcar_proyecto_completo(tree_actual, Qt.Checked, lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(tree_actual)))
+        menu.addAction("Desmarcar Todo").triggered.connect(lambda: EquiposDesplazamiento.marcar_desmarcar_proyecto_completo(tree_actual, Qt.Unchecked, lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(tree_actual)))
+        
+        menu.addSeparator()
+
+        # --- OPCIÓN: APLICAR PLANTILLA ---
+        def accion_aplicar():
+            # Aquí la Vista usa el controlador para traer los datos
+            preferencias = InterfazController.ctrlObtenerPreferenciasMarcado(DesplazamientoView.idproyecto, "PRISMAS_GLOBAL")
+            # Y se los pasa limpios al método del árbol
+            EquiposDesplazamiento.aplicar_marcado_predeterminado(
+                tree_actual, preferencias, lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(tree_actual)
+            )
+        
+        menu.addAction("Marcar según Plantilla").triggered.connect(accion_aplicar)
+
+        def accion_configurar():
+            tree_actual = DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+            
+            # 1. Recuperamos lo que ya hay en base de datos para sincronizar el modal
+            prefs_actuales = InterfazController.ctrlObtenerPreferenciasMarcado(
+                DesplazamientoView.idproyecto, "PRISMAS_GLOBAL"
+            )
+            if prefs_actuales is None: prefs_actuales = []
+
+            # 2. Definimos callback de guardado
+            def callback_guardar(lista_datos):
+                return InterfazController.ctrlGuardarPreferenciasMarcado(
+                    DesplazamientoView.idproyecto, "PRISMAS_GLOBAL", lista_datos
+                )
+            
+            # 3. Abrimos el modal con la sincronización
+            Personalizacion.dialogoConfigurarMarcadoPredeterminado(tree_actual, prefs_actuales, callback_guardar)
+
+
+        menu.addAction("Configurar Plantilla Predeterminada...").triggered.connect(accion_configurar)
+
+        menu.exec(pos_global)
         
     def graficarUmbralesPersonalizado():
         if DesplazamientoView.idproyecto:

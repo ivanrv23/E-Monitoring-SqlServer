@@ -1,5 +1,5 @@
 import threading
-from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox)
+from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox,QMenu)
 from PySide6.QtCore import Qt
 from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica
 from utils.shared.graficaDesplazamientoVelocidad import limpiar_widget
@@ -18,6 +18,7 @@ from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 from controllers.UmbralController import UmbralController
 from utils.shared.graficarUmbrales import GraficarUmbrales
 from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
+from controllers.InterfazController import InterfazController
 
 from PySide6.QtCore import QThread, Signal, QTimer
 
@@ -153,15 +154,45 @@ class VelocidadView:
                 btnExportarV.clicked.connect(VelocidadView.ejecutar_exportacion_grafica)
             VelocidadView.estadoPagina = False
             
+    # En VelocidadView (dentro de la clase)
     def clicderechoEncabezadoProyecto(point):
         tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_velocidad")
+        # LA CLAVE: El mapeo debe ser desde el header al Global
         pos_global = tree_actual.header().mapToGlobal(point)
         
-        EquiposVelocidad.abrirMenuGlobalProyecto(
-            pos_global, 
-            tree_actual, 
-            lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)
-        )
+        menu = QMenu()
+        # 1. Marcar Todo
+        menu.addAction("Marcar Todo").triggered.connect(lambda: EquiposVelocidad.marcar_desmarcar_proyecto_completo(
+            tree_actual, Qt.Checked, lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)))
+        
+        # 2. Desmarcar Todo
+        menu.addAction("Desmarcar Todo").triggered.connect(lambda: EquiposVelocidad.marcar_desmarcar_proyecto_completo(
+            tree_actual, Qt.Unchecked, lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)))
+        
+        menu.addSeparator()
+
+        # 3. Marcar según Plantilla (Lógica de Desplazamiento)
+        def accion_aplicar():
+            preferencias = InterfazController.ctrlObtenerPreferenciasMarcado(VelocidadView.idproyecto, "PRISMAS_GLOBAL")
+            EquiposVelocidad.aplicar_marcado_predeterminado(
+                tree_actual, preferencias, lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)
+            )
+        
+        menu.addAction("Marcar según Plantilla").triggered.connect(accion_aplicar)
+
+        # 4. Configurar Plantilla (Lógica de Desplazamiento)
+        def accion_configurar():
+            prefs_actuales = InterfazController.ctrlObtenerPreferenciasMarcado(VelocidadView.idproyecto, "PRISMAS_GLOBAL")
+            if prefs_actuales is None: prefs_actuales = []
+
+            def callback_guardar(lista_datos):
+                return InterfazController.ctrlGuardarPreferenciasMarcado(VelocidadView.idproyecto, "PRISMAS_GLOBAL", lista_datos)
+            
+            Personalizacion.dialogoConfigurarMarcadoPredeterminado(tree_actual, prefs_actuales, callback_guardar)
+
+        menu.addAction("Configurar Plantilla Predeterminada...").triggered.connect(accion_configurar)
+
+        menu.exec(pos_global)
         
     def graficarUmbralesPersonalizado():
         if VelocidadView.idproyecto:

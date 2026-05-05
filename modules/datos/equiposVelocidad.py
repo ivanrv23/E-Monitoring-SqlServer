@@ -277,3 +277,67 @@ class EquiposVelocidad:
             treeWidget, Qt.Unchecked, callback_graficar))
 
         menu.exec(pos_global)
+        
+    @staticmethod
+    def aplicar_marcado_predeterminado(treeWidget, preferencias, callback_graficar):
+        if preferencias is None: return
+        
+        # Diccionario para búsqueda rápida
+        dict_pref = {}
+        for id_c, id_i in preferencias:
+            id_c_int = int(id_c)
+            if id_c_int not in dict_pref: dict_pref[id_c_int] = []
+            dict_pref[id_c_int].append(id_i if id_i is None else int(id_i))
+
+        treeWidget.blockSignals(True)
+        try:
+            # Desmarcar todo primero
+            for i in range(treeWidget.topLevelItemCount()):
+                item_root = treeWidget.topLevelItem(i)
+                item_root.setCheckState(0, Qt.Unchecked)
+                EquiposVelocidad.marcardesmarcar_todos_hijos(item_root, Qt.Unchecked)
+
+            # Marcar según la base de datos
+            for i in range(treeWidget.topLevelItemCount()):
+                item_zona = treeWidget.topLevelItem(i)
+                id_zona_actual = int(item_zona.text(2))
+                
+                if id_zona_actual in dict_pref:
+                    opciones = dict_pref[id_zona_actual]
+                    if None in opciones:
+                        item_zona.setCheckState(0, Qt.Checked)
+                        EquiposVelocidad.marcardesmarcar_todos_hijos(item_zona, Qt.Checked)
+                    else:
+                        def marcar_recursivo(padre):
+                            for j in range(padre.childCount()):
+                                hijo = padre.child(j)
+                                if not hijo.text(1).isdigit():
+                                    id_inst_hijo = int(hijo.text(2))
+                                    if id_inst_hijo in opciones:
+                                        hijo.setCheckState(0, Qt.Checked)
+                                marcar_recursivo(hijo)
+                        marcar_recursivo(item_zona)
+
+            # RECALCULAR ICONOS (Checked, PartiallyChecked)
+            for i in range(treeWidget.topLevelItemCount()):
+                EquiposVelocidad.recalcular_jerarquia_visual(treeWidget.topLevelItem(i))
+                
+        finally:
+            treeWidget.blockSignals(False)
+            callback_graficar()
+
+    @staticmethod
+    def recalcular_jerarquia_visual(item):
+        """ Copia exacta de Desplazamiento para que los iconos de Velocidad se vean igual """
+        for i in range(item.childCount()):
+            EquiposVelocidad.recalcular_jerarquia_visual(item.child(i))
+        
+        if item.childCount() > 0:
+            estados_hijos = [item.child(k).checkState(0) for k in range(item.childCount())]
+            if all(s == Qt.Checked for s in estados_hijos):
+                item.setCheckState(0, Qt.Checked)
+            elif all(s == Qt.Unchecked for s in estados_hijos):
+                item.setCheckState(0, Qt.Unchecked)
+            else:
+                item.setCheckState(0, Qt.PartiallyChecked)
+    
