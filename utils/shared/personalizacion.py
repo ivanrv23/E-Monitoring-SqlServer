@@ -33,25 +33,110 @@ class DateTimePickerPopup(QDialog):
         
         body = QHBoxLayout()
         self.calendar = QCalendarWidget()
-        self.calendar.setFixedSize(230, 180)
-        if initial_dt and initial_dt.isValid(): self.calendar.setSelectedDate(initial_dt.date())
+        self.calendar.setFixedSize(280, 210) 
+        
+        # --- ESTILO ULTRA-FINO DEL CALENDARIO ---
+        self.calendar.setStyleSheet("""
+            /* Barra de navegación */
+            QCalendarWidget QWidget#qt_calendar_navigationbar {
+                background-color: #ffffff;
+                border-bottom: 1px solid #f2f2f2;
+            }
+
+            /* Botones generales de la barra superior */
+            QCalendarWidget QToolButton {
+                color: #333333;
+                background-color: transparent;
+                border: none;
+                height: 25px;
+            }
+
+            /* --- SELECTOR DE MES (COMBO) --- */
+            QCalendarWidget QToolButton#qt_calendar_monthbutton {
+                font-size: 11px;
+                font-weight: bold;
+                padding-right: 12px; /* Espacio para nuestra flechita */
+                padding-left: 5px;
+                margin-right: 2px;
+            }
+
+            /* Personalización de la flechita del combo de meses */
+            QCalendarWidget QToolButton#qt_calendar_monthbutton::menu-indicator {
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                right: 2px; /* Separación del borde derecho */
+                top: 0px;   /* Ajuste vertical para alineación perfecta */
+                width: 8px;  /* Flechita mucho más pequeña */
+                height: 8px;
+            }
+
+            /* --- SELECTOR DE AÑO --- */
+            QCalendarWidget QToolButton#qt_calendar_yearbutton {
+                font-size: 11px;
+                font-weight: bold;
+                margin-left: 2px;
+                padding: 0 5px;
+            }
+
+            /* Flechas laterales (Mes anterior/siguiente) */
+            QCalendarWidget QToolButton#qt_calendar_prevmonth, 
+            QCalendarWidget QToolButton#qt_calendar_nextmonth {
+                width: 24px;
+                border-radius: 12px;
+                qproperty-iconSize: 14px;
+            }
+            
+            QCalendarWidget QToolButton:hover {
+                background-color: #f5f5f5;
+                border-radius: 4px;
+            }
+
+            /* Menú desplegable de meses */
+            QCalendarWidget QMenu {
+                background-color: white;
+                color: #333;
+                selection-background-color: #0078d7;
+                border: 1px solid #eeeeee;
+            }
+
+            /* Grilla de días y números */
+            QCalendarWidget QWidget { alternate-background-color: #ffffff; }
+            QCalendarWidget QAbstractItemView:enabled {
+                color: #444;
+                selection-background-color: #0078d7;
+                font-size: 11px;
+            }
+            QCalendarWidget QAbstractItemView:disabled { color: #d0d0d0; }
+        """)
+
+        # Configuración de visibilidad
+        self.calendar.setHorizontalHeaderFormat(QCalendarWidget.SingleLetterDayNames)
+        self.calendar.setVerticalHeaderFormat(QCalendarWidget.NoVerticalHeader)
+        
+        if initial_dt and initial_dt.isValid(): 
+            self.calendar.setSelectedDate(initial_dt.date())
         body.addWidget(self.calendar)
 
+        # Lógica de las ruedas de tiempo (TimeWheel)
         time_lay = QHBoxLayout()
         self.h_w = TimeWheel(24); self.m_w = TimeWheel(60); self.s_w = TimeWheel(60)
         t = initial_dt.time() if initial_dt else QTime(0,0,0)
         self.h_w.setCurrentRow(t.hour()); self.m_w.setCurrentRow(t.minute()); self.s_w.setCurrentRow(t.second())
         
         for w, l in zip([self.h_w, self.m_w, self.s_w], ["H", "M", "S"]):
-            v = QVBoxLayout(); lbl = QLabel(l); lbl.setAlignment(Qt.AlignCenter); lbl.setStyleSheet("font-size: 9px; color: #999;")
+            v = QVBoxLayout(); lbl = QLabel(l); lbl.setAlignment(Qt.AlignCenter); lbl.setStyleSheet("font-size: 9px; color: #999; border:none;")
             v.addWidget(lbl); v.addWidget(w); time_lay.addLayout(v)
         
         body.addLayout(time_lay)
         layout.addLayout(body)
         
         self.btn_apply = QPushButton("Aplicar")
-        self.btn_apply.setFixedSize(60, 24)
-        self.btn_apply.setStyleSheet("background: #0078d7; color: white; border-radius: 3px; font-size: 11px;")
+        self.btn_apply.setFixedSize(70, 26)
+        self.btn_apply.setCursor(Qt.PointingHandCursor)
+        self.btn_apply.setStyleSheet("""
+            QPushButton { background: #0078d7; color: white; border-radius: 3px; font-size: 11px; font-weight: bold; }
+            QPushButton:hover { background: #005fa3; }
+        """)
         self.btn_apply.clicked.connect(self.accept)
         
         bottom_lay = QHBoxLayout(); bottom_lay.addStretch(); bottom_lay.addWidget(self.btn_apply)
@@ -60,7 +145,7 @@ class DateTimePickerPopup(QDialog):
 
     def get_selected_dt(self):
         return QDateTime(self.calendar.selectedDate(), QTime(self.h_w.currentRow(), self.m_w.currentRow(), self.s_w.currentRow()))
-
+    
 class CustomDateTimePicker(QWidget):
     dateTimeChanged = Signal()
 
@@ -1067,86 +1152,79 @@ class Personalizacion:
         def limpiar_id(valor):
             if valor is None or str(valor).strip() == "" or str(valor).lower() == "none":
                 return None
-            try:
-                return int(float(valor))
-            except (ValueError, TypeError):
-                return None
+            try: return int(float(valor))
+            except: return None
 
         dialogo = QDialog()
-        dialogo.setWindowTitle("Configurar Plantilla de Marcado")
-        dialogo.setMinimumSize(500, 650)
-        dialogo.setStyleSheet("background-color: #ffffff;")
+        dialogo.setWindowTitle("Plantilla de Selección")
+        # Reducimos un poco el tamaño para que no sea tan "exagerado"
+        dialogo.setFixedSize(460, 600) 
+        dialogo.setStyleSheet("background-color: #fcfcfc;")
         
         layout_principal = QVBoxLayout(dialogo)
-        layout_principal.setContentsMargins(20, 20, 20, 20)
-        layout_principal.setSpacing(15)
+        layout_principal.setContentsMargins(25, 25, 25, 25) # Más aire en los bordes
+        layout_principal.setSpacing(12)
         
-        # --- Cabecera y Herramientas ---
+        # --- Cabecera ---
+        lbl_instrucciones = QLabel("Configuración de equipos predeterminados")
+        lbl_instrucciones.setStyleSheet("color: #2c3e50; font-size: 14px; font-weight: bold; border:none;")
+        layout_principal.addWidget(lbl_instrucciones)
+
+        # --- Toolbar Estilizada ---
         toolbar = QHBoxLayout()
-        lbl_instrucciones = QLabel("Seleccione los equipos que aparecerán marcados por defecto:")
-        lbl_instrucciones.setStyleSheet("color: #555; font-size: 12px; font-weight: 500;")
+        btn_all = QPushButton("Marcar todo")
+        btn_none = QPushButton("Desmarcar todo")
         
-        btn_all = QPushButton("Marcar Todo")
-        btn_none = QPushButton("Desmarcar Todo")
-        
-        estilo_botones_top = """
+        # Botones tipo "Ghost" (más finos)
+        estilo_botones_util = """
             QPushButton { 
-                background-color: #f8f9fa; color: #0078d7; 
-                border: 1px solid #dee2e6; border-radius: 4px; 
-                padding: 4px 12px; font-size: 11px; font-weight: bold;
+                background-color: transparent; color: #5dade2; 
+                border: 1px solid #5dade2; border-radius: 12px; 
+                padding: 3px 12px; font-size: 10px; font-weight: bold;
             }
-            QPushButton:hover { background-color: #e8f2ff; border-color: #0078d7; }
-            QPushButton:pressed { background-color: #d0e3ff; }
+            QPushButton:hover { background-color: #5dade2; color: white; }
+            QPushButton:pressed { background-color: #3498db; }
         """
-        btn_all.setStyleSheet(estilo_botones_top)
-        btn_none.setStyleSheet(estilo_botones_top)
+        btn_all.setStyleSheet(estilo_botones_util)
+        btn_none.setStyleSheet(estilo_botones_util)
+        btn_all.setCursor(Qt.PointingHandCursor)
+        btn_none.setCursor(Qt.PointingHandCursor)
         
-        toolbar.addWidget(lbl_instrucciones)
         toolbar.addStretch()
         toolbar.addWidget(btn_all)
         toolbar.addWidget(btn_none)
         layout_principal.addLayout(toolbar)
 
-        # --- Árbol de Configuración con Estilo Profesional ---
+        # --- Árbol con Estilo Minimalista ---
         tree_config = QTreeWidget()
         tree_config.setHeaderHidden(True)
         tree_config.setColumnCount(3)
         tree_config.setColumnHidden(1, True)
         tree_config.setColumnHidden(2, True)
-        tree_config.setIndentation(20)
-        tree_config.setAnimated(True)
+        tree_config.setIndentation(18)
         
-        # Solución al error visual: Definimos colores explícitos para selección
         tree_config.setStyleSheet("""
             QTreeWidget { 
-                border: 1px solid #e0e0e0; border-radius: 8px; 
-                background-color: #ffffff; outline: 0;
+                border: 1px solid #e1e8ed; border-radius: 10px; 
+                background-color: white; outline: 0; padding: 5px;
             }
             QTreeWidget::item { 
-                padding: 8px; border-bottom: 1px solid #f8f9fa; color: #333;
+                padding: 6px; color: #34495e; border-radius: 4px;
             }
             QTreeWidget::item:hover { 
-                background-color: #f1f7ff; 
+                background-color: #f4f7f6; 
             }
             QTreeWidget::item:selected { 
-                background-color: #e8f2ff; color: #0078d7; 
+                background-color: #eaf2f8; color: #2980b9; font-weight: bold;
             }
-            QTreeWidget::item:selected:active {
-                background-color: #e8f2ff; color: #0078d7;
-            }
-            QTreeWidget::item:selected:!active {
-                background-color: #f8f9fa; color: #333;
-            }
-            QCheckBox::indicator { width: 16px; height: 16px; }
+            QCheckBox::indicator { width: 14px; height: 14px; }
         """)
 
-        # Cargar preferencias en un set para búsqueda rápida
+        # Cargar datos (Lógica original intacta)
         set_prefs = set()
         for p in preferencias_actuales:
-            idz = limpiar_id(p[0])
-            idi = limpiar_id(p[1])
-            if idz is not None:
-                set_prefs.add((idz, idi))
+            idz, idi = limpiar_id(p[0]), limpiar_id(p[1])
+            if idz is not None: set_prefs.add((idz, idi))
 
         def copiar_y_sincronizar(item_orig, parent_dest, id_zona):
             for i in range(item_orig.childCount()):
@@ -1156,48 +1234,28 @@ class Personalizacion:
                 h_dest.setText(1, h_orig.text(1))
                 h_dest.setText(2, h_orig.text(2))
                 h_dest.setFlags(h_dest.flags() | Qt.ItemIsUserCheckable)
-                
                 tipo = h_orig.text(1).lower()
-                es_equipo = tipo in ["prisma", "pluviometro"]
-                id_equipo = limpiar_id(h_orig.text(2)) if es_equipo else None
-                
-                # Lógica: Marcado si está el ID específico o si la ZONA está marcada completa
-                if (id_zona, id_equipo) in set_prefs or (id_zona, None) in set_prefs:
-                    h_dest.setCheckState(0, Qt.Checked)
-                else:
-                    h_dest.setCheckState(0, Qt.Unchecked)
-                
+                id_equipo = limpiar_id(h_orig.text(2)) if tipo in ["prisma", "pluviometro"] else None
+                h_dest.setCheckState(0, Qt.Checked if ((id_zona, id_equipo) in set_prefs or (id_zona, None) in set_prefs) else Qt.Unchecked)
                 copiar_y_sincronizar(h_orig, h_dest, id_zona)
 
         tree_config.blockSignals(True)
         for i in range(tree_referencia.topLevelItemCount()):
             root_orig = tree_referencia.topLevelItem(i)
             id_z = limpiar_id(root_orig.text(2))
-            
             root_dest = QTreeWidgetItem(tree_config)
-            root_dest.setText(0, root_orig.text(0))
-            root_dest.setText(1, root_orig.text(1))
-            root_dest.setText(2, root_orig.text(2))
+            root_dest.setText(0, root_orig.text(0)); root_dest.setText(1, root_orig.text(1)); root_dest.setText(2, root_orig.text(2))
             root_dest.setFlags(root_dest.flags() | Qt.ItemIsUserCheckable)
-            
-            if (id_z, None) in set_prefs:
-                root_dest.setCheckState(0, Qt.Checked)
-            else:
-                root_dest.setCheckState(0, Qt.Unchecked)
-            
+            root_dest.setCheckState(0, Qt.Checked if (id_z, None) in set_prefs else Qt.Unchecked)
             copiar_y_sincronizar(root_orig, root_dest, id_z)
         
-        # Recalcular jerarquía para estados parciales
         def refrescar_jerarquia(item):
             for k in range(item.childCount()): refrescar_jerarquia(item.child(k))
             if item.childCount() > 0:
                 sts = [item.child(k).checkState(0) for k in range(item.childCount())]
-                if all(s == Qt.Checked for s in sts): item.setCheckState(0, Qt.Checked)
-                elif all(s == Qt.Unchecked for s in sts): item.setCheckState(0, Qt.Unchecked)
-                else: item.setCheckState(0, Qt.PartiallyChecked)
+                item.setCheckState(0, Qt.Checked if all(s == Qt.Checked for s in sts) else Qt.Unchecked if all(s == Qt.Unchecked for s in sts) else Qt.PartiallyChecked)
 
-        for i in range(tree_config.topLevelItemCount()): 
-            refrescar_jerarquia(tree_config.topLevelItem(i))
+        for i in range(tree_config.topLevelItemCount()): refrescar_jerarquia(tree_config.topLevelItem(i))
         tree_config.blockSignals(False)
 
         # --- Lógica de Interacción ---
@@ -1205,9 +1263,9 @@ class Personalizacion:
             tree_config.blockSignals(True)
             for i in range(tree_config.topLevelItemCount()):
                 root = tree_config.topLevelItem(i); root.setCheckState(0, state)
-                def recursion(it, st):
-                    for k in range(it.childCount()): it.child(k).setCheckState(0, st); recursion(it.child(k), st)
-                recursion(root, state)
+                def rec(it, st):
+                    for k in range(it.childCount()): it.child(k).setCheckState(0, st); rec(it.child(k), st)
+                rec(root, state)
             tree_config.blockSignals(False)
 
         btn_all.clicked.connect(lambda: global_check(Qt.Checked))
@@ -1215,38 +1273,38 @@ class Personalizacion:
 
         def on_change(item, col):
             tree_config.blockSignals(True)
-            def set_hijos(it, st):
-                for k in range(it.childCount()): it.child(k).setCheckState(0, st); set_hijos(it.child(k), st)
-            set_hijos(item, item.checkState(0))
-            def set_padres(it):
+            def set_h(it, st):
+                for k in range(it.childCount()): it.child(k).setCheckState(0, st); set_h(it.child(k), st)
+            set_h(item, item.checkState(0))
+            def set_p(it):
                 p = it.parent()
                 if p:
                     sts = [p.child(k).checkState(0) for k in range(p.childCount())]
                     p.setCheckState(0, Qt.Checked if all(s == Qt.Checked for s in sts) else Qt.Unchecked if all(s == Qt.Unchecked for s in sts) else Qt.PartiallyChecked)
-                    set_padres(p)
-            set_padres(item); tree_config.blockSignals(False)
+                    set_p(p)
+            set_p(item); tree_config.blockSignals(False)
 
         tree_config.itemChanged.connect(on_change)
 
-        # --- Botón Guardar Principal ---
+        # --- Botón Guardar Elegante (Azul Profundo) ---
         btn_save = QPushButton("GUARDAR CONFIGURACIÓN")
-        btn_save.setFixedHeight(45)
+        btn_save.setFixedHeight(40)
         btn_save.setCursor(Qt.PointingHandCursor)
         btn_save.setStyleSheet("""
             QPushButton { 
-                background-color: #2ecc71; color: white; 
-                font-size: 13px; font-weight: bold; border-radius: 6px; border: none;
+                background-color: #2c3e50; color: white; 
+                font-size: 12px; font-weight: bold; border-radius: 20px; 
+                margin-top: 10px;
             }
-            QPushButton:hover { background-color: #27ae60; }
-            QPushButton:pressed { background-color: #1e8449; }
+            QPushButton:hover { background-color: #34495e; }
+            QPushButton:pressed { background-color: #1a252f; }
         """)
         
         def recolectar_y_enviar():
             res = []
             for i in range(tree_config.topLevelItemCount()):
                 it = tree_config.topLevelItem(i); idz = limpiar_id(it.text(2))
-                if it.checkState(0) == Qt.Checked:
-                    res.append((idz, None))
+                if it.checkState(0) == Qt.Checked: res.append((idz, None))
                 elif it.checkState(0) == Qt.PartiallyChecked:
                     def buscar(p):
                         for j in range(p.childCount()):
