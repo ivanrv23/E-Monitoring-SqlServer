@@ -10,13 +10,17 @@ from controllers.InterfazController import InterfazController
 class EquiposDesplazamiento:
 
     def validarMarcadoCheckbox(parent_item, column, obtenerEquiposMarcados):
-        codigo = parent_item.text(1)
+        # 1. Validar si el cambio es real (Usa la memoria de TreeCheckbox)
+        from utils.shared.arbolmarcado import TreeCheckbox
+        if not TreeCheckbox.validarCambioReal(parent_item):
+            return 
+
+        # 2. Si es cambio real, proceder
         estado = parent_item.checkState(0)
-        
         if estado == Qt.CheckState.PartiallyChecked:
             return
 
-        # Bloqueamos señales para que el árbol no procese eventos internos por cada hijo
+        codigo = parent_item.text(1)
         tree_widget = parent_item.treeWidget()
         tree_widget.blockSignals(True)
 
@@ -31,7 +35,6 @@ class EquiposDesplazamiento:
         finally:
             tree_widget.blockSignals(False)
             
-        # Refrescamos la gráfica UNA SOLA VEZ al final
         obtenerEquiposMarcados()
           
     def validarOpcionesMenuCheckbox(point, main, treeWidget, reiniciarvistas, callback_graficar):
@@ -124,38 +127,43 @@ class EquiposDesplazamiento:
             nodo_raiz = arbol.topLevelItem(i)
             desmarcar_nodo(nodo_raiz)
                             
-    # Función para marcar o desmarcar todos los hijos de un nodo
     def marcardesmarcar_todos_hijos(nodo, estado):
         for i in range(nodo.childCount()):
             hijo = nodo.child(i)
             hijo.setCheckState(0, estado)
+            # Sincronizar memoria del hijo
+            hijo.setData(0, Qt.UserRole + 999, estado)
             EquiposDesplazamiento.marcardesmarcar_todos_hijos(hijo, estado)
-
-    # Función para actualizar el estado del padre en función del estado de sus hijos
+            
     def actualizar_estado_padre_hijos(nodo):
         if nodo.parent():
             estados_hijos = [nodo.parent().child(i).checkState(0) for i in range(nodo.parent().childCount())]
-            # Verificamos los estados de los hijos y actualizamos el padre
             if all(estado == Qt.Checked for estado in estados_hijos):
-                nodo.parent().setCheckState(0, Qt.Checked)
+                nuevo_estado = Qt.Checked
             elif all(estado == Qt.Unchecked for estado in estados_hijos):
-                nodo.parent().setCheckState(0, Qt.Unchecked)
+                nuevo_estado = Qt.Unchecked
             else:
-                nodo.parent().setCheckState(0, Qt.PartiallyChecked)
-        if nodo.parent():
-            if nodo.parent().parent():
-                EquiposDesplazamiento.actualizar_estado_padre_hijos(nodo.parent())
+                nuevo_estado = Qt.PartiallyChecked
+            
+            nodo.parent().setCheckState(0, nuevo_estado)
+            # Sincronizar memoria del padre
+            nodo.parent().setData(0, Qt.UserRole + 999, nuevo_estado)
+            
+            EquiposDesplazamiento.actualizar_estado_padre_hijos(nodo.parent())
 
     def actualizar_estado_padre_padre(nodo):
         if nodo.childCount() > 0:
             estados_hijos = [nodo.child(i).checkState(0) for i in range(nodo.childCount())]
-            # Verificamos los estados de los hijos y actualizamos el padre
             if all(estado == Qt.Checked for estado in estados_hijos):
-                nodo.setCheckState(0, Qt.Checked)
+                nuevo_estado = Qt.Checked
             elif all(estado == Qt.Unchecked for estado in estados_hijos):
-                nodo.setCheckState(0, Qt.Unchecked)
+                nuevo_estado = Qt.Unchecked
             else:
-                nodo.setCheckState(0, Qt.PartiallyChecked)
+                nuevo_estado = Qt.PartiallyChecked
+            
+            nodo.setCheckState(0, nuevo_estado)
+            # Sincronizamos memoria para que el siguiente clic sepa dónde está parado el padre
+            nodo.setData(0, Qt.UserRole + 999, nuevo_estado)
     
     def obtener_zona_tipoequipo_elementos_marcados(datos, equipo):
         for zona, tipos in datos.items():
@@ -259,6 +267,8 @@ class EquiposDesplazamiento:
             for i in range(treeWidget.topLevelItemCount()):
                 componente = treeWidget.topLevelItem(i)
                 componente.setCheckState(0, estado)
+                # Sincronizamos memoria de la zona
+                componente.setData(0, Qt.UserRole + 999, estado)
                 EquiposDesplazamiento.marcardesmarcar_todos_hijos(componente, estado)
         finally:
             treeWidget.blockSignals(False)
@@ -281,24 +291,22 @@ class EquiposDesplazamiento:
         
     @staticmethod
     def recalcular_jerarquia_visual(item):
-        """
-        Recorre los hijos primero y luego actualiza el estado del padre.
-        Esto asegura que los iconos (Checked, Unchecked, PartiallyChecked) sean correctos.
-        """
-        # 1. Ir hasta el fondo de la rama primero (recursión)
         for i in range(item.childCount()):
             EquiposDesplazamiento.recalcular_jerarquia_visual(item.child(i))
         
-        # 2. Si el item tiene hijos, determinar su estado basado en ellos
         if item.childCount() > 0:
             estados_hijos = [item.child(k).checkState(0) for k in range(item.childCount())]
             
             if all(s == Qt.Checked for s in estados_hijos):
-                item.setCheckState(0, Qt.Checked)
+                nuevo_st = Qt.Checked
             elif all(s == Qt.Unchecked for s in estados_hijos):
-                item.setCheckState(0, Qt.Unchecked)
+                nuevo_st = Qt.Unchecked
             else:
-                item.setCheckState(0, Qt.PartiallyChecked)
+                nuevo_st = Qt.PartiallyChecked
+            
+            item.setCheckState(0, nuevo_st)
+            # Sincronizamos memoria del item recalculado
+            item.setData(0, Qt.UserRole + 999, nuevo_st)
                 
     @staticmethod
     def aplicar_marcado_predeterminado(treeWidget, preferencias, callback_graficar):

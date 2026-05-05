@@ -68,6 +68,14 @@ class VelocidadView:
             tree_widget = main.findChild(QTreeWidget, "tree_actual_velocidad")
             tree_widget.setHeaderLabels([VelocidadView.nameproyecto.upper()])
             EquiposVelocidad.inicializar_lista_equipos(tree_widget, VelocidadView.idproyecto, VelocidadView.nameproyecto)
+            def sincronizar_memoria(nodo):
+                for i in range(nodo.childCount()):
+                    hijo = nodo.child(i)
+                    hijo.setData(0, Qt.UserRole + 999, hijo.checkState(0))
+                    sincronizar_memoria(hijo)
+            
+            root = tree_widget.invisibleRootItem()
+            sincronizar_memoria(root)
             VelocidadView.estadochecklist = False
         if VelocidadView.estadoPagina:
             tree_actual_velocidad =  main.findChild(QTreeWidget, "tree_actual_velocidad")

@@ -71,7 +71,17 @@ class DesplazamientoView:
             tree_widget = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
             tree_widget.setHeaderLabels([DesplazamientoView.nameproyecto.upper()])
             EquiposDesplazamiento.inicializar_lista_equipos(tree_widget, DesplazamientoView.idproyecto, DesplazamientoView.nameproyecto)
-            DesplazamientoView.estadochecklist = False
+            
+            def sincronizar_memoria(nodo):
+                for i in range(nodo.childCount()):
+                    hijo = nodo.child(i)
+                    hijo.setData(0, Qt.UserRole + 999, hijo.checkState(0))
+                    sincronizar_memoria(hijo)
+            
+            root = tree_widget.invisibleRootItem()
+            sincronizar_memoria(root)
+
+            DesplazamientoView.estadochecklist = False # Cerrar paso
         if DesplazamientoView.estadoPagina:
             tree_actual_desplaza =  main.findChild(QTreeWidget, "tree_actual_desplazamiento")
             tree_actual_desplaza.itemClicked.connect(DesplazamientoView.checkProyectoActualDesplazamiento)

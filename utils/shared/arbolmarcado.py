@@ -35,6 +35,7 @@ class TreeCheckbox:
             parent_item.setText(2, str(idzona))
             parent_item.setText(3, str(idproyecto))
             parent_item.setCheckState(0, Qt.Unchecked)
+            parent_item.setData(0, Qt.UserRole + 999, Qt.Unchecked) # Memoria
             parent_item.setFlags(parent_item.flags() | Qt.ItemIsUserCheckable)
         # Crear grupo de equipos
         root_item = treewidget.invisibleRootItem()
@@ -49,6 +50,7 @@ class TreeCheckbox:
                     child_item.setText(2, str(idzona))
                     child_item.setText(3, str(idproyecto))
                     child_item.setCheckState(0, Qt.Unchecked)
+                    child_item.setData(0, Qt.UserRole + 999, Qt.Unchecked) # Memoria
                     child_item.setFlags(child_item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
                 for dato in equipos:
                     kid_item = QTreeWidgetItem(child_item)
@@ -60,6 +62,7 @@ class TreeCheckbox:
                     else:
                         kid_item.setText(3, str(dato[4])) # idequipo o tabla
                     kid_item.setCheckState(0, Qt.Unchecked)
+                    kid_item.setData(0, Qt.UserRole + 999, Qt.Unchecked) # Memoria
                     kid_item.setFlags(kid_item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
     
     def crearNuevoGrupoCheckboxesDoble(treewidget, nombrezona, idzona, idproyecto, grupoequipo, tipogrupo, equipos, tipoequipo, config="NO"):
@@ -70,6 +73,7 @@ class TreeCheckbox:
             parent_item.setText(2, str(idzona))
             parent_item.setText(3, str(idproyecto))
             parent_item.setCheckState(0, Qt.Unchecked)
+            parent_item.setData(0, Qt.UserRole + 999, Qt.Unchecked) # Memoria
             parent_item.setFlags(parent_item.flags() | Qt.ItemIsUserCheckable)
         # Crear grupo de equipos
         root_item = treewidget.invisibleRootItem()
@@ -84,6 +88,7 @@ class TreeCheckbox:
                     child_item.setText(2, str(idzona))
                     child_item.setText(3, str(idproyecto))
                     child_item.setCheckState(0, Qt.Unchecked)
+                    child_item.setData(0, Qt.UserRole + 999, Qt.Unchecked) # Memoria
                     child_item.setFlags(child_item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
                 for dato in equipos:
                     kid_item = QTreeWidgetItem(child_item)
@@ -95,6 +100,7 @@ class TreeCheckbox:
                     else:
                         kid_item.setText(3, str(dato[4])) # idequipo o tabla
                     kid_item.setCheckState(0, Qt.Unchecked)
+                    kid_item.setData(0, Qt.UserRole + 999, Qt.Unchecked) # Memoria
                     kid_item.setFlags(kid_item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
                     # Agregar cotas
                     if tipoequipo == "piezometrocuerda" or tipoequipo == "piezometromanual" or tipoequipo == "celda":
@@ -110,6 +116,7 @@ class TreeCheckbox:
                             baby_item.setText(2, str(dato[0]))
                             baby_item.setText(3, str(dato[4]))
                             baby_item.setCheckState(0, Qt.Unchecked)
+                            baby_item.setData(0, Qt.UserRole + 999, Qt.Unchecked) # Memoria
                             baby_item.setFlags(baby_item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
     
     def crearGrupoCheckboxDobleTopografia(treewidget, nombrezona, idzona, idproyecto, grupoequipo, tipogrupo, equipos, tipoequipo):
@@ -120,6 +127,7 @@ class TreeCheckbox:
             parent_item.setText(2, str(idzona))
             parent_item.setText(3, str(idproyecto))
             parent_item.setCheckState(0, Qt.Unchecked)
+            parent_item.setData(0, Qt.UserRole + 999, Qt.Unchecked) # Memoria
             parent_item.setFlags(parent_item.flags() | Qt.ItemIsUserCheckable)
         # Crear grupo de equipos
         root_item = treewidget.invisibleRootItem()
@@ -129,21 +137,23 @@ class TreeCheckbox:
                 existe, child_item = TreeCheckbox.validarSubgrupoCheckbox(item, grupoequipo)
                 if not existe:
                     child_item = QTreeWidgetItem(item)
-                    child_item.setText(0, grupoequipo) # topografias
+                    child_item.setText(0, grupoequipo)
                     child_item.setText(1, tipogrupo)
                     child_item.setText(2, str(idzona))
                     child_item.setText(3, str(idproyecto))
                     child_item.setCheckState(0, Qt.Unchecked)
+                    child_item.setData(0, Qt.UserRole + 999, Qt.Unchecked) # Memoria
                     child_item.setFlags(child_item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
                 for dato in equipos:
                     kid_item = QTreeWidgetItem(child_item)
-                    kid_item.setText(0, str(dato[3])) # nombre
+                    kid_item.setText(0, str(dato[3]))
                     kid_item.setText(1, tipoequipo)
-                    kid_item.setText(2, str(dato[0])) # id instrum
-                    kid_item.setText(3, str(dato[4])) # idtopo
+                    kid_item.setText(2, str(dato[0]))
+                    kid_item.setText(3, str(dato[4]))
                     kid_item.setCheckState(0, Qt.Unchecked)
+                    kid_item.setData(0, Qt.UserRole + 999, Qt.Unchecked) # Memoria
                     kid_item.setFlags(kid_item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
-                    # Listar todos los archivos VTP en la carpeta
+                    # Listar actores...
                     tipotopo = dato[10]
                     if tipotopo == "VTP":
                         ruta_archivos = resource_path(dato[11])
@@ -152,24 +162,26 @@ class TreeCheckbox:
                             nombre_sin_extension = os.path.splitext(archivo)[0]
                             nombre_base = nombre_sin_extension.split('_')[0]
                             baby_item = QTreeWidgetItem(kid_item)
-                            baby_item.setText(0, f"{i+1} {nombre_base}") # nombre
-                            baby_item.setText(1, "actortopo") # tipo
-                            baby_item.setText(2, str(dato[0])) # id instrumen
-                            baby_item.setText(3, f"{dato[11]}/{archivo}") # ruta
-                            baby_item.setText(4, str(tipotopo)) # tipo
+                            baby_item.setText(0, f"{i+1} {nombre_base}")
+                            baby_item.setText(1, "actortopo")
+                            baby_item.setText(2, str(dato[0]))
+                            baby_item.setText(3, f"{dato[11]}/{archivo}")
+                            baby_item.setText(4, str(tipotopo))
                             baby_item.setCheckState(0, Qt.Unchecked)
+                            baby_item.setData(0, Qt.UserRole + 999, Qt.Unchecked) # Memoria
                             baby_item.setFlags(baby_item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
                     else:
                         extension_sin_punto = Path(dato[11]).suffix[1:].upper()
                         baby_item = QTreeWidgetItem(kid_item)
-                        baby_item.setText(0, f"1 {extension_sin_punto}") # nombre
-                        baby_item.setText(1, "actortopo") # tipo
-                        baby_item.setText(2, str(dato[0])) # id instrumen
-                        baby_item.setText(3, str(dato[11])) # ruta
-                        baby_item.setText(4, str(tipotopo)) # tipo
+                        baby_item.setText(0, f"1 {extension_sin_punto}")
+                        baby_item.setText(1, "actortopo")
+                        baby_item.setText(2, str(dato[0]))
+                        baby_item.setText(3, str(dato[11]))
+                        baby_item.setText(4, str(tipotopo))
                         baby_item.setCheckState(0, Qt.Unchecked)
+                        baby_item.setData(0, Qt.UserRole + 999, Qt.Unchecked) # Memoria
                         baby_item.setFlags(baby_item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
-    
+                        
     def agregarCheckboxGrupo(treewidget, nombregrupo, nombretool, tipolista, idtool):
         root_item = treewidget.invisibleRootItem()
         for i in range(root_item.childCount()):
@@ -353,13 +365,18 @@ class TreeCheckbox:
     def actualizar_estado_padre_hijos(nodo):
         if nodo.parent():
             estados_hijos = [nodo.parent().child(i).checkState(0) for i in range(nodo.parent().childCount())]
-            # Verificamos los estados de los hijos y actualizamos el padre
             if all(estado == Qt.Checked for estado in estados_hijos):
-                nodo.parent().setCheckState(0, Qt.Checked)
+                nuevo_estado = Qt.Checked
             elif all(estado == Qt.Unchecked for estado in estados_hijos):
-                nodo.parent().setCheckState(0, Qt.Unchecked)
+                nuevo_estado = Qt.Unchecked
             else:
-                nodo.parent().setCheckState(0, Qt.PartiallyChecked)
+                nuevo_estado = Qt.PartiallyChecked
+            
+            nodo.parent().setCheckState(0, nuevo_estado)
+            # SINCRONIZACIÓN DE MEMORIA: Vital para que el padre no tenga delay después
+            nodo.parent().setData(0, Qt.UserRole + 999, nuevo_estado)
+            # Recursión para subir en el árbol
+            TreeCheckbox.actualizar_estado_padre_hijos(nodo.parent())
     
     def validarMarcadoUnicoCheckbox(parent_item, column):
         codigo = parent_item.text(1)
@@ -392,3 +409,12 @@ class TreeCheckbox:
                             if checkbox_item.text(0) == str(nombreequipo) and checkbox_item.text(1) == tipolista:
                                 checkbox_item.setText(3, str(nuevasfechas))
     
+    @staticmethod
+    def validarCambioReal(item):
+        """ Retorna True si el checkbox cambió, False si fue clic en el nombre """
+        estado_memoria = item.data(0, Qt.UserRole + 999)
+        estado_actual = item.checkState(0)
+        if estado_memoria == estado_actual:
+            return False
+        item.setData(0, Qt.UserRole + 999, estado_actual)
+        return True
