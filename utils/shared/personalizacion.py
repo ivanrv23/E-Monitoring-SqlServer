@@ -1,13 +1,107 @@
 from PySide6.QtGui import QPalette
-from PySide6.QtCore import Qt, QDateTime, QDate, QTime
+from PySide6.QtCore import Qt, QDateTime, QDate, QTime,Signal
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QTreeWidgetItem, QColorDialog, QLabel, QDateTimeEdit, QDateEdit, QTimeEdit,
-                            QPushButton, QTreeWidget, QFrame, QComboBox, QSpinBox, QWidget, QHBoxLayout, QDoubleSpinBox, QCheckBox)
+                            QPushButton, QTreeWidget, QFrame, QComboBox, QSpinBox, QWidget, QHBoxLayout, QDoubleSpinBox, QCheckBox, QCalendarWidget, QListWidget, QLineEdit,)
 from datetime import datetime, date, time 
 from utils.common.rutasarchivos import resource_path
 from utils.common.metodosGenerales import MetodosGenerales
 from controllers.ConfiguracionController import ConfiguracionController
 
+class TimeWheel(QListWidget):
+    def __init__(self, limit, parent=None):
+        super().__init__(parent)
+        self.setFixedWidth(35)
+        self.setFixedHeight(120)
+        self.setUniformItemSizes(True)
+        self.setVerticalScrollMode(QListWidget.ScrollPerPixel)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        for i in range(limit):
+            self.addItem(f"{i:02d}")
+            self.item(i).setTextAlignment(Qt.AlignCenter)
+        self.setStyleSheet("QListWidget { border: 1px solid #ddd; background: white; color: #333; font-size: 11px; } QListWidget::item:selected { background: #0078d7; color: white; }")
+
+class DateTimePickerPopup(QDialog):
+    def __init__(self, parent=None, initial_dt=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
+        self.main_frame = QFrame(self)
+        self.main_frame.setStyleSheet("QFrame { background: white; border: 1px solid #ccc; border-radius: 6px; }")
+        layout = QVBoxLayout(self.main_frame)
+        layout.setContentsMargins(5, 5, 5, 5)
+        
+        body = QHBoxLayout()
+        self.calendar = QCalendarWidget()
+        self.calendar.setFixedSize(230, 180)
+        if initial_dt and initial_dt.isValid(): self.calendar.setSelectedDate(initial_dt.date())
+        body.addWidget(self.calendar)
+
+        time_lay = QHBoxLayout()
+        self.h_w = TimeWheel(24); self.m_w = TimeWheel(60); self.s_w = TimeWheel(60)
+        t = initial_dt.time() if initial_dt else QTime(0,0,0)
+        self.h_w.setCurrentRow(t.hour()); self.m_w.setCurrentRow(t.minute()); self.s_w.setCurrentRow(t.second())
+        
+        for w, l in zip([self.h_w, self.m_w, self.s_w], ["H", "M", "S"]):
+            v = QVBoxLayout(); lbl = QLabel(l); lbl.setAlignment(Qt.AlignCenter); lbl.setStyleSheet("font-size: 9px; color: #999;")
+            v.addWidget(lbl); v.addWidget(w); time_lay.addLayout(v)
+        
+        body.addLayout(time_lay)
+        layout.addLayout(body)
+        
+        self.btn_apply = QPushButton("Aplicar")
+        self.btn_apply.setFixedSize(60, 24)
+        self.btn_apply.setStyleSheet("background: #0078d7; color: white; border-radius: 3px; font-size: 11px;")
+        self.btn_apply.clicked.connect(self.accept)
+        
+        bottom_lay = QHBoxLayout(); bottom_lay.addStretch(); bottom_lay.addWidget(self.btn_apply)
+        layout.addLayout(bottom_lay)
+        QVBoxLayout(self).addWidget(self.main_frame)
+
+    def get_selected_dt(self):
+        return QDateTime(self.calendar.selectedDate(), QTime(self.h_w.currentRow(), self.m_w.currentRow(), self.s_w.currentRow()))
+
+class CustomDateTimePicker(QWidget):
+    dateTimeChanged = Signal()
+
+    def __init__(self):
+        super().__init__()
+        layout = QHBoxLayout(self); layout.setContentsMargins(0,0,0,0); layout.setSpacing(0)
+        
+        self.line_edit = QLineEdit()
+        self.line_edit.setInputMask("99/99/9999 99:99:99") # Formato visual para el usuario
+        self.line_edit.setFixedHeight(26)
+        self.line_edit.setStyleSheet("QLineEdit { border: 1px solid #ccc; border-radius: 3px 0 0 3px; padding-left: 5px; color: #333; font-size: 11px; }")
+        self.line_edit.textChanged.connect(self._check_validity)
+
+        self.btn = QPushButton("📅")
+        self.btn.setFixedSize(26, 26)
+        self.btn.setStyleSheet("background: #f8f8f8; border: 1px solid #ccc; border-left: none; border-radius: 0 3px 3px 0; color: #666;")
+        self.btn.clicked.connect(self.open_picker)
+        
+        layout.addWidget(self.line_edit); layout.addWidget(self.btn)
+
+    def _check_validity(self):
+        if self.dateTime().isValid():
+            self.dateTimeChanged.emit()
+
+    def open_picker(self):
+        dt = self.dateTime()
+        if not dt.isValid(): dt = QDateTime.currentDateTime()
+        pop = DateTimePickerPopup(self, dt)
+        pos = self.mapToGlobal(self.line_edit.rect().bottomLeft())
+        pop.move(pos.x(), pos.y() + 1)
+        if pop.exec_():
+            self.setDateTime(pop.get_selected_dt())
+            self.dateTimeChanged.emit()
+
+    def setDateTime(self, dt):
+        if dt.isValid():
+            self.line_edit.setText(dt.toString("dd/MM/yyyy HH:mm:ss"))
+
+    def dateTime(self):
+        # Siempre parsear desde el formato del input mask
+        return QDateTime.fromString(self.line_edit.text(), "dd/MM/yyyy HH:mm:ss")
 class Personalizacion:
     time_inicio, time_final = None, None
     estadolimpio, metodoLimpieza, combosMarcados = False, "", []
@@ -19,87 +113,99 @@ class Personalizacion:
     ejexmintdr, ejexmaxtdr, xpritdr, xsecutdr = 0, 0, 0, 0
     ejeymintdr, ejeymaxtdr, ypritdr, ysecutdr, estadotdrejey = 0, 0, 0, 0, False
     
+    @staticmethod
     def dialogoFiltroFechas(fechainicial, fechafinal):
-        Personalizacion.time_inicio, Personalizacion.time_final = None, None
-        loader = QUiLoader()        
-        ui_file_path = resource_path("ui/filtrofechas.ui")
-        ui_file = loader.load(ui_file_path, None)
+        # Formatos posibles que vienen de SQL o Python
+        formato_sql = "yyyy-MM-dd HH:mm:ss"
+        
+        def parsear_entrada(valor):
+            if isinstance(valor, str):
+                # Intentar formato SQL primero, si no, otros comunes
+                dt = QDateTime.fromString(valor, formato_sql)
+                if not dt.isValid(): dt = QDateTime.fromString(valor, "dd/MM/yyyy HH:mm:ss")
+                return dt
+            elif isinstance(valor, datetime):
+                return QDateTime(valor.year, valor.month, valor.day, valor.hour, valor.minute, valor.second)
+            return QDateTime()
+
         dialogo = QDialog()
-        dialogo.setWindowTitle("Filtrar por Fechas")
-        layout = QVBoxLayout()
-        layout.addWidget(ui_file)
-        dialogo.setLayout(layout)
-        # tools
-        labeldias = dialogo.findChild(QLabel, "label_numerodias")
-        datetimeinicio = dialogo.findChild(QDateTimeEdit, "datetime_inicio")
-        datetimefinal = dialogo.findChild(QDateTimeEdit, "datetime_final")
-        botonaceptar = dialogo.findChild(QPushButton, "btn_aceptar")
-        formato = "yyyy-MM-dd HH:mm:ss" 
+        dialogo.setWindowTitle("Filtrar Rango")
+        dialogo.setMinimumWidth(500)
+        dialogo.setStyleSheet("background-color: white;")
         
-        # --- CARGAR FECHAS ACTUALES (CORREGIDO PARA SQL SERVER/SQLITE) ---
+        main_layout = QVBoxLayout(dialogo)
+        main_layout.setContentsMargins(15, 15, 15, 15)
         
-        # 1. Validar Fecha Inicial
-        if isinstance(fechainicial, str):
-            datetime_inicial = QDateTime.fromString(fechainicial, formato)
-        elif isinstance(fechainicial, datetime):
-            # Convertimos objeto datetime de Python a QDateTime de Qt manualmente para evitar errores
-            datetime_inicial = QDateTime(fechainicial.year, fechainicial.month, fechainicial.day,
-                                         fechainicial.hour, fechainicial.minute, fechainicial.second)
-        else:
-            datetime_inicial = QDateTime() # Fecha inválida
+        # Diferencia de días
+        header = QHBoxLayout()
+        labeldias = QLabel("0")
+        labeldias.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 14px;")
+        header.addWidget(labeldias); header.addWidget(QLabel("días seleccionados")); header.addStretch()
+        main_layout.addLayout(header)
 
-        # 2. Validar Fecha Final
-        if isinstance(fechafinal, str):
-            datetime_final = QDateTime.fromString(fechafinal, formato)
-        elif isinstance(fechafinal, datetime):
-            datetime_final = QDateTime(fechafinal.year, fechafinal.month, fechafinal.day,
-                                       fechafinal.hour, fechafinal.minute, fechafinal.second)
-        else:
-            datetime_final = QDateTime() # Fecha inválida
+        # Selectores horizontales
+        form_layout = QHBoxLayout()
+        
+        # Inicio
+        v1 = QVBoxLayout(); v1.addWidget(QLabel("DESDE")); dt_inicio = CustomDateTimePicker(); v1.addWidget(dt_inicio)
+        # Final
+        v2 = QVBoxLayout(); v2.addWidget(QLabel("HASTA")); dt_final = CustomDateTimePicker(); v2.addWidget(dt_final)
+        
+        form_layout.addLayout(v1); form_layout.addSpacing(10); form_layout.addLayout(v2)
+        main_layout.addLayout(form_layout)
 
-        # -----------------------------------------------------------------
+        # Botones de acción
+        btn_layout = QHBoxLayout()
+        botoncancelar = QPushButton("Cancelar")
+        botoncancelar.clicked.connect(dialogo.reject)
+        
+        botonaceptar = QPushButton("ACEPTAR Y FILTRAR")
+        botonaceptar.setFixedHeight(30)
+        botonaceptar.setStyleSheet("""
+            QPushButton { background: #0078d7; color: white; font-weight: bold; border-radius: 4px; padding: 0 15px; }
+            QPushButton:disabled { background: #f0f0f0; color: #ccc; }
+        """)
+        
+        btn_layout.addStretch(); btn_layout.addWidget(botoncancelar); btn_layout.addWidget(botonaceptar)
+        main_layout.addLayout(btn_layout)
 
-        if datetime_inicial.isValid() and datetime_final.isValid():
-            datetimeinicio.setDateTime(datetime_inicial)
-            datetimefinal.setDateTime(datetime_final)
-            # Habilitar o deshabilitar el botón según la diferencia           
-            diferencia = datetime_inicial.date().daysTo(datetime_final.date())
-            labeldias.setText(str(diferencia))
-            diferencia_segundos = datetime_inicial.secsTo(datetime_final)
-            botonaceptar.setEnabled(diferencia_segundos >= 60)
-        else:
-            fechaini, fechafin = MetodosGenerales.obtenerRangoFechas(365)
-            # Aquí asumimos que obtenerRangoFechas devuelve strings, si devuelve datetime también funcionaría el parseo
-            datetime_inicial = QDateTime.fromString(fechaini, formato)
-            datetime_final = QDateTime.fromString(fechafin, formato)
-            datetimeinicio.setDateTime(datetime_inicial)
-            datetimefinal.setDateTime(datetime_final)
-            diferencia = datetime_inicial.date().daysTo(datetime_final.date())
-            labeldias.setText(str(diferencia))
-            diferencia_segundos = datetime_inicial.secsTo(datetime_final)
-            botonaceptar.setEnabled(diferencia_segundos >= 60)
-            
-        # Función para calcular y actualizar la diferencia en días
-        def actualizarDiferencia():
-            inicio = datetimeinicio.dateTime()
-            final = datetimefinal.dateTime()            
-            diferencia = inicio.date().daysTo(final.date())
-            labeldias.setText(str(diferencia))
-            # Habilitar o deshabilitar el botón según la diferencia
-            diferencia_segundos = inicio.secsTo(final)
-            botonaceptar.setEnabled(diferencia_segundos >= 60)
-            
-        def devolverFechas():
-            Personalizacion.time_inicio = datetimeinicio.dateTime().toString(formato)
-            Personalizacion.time_final = datetimefinal.dateTime().toString(formato)
-            dialogo.close()
-            
-        # Conectar las señales de cambio de valor a la función
-        datetimeinicio.dateTimeChanged.connect(actualizarDiferencia)
-        datetimefinal.dateTimeChanged.connect(actualizarDiferencia)
-        botonaceptar.clicked.connect(devolverFechas)
-        dialogo.exec()
-        return Personalizacion.time_inicio, Personalizacion.time_final
+        def validar():
+            ini = dt_inicio.dateTime()
+            fin = dt_final.dateTime()
+            if ini.isValid() and fin.isValid():
+                labeldias.setText(str(ini.date().daysTo(fin.date())))
+                botonaceptar.setEnabled(ini.secsTo(fin) >= 60)
+            else:
+                botonaceptar.setEnabled(False)
+
+        def devolver():
+            # Guardamos en formato SQL para que tu app lo use sin cambios
+            Personalizacion.time_inicio = dt_inicio.dateTime().toString(formato_sql)
+            Personalizacion.time_final = dt_final.dateTime().toString(formato_sql)
+            dialogo.accept() # ESTO CIERRA EL DIALOGO CON EXITO
+
+        dt_inicio.dateTimeChanged.connect(validar)
+        dt_final.dateTimeChanged.connect(validar)
+        botonaceptar.clicked.connect(devolver)
+
+        # CARGAR FECHAS (IMPORTANTE)
+        dt_ini_obj = parsear_entrada(fechainicial)
+        dt_fin_obj = parsear_entrada(fechafinal)
+
+        if not dt_ini_obj.isValid():
+            # Si fallan, usar MetodosGenerales
+            from utils.common.metodosGenerales import MetodosGenerales
+            fi, ff = MetodosGenerales.obtenerRangoFechas(365)
+            dt_ini_obj = QDateTime.fromString(fi, formato_sql)
+            dt_fin_obj = QDateTime.fromString(ff, formato_sql)
+
+        dt_inicio.setDateTime(dt_ini_obj)
+        dt_final.setDateTime(dt_fin_obj)
+        validar()
+
+        if dialogo.exec() == QDialog.Accepted:
+            return Personalizacion.time_inicio, Personalizacion.time_final
+        return None, None
     
     def dialogoFiltroHoras(fecha, horainicial, horafinal):
         fechaini, horaini, horafin = None, None, None
