@@ -19,14 +19,26 @@ from controllers.PiezometroController import PiezometroController
 from controllers.CeldaController import CeldaController
 from controllers.EventosController import EventosController
 from views.EventosDialog import EventosDialog
+import locale
 
+# Configurar el idioma de las fechas a español
+try:
+    # Intento para Windows
+    locale.setlocale(locale.LC_TIME, 'spanish')
+except:
+    try:
+        # Intento para Linux / Mac
+        locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+    except:
+        # Si falla, se quedará en inglés por defecto
+        print("No se pudo configurar el idioma español, se usará el predeterminado.")
+        
 # ============================================================
 # CONFIGURACIÓN GLOBAL DE SUAVIZADO
 # False = líneas rectas (comportamiento original)
 # True  = curvas suavizadas tipo Excel/ECharts
 # ============================================================
 SUAVIZADO_TENSION = 0.2  # 0.0=recto, 0.5=máximo suavizado
-
 
 def suavizar_con_bezier(x_num, y_num, tension=0.2):
     """
@@ -657,7 +669,12 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     ax.set_xlabel(labelejex, fontsize=ejezise)
     ax.set_ylabel(labelejey, fontsize=ejezise)
     if tiempo == "FECHA":
-        ax.xaxis.set_major_formatter(DateFormatter('%d/%m/%Y'))
+        if config[21] == 1: # Si fechahora está activo
+            formato = '%d %b %y\n%H:%M:%S' if config[22] == 1 else '%d/%m/%Y\n%H:%M:%S'
+            ax.xaxis.set_major_formatter(mdates.DateFormatter(formato))
+        else:
+            ax.xaxis.set_major_formatter(DateFormatter('%d/%m/%Y'))
+        
     if not escala:
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
@@ -706,7 +723,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
         ax.set_xlim([num_inicio, num_fin])
     # -----------------------------------------------------------------------------
     
-    plt.setp(ax.get_xticklabels(), rotation=90, ha="center", fontsize=etiquesize)
+    plt.setp(ax.get_xticklabels(), rotation=90, ha="center", va="top", fontsize=etiquesize)
     plt.setp(ax.get_yticklabels(), fontsize=etiquesize)
     if modulo != "ANALISIS":
         if mostrarlluvia == 0:
@@ -1597,7 +1614,12 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
     ax.set_xlabel(labelejex, fontsize=ejezise)
     ax.set_ylabel(labelejey, fontsize=ejezise)
     if tiempo == "FECHA":
-        ax.xaxis.set_major_formatter(DateFormatter('%d/%m/%Y'))
+        if config[21] == 1: # Si fechahora está activo
+            formato = '%d %b %y\n%H:%M:%S' if config[22] == 1 else '%d/%m/%Y\n%H:%M:%S'
+            ax.xaxis.set_major_formatter(mdates.DateFormatter(formato))
+        else:
+            ax.xaxis.set_major_formatter(DateFormatter('%d/%m/%Y'))
+            
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
@@ -1628,7 +1650,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
     ax.set_xticks(etiquetas_numericas)
     ax.set_xlim([num_inicio, num_fin])
     
-    plt.setp(ax.get_xticklabels(), rotation=90, ha="center", fontsize=etiquesize)
+    plt.setp(ax.get_xticklabels(), rotation=90, ha="center", va="top", fontsize=etiquesize)
     plt.setp(ax.get_yticklabels(), fontsize=etiquesize)
     if mostrarlluvia == 0:
         if tiempo == "FECHA":
@@ -2160,7 +2182,11 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
     ax.set_xlabel(labelejex, fontsize=ejezise)
     ax.set_ylabel(labelejey, fontsize=ejezise)
     if tiempo == "FECHA":
-        ax.xaxis.set_major_formatter(DateFormatter('%d/%m/%Y'))
+        if config[21] == 1: # Si fechahora está activo
+            formato = '%d %b %y\n%H:%M:%S' if config[22] == 1 else '%d/%m/%Y\n%H:%M:%S'
+            ax.xaxis.set_major_formatter(mdates.DateFormatter(formato))
+        else:
+            ax.xaxis.set_major_formatter(DateFormatter('%d/%m/%Y'))
     if tipo == "VEN":
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
@@ -2197,7 +2223,7 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
     # -----------------------------------------------------------------------------
 
     # ajustar las etiquetas
-    plt.setp(ax.get_xticklabels(), rotation=90, ha="center", fontsize=etiquesize)
+    plt.setp(ax.get_xticklabels(), rotation=90, ha="center", va="top", fontsize=etiquesize)
     plt.setp(ax.get_yticklabels(), fontsize=etiquesize)
     # CONFIGURAR EJE Y
     if ejeymin != 0 or ejeymax != 0:

@@ -27,6 +27,8 @@ class SoftwareConfiguracion:
     celda = 1
     filtrado = 1
     suavizado = 0
+    fechahora = 0
+    mesletras = 0 
     version = "5.3.0"
        
     # MOSTRAR DIALOGO DE AJUSTES DE SOFTWARE
@@ -68,6 +70,8 @@ class SoftwareConfiguracion:
         radioCeldaPositiva = dialog.findChild(QRadioButton, "radio_celdas_positivas")
         radioCeldaNegativa = dialog.findChild(QRadioButton, "radio_celdas_negativas")
         checkSuavizado = dialog.findChild(QCheckBox, "check_suavizado") 
+        checkFechaHora = dialog.findChild(QCheckBox, "check_fechahora")
+        checkMesLetras = dialog.findChild(QCheckBox, "check_mesletras")
         labelmensaje = dialog.findChild(QLabel, "label_mensaje")
         confirmarAjustes = dialog.findChild(QPushButton, "btn_aceptar")
         # cargar combo
@@ -134,8 +138,15 @@ class SoftwareConfiguracion:
             else:
                 radioCeldaNegativa.setChecked(True)
             
-            if len(respuesta) > 21: # Verificación de seguridad
+            if len(respuesta) > 21:
                 checkSuavizado.setChecked(True if respuesta[21] == 1 else False)
+                
+            if len(respuesta) > 22: 
+                checkFechaHora.setChecked(True if respuesta[22] == 1 else False)
+                
+            if len(respuesta) > 23:
+                checkMesLetras.setChecked(True if respuesta[23] == 1 else False)
+    
         else:
             spinTitulo.setValue(SoftwareConfiguracion.titulo)
             spinEjes.setValue(SoftwareConfiguracion.ejes)
@@ -256,7 +267,9 @@ class SoftwareConfiguracion:
                 "precipitacion": lluvia,
                 "mostrarlluvia": poslluvia,
                 "velocidad_celda": velocidadcelda,
-                "suavizado": suavizado_valor   
+                "suavizado": suavizado_valor,
+                "fechahora": 1 if checkFechaHora.isChecked() else 0,
+                "mesletras": 1 if checkMesLetras.isChecked() else 0
             }
             respuesta = EmpresaController.ctrlRegistrarActualizarAjustesSoftware(lista_datos)
             if respuesta:
@@ -296,6 +309,8 @@ class SoftwareConfiguracion:
             SoftwareConfiguracion.mostrarpluvio = respuesta[19]
             SoftwareConfiguracion.celda = respuesta[20]
             SoftwareConfiguracion.suavizado = respuesta[21] if len(respuesta) > 21 else 0
+            SoftwareConfiguracion.fechahora = respuesta[22] if len(respuesta) > 22 else 0
+            SoftwareConfiguracion.mesletras = respuesta[23] if len(respuesta) > 23 else 0
     
     def obtenerDataSoftware():
         data = [
@@ -320,6 +335,8 @@ class SoftwareConfiguracion:
             SoftwareConfiguracion.mostrarpluvio,
             SoftwareConfiguracion.celda,
             SoftwareConfiguracion.suavizado,
+            SoftwareConfiguracion.fechahora, # Índice 21
+            SoftwareConfiguracion.mesletras, # Índice 22
             SoftwareConfiguracion.version
         ]
         return data

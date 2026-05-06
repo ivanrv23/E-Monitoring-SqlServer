@@ -83,13 +83,6 @@
          <layout class="QVBoxLayout" name="verticalLayout_2">
           <item>
            <layout class="QGridLayout" name="gridLayout_2">
-            <item row="12" column="0">
-             <widget class="QLabel" name="label_13">
-              <property name="text">
-               <string>Grosor de Vértices en las gráficas:</string>
-              </property>
-             </widget>
-            </item>
             <item row="12" column="1" colspan="2">
              <widget class="QSpinBox" name="spin_grosor_vertices">
               <property name="minimum">
@@ -100,6 +93,13 @@
               </property>
               <property name="value">
                <number>1</number>
+              </property>
+             </widget>
+            </item>
+            <item row="12" column="0">
+             <widget class="QLabel" name="label_13">
+              <property name="text">
+               <string>Grosor de Vértices en las gráficas:</string>
               </property>
              </widget>
             </item>
@@ -119,16 +119,6 @@
               </property>
              </widget>
             </item>
-            <item row="2" column="1" colspan="2">
-             <widget class="QSpinBox" name="spin_etiquetas">
-              <property name="minimum">
-               <number>1</number>
-              </property>
-              <property name="maximum">
-               <number>50</number>
-              </property>
-             </widget>
-            </item>
             <item row="6" column="0">
              <widget class="QLabel" name="label_8">
               <property name="text">
@@ -136,10 +126,13 @@
               </property>
              </widget>
             </item>
-            <item row="14" column="0">
-             <widget class="QLabel" name="label_14">
-              <property name="text">
-               <string>Suavizado</string>
+            <item row="2" column="1" colspan="2">
+             <widget class="QSpinBox" name="spin_etiquetas">
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>50</number>
               </property>
              </widget>
             </item>
@@ -157,8 +150,8 @@
               </property>
              </widget>
             </item>
-            <item row="0" column="1" colspan="2">
-             <widget class="QSpinBox" name="spin_titulo">
+            <item row="3" column="1" colspan="2">
+             <widget class="QSpinBox" name="spin_leyenda">
               <property name="minimum">
                <number>1</number>
               </property>
@@ -177,26 +170,13 @@
               </property>
              </widget>
             </item>
-            <item row="3" column="1" colspan="2">
-             <widget class="QSpinBox" name="spin_leyenda">
+            <item row="0" column="1" colspan="2">
+             <widget class="QSpinBox" name="spin_titulo">
               <property name="minimum">
                <number>1</number>
               </property>
               <property name="maximum">
                <number>50</number>
-              </property>
-             </widget>
-            </item>
-            <item row="11" column="1" colspan="2">
-             <widget class="QDoubleSpinBox" name="spin_grosor_lineas">
-              <property name="decimals">
-               <number>1</number>
-              </property>
-              <property name="minimum">
-               <double>1.000000000000000</double>
-              </property>
-              <property name="maximum">
-               <double>10.000000000000000</double>
               </property>
              </widget>
             </item>
@@ -214,6 +194,33 @@
               </property>
              </widget>
             </item>
+            <item row="11" column="1" colspan="2">
+             <widget class="QDoubleSpinBox" name="spin_grosor_lineas">
+              <property name="decimals">
+               <number>1</number>
+              </property>
+              <property name="minimum">
+               <double>1.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>10.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+            <item row="8" column="0">
+             <widget class="QLabel" name="label_10">
+              <property name="text">
+               <string>Color Línea de Tendencia:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_3">
+              <property name="text">
+               <string>Tamaño Letra Nombre de los Ejes:</string>
+              </property>
+             </widget>
+            </item>
             <item row="7" column="1" colspan="2">
              <widget class="QDoubleSpinBox" name="spin_tendencia">
               <property name="decimals">
@@ -227,19 +234,8 @@
               </property>
              </widget>
             </item>
-            <item row="1" column="0">
-             <widget class="QLabel" name="label_3">
-              <property name="text">
-               <string>Tamaño Letra Nombre de los Ejes:</string>
-              </property>
-             </widget>
-            </item>
-            <item row="8" column="0">
-             <widget class="QLabel" name="label_10">
-              <property name="text">
-               <string>Color Línea de Tendencia:</string>
-              </property>
-             </widget>
+            <item row="6" column="1" colspan="2">
+             <widget class="QComboBox" name="combo_tendencia"/>
             </item>
             <item row="7" column="0">
              <widget class="QLabel" name="label_9">
@@ -247,9 +243,6 @@
                <string>Grosor Línea de Tendencia:</string>
               </property>
              </widget>
-            </item>
-            <item row="6" column="1" colspan="2">
-             <widget class="QComboBox" name="combo_tendencia"/>
             </item>
             <item row="10" column="0">
              <widget class="QLabel" name="label_12">
@@ -274,6 +267,13 @@
               </property>
              </widget>
             </item>
+            <item row="11" column="0">
+             <widget class="QLabel" name="label_15">
+              <property name="text">
+               <string>Grosor de Línea en las Gráficas:</string>
+              </property>
+             </widget>
+            </item>
             <item row="4" column="1" colspan="2">
              <widget class="QSpinBox" name="spin_cotas">
               <property name="maximum">
@@ -284,10 +284,10 @@
               </property>
              </widget>
             </item>
-            <item row="11" column="0">
-             <widget class="QLabel" name="label_15">
+            <item row="5" column="1">
+             <widget class="QCheckBox" name="check_cota">
               <property name="text">
-               <string>Grosor de Línea en las Gráficas:</string>
+               <string>Mostrar Nombre Cota</string>
               </property>
              </widget>
             </item>
@@ -298,13 +298,6 @@
               </property>
              </widget>
             </item>
-            <item row="5" column="1">
-             <widget class="QCheckBox" name="check_cota">
-              <property name="text">
-               <string>Mostrar Nombre Cota</string>
-              </property>
-             </widget>
-            </item>
             <item row="8" column="1" colspan="2">
              <widget class="QPushButton" name="btn_tendencia">
               <property name="styleSheet">
@@ -312,20 +305,6 @@
               </property>
               <property name="text">
                <string/>
-              </property>
-             </widget>
-            </item>
-            <item row="5" column="0">
-             <widget class="QLabel" name="label_11">
-              <property name="text">
-               <string>Mostrar en las Gráficas</string>
-              </property>
-             </widget>
-            </item>
-            <item row="13" column="0">
-             <widget class="QLabel" name="label_16">
-              <property name="text">
-               <string>Cantidad de Decimales:</string>
               </property>
              </widget>
             </item>
@@ -342,10 +321,59 @@
               </property>
              </widget>
             </item>
+            <item row="13" column="0">
+             <widget class="QLabel" name="label_16">
+              <property name="text">
+               <string>Cantidad de Decimales:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="0">
+             <widget class="QLabel" name="label_11">
+              <property name="text">
+               <string>Mostrar en las Gráficas</string>
+              </property>
+             </widget>
+            </item>
+            <item row="14" column="0">
+             <widget class="QLabel" name="label_14">
+              <property name="text">
+               <string>Suavizado</string>
+              </property>
+             </widget>
+            </item>
+            <item row="15" column="0">
+             <widget class="QLabel" name="label_17">
+              <property name="text">
+               <string>Etiquetas eje x</string>
+              </property>
+             </widget>
+            </item>
+            <item row="16" column="0">
+             <widget class="QLabel" name="label_18">
+              <property name="text">
+               <string>Formato mes eje x</string>
+              </property>
+             </widget>
+            </item>
             <item row="14" column="1" colspan="2">
              <widget class="QCheckBox" name="check_suavizado">
               <property name="text">
                <string>Suavizado</string>
+              </property>
+             </widget>
+            </item>
+            <item row="15" column="1" colspan="2">
+             <widget class="QCheckBox" name="check_fechahora">
+              <property name="text">
+               <string>Mostrar fecha y hora</string>
+              </property>
+             </widget>
+            </item>
+            <item row="16" column="1" colspan="2">
+             <widget class="QCheckBox" name="check_mesletras">
+              <property name="text">
+               <string>Mes letras</string>
               </property>
              </widget>
             </item>

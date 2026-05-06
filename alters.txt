@@ -11,3 +11,9 @@ ON instrumentacion (id_componente, nombre_equipo);
 
 ALTER TABLE configuraciongrafica ADD suavizado_grafica INT DEFAULT 0;
 UPDATE configuraciongrafica SET suavizado_grafica = 0 WHERE suavizado_grafica IS NULL;
+
+
+ALTER TABLE configuraciongrafica ADD fechahora_grafica TINYINT DEFAULT 0;
+ALTER TABLE configuraciongrafica ADD mesletras_grafica TINYINT DEFAULT 0;
+GO
+UPDATE configuraciongrafica SET fechahora_grafica = 0, mesletras_grafica = 0;

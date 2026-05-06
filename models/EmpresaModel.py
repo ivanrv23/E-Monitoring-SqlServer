@@ -281,14 +281,14 @@ class EmpresaModel:
                 "titulo_grafica", "ejes_grafica", "etiquetas_grafica", "leyenda_grafica",
                 "cota_grafica", "mostrarcota_grafica", "mostrar_vertices", "tipo_tendencia",
                 "grosor_tendencia", "color_tendencia", "fuente_grafica", "transparencia_grafica", "grosor_lineas", "grosor_vertices",
-                "cantidad_decimal", "velocidad_grafica", "filtrado_grafica", "lluvia_grafica", "mostrar_lluvia", "celda_grafica", "suavizado_grafica" 
+                "cantidad_decimal", "velocidad_grafica", "filtrado_grafica", "lluvia_grafica", "mostrar_lluvia", "celda_grafica", "suavizado_grafica", "fechahora_grafica", "mesletras_grafica"
             ]
             valores = [
                 datos['titulo'], datos['ejes'], datos['etiquetas'], datos['leyenda'], datos['cotas'],
                 datos['mostrarcota'], datos['mostrarvertice'], datos['tipotendencia'], datos['grosortendencia'],
                 datos['colortendencia'], datos['tipoletra'], datos['transparente'], datos['lineagrosor'], datos['verticegrosor'],
                 datos['cantidecimales'], datos['velocidad_prisma'], datos['filtrofecha'], datos['precipitacion'],
-                datos['mostrarlluvia'], datos['velocidad_celda'], datos['suavizado'] 
+                datos['mostrarlluvia'], datos['velocidad_celda'], datos['suavizado'], datos['fechahora'], datos['mesletras']
             ]
 
             if resultado[0] > 0:
