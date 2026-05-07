@@ -940,6 +940,7 @@ class AnalisisView:
             scroll_resumen_equipos.hide()
             scroll_elipzoide_error.hide()
             scroll_limpiar_datos.show()
+            scroll_tiempo_real.hide()
             AnalisisView.detenerTimerTiempoReal()
     
     def validarCheckboxVistasAnalisis():

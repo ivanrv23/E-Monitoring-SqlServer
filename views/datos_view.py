@@ -204,6 +204,8 @@ class DatosView:
                 else:
                     if tipo == "Inclinómetros" or tipo == "Pluviómetros" or tipo == "TDR" or tipo == "Cotas de Terreno":
                         ExportarData.validarExportarDataEquipos(DatosView.idproyecto, DatosView.nameproyecto, idzona, tipo, equipos)
+        else:
+            mostrar_mensaje("Sin Datos", "No hay datos para exportar.", "advertencia")
     
     def reiniciarVistaDatos(main, proyecto_id, proyecto_name):
         DatosView.main = main

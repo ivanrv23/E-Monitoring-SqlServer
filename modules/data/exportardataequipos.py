@@ -12,8 +12,9 @@ from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.drawing.image import Image as ExcelImage
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import QDateTime
-from PySide6.QtWidgets import (QVBoxLayout, QPushButton, QDateTimeEdit, QDialog, QFileDialog)
+from PySide6.QtCore import Qt, QDateTime, QTime, Signal
+from PySide6.QtWidgets import (QVBoxLayout, QPushButton, QDateTimeEdit, QDialog, QFileDialog,
+    QLabel, QFrame, QWidget, QHBoxLayout, QCalendarWidget, QListWidget, QLineEdit)
 from utils.common.alertas import mostrar_mensaje
 from utils.common.rutasarchivos import resource_path
 from utils.common.metodosGenerales import MetodosGenerales
@@ -21,58 +22,265 @@ from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 from modules.empresa.empresaconfiguracion import EmpresaConfiguracion
 from controllers.DatosController import DatosController
 
+class TimeWheel(QListWidget):
+    def __init__(self, limit, parent=None):
+        super().__init__(parent)
+        self.setFixedWidth(35)
+        self.setFixedHeight(120)
+        self.setUniformItemSizes(True)
+        self.setVerticalScrollMode(QListWidget.ScrollPerPixel)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        for i in range(limit):
+            self.addItem(f"{i:02d}")
+            self.item(i).setTextAlignment(Qt.AlignCenter)
+        self.setStyleSheet("QListWidget { border: 1px solid #ddd; background: white; color: #333; font-size: 11px; } QListWidget::item:selected { background: #0078d7; color: white; }")
+
+class DateTimePickerPopup(QDialog):
+    def __init__(self, parent=None, initial_dt=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
+        self.main_frame = QFrame(self)
+        self.main_frame.setStyleSheet("QFrame { background: white; border: 1px solid #ccc; border-radius: 6px; }")
+        layout = QVBoxLayout(self.main_frame)
+        layout.setContentsMargins(5, 5, 5, 5)
+        
+        body = QHBoxLayout()
+        self.calendar = QCalendarWidget()
+        self.calendar.setFixedSize(280, 210) 
+        
+        # --- ESTILO ULTRA-FINO DEL CALENDARIO ---
+        self.calendar.setStyleSheet("""
+            /* Barra de navegación */
+            QCalendarWidget QWidget#qt_calendar_navigationbar {
+                background-color: #ffffff;
+                border-bottom: 1px solid #f2f2f2;
+            }
+
+            /* Botones generales de la barra superior */
+            QCalendarWidget QToolButton {
+                color: #333333;
+                background-color: transparent;
+                border: none;
+                height: 25px;
+            }
+
+            /* --- SELECTOR DE MES (COMBO) --- */
+            QCalendarWidget QToolButton#qt_calendar_monthbutton {
+                font-size: 11px;
+                font-weight: bold;
+                padding-right: 12px; /* Espacio para nuestra flechita */
+                padding-left: 5px;
+                margin-right: 2px;
+            }
+
+            /* Personalización de la flechita del combo de meses */
+            QCalendarWidget QToolButton#qt_calendar_monthbutton::menu-indicator {
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                right: 2px; /* Separación del borde derecho */
+                top: 0px;   /* Ajuste vertical para alineación perfecta */
+                width: 8px;  /* Flechita mucho más pequeña */
+                height: 8px;
+            }
+
+            /* --- SELECTOR DE AÑO --- */
+            QCalendarWidget QToolButton#qt_calendar_yearbutton {
+                font-size: 11px;
+                font-weight: bold;
+                margin-left: 2px;
+                padding: 0 5px;
+            }
+
+            /* Flechas laterales (Mes anterior/siguiente) */
+            QCalendarWidget QToolButton#qt_calendar_prevmonth, 
+            QCalendarWidget QToolButton#qt_calendar_nextmonth {
+                width: 24px;
+                border-radius: 12px;
+                qproperty-iconSize: 14px;
+            }
+            
+            QCalendarWidget QToolButton:hover {
+                background-color: #f5f5f5;
+                border-radius: 4px;
+            }
+
+            /* Menú desplegable de meses */
+            QCalendarWidget QMenu {
+                background-color: white;
+                color: #333;
+                selection-background-color: #0078d7;
+                border: 1px solid #eeeeee;
+            }
+
+            /* Grilla de días y números */
+            QCalendarWidget QWidget { alternate-background-color: #ffffff; }
+            QCalendarWidget QAbstractItemView:enabled {
+                color: #444;
+                selection-background-color: #0078d7;
+                font-size: 11px;
+            }
+            QCalendarWidget QAbstractItemView:disabled { color: #d0d0d0; }
+        """)
+
+        # Configuración de visibilidad
+        self.calendar.setHorizontalHeaderFormat(QCalendarWidget.SingleLetterDayNames)
+        self.calendar.setVerticalHeaderFormat(QCalendarWidget.NoVerticalHeader)
+        
+        if initial_dt and initial_dt.isValid(): 
+            self.calendar.setSelectedDate(initial_dt.date())
+        body.addWidget(self.calendar)
+
+        # Lógica de las ruedas de tiempo (TimeWheel)
+        time_lay = QHBoxLayout()
+        self.h_w = TimeWheel(24); self.m_w = TimeWheel(60); self.s_w = TimeWheel(60)
+        t = initial_dt.time() if initial_dt else QTime(0,0,0)
+        self.h_w.setCurrentRow(t.hour()); self.m_w.setCurrentRow(t.minute()); self.s_w.setCurrentRow(t.second())
+        
+        for w, l in zip([self.h_w, self.m_w, self.s_w], ["H", "M", "S"]):
+            v = QVBoxLayout(); lbl = QLabel(l); lbl.setAlignment(Qt.AlignCenter); lbl.setStyleSheet("font-size: 9px; color: #999; border:none;")
+            v.addWidget(lbl); v.addWidget(w); time_lay.addLayout(v)
+        
+        body.addLayout(time_lay)
+        layout.addLayout(body)
+        
+        self.btn_apply = QPushButton("Aplicar")
+        self.btn_apply.setFixedSize(70, 26)
+        self.btn_apply.setCursor(Qt.PointingHandCursor)
+        self.btn_apply.setStyleSheet("""
+            QPushButton { background: #0078d7; color: white; border-radius: 3px; font-size: 11px; font-weight: bold; }
+            QPushButton:hover { background: #005fa3; }
+        """)
+        self.btn_apply.clicked.connect(self.accept)
+        
+        bottom_lay = QHBoxLayout(); bottom_lay.addStretch(); bottom_lay.addWidget(self.btn_apply)
+        layout.addLayout(bottom_lay)
+        QVBoxLayout(self).addWidget(self.main_frame)
+
+    def get_selected_dt(self):
+        return QDateTime(self.calendar.selectedDate(), QTime(self.h_w.currentRow(), self.m_w.currentRow(), self.s_w.currentRow()))
+    
+class CustomDateTimePicker(QWidget):
+    dateTimeChanged = Signal()
+
+    def __init__(self):
+        super().__init__()
+        layout = QHBoxLayout(self); layout.setContentsMargins(0,0,0,0); layout.setSpacing(0)
+        
+        self.line_edit = QLineEdit()
+        self.line_edit.setInputMask("99/99/9999 99:99:99") # Formato visual para el usuario
+        self.line_edit.setFixedHeight(26)
+        self.line_edit.setStyleSheet("QLineEdit { border: 1px solid #ccc; border-radius: 3px 0 0 3px; padding-left: 5px; color: #333; font-size: 11px; }")
+        self.line_edit.textChanged.connect(self._check_validity)
+
+        self.btn = QPushButton("📅")
+        self.btn.setFixedSize(26, 26)
+        self.btn.setStyleSheet("background: #f8f8f8; border: 1px solid #ccc; border-left: none; border-radius: 0 3px 3px 0; color: #666;")
+        self.btn.clicked.connect(self.open_picker)
+        
+        layout.addWidget(self.line_edit); layout.addWidget(self.btn)
+
+    def _check_validity(self):
+        if self.dateTime().isValid():
+            self.dateTimeChanged.emit()
+
+    def open_picker(self):
+        dt = self.dateTime()
+        if not dt.isValid(): dt = QDateTime.currentDateTime()
+        pop = DateTimePickerPopup(self, dt)
+        pos = self.mapToGlobal(self.line_edit.rect().bottomLeft())
+        pop.move(pos.x(), pos.y() + 1)
+        if pop.exec_():
+            self.setDateTime(pop.get_selected_dt())
+            self.dateTimeChanged.emit()
+
+    def setDateTime(self, dt):
+        if dt.isValid():
+            self.line_edit.setText(dt.toString("dd/MM/yyyy HH:mm:ss"))
+
+    def dateTime(self):
+        # Siempre parsear desde el formato del input mask
+        return QDateTime.fromString(self.line_edit.text(), "dd/MM/yyyy HH:mm:ss")
+
 class ExportarData():
     
+    @staticmethod
     def validarExportarDataEquipos(idproyecto, nameproyecto, idzona, tipo, equipos, fechainicial=None, fechafinal=None):
-        loader = QUiLoader()        
-        ui_file_path = resource_path("ui/exportardataequipos.ui")
-        ui_file = loader.load(ui_file_path, None)
+        formato = "yyyy-MM-dd HH:mm:ss"
+        formato_sql = formato
+        # Crear el diálogo principal
         dialogo = QDialog()
         dialogo.setWindowTitle(f"Exportar data {tipo}")
-        layout = QVBoxLayout()
-        layout.addWidget(ui_file)
-        dialogo.setLayout(layout)
-        # inicializar herramientas
-        dateinicio = dialogo.findChild(QDateTimeEdit, "date_inicio")
-        datefin = dialogo.findChild(QDateTimeEdit, "date_fin")
-        botonexportar = dialogo.findChild(QPushButton, "btn_exportar")
-        botonexportarcsv = dialogo.findChild(QPushButton, "btn_exportar_csv")
-        botonexportarcsv.setVisible(False)
-        formato = "yyyy-MM-dd HH:mm:ss"
-        # cargar fechas actuales
-        if fechainicial:
-            datetime_inicial = QDateTime.fromString(str(fechainicial), formato)
-            datetime_final = QDateTime.fromString(str(fechafinal), formato)
-            if datetime_inicial.isValid() and datetime_final.isValid():
-                dateinicio.setDateTime(datetime_inicial)
-                datefin.setDateTime(datetime_final)
-                # Habilitar o deshabilitar el botón según la diferencia           
-                diferencia = datetime_inicial.date().daysTo(datetime_final.date())
-                botonexportar.setEnabled(diferencia > 0)
+        dialogo.setMinimumWidth(500)
+        dialogo.setStyleSheet("background-color: white;")
+        main_layout = QVBoxLayout(dialogo)
+        main_layout.setContentsMargins(15, 15, 15, 15)
+        # --- Diferencia de días
+        header = QHBoxLayout()
+        labeldias = QLabel("0")
+        labeldias.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 14px;")
+        header.addWidget(labeldias)
+        header.addWidget(QLabel("días seleccionados"))
+        header.addStretch()
+        main_layout.addLayout(header)
+        # --- Selectores de fecha
+        form_layout = QHBoxLayout()
+        # Inicio
+        v1 = QVBoxLayout()
+        v1.addWidget(QLabel("DESDE"))
+        dt_inicio = CustomDateTimePicker()
+        v1.addWidget(dt_inicio)
+        # Fin
+        v2 = QVBoxLayout()
+        v2.addWidget(QLabel("HASTA"))
+        dt_final = CustomDateTimePicker()
+        v2.addWidget(dt_final)
+        form_layout.addLayout(v1)
+        form_layout.addSpacing(10)
+        form_layout.addLayout(v2)
+        main_layout.addLayout(form_layout)
+        # --- Botones de acción ---
+        btn_layout = QHBoxLayout()
+        botoncancelar = QPushButton("Cancelar")
+        botoncancelar.clicked.connect(dialogo.reject)
+        botonexportar = QPushButton("EXPORTAR")
+        botonexportar.setFixedHeight(30)
+        botonexportar.setStyleSheet("""
+            QPushButton {
+                background: #0078d7; color: white; font-weight: bold;
+                border-radius: 4px; padding: 0 15px;
+            }
+            QPushButton:disabled {
+                background: #f0f0f0; color: #ccc;
+            }
+        """)
+        # Botón adicional para CSV (solo para Prismas)
+        botonexportarcsv = QPushButton("CSV")
+        botonexportarcsv.setFixedHeight(30)
+        botonexportarcsv.setStyleSheet(botonexportar.styleSheet())
+        botonexportarcsv.setVisible(tipo == "Prismas")
+        btn_layout.addStretch()
+        btn_layout.addWidget(botoncancelar)
+        btn_layout.addWidget(botonexportarcsv)
+        btn_layout.addWidget(botonexportar)
+        main_layout.addLayout(btn_layout)
+        # habilitar exportar solo si diferencia > 0
+        def validar():
+            ini = dt_inicio.dateTime()
+            fin = dt_final.dateTime()
+            if ini.isValid() and fin.isValid():
+                labeldias.setText(str(ini.date().daysTo(fin.date())))
+                botonexportar.setEnabled(ini.secsTo(fin) >= 60)
             else:
-                fecha_hora_actual = QDateTime.currentDateTime()
-                dateinicio.setDateTime(fecha_hora_actual)
-                datefin.setDateTime(fecha_hora_actual)
                 botonexportar.setEnabled(False)
-        else:
-            fecha_hora_actual = QDateTime.currentDateTime()
-            dateinicio.setDateTime(fecha_hora_actual)
-            datefin.setDateTime(fecha_hora_actual)
-            dateinicio.setEnabled(False)
-            datefin.setEnabled(False)
-        if tipo == "Prismas":
-            botonexportarcsv.setVisible(True)
-        # Función para calcular y actualizar la diferencia en días
-        def actualizar_diferencia():
-            inicio = dateinicio.dateTime()
-            fin = datefin.dateTime()            
-            diferencia = inicio.date().daysTo(fin.date())
-            # Habilitar o deshabilitar el botón según la diferencia
-            botonexportar.setEnabled(diferencia > 0)
+
+        # --- Funciones de exportación ---
         def exportarDataEquipo():
-            time_inicio = dateinicio.dateTime().toString(formato)
-            time_fin = datefin.dateTime().toString(formato)
-            dialogo.close()
+            time_inicio = dt_inicio.dateTime().toString(formato_sql)
+            time_fin = dt_final.dateTime().toString(formato_sql)
+            dialogo.accept()  # cerrar con éxito
+
+            # Llamadas originales sin cambios
             if tipo == "Prismas":
                 ExportarData.exportarExcelPrismas(idproyecto, nameproyecto, idzona, equipos, time_inicio, time_fin)
             elif tipo == "Inclinómetros":
@@ -91,18 +299,52 @@ class ExportarData():
                 ExportarData.exportarExcelAcelerografos(idproyecto, nameproyecto, idzona, equipos, time_inicio, time_fin)
             elif tipo == "TDR":
                 ExportarData.exportarZipSondajesTDR(idproyecto, nameproyecto, idzona, equipos)
+
         def exportarDataEquiposCSV():
-            time_inicio = dateinicio.dateTime().toString(formato)
-            time_fin = datefin.dateTime().toString(formato)
-            dialogo.close()
+            time_inicio = dt_inicio.dateTime().toString(formato_sql)
+            time_fin = dt_final.dateTime().toString(formato_sql)
+            dialogo.accept()
             ExportarData.exportarExcelPrismasCSV(idproyecto, nameproyecto, idzona, equipos, time_inicio, time_fin)
-        # Conectar las señales de cambio de valor a la función
-        dateinicio.dateTimeChanged.connect(actualizar_diferencia)
-        datefin.dateTimeChanged.connect(actualizar_diferencia)
+
+        # Conectar señales
+        dt_inicio.dateTimeChanged.connect(validar)
+        dt_final.dateTimeChanged.connect(validar)
         botonexportar.clicked.connect(exportarDataEquipo)
         botonexportarcsv.clicked.connect(exportarDataEquiposCSV)
+
+        # Cargar fechas iniciales
+        def parsear_entrada(valor):
+            if isinstance(valor, str):
+                dt_parsed = QDateTime.fromString(valor, formato_sql)
+                if not dt_parsed.isValid():
+                    dt_parsed = QDateTime.fromString(valor, "dd/MM/yyyy HH:mm:ss")
+                return dt_parsed
+            elif isinstance(valor, datetime):
+                return QDateTime(valor.year, valor.month, valor.day,
+                                valor.hour, valor.minute, valor.second)
+            return QDateTime()
+
+        if fechainicial is not None:
+            dt_ini = parsear_entrada(fechainicial)
+            dt_fin = parsear_entrada(fechafinal)
+            if dt_ini.isValid() and dt_fin.isValid():
+                dt_inicio.setDateTime(dt_ini)
+                dt_final.setDateTime(dt_fin)
+            else:
+                # Fallback a fecha/hora actual
+                ahora = QDateTime.currentDateTime()
+                dt_inicio.setDateTime(ahora)
+                dt_final.setDateTime(ahora)
+        else:
+            ahora = QDateTime.currentDateTime()
+            dt_inicio.setDateTime(ahora)
+            dt_final.setDateTime(ahora)
+
+        # Disparar validación inicial para actualizar el label y el botón
+        validar()
+        # Mostrar el diálogo (no necesitamos devolver valores, ya se procesa dentro)
         dialogo.exec()
-    
+
     def exportarExcelPrismasCSV(proyectoid, proyectoname, idzona, prismasmarcados, fechaini, fechafin):
         encabezados = [
             'State', 'Point ID', 'Profile Name', 'Time', 'Hz', 'V', 'D [m]',

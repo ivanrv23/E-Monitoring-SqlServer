@@ -1,8 +1,8 @@
 from PySide6.QtGui import QPalette
-from PySide6.QtCore import Qt, QDateTime, QDate, QTime,Signal
+from PySide6.QtCore import Qt, QDateTime, QDate, QTime, Signal
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QTreeWidgetItem, QColorDialog, QLabel, QDateTimeEdit, QDateEdit, QTimeEdit,
-                            QPushButton, QTreeWidget, QFrame, QComboBox, QSpinBox, QWidget, QHBoxLayout, QDoubleSpinBox, QCheckBox, QCalendarWidget, QListWidget, QLineEdit,)
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QTreeWidgetItem, QColorDialog, QLabel, QDateEdit, QTimeEdit, QPushButton,
+    QTreeWidget, QFrame, QComboBox, QSpinBox, QWidget, QHBoxLayout, QDoubleSpinBox, QCheckBox, QCalendarWidget, QListWidget, QLineEdit)
 from datetime import datetime, date, time 
 from utils.common.rutasarchivos import resource_path
 from utils.common.metodosGenerales import MetodosGenerales
@@ -187,6 +187,7 @@ class CustomDateTimePicker(QWidget):
     def dateTime(self):
         # Siempre parsear desde el formato del input mask
         return QDateTime.fromString(self.line_edit.text(), "dd/MM/yyyy HH:mm:ss")
+
 class Personalizacion:
     time_inicio, time_final = None, None
     estadolimpio, metodoLimpieza, combosMarcados = False, "", []
@@ -214,7 +215,7 @@ class Personalizacion:
             return QDateTime()
 
         dialogo = QDialog()
-        dialogo.setWindowTitle("Filtrar Rango")
+        dialogo.setWindowTitle("Filtrar Fechas")
         dialogo.setMinimumWidth(500)
         dialogo.setStyleSheet("background-color: white;")
         
