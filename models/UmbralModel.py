@@ -333,12 +333,49 @@ class UmbralModel:
             if conn:
                 conn.close()
     
+    # @staticmethod
+    # def mdlObtenerUmbralesInstrumentacion(proyectoid, componente_id, tipo, tabla):
+    #     conn = None
+    #     try:
+    #         conn = Connection.connectionDB()
+    #         params = ()
+    #         if tabla == 'umbral_inclinometro':
+    #             sql = f"""SELECT * FROM {tabla} WHERE id_inclinometro = ? AND tipo_umbral = ? AND id_proyecto=? ORDER BY rango_umbral ASC;"""
+    #             params = (componente_id, tipo, proyectoid)
+    #         elif tabla=='umbral_celda':
+    #             sql = f"""SELECT * FROM {tabla} WHERE id_celda = ? AND tipo_umbral = ? AND id_proyecto = ? ORDER BY rango_umbral ASC;"""
+    #             params = (componente_id, tipo, proyectoid)
+    #         else:
+    #             sql = f"""SELECT * FROM {tabla} WHERE id_componente = ? AND tipo_umbral = ? AND id_proyecto = ? ORDER BY rango_umbral ASC;"""
+    #             params = (componente_id, tipo, proyectoid)
+            
+    #         cur = conn.cursor()
+    #         cur.execute(sql, params)
+            
+    #         # Conversión explícita a tupla
+    #         result = [tuple(row) for row in cur.fetchall()]
+            
+    #         if result:
+    #             return result
+    #         else:
+    #             return None
+    #     except Exception as e:
+    #         print("Error al obtener umbrales: " + str(e))
+    #         return None
+    #     finally:
+    #         if conn:
+    #             conn.close()
+    
     @staticmethod
     def mdlObtenerUmbralesInstrumentacion(proyectoid, componente_id, tipo, tabla):
         conn = None
         try:
             conn = Connection.connectionDB()
-            params = ()
+            cur = conn.cursor()
+            
+            # ==========================================
+            # 1. INTENTO PRINCIPAL: Buscar por componente específico
+            # ==========================================
             if tabla == 'umbral_inclinometro':
                 sql = f"""SELECT * FROM {tabla} WHERE id_inclinometro = ? AND tipo_umbral = ? AND id_proyecto=? ORDER BY rango_umbral ASC;"""
                 params = (componente_id, tipo, proyectoid)
@@ -346,26 +383,55 @@ class UmbralModel:
                 sql = f"""SELECT * FROM {tabla} WHERE id_celda = ? AND tipo_umbral = ? AND id_proyecto = ? ORDER BY rango_umbral ASC;"""
                 params = (componente_id, tipo, proyectoid)
             else:
+                # Este es el bloque para PRISMAS (y otros genéricos)
                 sql = f"""SELECT * FROM {tabla} WHERE id_componente = ? AND tipo_umbral = ? AND id_proyecto = ? ORDER BY rango_umbral ASC;"""
                 params = (componente_id, tipo, proyectoid)
             
-            cur = conn.cursor()
             cur.execute(sql, params)
-            
-            # Conversión explícita a tupla
             result = [tuple(row) for row in cur.fetchall()]
             
+            # ==========================================
+            # 2. FALLBACK: Si no hay resultado y es PRISMA, buscar el GENERAL
+            # ==========================================
+            # Solo aplicamos el fallback si la tabla no es inclinómetro ni celda
+            # y si la consulta principal no trajo nada.
+            if not result and tabla not in ('umbral_inclinometro', 'umbral_celda'):
+                
+                # Buscamos el ID del componente GENERAL del proyecto
+                sql_general = """
+                    SELECT id_componente 
+                    FROM componentes 
+                    WHERE id_proyecto = ? AND nombre_componente = 'GENERAL'
+                """
+                # Nota: Si usas estado_componente = 1 para activos, puedes agregarlo al WHERE
+                cur.execute(sql_general, (proyectoid,))
+                row_general = cur.fetchone()
+                
+                if row_general:
+                    id_general = row_general[0]
+                    
+                    # Optimización: Si el componente específico ya era el GENERAL, no volvemos a consultar
+                    if id_general != componente_id:
+                        sql_fallback = f"""
+                            SELECT * FROM {tabla} 
+                            WHERE id_componente = ? AND tipo_umbral = ? AND id_proyecto = ? 
+                            ORDER BY rango_umbral ASC;
+                        """
+                        cur.execute(sql_fallback, (id_general, tipo, proyectoid))
+                        result = [tuple(row) for row in cur.fetchall()]
+            
+            # Retornamos el resultado (ya sea el específico, el general, o None si no hay ninguno)
             if result:
                 return result
             else:
                 return None
+                
         except Exception as e:
             print("Error al obtener umbrales: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
     @staticmethod
     def mdlObtenerPiezometroUmbrales(idpiezo, tipo, tipopiezo):
         conn = None
@@ -487,28 +553,79 @@ class UmbralModel:
             if conn:
                 conn.close()
                 
+    # @staticmethod
+    # def mdlObtenerUmbralPrismas(proyectoid, idcomponente, tipo):
+    #     conn = None
+    #     try:
+    #         conn = Connection.connectionDB()
+    #         sql = """SELECT * FROM umbral_prisma WHERE id_proyecto = ? AND id_componente = ? AND tipo_umbral = ?;"""
+    #         cur = conn.cursor()
+    #         cur.execute(sql, (proyectoid, idcomponente, tipo))
+            
+    #         # Conversión explícita a tupla
+    #         result = [tuple(row) for row in cur.fetchall()]
+    #         if result:
+    #             return result
+    #         else:
+    #             return None
+    #     except Exception as e:
+    #         print("Error al obtener umbrales prismas: " + str(e))
+    #         return None
+    #     finally:
+    #         if conn:
+    #             conn.close()
     @staticmethod
     def mdlObtenerUmbralPrismas(proyectoid, idcomponente, tipo):
         conn = None
         try:
             conn = Connection.connectionDB()
-            sql = """SELECT * FROM umbral_prisma WHERE id_proyecto = ? AND id_componente = ? AND tipo_umbral = ?;"""
             cur = conn.cursor()
-            cur.execute(sql, (proyectoid, idcomponente, tipo))
             
-            # Conversión explícita a tupla
+            # ==========================================
+            # 1. INTENTO PRINCIPAL: Buscar por componente específico
+            # ==========================================
+            sql = """SELECT * FROM umbral_prisma WHERE id_proyecto = ? AND id_componente = ? AND tipo_umbral = ?;"""
+            cur.execute(sql, (proyectoid, idcomponente, tipo))
             result = [tuple(row) for row in cur.fetchall()]
+            
+            # ==========================================
+            # 2. FALLBACK: Si no hay resultado, buscar el GENERAL
+            # ==========================================
+            if not result:
+                # Buscamos el ID del componente GENERAL del proyecto
+                sql_general = """
+                    SELECT id_componente 
+                    FROM componentes 
+                    WHERE id_proyecto = ? AND nombre_componente = 'GENERAL'
+                """
+                cur.execute(sql_general, (proyectoid,))
+                row_general = cur.fetchone()
+                
+                if row_general:
+                    id_general = row_general[0]
+                    
+                    # Optimización: Si el componente específico ya era el GENERAL, no volvemos a consultar
+                    if id_general != idcomponente:
+                        sql_fallback = """
+                            SELECT * FROM umbral_prisma 
+                            WHERE id_proyecto = ? AND id_componente = ? AND tipo_umbral = ?;
+                        """
+                        cur.execute(sql_fallback, (proyectoid, id_general, tipo))
+                        result = [tuple(row) for row in cur.fetchall()]
+            
+            # Retornamos el resultado
             if result:
                 return result
             else:
                 return None
+                
         except Exception as e:
             print("Error al obtener umbrales prismas: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
-    
+                
     # Obtener datos del umbral monitor 2
     @staticmethod
     def mdlObtenerDatosUmbralm2():
