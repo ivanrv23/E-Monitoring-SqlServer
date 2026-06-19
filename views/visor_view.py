@@ -1243,6 +1243,8 @@ class VisorView:
             velocprisma, filtrado = config[15], config[16]
             info = ConfiguracionVisor.obtenerDataConfiguracionVisor()
             grosor = info[17]
+            radioprisma = info[3] # 🚀 1. OBTENEMOS EL RADIO DE LA ESFERA
+            
             piniciales = PrismaController.ctrlObtenerPrismasInicialesFecha(prismasmarcados, VisorView.fechainicial, VisorView.fechafinal, filtrado)
             pfinales = PrismaController.ctrlObtenerPrismasFinalesFecha(prismasmarcados, VisorView.fechainicial, VisorView.fechafinal, filtrado)
             puntos_iniciales = [(tupla[2], tupla[3], tupla[4]) for tupla in piniciales]
@@ -1250,6 +1252,7 @@ class VisorView:
             nombreprismas = [(tupla[0], tupla[1], tupla[5]) for tupla in pfinales]
             vectores = []  # Arreglo para almacenar la información de los vectores
             VisorView.colorvectores.clear()
+            
             # Traer distancias según tipo
             umbrales_color = []
             idcomponente = prismasmarcados[0][0][1]
@@ -1267,6 +1270,7 @@ class VisorView:
                     for fila in umbrales:
                         nombre, color, valor = fila[3], fila[4], fila[6]
                         umbrales_color.append((nombre, color, valor))
+                        
             if umbrales_color:
                 if puntos_iniciales and puntos_finales:
                     umbrales_color.sort(key=lambda x: x[2]) # ordenar por valor
@@ -1292,8 +1296,13 @@ class VisorView:
                         direccion_normalizada = [direccion[i] / longitud_real for i in range(3)]
                         longitud_escalada = longitud_real * VisorView.escalavector
                         
-                        punto_fin_fijo = [punto_inicio[i] + direccion_normalizada[i] * longitud_escalada for i in range(3)]
-                        punto_punta_cono = [punto_inicio[i] + direccion_normalizada[i] * (longitud_escalada + 5.0) for i in range(3)]
+                        # 🚀 2. SUMAMOS EL RADIO A LA MAGNITUD TOTAL VISUAL
+                        # La flecha nace en el centro, pero su largo total es el desplazamiento + el radio
+                        longitud_total_visual = longitud_escalada + radioprisma 
+                        
+                        # 🚀 3. CALCULAMOS LOS PUNTOS FINALES CON ESA NUEVA LONGITUD
+                        punto_fin_fijo = [punto_inicio[i] + direccion_normalizada[i] * longitud_total_visual for i in range(3)]
+                        punto_punta_cono = [punto_inicio[i] + direccion_normalizada[i] * (longitud_total_visual + 5.0) for i in range(3)]
                         
                         # 🚀 OPTIMIZACIÓN 3: Búsqueda O(1) en lugar de bucle lento
                         key = (prisma[0], prisma[1])
@@ -1308,26 +1317,32 @@ class VisorView:
                                     break
                             color_rgb = MetodosGenerales.convertirHexadecimalRGB(colorcito)
                             VisorView.colorvectores.append((prisma[0], prisma[2], color_rgb)) # id inst, id compon, color
+                            
                             # Crear un objeto vtkPoints para almacenar los puntos de inicio y fin
                             puntos = vtk.vtkPoints()
-                            puntos.InsertNextPoint(punto_inicio)
-                            puntos.InsertNextPoint(punto_fin_fijo)
+                            puntos.InsertNextPoint(punto_inicio) # 🚀 SE MANTIENE EN EL CENTRO DE LA ESFERA
+                            puntos.InsertNextPoint(punto_fin_fijo) # 🚀 LLEGA HASTA EL BORDE + EL DESPLAZAMIENTO
+                            
                             # Crear una línea conectando los puntos de inicio y fin
                             linea = vtk.vtkLine()
                             linea.GetPointIds().SetId(0, 0)
                             linea.GetPointIds().SetId(1, 1)
+                            
                             # Crear un objeto vtkCellArray para almacenar la línea
                             lineas = vtk.vtkCellArray()
                             lineas.InsertNextCell(linea)
+                            
                             # Crear un objeto vtkPolyData para contener la línea
                             polydata = vtk.vtkPolyData()
                             polydata.SetPoints(puntos)
                             polydata.SetLines(lineas)
+                            
                             # Crear un objeto vtkTubeFilter para dar grosor a la línea
                             tubo = vtk.vtkTubeFilter()
                             tubo.SetInputData(polydata)
                             tubo.SetRadius(grosor)
                             tubo.SetNumberOfSides(12) # 🚀 Menos lados = 40% más rápido
+                            
                             # Crear un objeto vtkConeSource para la punta de la flecha
                             punta_cono = vtk.vtkConeSource()
                             # Establecer la posición de la punta del cono
@@ -1338,22 +1353,27 @@ class VisorView:
                             punta_cono.SetRadius(anchocono)
                             punta_cono.SetHeight(largocono)
                             punta_cono.SetResolution(12) # 🚀 Cono más ligero
+                            
                             # Combinar el cuerpo del cilindro y la punta del cono
                             appendFilter = vtk.vtkAppendPolyData()
                             appendFilter.AddInputConnection(tubo.GetOutputPort())
                             appendFilter.AddInputConnection(punta_cono.GetOutputPort())
                             appendFilter.Update()
+                            
                             # Crear un objeto vtkPolyDataMapper para mapear los datos
                             mapper = vtk.vtkPolyDataMapper()
                             mapper.SetInputConnection(appendFilter.GetOutputPort())
+                            
                             # Crear un objeto vtkActor para mostrar la flecha
                             flecha = vtk.vtkActor()
                             flecha.SetMapper(mapper)
                             flecha.GetProperty().SetColor(color_rgb)  
+                            
                             # Agregar el actor al renderer
                             VisorView.rendererVisor.AddActor(flecha)
                             flecha.SetVisibility(False)
                             vectores.append((prisma[0], prisma[2], punto_inicio, flecha)) # id inst, id compon, coord, actor
+                            
                     return "OK", vectores
                 else:
                     return "NO", []
