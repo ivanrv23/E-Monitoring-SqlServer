@@ -412,12 +412,12 @@ class MainView:
             btn_ejes_analisis = MainView.main_window.findChild(QPushButton, "btn_ejes_analisis")
             cargarIcono(btn_ejes_analisis, ListaIconos.ICONOS["configurar_ejes"])
             # Tiempo Real
-            btn_ejes_tiempo = MainView.main_window.findChild(QPushButton, "btn_ejes_tiemporeal")
+            btn_ejes_tiempo = MainView.main_window.findChild(QPushButton, "btn_ejes_comportamiento")
             cargarIcono(btn_ejes_tiempo, ListaIconos.ICONOS["configurar_ejes"])
-            btn_umbral_tiempo = MainView.main_window.findChild(QPushButton, "btn_umbrales_tiemporeal")
-            cargarIcono(btn_umbral_tiempo, ListaIconos.ICONOS["umbral"])
-            btn_asignar_tiempo = MainView.main_window.findChild(QPushButton, "btn_asignar_tiempo")
-            cargarIcono(btn_asignar_tiempo, ListaIconos.ICONOS["reloj"])
+            btn_configurar_comportamiento = MainView.main_window.findChild(QPushButton, "btn_configurar_comportamiento")
+            cargarIcono(btn_configurar_comportamiento, ListaIconos.ICONOS["limpieza_ruido_manual"])
+            # btn_umbral_tiempo = MainView.main_window.findChild(QPushButton, "btn_umbrales_tiemporeal")
+            # cargarIcono(btn_umbral_tiempo, ListaIconos.ICONOS["umbral"])
             # Variaciones de coordenadas
             btn_refrescar_vista_variacion = MainView.main_window.findChild(QPushButton, "btn_refresca_grafica_variaciones")
             cargarIcono(btn_refrescar_vista_variacion, ListaIconos.ICONOS["refrescar_grafico"])

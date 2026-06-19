@@ -28,7 +28,7 @@ from modules.analisis.visualizaElipse import VisualizacionElipse
 from modules.analisis.graficarCoordenadas import GraficarCoordenadasPrismas
 from utils.shared.resumenprismas import ResumenPrismas
 from utils.generic.calculardesviaciones import CalcularDesviaciones
-from modules.analisis.tiemporeal import GraficaTiempoReal
+from modules.analisis.comportamientoprismas import GraficaComportamiento
 from controllers.UmbralController import UmbralController
 from utils.shared.graficarUmbrales import GraficarUmbrales
 from services.security.session import Session
@@ -254,10 +254,6 @@ class AnalisisView:
     ejeymax = 0
     intervalo_principal_y = 0
     intervalo_secundario_y = 0
-    _timer_tiempo_real = None
-    _umbral_idcomponente = None
-    _graficando_tiempo_real = False
-    _intervalo_tiempo_real = 60
 
     def inicializarVistaAnalisis(main, proyectoid, proyectoname, fechaini, fechafin):
         AnalisisView.main = main
@@ -286,10 +282,10 @@ class AnalisisView:
             # VISTA GENERAL ANÁLISIS
             lista_graficos_analisis = {
                 'TE': 'Trayectoria - Estereografía',
+                'CP': 'Comportamiento de Prismas',
                 'IV': 'Inversa de la Velocidad',
                 'VC': 'Variación de Coordenadas',
                 'HI': 'Histograma',
-                'TR': 'Gráfica Tiempo Real',
                 'RE': 'Resumen de Equipos',
                 'EE': 'Elipse/Elipsoide de Desviaciones',
                 'LC': 'Limpieza de Coordenadas',
@@ -476,84 +472,29 @@ class AnalisisView:
             btnReporteGeneralBarras.clicked.connect(lambda: AnalisisView.mostrarDialogoReporteAnalisis(tree_actual, "Resumen", "General"))
             btn_refrescar_resumen_equipos = main.findChild(QPushButton, "btn_refrescar_resumen_equipos")
             btn_refrescar_resumen_equipos.clicked.connect(AnalisisView.grafica_barras_resumen)
-            ##### VISTA TIEMPO REAL
-            comboComponentesReal = main.findChild(QComboBox, "combo_componentes_tiemporeal")
-            comboInstrumentosReal = main.findChild(QComboBox, "combo_instrumentos_tiemporeal")
-            comboTipograficasReal = main.findChild(QComboBox, "combo_tipografica_tiemporeal")
-            comboUnidadesReal = main.findChild(QComboBox, "combo_unidades_tiemporeal")
-            comboInstrumentosReal.clear()
-            # cargar instrumentos
-            comboInstrumentosReal.addItem("Prismas", "PRISMA")
-            comboInstrumentosReal.addItem("Pz Cuerda Vibrante", "PIEZOMETROCUERDA")
-            comboInstrumentosReal.addItem("Celdas", "CELDA")
-            def cargarTiposGraficos():
-                comboTipograficasReal.clear()
-                instrumento = comboInstrumentosReal.currentData()
-                if instrumento == "PRISMA":
-                    lista = [
-                        ("Despl. Acumulado 3D","3DA"), ("Despl. Incremental 3D","3DI"), 
-                        ("Despl. Acumulado 2D","2DA"), ("Despl. Incremental 2D","2DI"), 
-                        ("Despl. Acumulado SD","SDA"), ("Despl. Incremental SD","SDI"), 
-                        ("Despl. Acumulado E","DEA"), ("Despl. Incremental E","DEI"),
-                        ("Despl. Acumulado N","DNA"), ("Despl. Incremental N","DNI"),
-                        ("Despl. Acumulado Z","DZA"), ("Despl. Incremental Z","DZI"),
-                        ("Velocidad Acumulado 3D","VA3D"), ("Velocidad Incremental 3D","VI3D"),
-                        ("Velocidad Acumulado 2D","VA2D"), ("Velocidad Incremental 2D","VI2D"),
-                        ("Velocidad Acumulado SD","VASD"), ("Velocidad Incremental SD","VISD"),
-                    ]
-                elif instrumento == "PIEZOMETROCUERDA":
-                    lista = [("Nivel Freático","PCNF"),("Nivel Acumulado","PCNA"),("Nivel Incremental","PCNI")]
-                elif instrumento == "CELDA":
-                    lista = [("Nivel Asentamiento","CANA"),("Asentamiento Acumulado","CAAA"),("Asentamiento Incremental","CAAI")]
-                else:
-                    lista = []
-                for texto, valor in lista:
-                    comboTipograficasReal.addItem(texto, valor)
+            ##### VISTA COMPORTAMIENTO PRISMAS
+            comboComponentesComportamiento = main.findChild(QComboBox, "combo_componentes_comportamiento")
+            comboPrismasComportamiento = main.findChild(QComboBox, "combo_prismas_comportamiento")
+            comboGraficasComportamiento = main.findChild(QComboBox, "combo_tiposgrafica_comportamiento")
+            comboUnidadesComprtamiento = main.findChild(QComboBox, "combo_unidades_comportamiento")
+            def cargarTiposGraficas():
+                comboGraficasComportamiento.clear()
+                for texto, valor in [("Desplazamientos", "desplazamiento"), ("Velocidades", "velocidad")]:
+                    comboGraficasComportamiento.addItem(texto, valor)
             def cargarTiposUnidades():
-                comboUnidadesReal.clear()
-                tipografica = comboTipograficasReal.currentData()
-                if tipografica in ("3DA","3DI","2DA","2DI","SDA","SDI","DEA","DEI","DNA","DNI","DZA","DZI","PCNA","PCNI","PMNA","PMNI","CAAA","CAAI"):
-                    for texto, valor in [("Metros",1),("Centímetros",100),("Milímetros",1000)]:
-                        comboUnidadesReal.addItem(texto, valor)
-                elif tipografica in ("VA3D","VI3D","VA2D","VI2D","VASD","VISD"):
-                    for texto, valor in [("Metros/día",1),("Centímetros/día",100),("Milímetros/día",1000),("Metros/hora",1/24),("Centímetros/hora",100/24),("Milímetros/hora",1000/24)]:
-                        comboUnidadesReal.addItem(texto, valor)
-                elif tipografica in ("PCNF","PMNF","CANA"):
-                    comboUnidadesReal.addItem("MSNM", 1)
-            # Cuando cambia el INSTRUMENTO → recargar tipos + unidades
-            def reiniciarPorInstrumento():
-                comboTipograficasReal.blockSignals(True)
-                comboUnidadesReal.blockSignals(True)
-                try:
-                    cargarTiposGraficos()
-                    cargarTiposUnidades()
-                finally:
-                    comboTipograficasReal.blockSignals(False)
-                    comboUnidadesReal.blockSignals(False)
-                AnalisisView.GraficarTiempoReal()
-            # Cuando cambia el TIPO DE GRÁFICA → recargar solo unidades
-            def reiniciarPorTipografica():
-                comboUnidadesReal.blockSignals(True)
-                try:
-                    cargarTiposUnidades()
-                finally:
-                    comboUnidadesReal.blockSignals(False)
-                AnalisisView.GraficarTiempoReal()
+                comboUnidadesComprtamiento.clear()
+                for texto, valor in [("Metros",1),("Centímetros",100),("Milímetros",1000)]:
+                    comboUnidadesComprtamiento.addItem(texto, valor)
             # Inicialización
-            reiniciarPorInstrumento()
+            cargarTiposGraficas()
+            cargarTiposUnidades()
             # Botones
-            btnEjesTiempoReal = main.findChild(QPushButton, "btn_ejes_tiemporeal")
-            btnEjesTiempoReal.clicked.connect(AnalisisView.mostrarModalConfiguracionEjesTiempoReal)
-            btnUmbralTiempoReal = main.findChild(QPushButton, "btn_umbrales_tiemporeal")
-            btnUmbralTiempoReal.clicked.connect(AnalisisView.graficarUmbralesTiempoReal)
-
-            btnAsignarTiempo = main.findChild(QPushButton, "btn_asignar_tiempo")
-            btnAsignarTiempo.clicked.connect(AnalisisView.modalAsignarTiempo)
-
-            comboInstrumentosReal.currentIndexChanged.connect(reiniciarPorInstrumento)
-            comboTipograficasReal.activated.connect(reiniciarPorTipografica)
-            comboComponentesReal.activated.connect(AnalisisView.GraficarTiempoReal)
-            comboUnidadesReal.activated.connect(AnalisisView.GraficarTiempoReal)
+            btnEjesComportamiento = main.findChild(QPushButton, "btn_ejes_comportamiento")
+            btnEjesComportamiento.clicked.connect(AnalisisView.mostrarModalConfiguracionEjesComportamiento)
+            comboComponentesComportamiento.activated.connect(AnalisisView.cargarPrismasComportamientoComponente)
+            comboPrismasComportamiento.activated.connect(AnalisisView.ValidarComportamientoPrismas)
+            comboGraficasComportamiento.activated.connect(AnalisisView.ValidarUnidadesComportamientoPrismas)
+            comboUnidadesComprtamiento.activated.connect(AnalisisView.ValidarComportamientoPrismas)
             # VISTA ELIPSE DE ERROR
             btn_refrescar_elipse = main.findChild(QPushButton, "btn_refresca_grafica_elipse")
             btn_refrescar_elipse.clicked.connect(AnalisisView.graficarElipseDesviaciones)
@@ -639,34 +580,37 @@ class AnalisisView:
     
     def cargarPrismasCombosAnalisis(main, idproyecto):
         if main and idproyecto:
+            comboComponentesComportamiento = main.findChild(QComboBox, "combo_componentes_comportamiento")
+            comboPrismasComportamiento = main.findChild(QComboBox, "combo_prismas_comportamiento")
             comboComponentesHistograma = main.findChild(QComboBox, "combo_componentes_histograma")
             comboComponentesElipse = main.findChild(QComboBox, "combo_componentes_elipse")
             comboComponentesLimpieza = AnalisisView.main.findChild(QComboBox, "combo_componentes_limpieza")
             comboPrismasHistograma = AnalisisView.main.findChild(QComboBox, "combo_prismas_histograma")
             comboPrismasElipse = main.findChild(QComboBox, "combo_prismas_elipse")
             comboPrismasLimpieza = main.findChild(QComboBox, "combo_prismas_limpieza")
-            comboComponentesTiempoReal = main.findChild(QComboBox, "combo_componentes_tiemporeal")
             # Traer lista de componentes que tengan prismas
             componentes = AnalisisController.ctrlListarComponentesPrismasProyecto(idproyecto)
             if componentes:
+                comboComponentesComportamiento.clear()
                 comboComponentesHistograma.clear()
                 comboComponentesElipse.clear()
                 comboComponentesLimpieza.clear()
-                comboComponentesTiempoReal.clear()
                 for componente in componentes:
+                    comboComponentesComportamiento.addItem(componente[2], componente[0])
                     comboComponentesHistograma.addItem(componente[2], componente[0])
                     comboComponentesElipse.addItem(componente[2], componente[0])
                     comboComponentesLimpieza.addItem(componente[2], componente[0])
-                    comboComponentesTiempoReal.addItem(componente[2], componente[0])
                 # listar prismas por el primer componente
                 idcomponente = componentes[0][0]
                 if idcomponente:
                     listaprismas = AnalisisController.ctrlObtenerNombresPrismasComponente(idcomponente)
                     if listaprismas:
+                        comboPrismasComportamiento.clear()
                         comboPrismasHistograma.clear()
                         comboPrismasElipse.clear()
                         comboPrismasLimpieza.clear()
                         for prisma in listaprismas: # idinstr, idcompo, tipo, nomb, idequipo, tabla, estado
+                            comboPrismasComportamiento.addItem(prisma[3], prisma[0])
                             comboPrismasHistograma.addItem(prisma[3], (prisma[2], prisma[1]))
                             comboPrismasElipse.addItem(prisma[3], prisma[2])
                             comboPrismasLimpieza.addItem(prisma[3], prisma[2])
@@ -719,6 +663,8 @@ class AnalisisView:
                     AnalisisView.limpiarGraficasAnalisis()
             else:
                 AnalisisView.limpiarGraficasAnalisis()
+        elif tipografico == "CP":
+            AnalisisView.ValidarComportamientoPrismas()
         elif tipografico == "VC":
             AnalisisView.validarVariacionesCoordenadas(tree_actual)
         elif tipografico == "HI":
@@ -849,7 +795,7 @@ class AnalisisView:
         scroll_limpiar_datos = AnalisisView.main.findChild(QScrollArea, "scrollArea_graficas_limpieza_datos")
         tree_actual =  AnalisisView.main.findChild(QTreeWidget, "tree_actual_analisis")
         scroll_resumen_equipos = AnalisisView.main.findChild(QScrollArea, "scrollArea_graficas_resumen_equipos")
-        scroll_tiempo_real = AnalisisView.main.findChild(QScrollArea, "scrollArea_graficas_tiemporeal")
+        scroll_comportamiento = AnalisisView.main.findChild(QScrollArea, "scrollArea_graficas_comportamiento")
         listachecks = AnalisisView.main.findChild(QStackedWidget, "stacked_lista_checks")
         if tipografica == 'TE':
             listachecks.setCurrentIndex(9)
@@ -859,10 +805,9 @@ class AnalisisView:
             scroll_resumen_equipos.hide()
             scroll_elipzoide_error.hide()
             scroll_limpiar_datos.hide()
-            scroll_tiempo_real.hide()
+            scroll_comportamiento.hide()
             scroll_trayectoria_estereografia.show()
             AnalisisView.validarGraficaEstereografia(tree_actual)
-            AnalisisView.detenerTimerTiempoReal()
         elif tipografica == 'IV':
             listachecks.setCurrentIndex(9)
             scroll_graficas_histograma.hide()
@@ -871,10 +816,9 @@ class AnalisisView:
             scroll_resumen_equipos.hide()
             scroll_elipzoide_error.hide()
             scroll_limpiar_datos.hide()
-            scroll_tiempo_real.hide()
+            scroll_comportamiento.hide()
             scroll_graficas_analisis.show()
             AnalisisView.obtenerMostrarPrismasMarcados(tree_actual)
-            AnalisisView.detenerTimerTiempoReal()
         elif tipografica == 'VC':
             listachecks.setCurrentIndex(9)
             scroll_graficas_histograma.hide()
@@ -883,9 +827,8 @@ class AnalisisView:
             scroll_resumen_equipos.hide()
             scroll_elipzoide_error.hide()
             scroll_limpiar_datos.hide()
-            scroll_tiempo_real.hide()
+            scroll_comportamiento.hide()
             scroll_graficas_variacion.show()
-            AnalisisView.detenerTimerTiempoReal()
         elif tipografica == 'HI':
             listachecks.setCurrentIndex(10)
             scroll_trayectoria_estereografia.hide()
@@ -894,9 +837,8 @@ class AnalisisView:
             scroll_resumen_equipos.hide()
             scroll_elipzoide_error.hide()
             scroll_limpiar_datos.hide()
-            scroll_tiempo_real.hide()
+            scroll_comportamiento.hide()
             scroll_graficas_histograma.show()
-            AnalisisView.detenerTimerTiempoReal()
         elif tipografica == 'RE':
             listachecks.setCurrentIndex(10)
             scroll_trayectoria_estereografia.hide()
@@ -905,10 +847,9 @@ class AnalisisView:
             scroll_graficas_histograma.hide()
             scroll_elipzoide_error.hide()
             scroll_limpiar_datos.hide()
-            scroll_tiempo_real.hide()
+            scroll_comportamiento.hide()
             scroll_resumen_equipos.show()
-            AnalisisView.detenerTimerTiempoReal()
-        elif tipografica == 'TR':
+        elif tipografica == 'CP':
             listachecks.setCurrentIndex(10)
             scroll_trayectoria_estereografia.hide()
             scroll_graficas_analisis.hide()
@@ -917,9 +858,7 @@ class AnalisisView:
             scroll_elipzoide_error.hide()
             scroll_limpiar_datos.hide()
             scroll_resumen_equipos.hide()
-            scroll_tiempo_real.show()
-            AnalisisView.GraficarTiempoReal()
-            AnalisisView.iniciarTimerTiempoReal()
+            scroll_comportamiento.show()
         elif tipografica == 'EE':
             listachecks.setCurrentIndex(10)
             scroll_trayectoria_estereografia.hide()
@@ -928,9 +867,8 @@ class AnalisisView:
             scroll_graficas_histograma.hide()
             scroll_resumen_equipos.hide()
             scroll_limpiar_datos.hide()
-            scroll_tiempo_real.hide()
+            scroll_comportamiento.hide()
             scroll_elipzoide_error.show()
-            AnalisisView.detenerTimerTiempoReal()
         else:
             listachecks.setCurrentIndex(10)
             scroll_trayectoria_estereografia.hide()
@@ -939,9 +877,8 @@ class AnalisisView:
             scroll_graficas_histograma.hide()
             scroll_resumen_equipos.hide()
             scroll_elipzoide_error.hide()
+            scroll_comportamiento.hide()
             scroll_limpiar_datos.show()
-            scroll_tiempo_real.hide()
-            AnalisisView.detenerTimerTiempoReal()
     
     def validarCheckboxVistasAnalisis():
         combo_grafico_analisis = AnalisisView.main.findChild(QComboBox, "combo_graficas_analisis")
@@ -957,7 +894,7 @@ class AnalisisView:
             listachecks.setCurrentIndex(10)
         elif tipografica == 'RE':
             listachecks.setCurrentIndex(10)
-        elif tipografica == 'TR':
+        elif tipografica == 'CP':
             listachecks.setCurrentIndex(10)
         elif tipografica == 'EE':
             listachecks.setCurrentIndex(10)
@@ -1009,22 +946,42 @@ class AnalisisView:
             combovistas = AnalisisView.main.findChild(QComboBox, "cb_tipo_vista_trayectoria")
             GraficarEstereografiaTrayectoria.graficar_trayectoria(widget_trayectoria, datos, combovistas, tipo)
 
-    def GraficarTiempoReal():
-        # Evitar re-entrada
-        if AnalisisView._graficando_tiempo_real:
-            return
+    def ValidarComportamientoPrismas():
         combo_grafico = AnalisisView.main.findChild(QComboBox, "combo_graficas_analisis")
-        if combo_grafico.currentData() != "TR":
+        if combo_grafico.currentData() != 'CP':
             return
-        comboComponentes = AnalisisView.main.findChild(QComboBox, "combo_componentes_tiemporeal")
-        AnalisisView._graficando_tiempo_real = True
-        try:
-            AnalisisView.limpiarGraficaTiempoReal()
-            if comboComponentes.count() > 0:
-                GraficaTiempoReal.graficarDatosTimpoReal(AnalisisView.main, AnalisisView.idproyecto)
-                AnalisisView.aplicarUmbralesTiempoReal()
-        finally:
-            AnalisisView._graficando_tiempo_real = False
+        AnalisisView.limpiarGraficaComportamiento()
+        comboComponentes = AnalisisView.main.findChild(QComboBox, "combo_componentes_comportamiento")
+        if comboComponentes.count() > 0:
+            comboPrismas = AnalisisView.main.findChild(QComboBox, "combo_prismas_comportamiento")
+            if comboPrismas.count() > 0:
+                GraficaComportamiento.graficarComportamientoPrismas(AnalisisView.main, AnalisisView.idproyecto, AnalisisView.fechainicial, AnalisisView.fechafinal)
+    
+    def cargarPrismasComportamientoComponente():
+        comboComponentes = AnalisisView.main.findChild(QComboBox, "combo_componentes_comportamiento")
+        comboPrismas = AnalisisView.main.findChild(QComboBox, "combo_prismas_comportamiento")
+        if comboComponentes.count() > 0:
+            idcomponente = comboComponentes.currentData()
+            listaprismas = AnalisisController.ctrlObtenerNombresPrismasComponente(idcomponente)
+            if listaprismas:
+                comboPrismas.clear()
+                for prisma in listaprismas: # idinstr, idcompo, tipo, nomb, idequipo, tabla, estado
+                    comboPrismas.addItem(prisma[3], prisma[0])
+                AnalisisView.ValidarComportamientoPrismas()
+
+    def ValidarUnidadesComportamientoPrismas():
+        comboGraficas = AnalisisView.main.findChild(QComboBox, "combo_tiposgrafica_comportamiento")
+        tipografica = comboGraficas.currentData()
+        comboUnidades = AnalisisView.main.findChild(QComboBox, "combo_unidades_comportamiento")
+        if tipografica == "desplazamiento":
+            comboUnidades.clear()
+            for texto, valor in [("Metros",1),("Centímetros",100),("Milímetros",1000)]:
+                comboUnidades.addItem(texto, valor)
+        else:
+            comboUnidades.clear()
+            for texto, valor in [("Metros/día",1),("Centímetros/día",100),("Milímetros/día",1000),("Metros/hora",1/24),("Centímetros/hora",100/24),("Milímetros/hora",1000/24)]:
+                comboUnidades.addItem(texto, valor)
+        AnalisisView.ValidarComportamientoPrismas()
 
     def validarVariacionesCoordenadas(tree_actual):
         lista = EquiposAnalisis.obtener_todos_elementos_marcados(tree_actual)
@@ -1709,18 +1666,9 @@ class AnalisisView:
         widget_analisis = AnalisisView.main.findChild(QWidget, "widget_analisis")
         GraficarEstereografiaTrayectoria.limpiar_widget(widget_analisis)
     
-    def limpiarGraficaTiempoReal():
-        widget_tiemporeal = AnalisisView.main.findChild(QWidget, "widget_graficas_tiemporeal")
-        if widget_tiemporeal:
-            # Cerrar figuras de matplotlib para liberar memoria
-            import matplotlib.pyplot as plt
-            from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-            for child in widget_tiemporeal.findChildren(FigureCanvas):
-                try:
-                    plt.close(child.figure)
-                except Exception:
-                    pass
-        GraficarEstereografiaTrayectoria.limpiar_widget(widget_tiemporeal)
+    def limpiarGraficaComportamiento():
+        widget_comportamiento = AnalisisView.main.findChild(QWidget, "widget_graficas_comportamiento")
+        GraficarEstereografiaTrayectoria.limpiar_widget(widget_comportamiento)
     
     def limpiarGraficaVariacion():
         widget_variacion = AnalisisView.main.findChild(QWidget, "widget_variaciones")
@@ -1752,7 +1700,7 @@ class AnalisisView:
         AnalisisView.limpiarGraficaTrayectoria()
         AnalisisView.limpiarGraficaEstereografia()
         AnalisisView.limpiarGraficaInversaVelocidad()
-        AnalisisView.limpiarGraficaTiempoReal()
+        AnalisisView.limpiarGraficaComportamiento()
         AnalisisView.limpiarGraficaVariacion()
         AnalisisView.limpiarGraficaHistograma()
         AnalisisView.limpiarGraficaBarras()
@@ -1969,46 +1917,6 @@ class AnalisisView:
                         else:
                             procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, regresion, escala)
 
-    def graficarUmbralesTiempoReal():
-        comboComponentes = AnalisisView.main.findChild(QComboBox, "combo_componentes_tiemporeal")
-        if comboComponentes.count() == 0:
-            return
-        widget = AnalisisView.main.findChild(QWidget, "widget_graficas_tiemporeal")
-        comboInstrumentos = AnalisisView.main.findChild(QComboBox, "combo_instrumentos_tiemporeal")
-        comboTipograficas = AnalisisView.main.findChild(QComboBox, "combo_tipografica_tiemporeal")
-        comboUnidades = AnalisisView.main.findChild(QComboBox, "combo_unidades_tiemporeal")
-        instrumento = comboInstrumentos.currentData() or "PRISMA"
-        tipografico = comboTipograficas.currentData() or "DA3D"
-        unidad = comboUnidades.currentData() or 1
-        tabla = 'umbral_prisma' if instrumento == "PRISMA" else 'umbral_piezometro' if instrumento == "PIEZOMETROCUERDA" else 'umbral_celda'
-
-        validar = UmbralController.ctrlValidarUmbralesComponentes(AnalisisView.idproyecto, tipografico, tabla)
-        if not validar:
-            return
-        cantidad, idcomponen = validar
-        if cantidad == 0:
-            return
-
-        umbrales = None
-        if cantidad == 1:
-            AnalisisView._umbral_idcomponente = idcomponen  # guardar selección
-            umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(
-                AnalisisView.idproyecto, idcomponen, tipografico, tabla
-            )
-        else:
-            componentes = UmbralController.ctrlListarComponentesUmbrales(
-                AnalisisView.idproyecto, tipografico, tabla
-            )
-            if componentes:
-                codigoseleccionado = GraficarUmbrales.mostrarSeleccionUmbrales(componentes, "Umbral Prismas")
-                if codigoseleccionado:
-                    AnalisisView._umbral_idcomponente = codigoseleccionado  # guardar selección
-                    umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(
-                        AnalisisView.idproyecto, codigoseleccionado, tipografico, tabla
-                    )
-        if umbrales:
-            GraficarUmbrales.draw_on_widget(widget, umbrales, unidad)
-
     def mostrarModalConfiguracionEjesInversaVelocidad(treeWidget):
         lista = EquiposAnalisis.obtener_todos_elementos_marcados(treeWidget)
         if lista:
@@ -2111,18 +2019,15 @@ class AnalisisView:
                     if respuesta:
                         AnalisisView.graficarVariacionesCoordenadas(prismasmarcados)
     
-    def mostrarModalConfiguracionEjesTiempoReal():
-        comboComponentes = AnalisisView.main.findChild(QComboBox, "combo_componentes_tiemporeal")
+    def mostrarModalConfiguracionEjesComportamiento():
+        comboComponentes = AnalisisView.main.findChild(QComboBox, "combo_componentes_comportamiento")
         if comboComponentes.count() > 0:
-            comboInstrumentos = AnalisisView.main.findChild(QComboBox, "combo_instrumentos_tiemporeal")
-            comboTipograficas = AnalisisView.main.findChild(QComboBox, "combo_tipografica_tiemporeal")
-            comboUnidades = AnalisisView.main.findChild(QComboBox, "combo_unidades_tiemporeal")
-            instrumento = comboInstrumentos.currentData() or "PRISMA"
-            tipografico = comboTipograficas.currentData() or "DA3D"
+            comboTipograficas = AnalisisView.main.findChild(QComboBox, "combo_tiposgrafica_comportamiento")
+            comboUnidades = AnalisisView.main.findChild(QComboBox, "combo_unidades_comportamiento")
+            tipografico = comboTipograficas.currentData() or "desplazamiento"
             unidad = comboUnidades.currentData() or 1
-            graficatipo = f"{instrumento}{tipografico}"
             unidadtiempo = 1
-            infoeje = ConfiguracionController.ctrlObtenerConfiguracionEje(AnalisisView.idproyecto, "ANALISIS", graficatipo)
+            infoeje = ConfiguracionController.ctrlObtenerConfiguracionEje(AnalisisView.idproyecto, "ANALISIS", tipografico)
             if infoeje:
                 ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8]
             else:
@@ -2130,61 +2035,9 @@ class AnalisisView:
             estadoeje, minejey, maxejey, primario, secundario, dias = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, unidad, unidadtiempo)
             if estadoeje:
                 # guardar configuracion
-                respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(AnalisisView.idproyecto, "ANALISIS", graficatipo, minejey, maxejey, primario, secundario, dias)
+                respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(AnalisisView.idproyecto, "ANALISIS", tipografico, minejey, maxejey, primario, secundario, dias)
                 if respuesta:
-                    AnalisisView.GraficarTiempoReal()
-    
-    def modalAsignarTiempo():
-        if not AnalisisView.idproyecto:
-            return
-        dialog = QDialog(AnalisisView.main)
-        dialog.setWindowTitle("Configurar Intervalo de Actualización")
-        dialog.setFixedWidth(320)
-        dialog.setModal(True)
-        layout = QVBoxLayout(dialog)
-        layout.setSpacing(12)
-        layout.setContentsMargins(20, 20, 20, 20)
-        # Etiqueta informativa
-        lbl_info = QLabel("Ingrese el intervalo de actualización\npara la gráfica en tiempo real:")
-        lbl_info.setAlignment(Qt.AlignCenter)
-        layout.addWidget(lbl_info)
-        # Fila de input
-        fila = QHBoxLayout()
-        lbl_min = QLabel("Minutos:")
-        spin = QSpinBox()
-        spin.setMinimum(1)
-        spin.setMaximum(60)
-        spin.setValue(AnalisisView._intervalo_tiempo_real)  # mostrar valor actual
-        spin.setSuffix(" min")
-        spin.setFixedWidth(100)
-        fila.addWidget(lbl_min)
-        fila.addStretch()
-        fila.addWidget(spin)
-        layout.addLayout(fila)
-        # Etiqueta que muestra el estado actual
-        lbl_actual = QLabel(f"Intervalo actual: {AnalisisView._intervalo_tiempo_real} minuto(s)")
-        lbl_actual.setStyleSheet("color: gray; font-size: 11px;")
-        lbl_actual.setAlignment(Qt.AlignCenter)
-        layout.addWidget(lbl_actual)
-        # Botones
-        botones = QHBoxLayout()
-        btn_confirmar = QPushButton("Confirmar")
-        btn_cancelar = QPushButton("Cancelar")
-        btn_confirmar.setFixedHeight(32)
-        btn_cancelar.setFixedHeight(32)
-        botones.addWidget(btn_confirmar)
-        botones.addWidget(btn_cancelar)
-        layout.addLayout(botones)
-        def confirmar():
-            minutos = spin.value()
-            AnalisisView._intervalo_tiempo_real = minutos
-            # Si el timer está activo, reiniciarlo con el nuevo intervalo
-            if AnalisisView._timer_tiempo_real is not None:
-                AnalisisView.iniciarTimerTiempoReal()
-            dialog.accept()
-        btn_confirmar.clicked.connect(confirmar)
-        btn_cancelar.clicked.connect(dialog.reject)
-        dialog.exec()
+                    AnalisisView.ValidarComportamientoPrismas()
     
     def actualizarVistaAnalisis(fechaini, fechafin, filtro=False):
         AnalisisView.fechainicial = fechaini
@@ -2227,58 +2080,7 @@ class AnalisisView:
             botonvoz.setEnabled(False)
             hilo_asistente = threading.Thread(target=AsistenteVoz.analizarVistaAnalisis, args=(AnalisisView.main, AnalisisView.idproyecto, prismasmarcados, trayectoriagraficado, histogramagraficado, AnalisisView.fechainicial, AnalisisView.fechafinal, tipografico, botonvoz))
             hilo_asistente.start()
-    
-    # Nuevo método interno para pintar umbrales sin diálogos
-    def aplicarUmbralesTiempoReal():
-        try:
-            widget = AnalisisView.main.findChild(QWidget, "widget_graficas_tiemporeal")
-            comboInstrumentos = AnalisisView.main.findChild(QComboBox, "combo_instrumentos_tiemporeal")
-            comboTipograficas = AnalisisView.main.findChild(QComboBox, "combo_tipografica_tiemporeal")
-            comboUnidades = AnalisisView.main.findChild(QComboBox, "combo_unidades_tiemporeal")
-            instrumento = comboInstrumentos.currentData() or "PRISMA"
-            tipografico = comboTipograficas.currentData() or "DA3D"
-            unidad = comboUnidades.currentData() or 1
-            tabla = 'umbral_prisma' if instrumento == "PRISMA" else 'umbral_piezometro' if instrumento == "PIEZOMETROCUERDA" else 'umbral_celda'
-
-            validar = UmbralController.ctrlValidarUmbralesComponentes(AnalisisView.idproyecto, tipografico, tabla)
-            if not validar:
-                return
-            cantidad, idcomponen = validar
-            if cantidad == 0:
-                return
-
-            # Usar el componente recordado, o el primero disponible si no hay uno guardado
-            if AnalisisView._umbral_idcomponente is not None:
-                idseleccionado = AnalisisView._umbral_idcomponente
-            else:
-                idseleccionado = idcomponen  # primero disponible
-
-            umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(
-                AnalisisView.idproyecto, idseleccionado, tipografico, tabla
-            )
-            if umbrales:
-                GraficarUmbrales.draw_on_widget(widget, umbrales, unidad)
-        except Exception:
-            pass  # No interrumpir el refresco si umbrales falla
-        
-    # Timer de tiempo real
-    def iniciarTimerTiempoReal():
-        if AnalisisView._timer_tiempo_real is not None:
-            AnalisisView._timer_tiempo_real.stop()
-            AnalisisView._timer_tiempo_real = None
-
-        timer = QTimer()
-        timer.setInterval(AnalisisView._intervalo_tiempo_real * 60 * 1000)
-        timer.timeout.connect(AnalisisView.GraficarTiempoReal)
-        timer.start()
-        AnalisisView._timer_tiempo_real = timer
-
-    def detenerTimerTiempoReal():
-        if AnalisisView._timer_tiempo_real is not None:
-            AnalisisView._timer_tiempo_real.stop()
-            AnalisisView._timer_tiempo_real = None
-
-
+ 
 # Eje de fechas en X
 class DateAxis(pg.AxisItem):
     def tickStrings(self, values, scale, spacing):
