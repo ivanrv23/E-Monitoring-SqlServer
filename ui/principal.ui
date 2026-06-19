@@ -1152,7 +1152,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <x>0</x>
                 <y>0</y>
                 <width>706</width>
-                <height>22</height>
+                <height>28</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_5">
@@ -1743,7 +1743,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <x>0</x>
                 <y>0</y>
                 <width>889</width>
-                <height>22</height>
+                <height>28</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_6">
@@ -2171,7 +2171,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <x>0</x>
                 <y>0</y>
                 <width>879</width>
-                <height>22</height>
+                <height>28</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_23">
@@ -2637,7 +2637,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <x>0</x>
                 <y>0</y>
                 <width>875</width>
-                <height>22</height>
+                <height>28</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_24">
@@ -3087,7 +3087,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <x>0</x>
                 <y>0</y>
                 <width>641</width>
-                <height>22</height>
+                <height>28</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_8">
@@ -3513,7 +3513,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <x>0</x>
                 <y>0</y>
                 <width>835</width>
-                <height>22</height>
+                <height>28</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_10">
@@ -3978,7 +3978,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <x>0</x>
                 <y>0</y>
                 <width>399</width>
-                <height>22</height>
+                <height>28</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_14">
@@ -4336,7 +4336,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <x>0</x>
                 <y>0</y>
                 <width>375</width>
-                <height>22</height>
+                <height>28</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_16">
@@ -5050,7 +5050,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                             </size>
                            </property>
                            <property name="toolTip">
-                            <string>Lista de Instrumentación</string>
+                            <string>Lista de Prismas</string>
                            </property>
                            <property name="styleSheet">
                             <string notr="true"/>
@@ -5131,7 +5131,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                          <item>
                           <widget class="QPushButton" name="btn_configurar_comportamiento">
                            <property name="toolTip">
-                            <string>Actualizar Vista</string>
+                            <string>Ajustar Visualización</string>
                            </property>
                            <property name="text">
                             <string/>
@@ -9231,7 +9231,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>69</width>
+                  <width>98</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9263,7 +9263,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>69</width>
+                  <width>98</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9295,7 +9295,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>69</width>
+                  <width>98</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9327,7 +9327,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>69</width>
+                  <width>98</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9359,7 +9359,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>69</width>
+                  <width>98</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9391,7 +9391,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>69</width>
+                  <width>98</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9423,7 +9423,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>69</width>
+                  <width>98</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9455,7 +9455,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>69</width>
+                  <width>98</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9487,7 +9487,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>69</width>
+                  <width>98</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9519,7 +9519,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>69</width>
+                  <width>98</width>
                   <height>66</height>
                  </rect>
                 </property>

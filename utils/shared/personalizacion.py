@@ -1321,3 +1321,127 @@ class Personalizacion:
         layout_principal.addWidget(btn_save)
         
         return dialogo.exec() == QDialog.Accepted
+    
+    @staticmethod
+    def dialogoConfigurarMarcadoAnalisis(lista_original, preferencias_actuales, fn_guardar, reiniciar):
+        # Conjunto de claves ya marcadas
+        claves_marcadas = set()
+        for pref in preferencias_actuales:
+            if pref and len(pref) >= 2:
+                clave = pref[1]
+                if clave is not None:
+                    claves_marcadas.add(int(clave))
+
+        dialogo = QDialog()
+        dialogo.setWindowTitle("Ajustes de Selección")
+        dialogo.setFixedSize(460, 600)
+        dialogo.setStyleSheet("background-color: #fcfcfc;")
+
+        layout_principal = QVBoxLayout(dialogo)
+        layout_principal.setContentsMargins(25, 25, 25, 25)
+        layout_principal.setSpacing(12)
+
+        # --- Cabecera ---
+        lbl_instrucciones = QLabel("Configuración de tipos de gráfica predeterminados")
+        lbl_instrucciones.setStyleSheet("color: #2c3e50; font-size: 14px; font-weight: bold; border:none;")
+        layout_principal.addWidget(lbl_instrucciones)
+
+        # --- Toolbar Estilizada ---
+        toolbar = QHBoxLayout()
+        btn_all = QPushButton("Marcar todo")
+        btn_none = QPushButton("Desmarcar todo")
+
+        estilo_botones_util = """
+            QPushButton { 
+                background-color: transparent; color: #5dade2; 
+                border: 1px solid #5dade2; border-radius: 12px; 
+                padding: 3px 12px; font-size: 10px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #5dade2; color: white; }
+            QPushButton:pressed { background-color: #3498db; }
+        """
+        btn_all.setStyleSheet(estilo_botones_util)
+        btn_none.setStyleSheet(estilo_botones_util)
+        btn_all.setCursor(Qt.PointingHandCursor)
+        btn_none.setCursor(Qt.PointingHandCursor)
+
+        toolbar.addStretch()
+        toolbar.addWidget(btn_all)
+        toolbar.addWidget(btn_none)
+        layout_principal.addLayout(toolbar)
+
+        # --- Árbol con Estilo Minimalista (lista plana, sin jerarquía) ---
+        tree_config = QTreeWidget()
+        tree_config.setHeaderHidden(True)
+        tree_config.setColumnCount(2)
+        tree_config.setColumnHidden(1, True)  # columna oculta: clave (ej. "VA3D")
+        tree_config.setIndentation(18)
+
+        tree_config.setStyleSheet("""
+            QTreeWidget { 
+                border: 1px solid #e1e8ed; border-radius: 10px; 
+                background-color: white; outline: 0; padding: 5px;
+            }
+            QTreeWidget::item { 
+                padding: 6px; color: #34495e; border-radius: 4px;
+            }
+            QTreeWidget::item:hover { 
+                background-color: #f4f7f6; 
+            }
+            QTreeWidget::item:selected { 
+                background-color: #eaf2f8; color: #2980b9; font-weight: bold;
+            }
+            QCheckBox::indicator { width: 14px; height: 14px; }
+        """)
+
+        # --- Construcción del árbol a partir de lista_original ---
+        tree_config.blockSignals(True)
+        for clave, (col_idx, etiqueta) in lista_original.items():
+            item = QTreeWidgetItem(tree_config)
+            item.setText(0, etiqueta)   # texto visible
+            item.setText(1, str(col_idx))
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(0, Qt.Checked if int(col_idx) in claves_marcadas else Qt.Unchecked)
+        tree_config.blockSignals(False)
+
+        # --- Lógica de Interacción ---
+        def global_check(state):
+            tree_config.blockSignals(True)
+            for i in range(tree_config.topLevelItemCount()):
+                tree_config.topLevelItem(i).setCheckState(0, state)
+            tree_config.blockSignals(False)
+
+        btn_all.clicked.connect(lambda: global_check(Qt.Checked))
+        btn_none.clicked.connect(lambda: global_check(Qt.Unchecked))
+
+        # --- Botón Guardar ---
+        btn_save = QPushButton("GUARDAR CONFIGURACIÓN")
+        btn_save.setFixedHeight(40)
+        btn_save.setCursor(Qt.PointingHandCursor)
+        btn_save.setStyleSheet("""
+            QPushButton { 
+                background-color: #2c3e50; color: white; 
+                font-size: 12px; font-weight: bold; border-radius: 20px; 
+                margin-top: 10px;
+            }
+            QPushButton:hover { background-color: #34495e; }
+            QPushButton:pressed { background-color: #1a252f; }
+        """)
+
+        def recolectar_y_enviar():
+            res = []
+            for i in range(tree_config.topLevelItemCount()):
+                item = tree_config.topLevelItem(i)
+                if item.checkState(0) == Qt.Checked:
+                    res.append(int(item.text(1)))
+            # Si no se marcó nada, se guarda lista vacía (sin preferencia = mostrar todo)
+            if fn_guardar(res):
+                dialogo.accept()
+                reiniciar()
+
+        btn_save.clicked.connect(recolectar_y_enviar)
+        layout_principal.addWidget(tree_config)
+        layout_principal.addWidget(btn_save)
+
+        return dialogo.exec() == QDialog.Accepted
+    

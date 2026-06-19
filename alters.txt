@@ -17,3 +17,17 @@ ALTER TABLE configuraciongrafica ADD fechahora_grafica TINYINT DEFAULT 0;
 ALTER TABLE configuraciongrafica ADD mesletras_grafica TINYINT DEFAULT 0;
 GO
 UPDATE configuraciongrafica SET fechahora_grafica = 0, mesletras_grafica = 0;
+
+------
+CREATE TABLE preferencias_marcado (
+    id_preferencia INT IDENTITY(1,1) PRIMARY KEY,
+    id_proyecto INT NOT NULL,
+    modulo VARCHAR(50) NOT NULL, -- Ejemplo: 'DESPLAZAMIENTO' o 'DATOS'
+    id_componente INT NOT NULL,
+    id_instrumentacion INT NULL  -- Si es NULL, se marca todo el componente
+);
+GO
+
+-- Índice para mejorar la velocidad de carga
+CREATE INDEX idx_preferencias_proy_mod ON preferencias_marcado (id_proyecto, modulo);
+GO
