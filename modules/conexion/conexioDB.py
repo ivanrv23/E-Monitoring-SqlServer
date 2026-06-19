@@ -187,6 +187,8 @@ class ConexionDB:
         layout.addWidget(ui_file)
         dialog.setLayout(layout)
         # Obtener elementos para interactuar
+        botonsincronizar = dialog.findChild(QPushButton, "btn_sincronizacion")
+        botonsincronizar.setText("Sincronizar Ahora")
         botonnuevo = dialog.findChild(QPushButton, "btn_nueva_conexion")
         cargarIcono(botonnuevo, ListaIconos.ICONOS["nuevo"])
         tabladatos = dialog.findChild(QTableWidget, "table_conexiones")
@@ -224,10 +226,20 @@ class ConexionDB:
                 tabladatos.setColumnHidden(11, True)
                 tabladatos.setColumnHidden(12, True)
                 tabladatos.setColumnHidden(13, True)
+        def sincronizar_inmediatamente():
+            botonsincronizar.setEnabled(False)
+            botonsincronizar.setText("Sincronizando...")
+            SyncManager.sincronizar_ahora()
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(3000, lambda: (
+                botonsincronizar.setEnabled(True),
+                botonsincronizar.setText("Sincronizar Ahora")
+            ))
         def aceptarConexiones():
             dialog.close()
         # Inicializar botones
         tabladatos.customContextMenuRequested.connect(lambda position: ConexionDB.mostrarMenuTabla(tabladatos, position, refrescarTabla))
+        botonsincronizar.clicked.connect(sincronizar_inmediatamente)
         botonnuevo.clicked.connect(lambda: ConexionDB.dialogoNuevaConexion(refrescarTabla))
         botonaceptar.clicked.connect(aceptarConexiones)
         dialog.exec()

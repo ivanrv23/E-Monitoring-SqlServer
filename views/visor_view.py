@@ -2,7 +2,6 @@ import vtk
 import numpy as np
 import laspy
 import threading
-import ast
 import sys
 import random
 import matplotlib.dates as mdates
@@ -1243,7 +1242,7 @@ class VisorView:
             velocprisma, filtrado = config[15], config[16]
             info = ConfiguracionVisor.obtenerDataConfiguracionVisor()
             grosor = info[17]
-            radioprisma = info[3] # 🚀 1. OBTENEMOS EL RADIO DE LA ESFERA
+            radioprisma = info[3]
             
             piniciales = PrismaController.ctrlObtenerPrismasInicialesFecha(prismasmarcados, VisorView.fechainicial, VisorView.fechafinal, filtrado)
             pfinales = PrismaController.ctrlObtenerPrismasFinalesFecha(prismasmarcados, VisorView.fechainicial, VisorView.fechafinal, filtrado)

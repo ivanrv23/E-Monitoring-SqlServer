@@ -47,6 +47,7 @@ from modules.estratros.estratosEquipos import ConfigurarEstratos
 from services.security.session import Session
 from views.dashboard_view import DashboardView
 from modules.conexion.conexioDB import ConexionDB
+
 class MenuEventFilter(QObject):
     def __init__(self, menu, main_window):
         super().__init__(menu)
@@ -74,7 +75,7 @@ class MainView:
     acelerografofecha, acelerohorainicial, acelerohorafinal = solofechaacelero, "00:00:00", "23:59:59"
     SoftwareConfiguracion.actualizarInfoSoftware()
     respuesta = SoftwareConfiguracion.obtenerDataSoftware()
-    version = respuesta[20]
+    version = respuesta[23]
     mostrararbol = True
     
     @staticmethod
@@ -235,7 +236,6 @@ class MainView:
             #UMBRAL PERSONALIZADO
             btn_umbral_desplazamiento_personalizado= MainView.main_window.findChild(QPushButton, "btn_umbral_personalizado_D")
             cargarIcono(btn_umbral_desplazamiento_personalizado, ListaIconos.ICONOS["umbral2"])
-            
             btn_expotar_desplazamiento= MainView.main_window.findChild(QPushButton, "btn_exportar_desplazamiento")
             cargarIcono(btn_expotar_desplazamiento, ListaIconos.ICONOS["exportar_grafico"])
 
@@ -265,7 +265,6 @@ class MainView:
             #UMBRAL PERSONALIZADO
             btn_umbral_velocidad_personalizado= MainView.main_window.findChild(QPushButton, "btn_umbral_personalizado_V")
             cargarIcono(btn_umbral_velocidad_personalizado, ListaIconos.ICONOS["umbral2"])
-            
             btn_expotar_velocidad= MainView.main_window.findChild(QPushButton, "btn_exportar_velocidad")
             cargarIcono(btn_expotar_velocidad, ListaIconos.ICONOS["exportar_grafico"])
 
@@ -416,8 +415,6 @@ class MainView:
             cargarIcono(btn_ejes_tiempo, ListaIconos.ICONOS["configurar_ejes"])
             btn_configurar_comportamiento = MainView.main_window.findChild(QPushButton, "btn_configurar_comportamiento")
             cargarIcono(btn_configurar_comportamiento, ListaIconos.ICONOS["limpieza_ruido_manual"])
-            # btn_umbral_tiempo = MainView.main_window.findChild(QPushButton, "btn_umbrales_tiemporeal")
-            # cargarIcono(btn_umbral_tiempo, ListaIconos.ICONOS["umbral"])
             # Variaciones de coordenadas
             btn_refrescar_vista_variacion = MainView.main_window.findChild(QPushButton, "btn_refresca_grafica_variaciones")
             cargarIcono(btn_refrescar_vista_variacion, ListaIconos.ICONOS["refrescar_grafico"])
@@ -467,22 +464,18 @@ class MainView:
             # limpieza datos prismas
             btn_configurar_ejes_elipse = MainView.main_window.findChild(QPushButton, "btn_ejes_elipse")
             cargarIcono(btn_configurar_ejes_elipse, ListaIconos.ICONOS["configurar_ejes"])
-
             btn_refrescar_lipiar_datos_prismas = MainView.main_window.findChild(QPushButton, "btn_refresca_grafica_limpieza")
             cargarIcono(btn_refrescar_lipiar_datos_prismas, ListaIconos.ICONOS["refrescar_grafico"])
             btn_cambios_lecturas = MainView.main_window.findChild(QPushButton, "btn_mostrar_cambios_prismas")
             cargarIcono(btn_cambios_lecturas, ListaIconos.ICONOS["clipboard"])
-            
             btn_limpiar_ruido_coordenadas = MainView.main_window.findChild(QPushButton, "btn_limpiar_ruido")
             cargarIcono(btn_limpiar_ruido_coordenadas, ListaIconos.ICONOS["limpieza_ruido"])
-            
             btn_limpiar_ruido_manual = MainView.main_window.findChild(QPushButton, "btn_limpiar_ruido_manual")
             cargarIcono(btn_limpiar_ruido_manual, ListaIconos.ICONOS["limpieza_ruido_manual"])
             
             ############################## BOTONES REPORTE #############################
             stacked_widget_principal = MainView.main_window.findChild(QStackedWidget, "stackedWidget_principal")
             stacked_widget_principal.currentChanged.connect(MainView.check_stacked_widget)
-            
             btn_regitrarfirma = MainView.main_window.findChild(QPushButton, "btn_cargar_firma_reporte")
             cargarIcono(btn_regitrarfirma, ListaIconos.ICONOS["firma_reporte"])
             btn_cargar_componente_reporte = MainView.main_window.findChild(QPushButton, "btn_imagen_reportegeneral")

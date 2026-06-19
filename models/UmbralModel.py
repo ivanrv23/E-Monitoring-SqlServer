@@ -574,6 +574,7 @@ class UmbralModel:
     #     finally:
     #         if conn:
     #             conn.close()
+    
     @staticmethod
     def mdlObtenerUmbralPrismas(proyectoid, idcomponente, tipo):
         conn = None

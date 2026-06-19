@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>597</width>
-    <height>300</height>
+    <width>554</width>
+    <height>283</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -118,6 +118,13 @@
             <enum>QFrame::Raised</enum>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_4">
+            <item>
+             <widget class="QCheckBox" name="check_all_prismas">
+              <property name="text">
+               <string>Seleccionar todos los equipos</string>
+              </property>
+             </widget>
+            </item>
             <item>
              <widget class="QTreeWidget" name="tree_prismas_regresion">
               <property name="minimumSize">

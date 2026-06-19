@@ -1,5 +1,4 @@
-from PySide6.QtWidgets import (QMenu, QTreeWidget, QPushButton, QTableView, QDialog, QFormLayout, QLineEdit, QDialogButtonBox,
-                            QMessageBox, QLabel)
+from PySide6.QtWidgets import (QMenu, QTreeWidget, QPushButton, QTableView, QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QMessageBox, QLabel)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QDoubleValidator
 from utils.common.alertas import mostrar_mensaje

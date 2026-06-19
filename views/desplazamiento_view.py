@@ -1,5 +1,5 @@
 import threading
-from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox,QMenu)
+from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox, QMenu)
 from PySide6.QtCore import Qt
 from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica
 from utils.shared.graficaDesplazamientoVelocidad import limpiar_widget

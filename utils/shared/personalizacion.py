@@ -531,12 +531,14 @@ class Personalizacion:
         layout.addWidget(ui_file)
         dialogo.setLayout(layout)
         # Acceso a los botones
+        checkTodosPrismas = dialogo.findChild(QCheckBox, "check_all_prismas")
         treePrismasRegresion = dialogo.findChild(QTreeWidget, "tree_prismas_regresion")
         frameTendencias = dialogo.findChild(QFrame, "frame_tendencias")
         btnAceptarRegresion = dialogo.findChild(QPushButton, "btn_aceptar_regresion")
         btnCancelarRegresion = dialogo.findChild(QPushButton, "btn_cancelar_regresion")
         # crear los checkbox
         treePrismasRegresion.setHeaderLabels(["PRISMAS"])
+        lista_prismas_disponibles = []
         for componente, listaprismas in prismasmarcados:
             resultado = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
             for tabla, prismas in resultado.items():
@@ -546,23 +548,74 @@ class Personalizacion:
                     parent.setText(1, tabla)
                     parent.setFlags(parent.flags() | Qt.ItemIsUserCheckable)
                     parent.setCheckState(0, Qt.Unchecked)
+                    lista_prismas_disponibles.append((tabla, nombreprisma))
+        # --- NUEVO: fila única combo+spin para modo "todos" ---
+        layout_tend = frameTendencias.layout()
+        if layout_tend is None:
+            layout_tend = QVBoxLayout(frameTendencias)
+            layout_tend.setSpacing(0)
+            layout_tend.setAlignment(Qt.AlignTop)
+            layout_tend.setContentsMargins(0, 0, 0, 0)
+            frameTendencias.setLayout(layout_tend)
+        label_todos, combo_todos, spin_todos = Personalizacion.crearComboSpinTendencia("Todos los prismas", "TODOS")
+        fila_todos = QWidget()
+        fila_todos.setObjectName("widget_modo_todos")
+        fila_layout_todos = QHBoxLayout(fila_todos)
+        fila_layout_todos.addWidget(label_todos)
+        fila_layout_todos.addWidget(combo_todos)
+        fila_layout_todos.addWidget(spin_todos)
+        fila_layout_todos.setContentsMargins(0, 0, 0, 0)
+        layout_tend.addWidget(fila_todos)
+        fila_todos.setVisible(False)
+        # --------------------------------------------------------
+        # --- NUEVO: alternar entre modo individual y modo "todos" ---
+        def toggle_modo_todos(checked):
+            treePrismasRegresion.setEnabled(not checked)
+            fila_todos.setVisible(checked)
+            if checked:
+                # Limpiar selección individual visual y de datos
+                treePrismasRegresion.blockSignals(True)
+                root = treePrismasRegresion.invisibleRootItem()
+                for i in range(root.childCount()):
+                    root.child(i).setCheckState(0, Qt.Unchecked)
+                treePrismasRegresion.blockSignals(False)
+                for tipo, nombre, cod in list(Personalizacion.combospincreados):
+                    w = dialogo.findChild(QWidget, f"widget_{nombre}_{tipo}")
+                    if w is not None:
+                        layout_tend.removeWidget(w)
+                        w.deleteLater()
+                Personalizacion.combospincreados.clear()
+                Personalizacion.num_checkboxes_marcados = 0
+        # ----------------------------------------------------------------
         def aceptarPrismasRegresion():
-            for tipo, nombre, cod in Personalizacion.combospincreados:
-                combo = dialogo.findChild(QComboBox, f"combo_{nombre}_{tipo}")
-                spin = dialogo.findChild(QSpinBox, f"spin_{nombre}_{tipo}")
-                dato = (tipo, nombre, cod)
-                item = (dato, combo.currentText(), spin.value())
-                Personalizacion.prismaselegidos.append(item)
+            Personalizacion.prismaselegidos = []
+            if checkTodosPrismas.isChecked():
+                # NUEVO: generar un registro de tendencia por cada prisma disponible
+                tiporegresion = combo_todos.currentText()
+                grado = spin_todos.value()
+                for tabla, nombreprisma in lista_prismas_disponibles:
+                    dato = (tabla, nombreprisma, 0)
+                    item = (dato, tiporegresion, grado)
+                    Personalizacion.prismaselegidos.append(item)
+            else:
+                for tipo, nombre, cod in Personalizacion.combospincreados:
+                    combo = dialogo.findChild(QComboBox, f"combo_{nombre}_{tipo}")
+                    spin = dialogo.findChild(QSpinBox, f"spin_{nombre}_{tipo}")
+                    dato = (tipo, nombre, cod)
+                    item = (dato, combo.currentText(), spin.value())
+                    Personalizacion.prismaselegidos.append(item)
             dialogo.close()
         def cancelarPrismasRegresion():
             dialogo.close()
         def checkboxChanged(parent_item, column):
+            if checkTodosPrismas.isChecked():
+                return
             nombre = parent_item.text(column)
             tipo = parent_item.text(1)
             estado = parent_item.checkState(0)
             if str(estado) == "CheckState.Checked": # marcado
                 if Personalizacion.comprobarExisteDatoArreglo(Personalizacion.combospincreados, tipo, nombre) is False:
-                    if Personalizacion.num_checkboxes_marcados > 3:
+                    if Personalizacion.num_checkboxes_marcados >= 3:
                         parent_item.setCheckState(0, Qt.Unchecked)
                     else:
                         Personalizacion.combospincreados.append((tipo, nombre, 0))
@@ -597,94 +650,12 @@ class Personalizacion:
                         layout.removeWidget(fila_widget)
                         fila_widget.deleteLater()     
         # conectar señales
+        checkTodosPrismas.toggled.connect(toggle_modo_todos)
         treePrismasRegresion.itemClicked.connect(checkboxChanged)
         btnAceptarRegresion.clicked.connect(aceptarPrismasRegresion)
         btnCancelarRegresion.clicked.connect(cancelarPrismasRegresion)
         dialogo.exec()
         return Personalizacion.prismaselegidos
-    
-    def dialogoFiltroRegresionEquipos(equiposmarcados, tipoequipos):
-        Personalizacion.checkboxes_marcados = 0
-        Personalizacion.spincomboscreados = []
-        Personalizacion.equiposelegidos = []
-        loader = QUiLoader()        
-        ui_file_path = resource_path("ui/filtrotendencias.ui")
-        ui_file = loader.load(ui_file_path, None)
-        dialogo = QDialog()
-        dialogo.setWindowTitle("Configuración de Tendencias")
-        layout = QVBoxLayout()
-        layout.addWidget(ui_file)
-        dialogo.setLayout(layout)
-        # Acceso a los botones
-        treePrismasRegresion = dialogo.findChild(QTreeWidget, "tree_prismas_regresion")
-        frameTendencias = dialogo.findChild(QFrame, "frame_tendencias")
-        btnAceptarRegresion = dialogo.findChild(QPushButton, "btn_aceptar_regresion")
-        btnCancelarRegresion = dialogo.findChild(QPushButton, "btn_cancelar_regresion")
-        # crear los checkbox
-        treePrismasRegresion.setHeaderLabels([tipoequipos])
-        for componente, listaequipos in equiposmarcados:
-            for nombreequipo, idintrumento, idequipo in listaequipos:
-                parent = QTreeWidgetItem(treePrismasRegresion)
-                parent.setText(0, nombreequipo)
-                parent.setText(1, idintrumento)
-                parent.setFlags(parent.flags() | Qt.ItemIsUserCheckable)
-                parent.setCheckState(0, Qt.Unchecked)
-        def aceptarPrismasRegresion():
-            for idin, nombre, cod in Personalizacion.spincomboscreados:
-                combo = dialogo.findChild(QComboBox, f"combo_{nombre}_{idin}")
-                spin = dialogo.findChild(QSpinBox, f"spin_{nombre}_{idin}")
-                dato = (idin, nombre, cod)
-                item = (dato, combo.currentText(), spin.value())
-                Personalizacion.equiposelegidos.append(item)
-            dialogo.close()
-        def cancelarPrismasRegresion():
-            dialogo.close()
-        def checkboxChanged(parent_item, column):
-            nombre = parent_item.text(column)
-            idinstru = parent_item.text(1)
-            estado = parent_item.checkState(0)
-            if str(estado) == "CheckState.Checked": # marcado
-                if Personalizacion.comprobarExisteDatoArreglo(Personalizacion.spincomboscreados, idinstru, nombre) is False:
-                    if Personalizacion.checkboxes_marcados > 3:
-                        parent_item.setCheckState(0, Qt.Unchecked)
-                    else:
-                        Personalizacion.spincomboscreados.append((idinstru, nombre, 0))
-                        label, combobox, spinbox = Personalizacion.crearComboSpinTendencia(nombre, idinstru)
-                        # mostrar en el frame
-                        fila_widget = QWidget()
-                        fila_widget.setObjectName(f"widget_{nombre}_{idinstru}")
-                        fila_layout = QHBoxLayout(fila_widget)  # Crear un layout horizontal para fila_widget
-                        fila_layout.addWidget(label)
-                        fila_layout.addWidget(combobox)
-                        fila_layout.addWidget(spinbox)
-                        fila_layout.setContentsMargins(0, 0, 0, 0)  # Establecer márgenes a 0
-                        layout = frameTendencias.layout()
-                        if layout is None:
-                            layout = QVBoxLayout(frameTendencias)
-                            layout.setSpacing(0)  # Establecer espaciado a 0
-                            layout.setAlignment(Qt.AlignTop)  # Alinear hacia arriba
-                            layout.setContentsMargins(0, 0, 0, 0)  # Establecer márgenes a 0
-                            frameTendencias.setLayout(layout)
-                        layout.addWidget(fila_widget)  # Agregar fila_widget al layout vertical
-                        Personalizacion.checkboxes_marcados += 1
-            else: # desmarcado
-                if Personalizacion.comprobarExisteDatoArreglo(Personalizacion.spincomboscreados, idinstru, nombre):
-                    posma = Personalizacion.obtenerIndexDatoArreglo(Personalizacion.spincomboscreados, idinstru, nombre)
-                    if posma is not None:
-                        Personalizacion.spincomboscreados.pop(posma)
-                        Personalizacion.checkboxes_marcados -= 1
-                    # limpiar frame
-                    layout = frameTendencias.layout()
-                    fila_widget = dialogo.findChild(QWidget, f"widget_{nombre}_{idinstru}")
-                    if layout is not None and fila_widget is not None:
-                        layout.removeWidget(fila_widget)
-                        fila_widget.deleteLater()     
-        # conectar señales
-        treePrismasRegresion.itemClicked.connect(checkboxChanged)
-        btnAceptarRegresion.clicked.connect(aceptarPrismasRegresion)
-        btnCancelarRegresion.clicked.connect(cancelarPrismasRegresion)
-        dialogo.exec()
-        return Personalizacion.equiposelegidos
     
     def dialogoFiltroRegresionPiezometrosCeldas(equiposmarcados, tipoequipos):
         Personalizacion.checkboxes_marcados = 0
@@ -699,35 +670,88 @@ class Personalizacion:
         layout.addWidget(ui_file)
         dialogo.setLayout(layout)
         # Acceso a los botones
-        treePrismasRegresion = dialogo.findChild(QTreeWidget, "tree_prismas_regresion")
+        checkTodosEquipos = dialogo.findChild(QCheckBox, "check_all_prismas")
+        treeEquiposRegresion = dialogo.findChild(QTreeWidget, "tree_prismas_regresion")
         frameTendencias = dialogo.findChild(QFrame, "frame_tendencias")
         btnAceptarRegresion = dialogo.findChild(QPushButton, "btn_aceptar_regresion")
         btnCancelarRegresion = dialogo.findChild(QPushButton, "btn_cancelar_regresion")
         # crear los checkbox
-        treePrismasRegresion.setHeaderLabels([tipoequipos])
+        treeEquiposRegresion.setHeaderLabels([tipoequipos])
+        lista_equipos_disponibles = []
         for componente, equipo in equiposmarcados:
-            parent = QTreeWidgetItem(treePrismasRegresion)
+            parent = QTreeWidgetItem(treeEquiposRegresion)
             parent.setText(0, equipo[0])
             parent.setText(1, equipo[1])
             parent.setFlags(parent.flags() | Qt.ItemIsUserCheckable)
             parent.setCheckState(0, Qt.Unchecked)
-        def aceptarPrismasRegresion():
-            for idin, nombre, cod in Personalizacion.spincomboscreados:
-                combo = dialogo.findChild(QComboBox, f"combo_{nombre}_{idin}")
-                spin = dialogo.findChild(QSpinBox, f"spin_{nombre}_{idin}")
-                dato = (idin, nombre, cod)
-                item = (dato, combo.currentText(), spin.value())
-                Personalizacion.equiposelegidos.append(item)
+            lista_equipos_disponibles.append((equipo[1], equipo[0]))
+        # --- fila única combo+spin para modo "todos" ---
+        layout_tend = frameTendencias.layout()
+        if layout_tend is None:
+            layout_tend = QVBoxLayout(frameTendencias)
+            layout_tend.setSpacing(0)
+            layout_tend.setAlignment(Qt.AlignTop)
+            layout_tend.setContentsMargins(0, 0, 0, 0)
+            frameTendencias.setLayout(layout_tend)
+        label_todos, combo_todos, spin_todos = Personalizacion.crearComboSpinTendencia("Todos los equipos", "TODOS")
+        fila_todos = QWidget()
+        fila_todos.setObjectName("widget_modo_todos")
+        fila_layout_todos = QHBoxLayout(fila_todos)
+        fila_layout_todos.addWidget(label_todos)
+        fila_layout_todos.addWidget(combo_todos)
+        fila_layout_todos.addWidget(spin_todos)
+        fila_layout_todos.setContentsMargins(0, 0, 0, 0)
+        layout_tend.addWidget(fila_todos)
+        fila_todos.setVisible(False)
+        # --------------------------------------------------------
+        # --- alternar entre modo individual y modo "todos" ---
+        def toggle_modo_todos(checked):
+            treeEquiposRegresion.setEnabled(not checked)
+            fila_todos.setVisible(checked)
+            if checked:
+                # Limpiar selección individual visual y de datos
+                treeEquiposRegresion.blockSignals(True)
+                root = treeEquiposRegresion.invisibleRootItem()
+                for i in range(root.childCount()):
+                    root.child(i).setCheckState(0, Qt.Unchecked)
+                treeEquiposRegresion.blockSignals(False)
+                for idin, nombre, cod in list(Personalizacion.spincomboscreados):
+                    w = dialogo.findChild(QWidget, f"widget_{nombre}_{idin}")
+                    if w is not None:
+                        layout_tend.removeWidget(w)
+                        w.deleteLater()
+                Personalizacion.spincomboscreados.clear()
+                Personalizacion.checkboxes_marcados = 0
+        # ----------------------------------------------------------------
+        def aceptarEquiposRegresion():
+            Personalizacion.equiposelegidos = []
+            if checkTodosEquipos.isChecked():
+                # generar un registro de tendencia por cada equipo disponible
+                tiporegresion = combo_todos.currentText()
+                grado = spin_todos.value()
+                for idin, nombreequipo in lista_equipos_disponibles:
+                    dato = (idin, nombreequipo, 0)
+                    item = (dato, tiporegresion, grado)
+                    Personalizacion.equiposelegidos.append(item)
+            else:
+                for idin, nombre, cod in Personalizacion.spincomboscreados:
+                    combo = dialogo.findChild(QComboBox, f"combo_{nombre}_{idin}")
+                    spin = dialogo.findChild(QSpinBox, f"spin_{nombre}_{idin}")
+                    dato = (idin, nombre, cod)
+                    item = (dato, combo.currentText(), spin.value())
+                    Personalizacion.equiposelegidos.append(item)
             dialogo.close()
-        def cancelarPrismasRegresion():
+        def cancelarEquiposRegresion():
             dialogo.close()
         def checkboxChanged(parent_item, column):
+            if checkTodosEquipos.isChecked():
+                return
             nombre = parent_item.text(column)
             idinstru = parent_item.text(1)
             estado = parent_item.checkState(0)
             if str(estado) == "CheckState.Checked": # marcado
                 if Personalizacion.comprobarExisteDatoArreglo(Personalizacion.spincomboscreados, idinstru, nombre) is False:
-                    if Personalizacion.checkboxes_marcados > 3:
+                    if Personalizacion.checkboxes_marcados >= 3:
                         parent_item.setCheckState(0, Qt.Unchecked)
                     else:
                         Personalizacion.spincomboscreados.append((idinstru, nombre, 0))
@@ -762,9 +786,10 @@ class Personalizacion:
                         layout.removeWidget(fila_widget)
                         fila_widget.deleteLater()     
         # conectar señales
-        treePrismasRegresion.itemClicked.connect(checkboxChanged)
-        btnAceptarRegresion.clicked.connect(aceptarPrismasRegresion)
-        btnCancelarRegresion.clicked.connect(cancelarPrismasRegresion)
+        checkTodosEquipos.toggled.connect(toggle_modo_todos)
+        treeEquiposRegresion.itemClicked.connect(checkboxChanged)
+        btnAceptarRegresion.clicked.connect(aceptarEquiposRegresion)
+        btnCancelarRegresion.clicked.connect(cancelarEquiposRegresion)
         dialogo.exec()
         return Personalizacion.equiposelegidos
     

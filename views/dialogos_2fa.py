@@ -1,7 +1,5 @@
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
-                               QLineEdit, QPushButton, QFrame, QWidget)
-from PySide6.QtCore import Qt, QTimer, QSize
-from PySide6.QtGui import QColor, QPalette
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFrame)
+from PySide6.QtCore import Qt, QTimer
 from services.autenticacion.gestor2fa import Gestor2FA
 
 class EstiloDialogo:

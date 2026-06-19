@@ -1,10 +1,7 @@
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
-                                QLineEdit, QCheckBox, QPushButton, QDateTimeEdit,
-                                QColorDialog)
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QCheckBox, QPushButton, QDateTimeEdit, QColorDialog)
 from PySide6.QtCore import QDateTime
 from PySide6.QtGui import QColor
 from datetime import datetime
-
 
 class EventosDialog(QDialog):
     def __init__(self, parent, fecha, idproyecto, tipo_inst, equipo_id=None, equipo_nombre=None):

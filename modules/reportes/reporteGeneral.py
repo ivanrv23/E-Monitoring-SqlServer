@@ -543,7 +543,10 @@ class ReporteGeneral:
         ruta_word = resource_path('modules/reportes/reporte_general.docx')
         ruta_pdf = resource_path('modules/reportes/reporte_general.pdf')
         # Obtener Información de la empresa
+        logoempresa = None
         datos_empresa, lic = EmpresaController.ctrlObtenerDatosEmpresa()
+        if datos_empresa is not None:
+            logoempresa = datos_empresa[5]
         data = ReporteGeneral.obtenerValoresFormulario(main, idproyecto, file_patch)
         datosFirma = ReporteController.ctrlObtenerDatosFirma(idproyecto)
         lista_prismas = ReporteController.ctrlObtenerListaPrismas(idproyecto,id_componente)
@@ -556,7 +559,7 @@ class ReporteGeneral:
         # Crear instancia de DocxReport
         docx_report = DocxReport()
         # Generar el contenido del documento Word
-        docx_report.add_first_page(datos_empresa[5], data[3], data[4], data[5])
+        docx_report.add_first_page(logoempresa, data[3], data[4], data[5])
         # Añadir contenido a partir de la segunda página
         docx_report.add_second_page(data, datosFirma)
         # Añadir contenido a partir de la segunda página
@@ -568,7 +571,7 @@ class ReporteGeneral:
             docx_report.add_interpretation_page(imagenesReporte)
         docx_report.add_conclusions_page(data[11], data[12])
         # Añadir encabezado y pie de página
-        docx_report.add_header(datos_empresa[5], data[1])
+        docx_report.add_header(logoempresa, data[1])
         docx_report.add_footer(data[2])
         # Guardar el documento Word
         docx_report.save_docx(ruta_word)

@@ -37,6 +37,9 @@
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
       <widget class="QPushButton" name="btn_nueva_conexion">
+       <property name="toolTip">
+        <string>Nueva Conexión</string>
+       </property>
        <property name="text">
         <string/>
        </property>
@@ -54,6 +57,16 @@
         </size>
        </property>
       </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btn_sincronizacion">
+       <property name="toolTip">
+        <string>Actualizar Data</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>

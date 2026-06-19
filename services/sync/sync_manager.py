@@ -19,12 +19,16 @@ class SyncManager:
             cls._worker.detener()
             cls._worker.wait()
             cls._worker = None
-    
+
+    @classmethod
+    def sincronizar_ahora(cls):
+        if cls._worker and cls._worker.isRunning():
+            cls._worker.sincronizar_ahora()
+        else:
+            # Iniciamos y el primer ciclo se ejecuta de inmediato
+            cls.iniciar()
+
     @classmethod
     def recargar_conexiones(cls):
-        """
-        El worker ya lee de BD en cada ciclo, así que solo
-        necesitamos forzar un ciclo inmediato si el worker está corriendo.
-        """
-        if cls._worker and cls._worker.isRunning():
-            cls._worker.forzar_ciclo()
+        cls.sincronizar_ahora()
+    

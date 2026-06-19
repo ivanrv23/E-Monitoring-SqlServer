@@ -1,11 +1,12 @@
-import time
 import socket
 import pyodbc
 from datetime import datetime, timedelta
 from PySide6.QtCore import QThread, Signal
 from services.security.apis.conexiones.connection import Connection
+import threading
 
 HOSTNAME = socket.gethostname()
+
 
 class ConexionWorker(QThread):
     senal_log   = Signal(str)
@@ -15,16 +16,49 @@ class ConexionWorker(QThread):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._corriendo = False
+        # Usamos un evento de threading para despertar el worker
+        self._evento_despertar = threading.Event()
+        self._forzar_ahora     = False
 
     def detener(self):
+        """Detiene el worker de forma segura."""
         self._corriendo = False
+        self._evento_despertar.set()  # Despertamos para que salga del wait
 
-    def forzar_ciclo(self):
-        self._forzar = True
+    def sincronizar_ahora(self):
+        self._forzar_ahora = True
+        self._resetear_proximo_sync()
+        self._evento_despertar.set()  # Interrumpe el wait
+
+    def _resetear_proximo_sync(self):
+        try:
+            conn = Connection.connectionDB()
+            if not conn:
+                return
+            try:
+                cur = conn.cursor()
+                # Solo reseteamos las que NO están ejecutándose en este momento
+                cur.execute("""
+                    UPDATE sc
+                    SET sc.proximo_sync = GETDATE()
+                    FROM sync_control sc
+                    INNER JOIN conexiones c ON sc.id_conexion = c.id_conexion
+                    WHERE sc.ejecutando = 0
+                      AND c.estado_conexion = 1
+                """)
+                conn.commit()
+                filas = cur.rowcount
+                self.senal_log.emit(
+                    f"[Sync] Forzado inmediato: {filas} conexión(es) marcadas para sync."
+                )
+            finally:
+                conn.close()
+        except Exception as e:
+            self.senal_error.emit(f"[Sync] Error al resetear proximo_sync: {e}")
 
     def run(self):
         self._corriendo = True
-        self._forzar    = False
+        self._evento_despertar.clear()
         self.senal_log.emit("[Sync] Worker iniciado.")
 
         while self._corriendo:
@@ -33,14 +67,14 @@ class ConexionWorker(QThread):
             except Exception as e:
                 self.senal_error.emit(f"[Sync] Error en ciclo: {e}")
 
-            self._forzar = False
-            for _ in range(30):
-                if not self._corriendo or self._forzar:
-                    break
-                time.sleep(1)
+            self._forzar_ahora = False
+
+            # Esperamos hasta 60 segundos O hasta que nos despierten
+            self._evento_despertar.wait(timeout=60)
+            self._evento_despertar.clear()
 
     # ------------------------------------------------------------------ #
-    #  Ciclo principal
+    #  Ciclo principal - Lee de BD qué conexiones están pendientes
     # ------------------------------------------------------------------ #
     def _ciclo(self):
         conn = Connection.connectionDB()
@@ -50,17 +84,23 @@ class ConexionWorker(QThread):
             ahora = datetime.now()
             cur = conn.cursor()
             cur.execute("""
-                SELECT sc.id_conexion, sc.frecuencia_min, c.servidor_conexion, c.puerto_conexion,
-                c.database_conexion, c.usuario_conexion, c.password_conexion, c.grupos_conexion,
-                c.lecturas_conexion, c.dato_conexion, c.instrumento_conexion, c.id_proyecto
+                SELECT sc.id_conexion, sc.frecuencia_min,
+                       c.servidor_conexion, c.puerto_conexion,
+                       c.database_conexion, c.usuario_conexion, c.password_conexion,
+                       c.grupos_conexion, c.lecturas_conexion, c.dato_conexion,
+                       c.instrumento_conexion, c.id_proyecto
                 FROM sync_control sc
                 INNER JOIN conexiones c ON sc.id_conexion = c.id_conexion
                 WHERE sc.proximo_sync <= ?
-                  AND sc.ejecutando   = 0 AND c.estado_conexion = 1
+                  AND sc.ejecutando   = 0
+                  AND c.estado_conexion = 1
             """, ahora)
             pendientes = cur.fetchall()
         finally:
             conn.close()
+
+        if not pendientes:
+            return
 
         for row in pendientes:
             if not self._corriendo:
@@ -68,11 +108,11 @@ class ConexionWorker(QThread):
             self._intentar_sincronizar(row)
 
     # ------------------------------------------------------------------ #
-    #  Intento de adquirir el lock y sincronizar
+    #  El resto del código permanece igual
     # ------------------------------------------------------------------ #
     def _intentar_sincronizar(self, row):
         (id_conexion, frecuencia_min, servidor, puerto, database, usuario, password,
-        consultagrupos, consultalecturas, ultimoid_str, instrumento, id_proyecto) = row
+         consultagrupos, consultalecturas, ultimoid_str, instrumento, id_proyecto) = row
 
         try:
             ultimoid = int(ultimoid_str) if ultimoid_str else 0
@@ -92,7 +132,7 @@ class ConexionWorker(QThread):
             """, HOSTNAME, id_conexion, ahora)
             conn.commit()
             if cur.rowcount == 0:
-                return
+                return  # Otro proceso/instancia ya lo tomó (concurrencia)
         except Exception as e:
             self.senal_error.emit(f"[Lock] {instrumento}: {e}")
             conn.close()
@@ -101,60 +141,64 @@ class ConexionWorker(QThread):
         exito = False
 
         try:
-            # PASO 1: Obtener grupos del origen
-            grupos = self._obtener_grupos_externos(servidor, puerto, database, usuario, password, consultagrupos)
+            grupos = self._obtener_grupos_externos(
+                servidor, puerto, database, usuario, password, consultagrupos
+            )
             if not grupos:
-                self.senal_log.emit("[Sync] No se encontraron grupos en PointGroups")
+                self.senal_log.emit("[Sync] No se encontraron grupos.")
                 return
+
             self.senal_log.emit(f"[Sync] {len(grupos)} grupos encontrados.")
 
-            # PASO 2: Crear/asegurar componentes para todos los grupos antes de insertar
-            mapa_componentes = {}  # { id_grupo: id_componente }
-            mapa_nombres     = {}  # { id_grupo: nombre_grupo }
+            mapa_componentes = {}
+            mapa_nombres     = {}
             for id_grupo, nombre_grupo in grupos:
                 id_comp = self._asegurar_componente(conn, cur, id_proyecto, nombre_grupo)
                 mapa_componentes[id_grupo] = id_comp
                 mapa_nombres[id_grupo]     = nombre_grupo
-            self.senal_log.emit(f"[Sync] Componentes asegurados: {list(mapa_nombres.values())}")
 
-            # PASO 3: Obtener TODA la data de una sola vez (sin filtro de grupo = consulta rápida)
-            self.senal_log.emit(f"[Sync] Consultando toda la data desde ID {ultimoid}...")
-            todos_los_datos = self._consultar_bd_externa(servidor, puerto, database, usuario, password, consultalecturas, ultimoid)
+            self.senal_log.emit(f"[Sync] Consultando data desde ID {ultimoid}...")
+            todos_los_datos = self._consultar_bd_externa(
+                servidor, puerto, database, usuario, password, consultalecturas, ultimoid
+            )
 
             if not todos_los_datos:
-                self.senal_log.emit("[Sync] Sin datos nuevos para sincronizar.")
+                self.senal_log.emit("[Sync] Sin datos nuevos.")
                 exito = True
                 return
 
-            # Sacar el último id para actualizarlo
-            total_filas = 0
+            total_filas    = 0
             ultimoid_final = max(fila[0] for fila in todos_los_datos)
-            self.senal_log.emit(f"[Sync] {len(todos_los_datos)} filas obtenidas. Distribuyendo por grupo...")
+            self.senal_log.emit(
+                f"[Sync] {len(todos_los_datos)} filas obtenidas. Distribuyendo..."
+            )
 
-            # PASO 4: Distribuir las filas por grupo en memoria
-            datos_por_grupo = {}  # { id_grupo: [filas] }
+            datos_por_grupo = {}
             for fila in todos_los_datos:
-                # fila[16] = g.Name, necesitamos asociar por nombre al id_grupo
                 nombre_grupo_fila = fila[16]
                 id_grupo_fila = next(
-                    (gid for gid, gnombre in mapa_nombres.items() if gnombre == nombre_grupo_fila),
+                    (gid for gid, gnombre in mapa_nombres.items()
+                     if gnombre == nombre_grupo_fila),
                     None
                 )
                 if id_grupo_fila is None:
                     continue
                 datos_por_grupo.setdefault(id_grupo_fila, []).append(fila)
-            
-            # PASO 5: Insertar cada grupo en su componente correspondiente
+
             for id_grupo, filas_grupo in datos_por_grupo.items():
                 if not self._corriendo:
                     break
                 id_componente = mapa_componentes[id_grupo]
                 nombre_grupo  = mapa_nombres[id_grupo]
 
-                respinsert = self._insertar_en_bd_central(conn, cur, filas_grupo, instrumento, id_proyecto, id_componente)
+                respinsert = self._insertar_en_bd_central(
+                    conn, cur, filas_grupo, instrumento, id_proyecto, id_componente
+                )
                 if respinsert:
                     total_filas += len(filas_grupo)
-                    self.senal_log.emit(f"[Sync] Grupo '{nombre_grupo}': {len(filas_grupo)} filas insertadas.")
+                    self.senal_log.emit(
+                        f"[Sync] Grupo '{nombre_grupo}': {len(filas_grupo)} filas."
+                    )
 
             if total_filas > 0:
                 exito = True
@@ -164,12 +208,14 @@ class ConexionWorker(QThread):
                 )
                 conn.commit()
                 self.senal_log.emit(
-                    f"[Sync] Total {total_filas} filas nuevas. Último ID externo: {ultimoid_final}"
+                    f"[Sync] Total {total_filas} filas. Último ID: {ultimoid_final}"
                 )
 
         except Exception as e:
             self.senal_error.emit(f"[Sync] {instrumento}: {e}")
+
         finally:
+            # SIEMPRE liberamos el lock y programamos el próximo ciclo
             try:
                 proximo = ahora + timedelta(minutes=frecuencia_min)
                 cur.execute("""
@@ -180,15 +226,18 @@ class ConexionWorker(QThread):
                     WHERE id_conexion = ?
                 """, ahora if exito else None, proximo, id_conexion)
                 conn.commit()
+                self.senal_log.emit(
+                    f"[Sync] Próximo sync de conexión {id_conexion}: {proximo:%H:%M:%S}"
+                )
             except Exception as e:
                 self.senal_error.emit(f"[Lock release] {e}")
             finally:
                 conn.close()
-    
-    # ------------------------------------------------------------------ #
-    #  Obtener todos los grupos de PointGroups del origen
-    # ------------------------------------------------------------------ #
-    def _obtener_grupos_externos(self, servidor, puerto, database, usuario, password, consultagrupos):
+
+    # ---- Métodos de BD sin cambios ---- #
+
+    def _obtener_grupos_externos(self, servidor, puerto, database,
+                                  usuario, password, consultagrupos):
         drivers = pyodbc.drivers()
         driver = next(
             (d for d in ["ODBC Driver 18 for SQL Server",
@@ -207,22 +256,15 @@ class ConexionWorker(QThread):
             "TrustServerCertificate=yes;"
             "Connection Timeout=5;"
         )
-
         conn = pyodbc.connect(conn_str)
         try:
             cur = conn.cursor()
-            # consultagrupos = "SELECT ID, Name FROM PointGroups ORDER BY ID;"
             cur.execute(consultagrupos)
             return [(row[0], row[1]) for row in cur.fetchall()]
         finally:
             conn.close()
 
-    # ------------------------------------------------------------------ #
-    #  Asegurar que el componente exista en la BD central
-    #  Retorna el id_componente (existente o recién creado)
-    # ------------------------------------------------------------------ #
     def _asegurar_componente(self, conn, cur, id_proyecto, nombre_componente):
-        # Verificar si ya existe
         cur.execute("""
             SELECT id_componente FROM componentes
             WHERE id_proyecto = ? AND nombre_componente = ?
@@ -230,8 +272,6 @@ class ConexionWorker(QThread):
         row = cur.fetchone()
         if row:
             return row[0]
-
-        # Si no existe, crearlo y devolver el nuevo ID
         cur.execute("""
             INSERT INTO componentes (id_proyecto, nombre_componente, estado_componente)
             OUTPUT INSERTED.id_componente
@@ -242,9 +282,6 @@ class ConexionWorker(QThread):
         self.senal_log.emit(f"[Componente] Creado '{nombre_componente}' (ID: {nuevo_id})")
         return nuevo_id
 
-    # ------------------------------------------------------------------ #
-    #  Consultar BD externa para traer todos los datos
-    # ------------------------------------------------------------------ #
     def _consultar_bd_externa(self, servidor, puerto, database, usuario, password, consulta, ultimoid):
         drivers = pyodbc.drivers()
         driver = next(
@@ -264,7 +301,6 @@ class ConexionWorker(QThread):
             "TrustServerCertificate=yes;"
             "Connection Timeout=5;"
         )
-
         conn = pyodbc.connect(conn_str)
         consultaSQL = """
             SELECT r.ID, r.Point_ID, p.Name, t.Epoch,
@@ -287,85 +323,81 @@ class ConexionWorker(QThread):
         try:
             cur = conn.cursor()
             cur.execute(consulta, (ultimoid,))
-            filas = [tuple(r) for r in cur.fetchall()]
-            return filas
+            return [tuple(r) for r in cur.fetchall()]
         finally:
             conn.close()
 
-    # ------------------------------------------------------------------ #
-    #  Insertar en BD central (ahora recibe id_componente_grupo)
-    # ------------------------------------------------------------------ #
     def _insertar_en_bd_central(self, conn, cur, datos, instrumento, id_proyecto, id_componente_grupo):
         if instrumento == "Prismas":
             try:
                 nombretabla = "prismas" + str(id_proyecto)
-
-                # Crear tabla si no existe
-                sqltable = f"""IF OBJECT_ID('{nombretabla}', 'U') IS NULL
-                CREATE TABLE {nombretabla} (
-                    id_prisma               INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-                    state_prisma            INT NOT NULL DEFAULT 1,
-                    estado_prisma           INT NOT NULL DEFAULT 1,
-                    nombre_prisma           VARCHAR(255) NOT NULL,
-                    perfil_prisma           VARCHAR(255),
-                    hora_prisma             DATETIME2(0) NOT NULL,
-                    angulo_horizontal       VARCHAR(50),
-                    angulo_vertical         VARCHAR(50),
-                    distancia_prisma        FLOAT DEFAULT 0,
-                    tipoppm_prisma          VARCHAR(50),
-                    ppm_prisma              FLOAT DEFAULT 0,
-                    presion_prisma          FLOAT DEFAULT 0,
-                    temperatura_prisma      FLOAT DEFAULT 0,
-                    constante_prisma        FLOAT DEFAULT 0,
-                    este_target             FLOAT NOT NULL,
-                    norte_target            FLOAT NOT NULL,
-                    elevacion_target        FLOAT NOT NULL,
-                    altura_reflector        FLOAT DEFAULT 0,
-                    altura_instrumento      FLOAT DEFAULT 0,
-                    este_estacion           FLOAT DEFAULT 0,
-                    norte_estacion          FLOAT DEFAULT 0,
-                    altura_estacion         FLOAT DEFAULT 0,
-                    medicion_prisma         FLOAT DEFAULT 0,
-                    diferencia_tiempocorto  FLOAT DEFAULT 0,
-                    diferencia_tiempolargo  FLOAT DEFAULT 0,
-                    diferencia_limitevelocidad FLOAT DEFAULT 0,
-                    distancia_horizontal    FLOAT DEFAULT 0,
-                    diferencia_atipica      FLOAT DEFAULT 0,
-                    desplaza_longitudinal   FLOAT DEFAULT 0,
-                    desplaza_transversal    FLOAT DEFAULT 0,
-                    desplaza_altura         FLOAT DEFAULT 0,
-                    grupo_puntos            VARCHAR(255)
-                );"""
+                sqltable = f"""
+                    IF OBJECT_ID('{nombretabla}', 'U') IS NULL
+                    CREATE TABLE {nombretabla} (
+                        id_prisma               INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                        state_prisma            INT NOT NULL DEFAULT 1,
+                        estado_prisma           INT NOT NULL DEFAULT 1,
+                        nombre_prisma           VARCHAR(255) NOT NULL,
+                        perfil_prisma           VARCHAR(255),
+                        hora_prisma             DATETIME2(0) NOT NULL,
+                        angulo_horizontal       VARCHAR(50),
+                        angulo_vertical         VARCHAR(50),
+                        distancia_prisma        FLOAT DEFAULT 0,
+                        tipoppm_prisma          VARCHAR(50),
+                        ppm_prisma              FLOAT DEFAULT 0,
+                        presion_prisma          FLOAT DEFAULT 0,
+                        temperatura_prisma      FLOAT DEFAULT 0,
+                        constante_prisma        FLOAT DEFAULT 0,
+                        este_target             FLOAT NOT NULL,
+                        norte_target            FLOAT NOT NULL,
+                        elevacion_target        FLOAT NOT NULL,
+                        altura_reflector        FLOAT DEFAULT 0,
+                        altura_instrumento      FLOAT DEFAULT 0,
+                        este_estacion           FLOAT DEFAULT 0,
+                        norte_estacion          FLOAT DEFAULT 0,
+                        altura_estacion         FLOAT DEFAULT 0,
+                        medicion_prisma         FLOAT DEFAULT 0,
+                        diferencia_tiempocorto  FLOAT DEFAULT 0,
+                        diferencia_tiempolargo  FLOAT DEFAULT 0,
+                        diferencia_limitevelocidad FLOAT DEFAULT 0,
+                        distancia_horizontal    FLOAT DEFAULT 0,
+                        diferencia_atipica      FLOAT DEFAULT 0,
+                        desplaza_longitudinal   FLOAT DEFAULT 0,
+                        desplaza_transversal    FLOAT DEFAULT 0,
+                        desplaza_altura         FLOAT DEFAULT 0,
+                        grupo_puntos            VARCHAR(255)
+                    );"""
                 cur.execute(sqltable)
                 conn.commit()
 
-                # Extraer nombres únicos de prismas para este grupo
                 nombres_unicos = set(fila[2] for fila in datos)
-
-                # Limpiar duplicados en memoria
-                datos_unicos  = {}
-                datos_limpios = []
+                datos_unicos   = {}
+                datos_limpios  = []
 
                 for fila in datos:
                     nombre_prisma = fila[2]
                     epoch = fila[3]
-                    epoch_dt = epoch.replace(microsecond=0) if isinstance(epoch, datetime) \
-                            else datetime.strptime(str(epoch)[:19].replace('T', ' '), '%Y-%m-%d %H:%M:%S')
-
+                    epoch_dt = (
+                        epoch.replace(microsecond=0)
+                        if isinstance(epoch, datetime)
+                        else datetime.strptime(
+                            str(epoch)[:19].replace('T', ' '), '%Y-%m-%d %H:%M:%S'
+                        )
+                    )
                     clave = (nombre_prisma, epoch_dt)
                     if clave not in datos_unicos:
                         datos_unicos[clave] = True
                         datos_limpios.append((fila, epoch_dt))
 
-                # Cargar existentes en BD para deduplicación
                 cur.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla}")
                 existen_prismas = set(
-                    (row[0], row[1].replace(microsecond=0) if isinstance(row[1], datetime)
-                    else datetime.strptime(str(row[1])[:19], '%Y-%m-%d %H:%M:%S'))
+                    (row[0],
+                     row[1].replace(microsecond=0)
+                     if isinstance(row[1], datetime)
+                     else datetime.strptime(str(row[1])[:19], '%Y-%m-%d %H:%M:%S'))
                     for row in cur.fetchall()
                 )
 
-                # Preparar inserción por lotes
                 insert_query = f"""
                     INSERT INTO {nombretabla} (
                         state_prisma, estado_prisma,
@@ -381,8 +413,8 @@ class ConexionWorker(QThread):
 
                 lote_registros = []
                 contador = 0
+
                 for fila, epoch_dt in datos_limpios:
-                    # id_externo    = fila[0]
                     nombre_prisma = fila[2]
                     ang_h         = fila[4]
                     ang_v         = fila[5]
@@ -402,19 +434,19 @@ class ConexionWorker(QThread):
                         lote_registros.append((
                             nombre_prisma,
                             epoch_dt,
-                            str(ang_h)           if ang_h        is not None else '',
-                            str(ang_v)           if ang_v        is not None else '',
-                            float(distancia)     if distancia    is not None else 0.0,
-                            float(presion)       if presion      is not None else 0.0,
-                            float(temperatura)   if temperatura  is not None else 0.0,
-                            float(este)          if este         is not None else 0.0,
-                            float(norte)         if norte        is not None else 0.0,
-                            float(elevacion)     if elevacion    is not None else 0.0,
-                            float(dist_hz)       if dist_hz      is not None else 0.0,
-                            float(desplaz_long)  if desplaz_long is not None else 0.0,
-                            float(desplaz_trans) if desplaz_trans is not None else 0.0,
-                            float(desplaz_alt)   if desplaz_alt  is not None else 0.0,
-                            grupo                if grupo        is not None else '',
+                            str(ang_h)            if ang_h        is not None else '',
+                            str(ang_v)            if ang_v        is not None else '',
+                            float(distancia)      if distancia    is not None else 0.0,
+                            float(presion)        if presion      is not None else 0.0,
+                            float(temperatura)    if temperatura  is not None else 0.0,
+                            float(este)           if este         is not None else 0.0,
+                            float(norte)          if norte        is not None else 0.0,
+                            float(elevacion)      if elevacion    is not None else 0.0,
+                            float(dist_hz)        if dist_hz      is not None else 0.0,
+                            float(desplaz_long)   if desplaz_long is not None else 0.0,
+                            float(desplaz_trans)  if desplaz_trans is not None else 0.0,
+                            float(desplaz_alt)    if desplaz_alt  is not None else 0.0,
+                            grupo                 if grupo        is not None else '',
                         ))
                         contador += 1
 
@@ -426,62 +458,44 @@ class ConexionWorker(QThread):
                     cur.executemany(insert_query, lote_registros)
 
                 conn.commit()
-                print(f"{contador} filas nuevas insertadas en {nombretabla} (grupo actual)")
-
-                # Registrar equipos en instrumentacion usando el id_componente del grupo
-                self._registrar_equipos_zona(
-                    conn, cur, id_componente_grupo, nombretabla,
-                    nombres_unicos, instrumento
+                self.senal_log.emit(
+                    f"[Sync] {contador} filas nuevas en {nombretabla}"
                 )
 
+                self._registrar_equipos_zona(
+                    conn, cur, id_componente_grupo,
+                    nombretabla, nombres_unicos, instrumento
+                )
                 return True
 
             except Exception as e:
-                print(f"Error al insertar en prismas{id_proyecto}: {e}")
+                self.senal_error.emit(f"Error insertar en {nombretabla}: {e}")
                 if conn:
                     conn.rollback()
                 return False
 
         return False
 
-    # ------------------------------------------------------------------ #
-    #  Registrar prismas en instrumentacion (asociados al componente correcto)
-    # ------------------------------------------------------------------ #
-    def _registrar_equipos_zona(self, conn, cur, id_componente, nombretabla, nombres_unicos, tipo_equipo):
-        prismas_nuevos = []
-
+    def _registrar_equipos_zona(self, conn, cur, id_componente,
+                                 nombretabla, nombres_unicos, tipo_equipo):
         try:
-            consulta_verificacion = """
-                SELECT COUNT(1) FROM instrumentacion
-                WHERE nombre_equipo = ? AND id_componente = ?;
-            """
-
-            sql_insert = """
-                INSERT INTO instrumentacion (
-                    id_componente, tipo_equipo, nombre_equipo,
-                    tabla_equipo, estado_instrumentacion
-                ) VALUES (?, ?, ?, ?, ?);
-            """
-
             for nombre_equipo in nombres_unicos:
-                cur.execute(consulta_verificacion, (nombre_equipo, id_componente))
-                existe = cur.fetchone()[0]
-
-                if existe == 0:
-                    cur.execute(sql_insert, (
-                        id_componente,
-                        tipo_equipo,
-                        nombre_equipo,
-                        nombretabla,
-                        1
-                    ))
-                    prismas_nuevos.append(nombre_equipo)
-
+                cur.execute("""
+                    SELECT COUNT(1) FROM instrumentacion
+                    WHERE nombre_equipo = ? AND id_componente = ?
+                """, (nombre_equipo, id_componente))
+                if cur.fetchone()[0] == 0:
+                    cur.execute("""
+                        INSERT INTO instrumentacion (
+                            id_componente, tipo_equipo, nombre_equipo,
+                            tabla_equipo, estado_instrumentacion
+                        ) VALUES (?, ?, ?, ?, 1)
+                    """, (id_componente, tipo_equipo, nombre_equipo, nombretabla))
             conn.commit()
-            return True, prismas_nuevos
-
+            return True, []
         except Exception as e:
-            print(f"Error al registrar equipos en instrumentacion: {e}")
+            self.senal_error.emit(f"Error registrar equipos: {e}")
             if conn:
                 conn.rollback()
             return False, []
+    

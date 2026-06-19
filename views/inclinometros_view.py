@@ -19,6 +19,7 @@ from controllers.UmbralController import UmbralController
 from utils.shared.graficarUmbrales import GraficarUmbrales
 from controllers.InterfazController import InterfazController
 from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
+
 class InclinometrosView:
     main = None
     idproyecto = None

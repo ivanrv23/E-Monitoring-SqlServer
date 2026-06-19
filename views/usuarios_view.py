@@ -1,7 +1,6 @@
 from PySide6.QtCore import QAbstractTableModel, Qt, QModelIndex
 from PySide6.QtGui import QStandardItemModel, QColor
-from PySide6.QtWidgets import (QMenu, QComboBox, QPushButton, QTableView, QDialog, QFormLayout, QLineEdit, QDialogButtonBox,
-                            QMessageBox, QLabel)
+from PySide6.QtWidgets import (QMenu, QComboBox, QPushButton, QTableView, QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QMessageBox, QLabel)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
 from utils.common.alertas import mostrar_mensaje

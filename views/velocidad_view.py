@@ -1,6 +1,6 @@
 import threading
 from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox,QMenu)
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica
 from utils.shared.graficaDesplazamientoVelocidad import limpiar_widget
 from controllers.VelocidadController import VelocidadController
@@ -19,8 +19,6 @@ from controllers.UmbralController import UmbralController
 from utils.shared.graficarUmbrales import GraficarUmbrales
 from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
 from controllers.InterfazController import InterfazController
-
-from PySide6.QtCore import QThread, Signal, QTimer
 
 class DataWorkerVelocidad(QThread):
     # Señal que enviará los datos cuando termine

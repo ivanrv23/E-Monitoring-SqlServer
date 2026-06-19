@@ -1,7 +1,5 @@
 from datetime import datetime
-from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
-                               QStyle, QLabel, QLineEdit, QPushButton, 
-                               QToolButton, QCheckBox)
+from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QStyle, QLabel, QLineEdit, QPushButton, QToolButton, QCheckBox)
 from PySide6.QtGui import QIcon, QScreen, QPixmap
 from PySide6.QtCore import Qt
 from utils.common.rutasarchivos import resource_path
