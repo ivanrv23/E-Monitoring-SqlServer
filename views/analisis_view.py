@@ -495,6 +495,8 @@ class AnalisisView:
             comboPrismasComportamiento.activated.connect(AnalisisView.ValidarComportamientoPrismas)
             comboGraficasComportamiento.activated.connect(AnalisisView.ValidarUnidadesComportamientoPrismas)
             comboUnidadesComprtamiento.activated.connect(AnalisisView.ValidarComportamientoPrismas)
+            btnConfigurarComportamiento = main.findChild(QPushButton, "btn_configurar_comportamiento")
+            btnConfigurarComportamiento.clicked.connect(AnalisisView.validarMarcadoDesmarcadoComportamiento)
             # VISTA ELIPSE DE ERROR
             btn_refrescar_elipse = main.findChild(QPushButton, "btn_refresca_grafica_elipse")
             btn_refrescar_elipse.clicked.connect(AnalisisView.graficarElipseDesviaciones)
@@ -982,6 +984,16 @@ class AnalisisView:
             for texto, valor in [("Metros/día",1),("Centímetros/día",100),("Milímetros/día",1000),("Metros/hora",1/24),("Centímetros/hora",100/24),("Milímetros/hora",1000/24)]:
                 comboUnidades.addItem(texto, valor)
         AnalisisView.ValidarComportamientoPrismas()
+
+    def validarMarcadoDesmarcadoComportamiento():
+        comboComponentes = AnalisisView.main.findChild(QComboBox, "combo_componentes_comportamiento")
+        comboGraficas = AnalisisView.main.findChild(QComboBox, "combo_tiposgrafica_comportamiento")
+        idcomponente = comboComponentes.currentData()
+        tipografica = comboGraficas.currentData()
+        def reiniciar():
+            treeWidget =  AnalisisView.main.findChild(QTreeWidget, "tree_actual_analisis")
+            AnalisisView.validarVistaAnalisis(treeWidget)
+        GraficaComportamiento.configurarMarcadoDesmarcado(AnalisisView.idproyecto, idcomponente, tipografica, reiniciar)
 
     def validarVariacionesCoordenadas(tree_actual):
         lista = EquiposAnalisis.obtener_todos_elementos_marcados(tree_actual)
@@ -2044,7 +2056,8 @@ class AnalisisView:
         AnalisisView.fechafinal = fechafin
         if AnalisisView.idproyecto:
             treeWidget =  AnalisisView.main.findChild(QTreeWidget, "tree_actual_analisis")
-            AnalisisView.obtenerMostrarPrismasMarcados(treeWidget)
+            AnalisisView.validarVistaAnalisis(treeWidget)
+            # AnalisisView.obtenerMostrarPrismasMarcados(treeWidget)
     
     def mostrarDataTablaDesviaciones():
         if AnalisisView.idproyecto:

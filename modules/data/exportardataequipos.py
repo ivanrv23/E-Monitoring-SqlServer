@@ -266,13 +266,16 @@ class ExportarData():
         main_layout.addLayout(btn_layout)
         # habilitar exportar solo si diferencia > 0
         def validar():
-            ini = dt_inicio.dateTime()
-            fin = dt_final.dateTime()
-            if ini.isValid() and fin.isValid():
-                labeldias.setText(str(ini.date().daysTo(fin.date())))
-                botonexportar.setEnabled(ini.secsTo(fin) >= 60)
+            if tipo == "Inclinómetros" or tipo == "Pluviómetros" or tipo == "TDR" or tipo == "Cotas de Terreno":
+                botonexportar.setEnabled(True)
             else:
-                botonexportar.setEnabled(False)
+                ini = dt_inicio.dateTime()
+                fin = dt_final.dateTime()
+                if ini.isValid() and fin.isValid():
+                    labeldias.setText(str(ini.date().daysTo(fin.date())))
+                    botonexportar.setEnabled(ini.secsTo(fin) >= 60)
+                else:
+                    botonexportar.setEnabled(False)
 
         # --- Funciones de exportación ---
         def exportarDataEquipo():
@@ -776,7 +779,7 @@ class ExportarData():
             celda.fill = color_fondo
         # Definir datos generales
         datosceldas = [("A9", "Nombre:"), ("A10", "Código:"), ("A11", "Tipo:"), ("A12", "Ubicación:"),
-                    ("F9", infopiezo[6]), ("F10", infopiezo[7]), ("F11", infopiezo[5]), ("F12", infopiezo[4]),
+                    ("F9", infopiezo[6]), ("F10", infopiezo[7]), ("F11", infopiezo[4]), ("F12", infopiezo[5]),
                     ("G9", "Inclinación:"), ("G10", "Azimuth:"), ("G11", "Stick Up (m):"), ("G12", "Comentario:"),
                     ("H9", infopiezo[8]), ("H10", infopiezo[9]), ("H11", infopiezo[10]), ("H12", infopiezo[11])]
         datoscombinados = [("B9:C9", namepiezo), ("B10:C10", infopiezo[3]), ("B11:C11", ""), ("B12:C12", infopiezo[14]),

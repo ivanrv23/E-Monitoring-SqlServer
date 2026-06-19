@@ -1,6 +1,8 @@
 from PySide6.QtWidgets import (QWidget, QComboBox)
 from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica
 from controllers.AnalisisController import AnalisisController
+from controllers.InterfazController import InterfazController
+from utils.shared.personalizacion import Personalizacion
 
 # ─────────────────────────────────────────────────────────────
 #  Mapeo: clave_interna → (índice_columna_en_raw, etiqueta_leyenda)
@@ -32,7 +34,7 @@ _VELOCIDAD_COLS = {
 
 # Todos los tipos en orden de aparición para cada modo
 _TIPOS_DESPLAZAMIENTO = list(_DESPLAZAMIENTO_COLS.keys())
-_TIPOS_VELOCIDAD      = list(_VELOCIDAD_COLS.keys())
+_TIPOS_VELOCIDAD = list(_VELOCIDAD_COLS.keys())
 
 
 def _pivotear_datos(raw, cols_map, tipos_seleccionados, idx_fecha=2, idx_dias=4, idx_horas=5):
@@ -66,7 +68,52 @@ def _pivotear_datos(raw, cols_map, tipos_seleccionados, idx_fecha=2, idx_dias=4,
                 lectura,    # col[6] lectura (eje Y)
                 tipo_eq,    # col[7] TipoPrisma (col[-1])
             ))
+    return resultado
 
+def _filtrar_por_preferencias(datos_transformados, prefs_actuales, cols_map):
+    """
+    Filtra datos_transformados según las preferencias marcadas.
+    
+    - Si prefs_actuales está vacío → retorna todos los datos sin filtrar.
+    - Si hay preferencias → extrae las claves internas cuyos índices de columna
+      coincidan con los id_instrumentacion de las preferencias, luego filtra
+      las filas cuyo id_serie contenga alguna de esas claves.
+
+    Args:
+        datos_transformados: Lista de tuplas pivotadas.
+        prefs_actuales:      Lista de (id_componente, id_instrumentacion) o [].
+        cols_map:            _VELOCIDAD_COLS o _DESPLAZAMIENTO_COLS.
+
+    Returns:
+        Lista filtrada de tuplas.
+    """
+    # Sin preferencias → mostrar todo
+    if not prefs_actuales:
+        return datos_transformados
+
+    # Obtener los índices de columna permitidos desde las preferencias
+    # id_instrumentacion corresponde al col_idx en cols_map
+    indices_permitidos = {id_inst for (_, id_inst) in prefs_actuales}
+
+    # Mapear col_idx → clave_interna  (ej: 6 → "VI3D", 7 → "VA3D")
+    idx_a_clave = {col_idx: clave for clave, (col_idx, _) in cols_map.items()}
+
+    # Claves internas permitidas (ej: {"VI3D", "VA3D"})
+    claves_permitidas = {
+        idx_a_clave[idx]
+        for idx in indices_permitidos
+        if idx in idx_a_clave
+    }
+
+    if not claves_permitidas:
+        return []
+
+    # Filtrar: id_serie tiene formato "{id_inst}_{tipo}"
+    # Extraemos la parte después del primer '_' para obtener el tipo
+    resultado = [
+        fila for fila in datos_transformados
+        if fila[0].split("_", 1)[-1] in claves_permitidas
+    ]
     return resultado
 
 
@@ -98,7 +145,6 @@ class GraficaComportamiento:
     # ─────────────────────────────────────────────────────────────
     #  Método principal
     # ─────────────────────────────────────────────────────────────
-
     def graficarComportamientoPrismas(main, idproyecto, fechainicial, fechafinal):
         widget           = main.findChild(QWidget,   "widget_graficas_comportamiento")
         comboComponentes = main.findChild(QComboBox, "combo_componentes_comportamiento")
@@ -152,8 +198,22 @@ class GraficaComportamiento:
 
         if not datos_transformados:
             return
+        
+        # ── 4. Obtener lista de preferencia marcado ───────────────
+        if tipografica == "velocidad":
+            tipo = "VELOCIDAD"
+        else:
+            tipo = "DESPLAZAMIENTO"
+        prefs_actuales = InterfazController.ctrlObtenerPreferenciasMarcado(idproyecto, tipo)
+        if prefs_actuales is None:
+            prefs_actuales = []
 
-        # ── 4. Graficar ───────────────────────────────────────────
+        # ── 5. Filtrar datos según preferencias ───────────────────
+        datos_transformados = _filtrar_por_preferencias(datos_transformados, prefs_actuales, cols_map)
+        if not datos_transformados:
+            return
+
+        # ── 6. Graficar ───────────────────────────────────────────
         procesar_grafica(
             widget,
             None,                 # labeltendencia
@@ -175,4 +235,21 @@ class GraficaComportamiento:
             fechainicial,
             fechafinal,
         )
+    
+    @staticmethod
+    def configurarMarcadoDesmarcado(idproyecto, idcomponente, tipografica, reiniciar):
+        if tipografica == "velocidad":
+            tipo = "VELOCIDAD"
+            cols_map = _VELOCIDAD_COLS
+        else:
+            tipo = "DESPLAZAMIENTO"
+            cols_map = _DESPLAZAMIENTO_COLS
+        prefs_actuales = InterfazController.ctrlObtenerPreferenciasMarcado(idproyecto, tipo)
+        if prefs_actuales is None: prefs_actuales = []
+        def callback_guardar(lista_datos):
+            lista_preferencias = [(idcomponente, clave) for clave in lista_datos]
+            return InterfazController.ctrlGuardarPreferenciasMarcado(idproyecto, tipo, lista_preferencias)
+        # Mostrar dialogo
+        Personalizacion.dialogoConfigurarMarcadoAnalisis(cols_map, prefs_actuales, callback_guardar, reiniciar)
+
     
