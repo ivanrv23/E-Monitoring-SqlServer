@@ -9,7 +9,7 @@ class PrismaController:
         if fechasa:
             if fechasa[0]:
                 fechamax = fechasa[0]
-                fechamin = MetodosGenerales.obtenerFechasRangoUnyear(fechamax, 91)
+                fechamin = MetodosGenerales.obtenerFechasRangoUnyear(fechamax, 5)
                 return fechamin, fechamax
             else:
                 fechamin, fechamax = MetodosGenerales.obtenerRangoFechas(365)

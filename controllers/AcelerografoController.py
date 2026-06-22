@@ -9,7 +9,7 @@ class AcelerografoController:
         if fecha:
             if fecha[0]:
                 fechamax = fecha[0]
-                fechamin = MetodosGenerales.obtenerFechasRangoUnyear(fechamax, 365)
+                fechamin = MetodosGenerales.obtenerFechasRangoUnyear(fechamax, 30)
                 return fechamin, fechamax
             else:
                 fechamin, fechamax = MetodosGenerales.obtenerRangoFechas(365)

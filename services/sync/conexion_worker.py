@@ -236,8 +236,7 @@ class ConexionWorker(QThread):
 
     # ---- Métodos de BD sin cambios ---- #
 
-    def _obtener_grupos_externos(self, servidor, puerto, database,
-                                  usuario, password, consultagrupos):
+    def _obtener_grupos_externos(self, servidor, puerto, database, usuario, password, consultagrupos):
         drivers = pyodbc.drivers()
         driver = next(
             (d for d in ["ODBC Driver 18 for SQL Server",
@@ -258,6 +257,7 @@ class ConexionWorker(QThread):
         )
         conn = pyodbc.connect(conn_str)
         try:
+            consultaSQL = """SELECT ID, Name FROM PointGroups ORDER BY ID"""
             cur = conn.cursor()
             cur.execute(consultagrupos)
             return [(row[0], row[1]) for row in cur.fetchall()]
