@@ -807,3 +807,27 @@ GO
 -- Índice para mejorar la velocidad de carga
 CREATE INDEX idx_preferencias_proy_mod ON preferencias_marcado (id_proyecto, modulo);
 GO
+
+
+----------------------------------------------------------------------------------------------------
+-- CONSULTAS:
+consultaSQL = """SELECT ID, Name FROM PointGroups ORDER BY ID"""
+
+consultaSQL = """
+            SELECT r.ID, r.Point_ID, p.Name, t.Epoch,
+                t.HzAngle, t.VAngle, t.SlopeDistance, t.Pressure, t.Temperature,
+                r.Easting, r.Northing, r.Height, r.HorzDistance, r.LongitudinalDisplacement,
+                r.TransverseDisplacement, r.HeightDisplacement, g.Name
+            FROM Points p
+            INNER JOIN Results r ON p.ID = r.Point_ID
+            INNER JOIN TPSMeasurements t ON t.Point_ID = r.Point_ID
+                AND t.Epoch BETWEEN DATEADD(SECOND, -60, r.Epoch)
+                                AND DATEADD(SECOND,  60, r.Epoch)
+            INNER JOIN PointGroups g ON t.PointGroup_ID = g.ID
+            WHERE r.Easting      IS NOT NULL
+              AND r.Northing     IS NOT NULL
+              AND r.Height       IS NOT NULL
+              AND r.HorzDistance IS NOT NULL
+              AND r.ID >= ?
+            ORDER BY r.ID;
+        """
