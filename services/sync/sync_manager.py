@@ -57,10 +57,3 @@ class SyncManager:
     def recargar_conexiones(cls):
         cls.sincronizar_ahora()
     
-    @classmethod
-    def sincronizacion_inicial(cls):
-        # Fuerza una sincronización al iniciar la aplicación.
-        if not (cls._worker and cls._worker.isRunning()):
-            cls.iniciar()
-        else:
-            cls._worker.sincronizar_ahora()
