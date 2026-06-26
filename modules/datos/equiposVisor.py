@@ -1,3 +1,4 @@
+import os
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import Qt
 from utils.shared.arbolmarcado import TreeCheckbox
@@ -12,6 +13,7 @@ from modules.datos.subirAcelerografos import SubirAcelerografos
 from modules.datos.subirTDR import SubirTDR
 from controllers.InterfazController import InterfazController
 from modules.datos.registroEquipos import RegistroEquipos
+from utils.common.rutasarchivos import resource_path
 
 class EquiposVisor:
 
@@ -487,9 +489,33 @@ class EquiposVisor:
                     idzona = zona[0]
                     namezona = zona[2]
                     # LISTAR TOPOGRAFIAS
-                    topografias = InterfazController.ctrlListarTopografiasComponente(idzona, 1)
-                    if topografias:
-                        TreeCheckbox.crearGrupoCheckboxDobleTopografia(tree_widget, namezona, idzona, proyecto_id, "Topografías", "1", topografias, "topografia")
+                    try:
+                        topografias = InterfazController.ctrlListarTopografiasComponente(idzona, 1)
+                        if topografias:
+                            # Validar que todos los archivos existan antes de mostrar el grupo
+                            topografias_validas = []
+                            for topo in topografias:
+                                try:
+                                    tipotopo = topo[10]
+                                    ruta_raw = topo[11]
+                                    if not ruta_raw:
+                                        continue
+                                    ruta_resuelta = resource_path(ruta_raw)
+                                    if tipotopo == "VTP":
+                                        if os.path.isdir(ruta_resuelta):
+                                            archivos = [f for f in os.listdir(ruta_resuelta) if f.endswith('.vtp')]
+                                            if archivos:
+                                                topografias_validas.append(topo)
+                                    else:
+                                        if os.path.isfile(ruta_resuelta):
+                                            topografias_validas.append(topo)
+                                except Exception:
+                                    continue
+                            # Solo crear el grupo si hay al menos una topografía válida
+                            if topografias_validas:
+                                TreeCheckbox.crearGrupoCheckboxDobleTopografia(tree_widget, namezona, idzona, proyecto_id, "Topografías", "1", topografias_validas, "topografia")
+                    except Exception as e:
+                        print(f"[VISOR] Error topografías zona {namezona}: {e}")
                     # LISTAR PRISMAS
                     prismas = InterfazController.ctrlListarPrismasComponente(idzona, 1)
                     if prismas:

@@ -129,6 +129,10 @@ class UmbralController:
                 return False
         return True
 
+    def ctrlObtenerUmbralesAjustes(proyectoid, componete_id, tipo, tabla):
+        umbral = UmbralModel.mdlObtenerUmbralesAjustes(proyectoid, componete_id, tipo, tabla)
+        return umbral
+
     def ctrlObtenerUmbralesInstrumentacion(proyectoid, componete_id, tipo, tabla):
         umbral = UmbralModel.mdlObtenerUmbralesInstrumentacion(proyectoid, componete_id, tipo, tabla)
         return umbral

@@ -122,6 +122,9 @@ class VisorView:
                 VisorView.orientation_widget3d.InteractiveOff()
                 
                 VisorView.vtkWidgetVisor.AddObserver(vtk.vtkCommand.MouseMoveEvent, VisorView.mostrar_coordenadas3d)
+                estilo_inicial = EstiloInteraccionPersonalizado(picker=None)
+                VisorView.vtkWidgetVisor.SetInteractorStyle(estilo_inicial)
+                VisorView.estilo_personalizado = estilo_inicial
 
                 # INICIALIZAR VISOR CORTE
                 widgetVisor3d_corte = VisorView.main.findChild(QWidget, "widget_visor_corte")
@@ -150,6 +153,8 @@ class VisorView:
                 VisorView.orientation_widgetcorte.InteractiveOff()
                 
                 VisorView.vtkWidgetCorte.AddObserver(vtk.vtkCommand.MouseMoveEvent, VisorView.mostrar_coordenadas3d_corte)
+                estilo_corte = EstiloInteraccionPersonalizado(picker=None)
+                VisorView.vtkWidgetCorte.SetInteractorStyle(estilo_corte)
 
                 # INICIALIZAR VISOR COMPARAR LIDAR
                 widgetVisor3d_lidar = VisorView.main.findChild(QWidget, "widget_visor_comparar_nubes")
@@ -178,6 +183,8 @@ class VisorView:
                 VisorView.orientation_widgetLidar.InteractiveOff()
                 
                 VisorView.vtkWidgetLidar.AddObserver(vtk.vtkCommand.MouseMoveEvent, VisorView.mostrar_coordenadas3d_lidar)
+                estilo_lidar = EstiloInteraccionPersonalizado(picker=None)
+                VisorView.vtkWidgetLidar.SetInteractorStyle(estilo_lidar)
 
                 # CONFIGURACIÓN DE BOTONES Y CONTROLES
                 paginacionvisor = VisorView.main.findChild(QStackedWidget, "stacked_visor")
@@ -629,14 +636,10 @@ class VisorView:
             # Crear el actor directamente con el mapeador
             actor = vtk.vtkActor()
             actor.SetMapper(mapeador)
-            picker = vtk.vtkPointPicker()  # Usar vtkPointPicker para seleccionar puntos
-            picker.SetTolerance(0.001)  # Ajustar la tolerancia para mejorar la precisión
-            # Configurar estilo de interacción
-            VisorView.estilo_personalizado = vtk.vtkInteractorStyleTrackballCamera()
-            VisorView.estilo_personalizado.AddObserver(
-                "LeftButtonPressEvent",
-                lambda obj, event: VisorView.on_left_click(picker, obj, event)
-            )
+            picker = vtk.vtkPointPicker()
+            picker.SetTolerance(0.001)
+            # Configurar estilo de interacción personalizado
+            VisorView.estilo_personalizado = EstiloInteraccionPersonalizado(picker=picker)
             VisorView.vtkWidgetVisor.SetInteractorStyle(VisorView.estilo_personalizado)
             datos_adicionales = [num_puntos, poli_datos]
             return actor, datos_adicionales
@@ -644,7 +647,7 @@ class VisorView:
             return None, None
     
     @staticmethod
-    def on_left_click(picker, obj, event):
+    def on_left_click(picker, obj, event): # ya no se usa
         if VisorView.vtkWidgetVisor.GetControlKey():
             click_pos = VisorView.vtkWidgetVisor.GetEventPosition()
             picker.Pick(click_pos[0], click_pos[1], 0, VisorView.rendererVisor)
@@ -3128,6 +3131,67 @@ class VisorView:
                 piezomanualmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Piezómetros Casagrande")
                 if len(piezomanualmarcados) > 0:
                     VisorView.mostrarPiezometrosManualVisor(paginacion, piezomanualmarcados)
+
+class EstiloInteraccionPersonalizado(vtk.vtkInteractorStyleTrackballCamera):
+    def __init__(self, picker=None):
+        super().__init__()
+        self._picker = picker
+        self._is_panning = False
+        self._last_pos = None
+        
+        # Observadores propios
+        self.AddObserver("RightButtonPressEvent", self.on_right_button_press)
+        self.AddObserver("RightButtonReleaseEvent", self.on_right_button_release)
+        self.AddObserver("MouseMoveEvent", self.on_mouse_move)
+        self.AddObserver("LeftButtonPressEvent", self.on_left_button_press)
+    
+    def on_left_button_press(self, obj, event):
+        """Clic izquierdo: rotar O abrir diálogo si ctrl está presionado"""
+        interactor = self.GetInteractor()
+        if interactor.GetControlKey():
+            # Ctrl + clic izquierdo → abrir diálogo prisma virtual
+            if self._picker:
+                click_pos = interactor.GetEventPosition()
+                self._picker.Pick(
+                    click_pos[0], 
+                    click_pos[1], 
+                    0, 
+                    VisorView.rendererVisor
+                )
+                picked_point = self._picker.GetPickPosition()
+                if picked_point:
+                    x, y, z = picked_point
+                    VisorView.abrir_dialogo(x, y, z)
+                # Desactivar ctrl para evitar propagación
+                interactor.SetControlKey(0)
+            return  # No propagar
+        else:
+            # Comportamiento normal: rotar
+            self.OnLeftButtonDown()
+    
+    def on_right_button_press(self, obj, event):
+        """Clic derecho presionado: iniciar pan (arrastre)"""
+        self._is_panning = True
+        interactor = self.GetInteractor()
+        self._last_pos = interactor.GetEventPosition()
+        # Activar modo pan en VTK
+        self.StartPan()
+    
+    def on_right_button_release(self, obj, event):
+        """Clic derecho soltado: terminar pan"""
+        self._is_panning = False
+        self._last_pos = None
+        # Terminar modo pan en VTK
+        self.EndPan()
+    
+    def on_mouse_move(self, obj, event):
+        """Movimiento del mouse: ejecutar pan si clic derecho está presionado"""
+        if self._is_panning:
+            # VTK maneja el pan internamente cuando está en modo Pan
+            self.OnMouseMove()
+        else:
+            # Comportamiento normal (rotación con clic izquierdo, etc.)
+            self.OnMouseMove()
 
 # Hilo procesar topografías
 class ProcesarTopografiaThread(QThread):

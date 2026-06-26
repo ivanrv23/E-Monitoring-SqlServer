@@ -529,24 +529,23 @@ class UmbralView:
         combo_layout = QHBoxLayout()
         # ComboBox
         combo_label = QLabel("Seleccione Umbral:")
-        combo = QComboBox()
+        combo_tipo = QComboBox()
         options = UmbralView.retornarArregloTipo(tipo)
         # Añadir opciones al ComboBox
-        combo.addItems(options.keys())
+        combo_tipo.addItems(options.keys())
         # Botón al lado del ComboBox
         add_button = QPushButton("Agregar Fila")
         # Añadir ComboBox y botón al layout horizontal
         combo_layout.addWidget(combo_label)
-        combo_layout.addWidget(combo)
+        combo_layout.addWidget(combo_tipo)
         combo_layout.addWidget(add_button)
         # Añadir el layout horizontal al layout principal
         main_layout.addLayout(combo_layout)
         # Tabla
         table = QTableWidget(3, 5)  # 3 filas y 5 columnas
-        #table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", f"Rango ({medida1})", "Acciones a realizar"])
         # Función para reiniciar la tabla
         def reset_table():
-            selected_option = combo.currentText()
+            selected_option = combo_tipo.currentText()
             selected_id = options[selected_option]
             if selected_id.startswith("V"):
                 table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", f"Rango ({medida2})", "Acciones a realizar"])
@@ -573,10 +572,10 @@ class UmbralView:
                 acciones_item = QTableWidgetItem("")
                 table.setItem(row, 4, acciones_item)
         def load_umbrales():
-            selected_option = combo.currentText()
+            selected_option = combo_tipo.currentText()
             selected_id = options[selected_option]  # Obtener el ID correspondiente
             selected_component_id = component_combo.currentData()  # Obtener el ID del componente seleccionado
-            umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(proyectoid, selected_component_id, selected_id, tabla)
+            umbrales = UmbralController.ctrlObtenerUmbralesAjustes(proyectoid, selected_component_id, selected_id, tabla)
             if umbrales:
                 if selected_id.startswith("V"):
                     table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", f"Rango ({medida2})", "Acciones a realizar"])
@@ -610,7 +609,7 @@ class UmbralView:
             else:
                 reset_table()
         # Conectar el cambio de opción en el ComboBox para cargar los umbrales
-        combo.currentIndexChanged.connect(load_umbrales)
+        combo_tipo.currentIndexChanged.connect(load_umbrales)
         component_combo.currentIndexChanged.connect(load_umbrales)
         # Configurar las columnas iniciales
         load_umbrales()
@@ -654,7 +653,7 @@ class UmbralView:
         add_button.clicked.connect(add_row)
         # Función para manejar el evento de confirmar
         def confirm():
-            selected_option = combo.currentText()
+            selected_option = combo_tipo.currentText()
             selected_id = options[selected_option]  # Obtener el ID correspondiente
             if selected_id.startswith("V"):
                 unidad = unidad2
@@ -806,7 +805,7 @@ class UmbralView:
                 medida = "cm"
             else:
                 medida = "mm"
-            umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(proyectoid, selected_equipo_id, selected_id, tabla)
+            umbrales = UmbralController.ctrlObtenerUmbralesAjustes(proyectoid, selected_equipo_id, selected_id, tabla)
             if umbrales:
                 table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", f"Rango ({medida})", "Acciones a realizar"])
                 table.setRowCount(len(umbrales))
@@ -1360,7 +1359,7 @@ class UmbralView:
             else: # AT
                 medida = "°C"
                 unimedida = 1
-            umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(proyectoid, selected_equipo_id, selected_id, tabla)
+            umbrales = UmbralController.ctrlObtenerUmbralesAjustes(proyectoid, selected_equipo_id, selected_id, tabla)
             if umbrales:
                 table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", f"Rango ({medida})", "Acciones a realizar"])
                 table.setRowCount(len(umbrales))
@@ -1643,7 +1642,7 @@ class UmbralView:
             selected_option = combo.currentText()
             selected_id = options[selected_option]  # Obtener el ID correspondiente
             selected_component_id = component_combo.currentData()  # Obtener el ID del componente seleccionado
-            umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(proyectoid, selected_component_id, selected_id, tabla)
+            umbrales = UmbralController.ctrlObtenerUmbralesAjustes(proyectoid, selected_component_id, selected_id, tabla)
             if umbrales:
                 medidafinal = 1
                 if selected_id == "NF":
@@ -2203,7 +2202,7 @@ class UmbralView:
             selected_option = combo.currentText()
             tipografica = options[selected_option]  # Obtener el ID correspondiente
             componente_id = component_combo.currentData()  # Obtener el ID del componente seleccionado
-            umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(proyectoid, componente_id, tipografica, tabla)
+            umbrales = UmbralController.ctrlObtenerUmbralesAjustes(proyectoid, componente_id, tipografica, tabla)
             if umbrales:
                 table = crear_tabla()
                 table.setRowCount(len(umbrales))

@@ -333,38 +333,38 @@ class UmbralModel:
             if conn:
                 conn.close()
     
-    # @staticmethod
-    # def mdlObtenerUmbralesInstrumentacion(proyectoid, componente_id, tipo, tabla):
-    #     conn = None
-    #     try:
-    #         conn = Connection.connectionDB()
-    #         params = ()
-    #         if tabla == 'umbral_inclinometro':
-    #             sql = f"""SELECT * FROM {tabla} WHERE id_inclinometro = ? AND tipo_umbral = ? AND id_proyecto=? ORDER BY rango_umbral ASC;"""
-    #             params = (componente_id, tipo, proyectoid)
-    #         elif tabla=='umbral_celda':
-    #             sql = f"""SELECT * FROM {tabla} WHERE id_celda = ? AND tipo_umbral = ? AND id_proyecto = ? ORDER BY rango_umbral ASC;"""
-    #             params = (componente_id, tipo, proyectoid)
-    #         else:
-    #             sql = f"""SELECT * FROM {tabla} WHERE id_componente = ? AND tipo_umbral = ? AND id_proyecto = ? ORDER BY rango_umbral ASC;"""
-    #             params = (componente_id, tipo, proyectoid)
+    @staticmethod
+    def mdlObtenerUmbralesAjustes(proyectoid, componente_id, tipo, tabla):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            params = ()
+            if tabla == 'umbral_inclinometro':
+                sql = f"""SELECT * FROM {tabla} WHERE id_inclinometro = ? AND tipo_umbral = ? AND id_proyecto=? ORDER BY rango_umbral ASC;"""
+                params = (componente_id, tipo, proyectoid)
+            elif tabla=='umbral_celda':
+                sql = f"""SELECT * FROM {tabla} WHERE id_celda = ? AND tipo_umbral = ? AND id_proyecto = ? ORDER BY rango_umbral ASC;"""
+                params = (componente_id, tipo, proyectoid)
+            else:
+                sql = f"""SELECT * FROM {tabla} WHERE id_componente = ? AND tipo_umbral = ? AND id_proyecto = ? ORDER BY rango_umbral ASC;"""
+                params = (componente_id, tipo, proyectoid)
             
-    #         cur = conn.cursor()
-    #         cur.execute(sql, params)
+            cur = conn.cursor()
+            cur.execute(sql, params)
             
-    #         # Conversión explícita a tupla
-    #         result = [tuple(row) for row in cur.fetchall()]
+            # Conversión explícita a tupla
+            result = [tuple(row) for row in cur.fetchall()]
             
-    #         if result:
-    #             return result
-    #         else:
-    #             return None
-    #     except Exception as e:
-    #         print("Error al obtener umbrales: " + str(e))
-    #         return None
-    #     finally:
-    #         if conn:
-    #             conn.close()
+            if result:
+                return result
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlObtenerUmbralesAjustes: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
     
     @staticmethod
     def mdlObtenerUmbralesInstrumentacion(proyectoid, componente_id, tipo, tabla):
@@ -432,6 +432,7 @@ class UmbralModel:
         finally:
             if conn:
                 conn.close()
+    
     @staticmethod
     def mdlObtenerPiezometroUmbrales(idpiezo, tipo, tipopiezo):
         conn = None

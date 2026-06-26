@@ -2,7 +2,7 @@ import pyodbc
 from pathlib import Path
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QLineEdit, QPushButton, QLabel, QGroupBox, 
-    QToolButton, QStyle, QFrame, QMessageBox, QTableWidget, QTableWidgetItem, QTextEdit, QComboBox, QSpinBox, QMenu)
+    QToolButton, QStyle, QFrame, QMessageBox, QTableWidget, QTableWidgetItem, QTextEdit, QComboBox, QSpinBox, QMenu, QApplication)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIntValidator, QAction
 from utils.generic.listaiconos import ListaIconos
@@ -229,12 +229,11 @@ class ConexionDB:
         def sincronizar_inmediatamente():
             botonsincronizar.setEnabled(False)
             botonsincronizar.setText("Sincronizando...")
+            QApplication.processEvents()
             SyncManager.sincronizar_ahora()
-            from PySide6.QtCore import QTimer
-            QTimer.singleShot(3000, lambda: (
-                botonsincronizar.setEnabled(True),
-                botonsincronizar.setText("Sincronizar Ahora")
-            ))
+            botonsincronizar.setEnabled(True)
+            botonsincronizar.setText("Sincronizar Ahora")
+            refrescarTabla()
         def aceptarConexiones():
             dialog.close()
         # Inicializar botones

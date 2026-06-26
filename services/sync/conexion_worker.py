@@ -12,6 +12,7 @@ class ConexionWorker(QThread):
     senal_log   = Signal(str)
     senal_error = Signal(str)
     senal_datos = Signal(dict)
+    senal_sync_completo = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -28,7 +29,7 @@ class ConexionWorker(QThread):
     def sincronizar_ahora(self):
         self._forzar_ahora = True
         self._resetear_proximo_sync()
-        self._evento_despertar.set()  # Interrumpe el wait
+        self._evento_despertar.set()
 
     def _resetear_proximo_sync(self):
         try:
@@ -60,18 +61,28 @@ class ConexionWorker(QThread):
         self._corriendo = True
         self._evento_despertar.clear()
         self.senal_log.emit("[Sync] Worker iniciado.")
-
+        # Auto-sync inmediato al iniciar el worker
+        try:
+            self._resetear_proximo_sync()
+            self._ciclo()
+        except Exception as e:
+            self.senal_error.emit(f"[Sync] Error en ciclo inicial: {e}")
+        finally:
+            self._forzar_ahora = False
+            self.senal_sync_completo.emit()
+        # Esperamos hasta 60 segundos O hasta que nos despierten
         while self._corriendo:
+            self._evento_despertar.wait(timeout=60)
+            self._evento_despertar.clear()
+            if not self._corriendo:
+                break
             try:
                 self._ciclo()
             except Exception as e:
                 self.senal_error.emit(f"[Sync] Error en ciclo: {e}")
 
             self._forzar_ahora = False
-
-            # Esperamos hasta 60 segundos O hasta que nos despierten
-            self._evento_despertar.wait(timeout=60)
-            self._evento_despertar.clear()
+            self.senal_sync_completo.emit()
 
     # ------------------------------------------------------------------ #
     #  Ciclo principal - Lee de BD qué conexiones están pendientes
@@ -107,9 +118,7 @@ class ConexionWorker(QThread):
                 break
             self._intentar_sincronizar(row)
 
-    # ------------------------------------------------------------------ #
-    #  El resto del código permanece igual
-    # ------------------------------------------------------------------ #
+    #  Sincronizar
     def _intentar_sincronizar(self, row):
         (id_conexion, frecuencia_min, servidor, puerto, database, usuario, password,
          consultagrupos, consultalecturas, ultimoid_str, instrumento, id_proyecto) = row
@@ -132,7 +141,7 @@ class ConexionWorker(QThread):
             """, HOSTNAME, id_conexion, ahora)
             conn.commit()
             if cur.rowcount == 0:
-                return  # Otro proceso/instancia ya lo tomó (concurrencia)
+                return
         except Exception as e:
             self.senal_error.emit(f"[Lock] {instrumento}: {e}")
             conn.close()
@@ -215,7 +224,6 @@ class ConexionWorker(QThread):
             self.senal_error.emit(f"[Sync] {instrumento}: {e}")
 
         finally:
-            # SIEMPRE liberamos el lock y programamos el próximo ciclo
             try:
                 proximo = ahora + timedelta(minutes=frecuencia_min)
                 cur.execute("""
@@ -233,8 +241,6 @@ class ConexionWorker(QThread):
                 self.senal_error.emit(f"[Lock release] {e}")
             finally:
                 conn.close()
-
-    # ---- Métodos de BD sin cambios ---- #
 
     def _obtener_grupos_externos(self, servidor, puerto, database, usuario, password, consultagrupos):
         drivers = pyodbc.drivers()

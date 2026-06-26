@@ -1,3 +1,4 @@
+from PySide6.QtCore import QEventLoop, QTimer
 from services.sync.conexion_worker import ConexionWorker
 
 class SyncManager:
@@ -21,14 +22,45 @@ class SyncManager:
             cls._worker = None
 
     @classmethod
-    def sincronizar_ahora(cls):
-        if cls._worker and cls._worker.isRunning():
-            cls._worker.sincronizar_ahora()
-        else:
-            # Iniciamos y el primer ciclo se ejecuta de inmediato
+    def sincronizar_ahora(cls, timeout_ms: int = 120000):
+        # Si el worker no existe o no está corriendo, lo iniciamos.
+        worker_recien_iniciado = False
+        if not (cls._worker and cls._worker.isRunning()):
             cls.iniciar()
+            worker_recien_iniciado = True
+
+        worker = cls._worker
+        loop = QEventLoop()
+
+        def _on_completo():
+            if loop.isRunning():
+                loop.quit()
+
+        worker.senal_sync_completo.connect(_on_completo)
+
+        # si por algún motivo nunca llega la señal, no nos quedamos colgados para siempre.
+        timer_seguridad = QTimer()
+        timer_seguridad.setSingleShot(True)
+        timer_seguridad.timeout.connect(loop.quit)
+        timer_seguridad.start(timeout_ms)
+
+        # Si el worker ya estaba corriendo de antes, forzamos el ciclo.
+        if not worker_recien_iniciado:
+            worker.sincronizar_ahora()
+
+        loop.exec()
+
+        timer_seguridad.stop()
+        worker.senal_sync_completo.disconnect(_on_completo)
 
     @classmethod
     def recargar_conexiones(cls):
         cls.sincronizar_ahora()
     
+    @classmethod
+    def sincronizacion_inicial(cls):
+        # Fuerza una sincronización al iniciar la aplicación.
+        if not (cls._worker and cls._worker.isRunning()):
+            cls.iniciar()
+        else:
+            cls._worker.sincronizar_ahora()
