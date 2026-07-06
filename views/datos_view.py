@@ -229,7 +229,7 @@ class DatosView:
             row = index.row()
             # Capturar los valores de la fila
             tipo = table.model().data(table.model().index(row, 0), Qt.DisplayRole)
-            if tipo == 'PRISMAS':
+            if tipo.upper() == 'PRISMAS':
                 nombre = table.model().data(table.model().index(row, 1), Qt.DisplayRole)
                 fecha = table.model().data(table.model().index(row, 2), Qt.DisplayRole)
                 este = table.model().data(table.model().index(row, 3), Qt.DisplayRole)
