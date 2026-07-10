@@ -77,6 +77,16 @@
      </property>
      <column>
       <property name="text">
+       <string>Estado</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Ejecutando</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
        <string>Proyecto</string>
       </property>
      </column>
@@ -123,11 +133,6 @@
      <column>
       <property name="text">
        <string>Frecuencia (min)</string>
-      </property>
-     </column>
-     <column>
-      <property name="text">
-       <string>Estado</string>
       </property>
      </column>
     </widget>

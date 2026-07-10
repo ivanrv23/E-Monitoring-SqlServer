@@ -184,14 +184,9 @@ class ConexionWorker(QThread):
 
             datos_por_grupo = {}
             for fila in todos_los_datos:
-                nombre_grupo_fila = fila[16]
-                id_grupo_fila = next(
-                    (gid for gid, gnombre in mapa_nombres.items()
-                     if gnombre == nombre_grupo_fila),
-                    None
-                )
-                if id_grupo_fila is None:
-                    continue
+                id_grupo_fila = fila[17]  # pg.ID viene directo de la consulta
+                if id_grupo_fila not in mapa_componentes:
+                    continue  # grupo no vino en _obtener_grupos_externos, se ignora
                 datos_por_grupo.setdefault(id_grupo_fila, []).append(fila)
 
             for id_grupo, filas_grupo in datos_por_grupo.items():
@@ -263,7 +258,7 @@ class ConexionWorker(QThread):
         )
         conn = pyodbc.connect(conn_str)
         try:
-            consultaSQL = """SELECT ID, Name FROM PointGroups ORDER BY ID"""
+            consultaSQL = """SELECT ID, Name FROM PointGroups ORDER BY ID;"""
             cur = conn.cursor()
             cur.execute(consultagrupos)
             return [(row[0], row[1]) for row in cur.fetchall()]
@@ -309,21 +304,23 @@ class ConexionWorker(QThread):
         )
         conn = pyodbc.connect(conn_str)
         consultaSQL = """
-            SELECT r.ID, r.Point_ID, p.Name, t.Epoch,
+            SELECT 
+                r.ID, r.Point_ID, p.Name, t.Epoch,
                 t.HzAngle, t.VAngle, t.SlopeDistance, t.Pressure, t.Temperature,
                 r.Easting, r.Northing, r.Height, r.HorzDistance, r.LongitudinalDisplacement,
-                r.TransverseDisplacement, r.HeightDisplacement, g.Name
+                r.TransverseDisplacement, r.HeightDisplacement,
+                pg.Name AS NombreGrupo, pg.ID AS IdGrupo
             FROM Points p
             INNER JOIN Results r ON p.ID = r.Point_ID
-            INNER JOIN TPSMeasurements t ON t.Point_ID = r.Point_ID
-                AND t.Epoch BETWEEN DATEADD(SECOND, -60, r.Epoch)
-                                AND DATEADD(SECOND,  60, r.Epoch)
-            INNER JOIN PointGroups g ON t.PointGroup_ID = g.ID
+            INNER JOIN Result2TPSMeasurement r2t ON r.ID = r2t.Result_ID
+            INNER JOIN TPSMeasurements t ON r2t.TPSMeasurement_ID = t.ID
+            INNER JOIN PointGroupItems pgi ON pgi.Point_ID = p.ID
+            INNER JOIN PointGroups pg ON pg.ID = pgi.PointGroup_ID
             WHERE r.Easting      IS NOT NULL
-              AND r.Northing     IS NOT NULL
-              AND r.Height       IS NOT NULL
-              AND r.HorzDistance IS NOT NULL
-              AND r.ID >= ?
+            AND r.Northing     IS NOT NULL
+            AND r.Height       IS NOT NULL
+            AND r.HorzDistance IS NOT NULL
+            AND r.ID >= ?
             ORDER BY r.ID;
         """
         try:
@@ -334,7 +331,7 @@ class ConexionWorker(QThread):
             conn.close()
 
     def _insertar_en_bd_central(self, conn, cur, datos, instrumento, id_proyecto, id_componente_grupo):
-        if instrumento == "Prismas":
+        if instrumento == "PRISMAS":
             try:
                 nombretabla = "prismas" + str(id_proyecto)
                 sqltable = f"""
@@ -382,25 +379,25 @@ class ConexionWorker(QThread):
 
                 for fila in datos:
                     nombre_prisma = fila[2]
+                    grupo         = fila[16] if fila[16] is not None else ''
                     epoch = fila[3]
                     epoch_dt = (
                         epoch.replace(microsecond=0)
                         if isinstance(epoch, datetime)
-                        else datetime.strptime(
-                            str(epoch)[:19].replace('T', ' '), '%Y-%m-%d %H:%M:%S'
-                        )
+                        else datetime.strptime(str(epoch)[:19].replace('T', ' '), '%Y-%m-%d %H:%M:%S')
                     )
-                    clave = (nombre_prisma, epoch_dt)
+                    clave = (nombre_prisma, epoch_dt, grupo)   # <-- ahora incluye grupo
                     if clave not in datos_unicos:
                         datos_unicos[clave] = True
                         datos_limpios.append((fila, epoch_dt))
 
-                cur.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla}")
+                # Verificar existentes INCLUYENDO grupo_puntos
+                cur.execute(f"SELECT nombre_prisma, hora_prisma, grupo_puntos FROM {nombretabla}")
                 existen_prismas = set(
                     (row[0],
-                     row[1].replace(microsecond=0)
-                     if isinstance(row[1], datetime)
-                     else datetime.strptime(str(row[1])[:19], '%Y-%m-%d %H:%M:%S'))
+                    row[1].replace(microsecond=0) if isinstance(row[1], datetime)
+                    else datetime.strptime(str(row[1])[:19], '%Y-%m-%d %H:%M:%S'),
+                    row[2] or '')
                     for row in cur.fetchall()
                 )
 
@@ -434,9 +431,9 @@ class ConexionWorker(QThread):
                     desplaz_long  = fila[13]
                     desplaz_trans = fila[14]
                     desplaz_alt   = fila[15]
-                    grupo         = fila[16]
+                    grupo         = fila[16] if fila[16] is not None else ''
 
-                    if (nombre_prisma, epoch_dt) not in existen_prismas:
+                    if (nombre_prisma, epoch_dt, grupo) not in existen_prismas:
                         lote_registros.append((
                             nombre_prisma,
                             epoch_dt,
@@ -482,8 +479,7 @@ class ConexionWorker(QThread):
 
         return False
 
-    def _registrar_equipos_zona(self, conn, cur, id_componente,
-                                 nombretabla, nombres_unicos, tipo_equipo):
+    def _registrar_equipos_zona(self, conn, cur, id_componente, nombretabla, nombres_unicos, tipo_equipo):
         try:
             for nombre_equipo in nombres_unicos:
                 cur.execute("""

@@ -79,14 +79,13 @@ class VistaDatos:
     
     def mostrarTablaEquipo(proyecto_id, main, idzona, tipo, equipos, refrescar):
         tabla = main.findChild(QTableView, "table_datos")
-        
         # Reiniciar página si es un nuevo tipo de tabla
         if tipo != VistaDatos.tipo_actual:
             VistaDatos.tipo_actual = tipo
             VistaDatos.reiniciarPagina()
         
         if tipo == 'Prismas':
-            VistaDatos.mostrar_tabla_prismas(proyecto_id, main, idzona, equipos, tabla, tipo,1)
+            VistaDatos.mostrar_tabla_prismas(proyecto_id, main, idzona, equipos, tabla, tipo, 1)
         elif tipo == 'Inclinómetros':
             VistaDatos.mostrar_tabla_inclinometros(proyecto_id, main, idzona, equipos, tabla, tipo)
         elif tipo == 'Piezómetros Cuerda Vibrante':
@@ -106,9 +105,9 @@ class VistaDatos:
         elif tipo == 'Equipos Adicionales':
             VistaDatos.mostrar_tabla_equipos_adicionales(proyecto_id, main, idzona, equipos, tabla, tipo)
         elif tipo == 'Prismas de Baja':
-            VistaDatos.mostrar_tabla_prismas(proyecto_id, main, idzona, equipos, tabla, tipo,0)
+            VistaDatos.mostrar_tabla_prismas(proyecto_id, main, idzona, equipos, tabla, tipo, 0)
 
-    def mostrar_tabla_prismas(proyecto_id, main, idzona, equipos, tablawidget, tipo,estado):
+    def mostrar_tabla_prismas(proyecto_id, main, idzona, equipos, tablawidget, tipo, estado):
         dataprismasunido = []
         decimales, tipovelocidad = 2, 1
         respuesta = SoftwareConfiguracion.obtenerDataSoftware()
