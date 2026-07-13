@@ -663,6 +663,10 @@ class VisorView:
     @staticmethod
     def crear_prisma_virtual(x, y, z, nombre_esfera, radio, color):
         try:
+            respuesta = ConfiguracionVisor.obtenerDataConfiguracionVisor()
+            tamaniotexto = respuesta[1]
+            colortexto = MetodosGenerales.convertirHexadecimalRGB(respuesta[2])
+            # Crear esfera
             esfera = vtk.vtkSphereSource()
             esfera.SetCenter(0, 0, 0)
             esfera.SetRadius(radio)
@@ -685,17 +689,16 @@ class VisorView:
             texto_mapper.SetInputConnection(texto_vector.GetOutputPort())
             texto_follower = vtk.vtkFollower()
             texto_follower.SetMapper(texto_mapper)
-            texto_follower.GetProperty().SetColor(0, 0, 0)
+            texto_follower.GetProperty().SetColor(colortexto)
             texto_follower.GetProperty().SetOpacity(1.0)
             # Ajustar la escala del texto proporcionalmente al radio de la esfera
-            escala_texto = radio * 0.5
-            texto_follower.SetScale(escala_texto, escala_texto, escala_texto)
+            texto_follower.SetScale(tamaniotexto, tamaniotexto, tamaniotexto)
             # Posicionar el texto cerca de la esfera
             texto_follower.SetPosition(x + radio, y, z + radio)
             texto_follower.SetCamera(VisorView.rendererVisor.GetActiveCamera())
-            return True, esfera_actor, texto_follower
+            return True, esfera_actor, texto_follower, esfera
         except Exception as e:
-            return False, None, None
+            return False, None, None, None
     
     @staticmethod
     def abrir_dialogo(x, y, z):
@@ -730,7 +733,7 @@ class VisorView:
             nombre_esfera = nombre_edit.text()
             selected_color = color_container[0]
             # Crear la esfera con las propiedades especificadas
-            respuesta, actoresfera, actortexto = VisorView.crear_prisma_virtual(x, y, z, nombre_esfera, radio, selected_color)
+            respuesta, actoresfera, actortexto, esfera_source = VisorView.crear_prisma_virtual(x, y, z, nombre_esfera, radio, selected_color)
             if respuesta:
                 datos_componente = topografiasmarcadas[0][0]
                 id_componente, nombrecomponente = datos_componente[1], datos_componente[0]
@@ -776,7 +779,8 @@ class VisorView:
                     promedio_x = np.mean(puntos_dentro_esfera[:, 0])
                     promedio_y = np.mean(puntos_dentro_esfera[:, 1])
                     promedio_z = np.mean(puntos_dentro_esfera[:, 2])
-                    promedios.append((fecha, promedio_x, promedio_y, promedio_z))
+                    fecha_str = str(fecha).split(" ")[0]
+                    promedios.append((fecha_str, promedio_x, promedio_y, promedio_z))
         # retornar los promedios
         return promedios
     
@@ -789,11 +793,11 @@ class VisorView:
             return
         if len(promedios) == 1:
             # Si solo hay una fecha, graficar 0 en el eje Y
-            fecha = datetime.strptime(promedios[0][0], "%Y-%m-%d")
+            fecha = datetime.strptime(str(promedios[0][0]), "%Y-%m-%d")
             plot_widget.axes.plot(fecha, 0, 'ro', label='Desplazamiento')
         else:
             # Ordenar los promedios por fecha
-            promedios.sort(key=lambda p: datetime.strptime(p[0], "%Y-%m-%d"))
+            promedios.sort(key=lambda p: datetime.strptime(str(p[0]), "%Y-%m-%d"))
             # Calcular el desplazamiento acumulado
             valores_base = np.array([promedios[0][1], promedios[0][2], promedios[0][3]])
             fechas = [datetime.strptime(p[0], "%Y-%m-%d") for p in promedios]
@@ -2517,9 +2521,11 @@ class VisorView:
                     esteequipo, norteequipo, nivelequipo = info[3], info[4], info[5]                    
                     radio, color = info[6], VisorView.convert_color(info[7])
                     # Crear actores
-                    respuesta,actor_esfera,actor_texto=VisorView.crear_prisma_virtual(esteequipo,norteequipo,nivelequipo,nombreequipo,radio, color)        
+                    respuesta, actor_esfera, actor_texto, esfera_source = VisorView.crear_prisma_virtual(
+                        esteequipo, norteequipo, nivelequipo, nombreequipo, radio, color
+                    )      
                     if respuesta:
-                        VisorView.prismasvirtualesgraficados.append((idcompo, idequipo, actor_texto, actor_esfera))
+                        VisorView.prismasvirtualesgraficados.append((idcompo, idequipo, actor_texto, actor_esfera, esfera_source))
                         # agregar al visor
                         VisorView.rendererVisor.AddActor(actor_esfera)
                         VisorView.rendererVisor.AddActor(actor_texto)
@@ -3029,6 +3035,20 @@ class VisorView:
                             new_y = current_position[1]
                             new_z = current_position[2]
                             equipo[2].SetPosition(new_x, new_y, new_z)
+                    # Actualizar texto de prismas virtuales
+                    if len(VisorView.prismasvirtualesgraficados) > 0:
+                        for prismav in VisorView.prismasvirtualesgraficados:
+                            # prismav = (idcompo, idequipo, actor_texto, actor_esfera, esfera_source)
+                            actor_texto  = prismav[2]
+                            actor_esfera = prismav[3]
+                            radio_prisma_virtual = info[3]
+                            # Actualizar escala del texto
+                            actor_texto.SetScale(tamaniotexto, tamaniotexto, tamaniotexto)
+                            actor_texto.GetProperty().SetColor(colortexto)
+                            # Reposicionar texto relativo a la nueva posición de la esfera
+                            pos_esfera = actor_esfera.GetPosition()
+                            new_xv = (pos_esfera[0] - 10) + radio_prisma_virtual
+                            actor_texto.SetPosition(new_xv, pos_esfera[1], pos_esfera[2])
     
     def reiniciarVistaVisor(main, proyecto_id, proyecto_name):
         paginavisor = main.findChild(QStackedWidget, "stacked_visor")

@@ -18,7 +18,6 @@ ALTER TABLE configuraciongrafica ADD mesletras_grafica TINYINT DEFAULT 0;
 GO
 UPDATE configuraciongrafica SET fechahora_grafica = 0, mesletras_grafica = 0;
 
-------
 CREATE TABLE preferencias_marcado (
     id_preferencia INT IDENTITY(1,1) PRIMARY KEY,
     id_proyecto INT NOT NULL,
@@ -31,6 +30,11 @@ GO
 -- Índice para mejorar la velocidad de carga
 CREATE INDEX idx_preferencias_proy_mod ON preferencias_marcado (id_proyecto, modulo);
 GO
+
+------------------------------------------------------------------
+
+UPDATE instrumentacion SET tipo_equipo = 'PRISMAS'
+WHERE tipo_equipo = 'Prismas';
 
 
 

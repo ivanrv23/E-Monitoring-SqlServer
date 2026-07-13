@@ -10,7 +10,6 @@ from utils.generic.cargariconos import cargarIcono
 from utils.common.rutasarchivos import resource_path
 from utils.common.alertas import mostrar_mensaje
 from controllers.InterfazController import InterfazController
-from controllers.ProyectoController import ProyectoController
 from controllers.UsuarioController import UsuarioController
 from services.sync.sync_manager import SyncManager
 
@@ -196,36 +195,47 @@ class ConexionDB:
         botonaceptar = dialog.findChild(QPushButton, "btn_aceptar")
         # Mostrar data en la tabla
         ESTADOS = {"1": "Conectado", "0": "Desconectado", 1: "Conectado", 0: "Desconectado"}
+        EJECUTANDO_TXT = {"1": "Sí", "0": "No", 1: "Sí", 0: "No", True: "Sí", False: "No"}
         conexiones = UsuarioController.ctrlObtenerConexiones()
         if conexiones:
             tabladatos.setRowCount(len(conexiones))
-            tabladatos.setColumnCount(14)
+            tabladatos.setColumnCount(15)  # antes 14
             for fila, datos_fila in enumerate(conexiones):
                 for columna, dato in enumerate(datos_fila):
-                    texto = ESTADOS.get(dato, str(dato)) if columna == 10 else str(dato)
+                    if columna == 0:
+                        texto = ESTADOS.get(dato, str(dato))
+                    elif columna == 1:
+                        texto = EJECUTANDO_TXT.get(dato, "No")
+                    else:
+                        texto = str(dato)
                     tabladatos.setItem(fila, columna, QTableWidgetItem(texto))
-            # Ocultar columnas de IDs
-            tabladatos.setColumnHidden(6, True)
             tabladatos.setColumnHidden(7, True)
-            tabladatos.setColumnHidden(11, True)
+            tabladatos.setColumnHidden(8, True)
+            tabladatos.setColumnHidden(9, True)
             tabladatos.setColumnHidden(12, True)
             tabladatos.setColumnHidden(13, True)
+            tabladatos.setColumnHidden(14, True)
         def refrescarTabla():
             conexiones = UsuarioController.ctrlObtenerConexiones()
             tabladatos.clearContents()
             if conexiones:
                 tabladatos.setRowCount(len(conexiones))
-                tabladatos.setColumnCount(14)
+                tabladatos.setColumnCount(15)  # antes 14
                 for fila, datos_fila in enumerate(conexiones):
                     for columna, dato in enumerate(datos_fila):
-                        texto = ESTADOS.get(dato, str(dato)) if columna == 10 else str(dato)
+                        if columna == 0:
+                            texto = ESTADOS.get(dato, str(dato))
+                        elif columna == 1:
+                            texto = EJECUTANDO_TXT.get(dato, "No")
+                        else:
+                            texto = str(dato)
                         tabladatos.setItem(fila, columna, QTableWidgetItem(texto))
-                # Ocultar columnas de IDs
-                tabladatos.setColumnHidden(6, True)
                 tabladatos.setColumnHidden(7, True)
-                tabladatos.setColumnHidden(11, True)
+                tabladatos.setColumnHidden(8, True)
+                tabladatos.setColumnHidden(9, True)
                 tabladatos.setColumnHidden(12, True)
                 tabladatos.setColumnHidden(13, True)
+                tabladatos.setColumnHidden(14, True)
         def sincronizar_inmediatamente():
             botonsincronizar.setEnabled(False)
             botonsincronizar.setText("Sincronizando...")
@@ -277,10 +287,11 @@ class ConexionDB:
         else:
             comboProyectos.addItem("Sin Proyectos", 0)
         # Llenar instrumentos
-        comboInstrumentos.addItem("Prismas")
-        comboInstrumentos.addItem("Piezómetros")
-        comboInstrumentos.addItem("Celdas")
-        # comboInstrumentos.addItem("Inclinómetros")
+        comboInstrumentos.addItem("Prismas", "PRISMAS")
+        comboInstrumentos.addItem("Pz. Cuerda Vibrante", "PIEZOMETROCUERDA")
+        comboInstrumentos.addItem("Pz. Casagrande", "PIEZOMETROMAUAL")
+        comboInstrumentos.addItem("Celdas", "CELDA")
+        comboInstrumentos.addItem("Inclinómetros", "INCLINOMETRO")
         # Llenar estados
         comboEstados.addItem("Conectado", 1)
         comboEstados.addItem("Desconectado", 0)
@@ -337,7 +348,7 @@ class ConexionDB:
                 
         def guardarInfoConexion():
             idproyecto = comboProyectos.currentData()
-            instrumento = comboInstrumentos.currentText()
+            instrumento = comboInstrumentos.currentData()
             servidor = inputServer.text().strip()
             puerto = inputPuerto.text().strip()
             database = inputDatabase.text().strip()
@@ -413,19 +424,19 @@ class ConexionDB:
                 return
         row = index.row()
         # Capturar los valores de la filas
-        instrumento = table.model().data(table.model().index(row, 1), Qt.DisplayRole)
-        servidor = table.model().data(table.model().index(row, 2), Qt.DisplayRole)
-        puerto = table.model().data(table.model().index(row, 3), Qt.DisplayRole)
-        database = table.model().data(table.model().index(row, 4), Qt.DisplayRole)
-        usuario = table.model().data(table.model().index(row, 5), Qt.DisplayRole)
-        consultagrupos = table.model().data(table.model().index(row, 6), Qt.DisplayRole)
-        consultalecturas = table.model().data(table.model().index(row, 7), Qt.DisplayRole)
-        ultimoid = table.model().data(table.model().index(row, 8), Qt.DisplayRole)
-        frecuencia = table.model().data(table.model().index(row, 9), Qt.DisplayRole)
-        estado = table.model().data(table.model().index(row, 10), Qt.DisplayRole)
-        idconexion = table.model().data(table.model().index(row, 11), Qt.DisplayRole)
-        idproyecto = table.model().data(table.model().index(row, 12), Qt.DisplayRole)
-        password = table.model().data(table.model().index(row, 13), Qt.DisplayRole)
+        estado = table.model().data(table.model().index(row, 0), Qt.DisplayRole)
+        instrumento = table.model().data(table.model().index(row, 3), Qt.DisplayRole)
+        servidor = table.model().data(table.model().index(row, 4), Qt.DisplayRole)
+        puerto = table.model().data(table.model().index(row, 5), Qt.DisplayRole)
+        database = table.model().data(table.model().index(row, 6), Qt.DisplayRole)
+        usuario = table.model().data(table.model().index(row, 7), Qt.DisplayRole)
+        consultagrupos = table.model().data(table.model().index(row, 8), Qt.DisplayRole)
+        consultalecturas = table.model().data(table.model().index(row, 9), Qt.DisplayRole)
+        ultimoid = table.model().data(table.model().index(row, 10), Qt.DisplayRole)
+        frecuencia = table.model().data(table.model().index(row, 11), Qt.DisplayRole)
+        idconexion = table.model().data(table.model().index(row, 12), Qt.DisplayRole)
+        idproyecto = table.model().data(table.model().index(row, 13), Qt.DisplayRole)
+        password = table.model().data(table.model().index(row, 14), Qt.DisplayRole)
         ConexionDB.generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, password, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success)
     
     def generarMenuTabla(position, table, instrumento, servidor, puerto, database, usuario, password, consultagrupos, consultalecturas, ultimoid, frecuencia, estado, idconexion, idproyecto, on_success=None):
@@ -475,16 +486,19 @@ class ConexionDB:
         else:
             comboProyectos.addItem("Sin Proyectos", 0)
         # Llenar instrumentos
-        comboInstrumentos.addItem("Prismas")
-        comboInstrumentos.addItem("Piezómetros")
-        comboInstrumentos.addItem("Celdas")
-        # comboInstrumentos.addItem("Inclinómetros")
+        comboInstrumentos.addItem("Prismas", "PRISMAS")
+        comboInstrumentos.addItem("Pz. Cuerda Vibrante", "PIEZOMETROCUERDA")
+        comboInstrumentos.addItem("Pz. Casagrande", "PIEZOMETROMAUAL")
+        comboInstrumentos.addItem("Celdas", "CELDA")
+        comboInstrumentos.addItem("Inclinómetros", "INCLINOMETRO")
         # Llenar estados
         comboEstados.addItem("Conectado", 1)
         comboEstados.addItem("Desconectado", 0)
         # Cargar la info en el formulario
         comboProyectos.setCurrentIndex(comboProyectos.findData(idproyecto))
-        comboInstrumentos.setCurrentText(str(instrumento))
+        index = comboInstrumentos.findData(str(instrumento))
+        if index >= 0:
+            comboInstrumentos.setCurrentIndex(index)
         inputServer.setText(str(servidor))
         inputPuerto.setText(str(puerto))
         inputDatabase.setText(str(database))
@@ -497,7 +511,7 @@ class ConexionDB:
         comboEstados.setCurrentText(str(estado))
         def actualizarInfoConexion():
             idproyecto = comboProyectos.currentData()
-            instrumento = comboInstrumentos.currentText()
+            instrumento = comboInstrumentos.currentData()
             servidor = inputServer.text().strip()
             puerto = inputPuerto.text().strip()
             database = inputDatabase.text().strip()
