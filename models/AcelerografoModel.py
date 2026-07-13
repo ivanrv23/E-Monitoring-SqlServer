@@ -100,14 +100,17 @@ class AcelerografoModel:
     @staticmethod
     def mdlActualizarLecturaAcelerografo(tabla, datos, idproyecto, username, nombres):
         # T-SQL: UPDATE estándar
-        sql_insert = f"""UPDATE {tabla} SET fecha_detalle = ?, magnitud_detalle = ?, distancia_detalle = ?, observacion_detalle = ? WHERE id_detalle = ?;"""
+        sql_insert = f"""UPDATE {tabla} SET fecha_detalle = ?, magnitud_detalle = ?, distancia_detalle = ?, observacion_detalle = ?, estado_detalle = ? WHERE id_detalle = ?;"""
         conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
+            estado_texto = datos[4]
+            estado_valor = 1 if estado_texto == "Activo" else 0
+            data_final = list(datos[:4]) + [estado_valor, datos[5]]
             # guardar en historial
-            query_select = f"""SELECT fecha_detalle, magnitud_detalle, distancia_detalle, observacion_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
-            cur.execute(query_select, (datos[-1],))
+            query_select = f"""SELECT fecha_detalle, magnitud_detalle, distancia_detalle, observacion_detalle, estado_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
+            cur.execute(query_select, (datos[5],))
             row = cur.fetchone()
             datos_anteriores = tuple(row) if row else None
             
@@ -120,7 +123,7 @@ class AcelerografoModel:
                 cur.execute(query_historial, (idproyecto, fecha_cambio, accion, tabla, cambios, username, nombres))
             
             # actualizar
-            cur.execute(sql_insert, datos)
+            cur.execute(sql_insert, data_final)
             conn.commit()
             return True
         except Exception as e:

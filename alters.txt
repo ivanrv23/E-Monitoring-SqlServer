@@ -31,3 +31,25 @@ GO
 -- Índice para mejorar la velocidad de carga
 CREATE INDEX idx_preferencias_proy_mod ON preferencias_marcado (id_proyecto, modulo);
 GO
+
+
+
+---------------------------------------------------------------------------------------------------
+Alter table celdas
+add Estado INT
+EXEC sp_rename 'celdas.Estado', 'estado_celda', 'COLUMN';
+
+UPDATE celdas
+SET estado_celda = 1
+WHERE estado_celda IS NULL;
+
+ALTER TABLE celdas
+ADD CONSTRAINT df_celdas_estado
+DEFAULT (1) FOR estado_celda;
+
+ALTER TABLE celdas
+ALTER COLUMN estado_celda INT NOT NULL;
+
+select * from celdas
+
+-------------------------------------------

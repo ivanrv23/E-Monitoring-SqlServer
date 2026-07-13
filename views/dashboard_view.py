@@ -2,7 +2,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 from PySide6.QtWidgets import (QGridLayout, QWidget, QSizePolicy, QScrollArea, QGraphicsSimpleTextItem, QComboBox,
                                QPushButton, QLayout, QToolTip)
-from PySide6.QtCharts import (QChart, QChartView, QPieSeries, QPieSlice)
+from PySide6.QtCharts import (QChart, QChartView, QPieSeries, QPieSlice, 
+                               QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis)
 from PySide6.QtCore import Qt, QMargins, QPoint
 from PySide6.QtGui import QPainter, QColor, QBrush, QFont, QPen
 matplotlib.use('QtAgg')
@@ -42,6 +43,7 @@ class DashboardView():
             operativos_inoperativos = DashboardController.ctrlObtenerInstrumentacionOIProyecto(DashboardView.idproyecto, id_componente)
             lecturas_prismas = DashboardController.ctrlObtenerLecturasPrismas(DashboardView.idproyecto, 'prismas', id_componente, 'PRISMAS')
             # resumenprismas = DashboardController.ctrlObtenerResumenPrismas(DashboardView.idproyecto, id_componente)
+            estadoequipos = DashboardController.ctrlObtenerestadoequipos(DashboardView.idproyecto, id_componente)    
             # Buscar el scroll area por nombre
             scroll_area = DashboardView.main.findChild(QScrollArea, "scrollArea")
             if not scroll_area:
@@ -61,12 +63,22 @@ class DashboardView():
             grid_layout.setSpacing(15)
             grid_layout.setContentsMargins(15, 15, 15, 15)
             # Lista de TODAS las funciones de gráficos (incluyendo las corregidas)
+
+        #    Igual a este tiene que decirle a la ia
+            # estadoequipos= [
+            #     ["Operativos", None, None, 45],
+            #     ["Inoperativos", None, None, 12],
+            #     ["Desactualizados", None, None, 8]
+            # ]
             chart_functions = [
                 (lambda: DashboardView.create_pie_instrumentacion(instrumentacion), 'half'),
                 (lambda: DashboardView.create_donut_chart(operativos_inoperativos), 'half'),
                 # (lambda: DashboardView.resumen_prismas_barras(resumenprismas, scroll_content), 'full'),  # Pasar parent
+                
+                # NUEVO GRÁFICO DE BARRAS:
+                (lambda: DashboardView.create_bar_chart_estados(estadoequipos), 'half'), 
                 (lambda: DashboardView.create_pie_prismas('Lecturas Prismas Activos', lecturas_prismas), 'half'),
-                (lambda: DashboardView.create_pie_prismas('Lecturas Prismas De Baja', lecturas_prismas), 'half'),
+                # (lambda: DashboardView.create_pie_prismas('Lecturas Prismas De Baja', lecturas_prismas), 'half'),
             ]
             # Agregar gráficos en disposición 2 por fila
             row = 0
@@ -377,6 +389,83 @@ class DashboardView():
             canvas.plot_data(datos)
             return canvas
         return None
+    
+    
+    @staticmethod
+    def create_bar_chart_estados(data):
+        """
+        data viene como:
+        [('Prismas', 'Operativos', 12), ('Prismas', 'Inoperativos', 3), ('Prismas', 'Desactualizados', 5)]
+        (más adelante también vendrán filas de 'Piezometros', 'Inclinometros', etc.)
+        """
+        if not data:
+            return None
+
+        # Reorganizar: { tipo_equipo: {categoria: cantidad} }
+        resumen = {}
+        tipos_equipo_orden = []  # para mantener orden de aparición en eje X
+        for tipo_equipo, categoria, cantidad in data:
+            if tipo_equipo not in resumen:
+                resumen[tipo_equipo] = {}
+                tipos_equipo_orden.append(tipo_equipo)
+            resumen[tipo_equipo][categoria] = cantidad
+
+        if not tipos_equipo_orden:
+            return None
+
+        categorias = ["Operativos", "Inoperativos", "Desactualizados"]
+        colores = {
+            "Operativos": QColor("#2ecc71"),      # Verde
+            "Inoperativos": QColor("#e74c3c"),    # Rojo
+            "Desactualizados": QColor("#f39c12"), # Naranja
+        }
+
+        series = QBarSeries()
+
+        # Un QBarSet por categoría (Operativos, Inoperativos, Desactualizados)
+        # cada uno con un valor por cada tipo de equipo en el eje X
+        sets_por_categoria = {}
+        for categoria in categorias:
+            bar_set = QBarSet(categoria)
+            bar_set.setColor(colores[categoria])
+            valores = [resumen.get(tipo, {}).get(categoria, 0) for tipo in tipos_equipo_orden]
+            bar_set.append(valores)
+            sets_por_categoria[categoria] = bar_set
+            series.append(bar_set)
+
+        series.setLabelsVisible(True)
+        series.setLabelsFormat("@value")
+        series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle("Estado de Equipos")
+        chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+        chart.legend().setVisible(True)
+        chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
+
+        # Eje X: tipos de equipo (Prismas, Piezometros, Inclinometros, etc.)
+        axisX = QBarCategoryAxis()
+        axisX.append(tipos_equipo_orden)
+        chart.addAxis(axisX, Qt.AlignmentFlag.AlignBottom)
+        series.attachAxis(axisX)
+
+        # Eje Y
+        max_valor = max(
+            (resumen.get(tipo, {}).get(cat, 0) for tipo in tipos_equipo_orden for cat in categorias),
+            default=0
+        )
+        axisY = QValueAxis()
+        axisY.setMin(0)
+        axisY.setMax(max_valor + 2)
+        axisY.setLabelFormat("%d")
+        chart.addAxis(axisY, Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(axisY)
+
+        chart_view = QChartView(chart)
+        chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+        chart_view.setMinimumSize(350, 350)
+        return chart_view
 
 
 class MplCanvas(FigureCanvas):
@@ -524,3 +613,5 @@ class MplCanvas(FigureCanvas):
         except (RuntimeError, AttributeError):
             # El widget fue eliminado o los atributos no existen, no hacer nada
             pass
+
+    

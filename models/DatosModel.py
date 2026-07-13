@@ -526,7 +526,11 @@ class DatosModel:
         sql = f"""SELECT it.tipo_equipo, a.nombre_acelerografo, ad.fecha_detalle, ROUND(ad.magnitud_detalle, {decimales}) AS magnitud_detalle,
             ROUND(ad.distancia_detalle, {decimales}) AS distancia_detalle,
             ROUND(a.este_acelerografo, {decimales}) AS este_acelerografo, ROUND(a.norte_acelerografo, {decimales}) AS norte_acelerografo,
-            ROUND(a.elevacion_acelerografo, {decimales}) AS elevacion_acelerografo, ad.observacion_detalle, ad.id_detalle
+            ROUND(a.elevacion_acelerografo, {decimales}) AS elevacion_acelerografo, ad.observacion_detalle, 
+            CASE
+                WHEN ad.estado_detalle = 1 THEN 'Activo'
+                ELSE 'Omitido'
+            END AS estado, ad.id_detalle
         FROM acelerografo_detalle{proyecto_id} ad INNER JOIN acelerografos a ON ad.id_acelerografo = a.id_acelerografo
         INNER JOIN instrumentacion AS it ON it.id_equipo = ad.id_acelerografo
         INNER JOIN componentes AS co ON co.id_componente = it.id_componente

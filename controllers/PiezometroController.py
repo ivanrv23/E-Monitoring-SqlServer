@@ -560,6 +560,60 @@ class PiezometroController:
         respuesta = PiezometroModel.mdlActualizarLecturaPiezometroCuerda(tabla, datos, idproyecto, username, nombres)
         return respuesta
     
+    
+#------------------------------------------------------------------------------------------------------------
+    def ctrlActualizarLecturaPiezoCuerdaConEstado(tabla, datos, idproyecto, username, nombres):
+        """
+        Actualiza lectura de piezómetro cuerda incluyendo el estado
+        datos = [datofecha, datofrecuencia, datotemperatura, datopresion, datomedida, datoobserva, datoestado, iddetalle]
+        donde datoestado puede ser "Activo" u "Omitido"
+        """
+        respuesta = PiezometroModel.mdlActualizarLecturaPiezometroCuerdaConEstado(tabla, datos, idproyecto, username, nombres)
+        return respuesta
+    
+    def ctrlActualizarLecturaPiezoManualConEstado(tabla, datos, idproyecto, username, nombres):
+        """
+        Actualiza lectura de piezómetro manual incluyendo el estado
+        datos = [datofecha, datomedida, datoobserva, datoestado, iddetalle]
+        donde datoestado puede ser "Activo" u "Omitido"
+        """
+        respuesta = PiezometroModel.mdlActualizarLecturaPiezometroManualConEstado(tabla, datos, idproyecto, username, nombres)
+        return respuesta
+    
+    def ctrlConvertirEstadoTextoAValor(estado_texto):
+        """
+        Convierte el texto del ComboBox a valor numérico para la BD
+        "Activo" -> 1
+        "Omitido" -> 0
+        """
+        return 1 if estado_texto == "Activo" else 0
+
+    def ctrlConvertirEstadoValorATexto(estado_valor):
+        """
+        Convierte el valor numérico de la BD a texto para el ComboBox
+        1 -> "Activo"
+        0 -> "Omitido"
+        """
+        return "Activo" if estado_valor == 1 else "Omitido"
+    
+    def ctrlActualizarSoloEstadoPiezoCuerda(tabla, iddetalle, nuevo_estado):
+        """
+        Actualiza únicamente el estado de una lectura sin modificar otros datos
+        """
+        estado_valor = PiezometroController.ctrlConvertirEstadoTextoAValor(nuevo_estado)
+        respuesta = PiezometroModel.mdlActualizarSoloEstadoPiezoCuerda(tabla, iddetalle, estado_valor)
+        return respuesta
+
+    def ctrlActualizarSoloEstadoPiezoManual(tabla, iddetalle, nuevo_estado):
+        """
+        Actualiza únicamente el estado de una lectura sin modificar otros datos
+        """
+        estado_valor = PiezometroController.ctrlConvertirEstadoTextoAValor(nuevo_estado)
+        respuesta = PiezometroModel.mdlActualizarSoloEstadoPiezoManual(tabla, iddetalle, estado_valor)
+        return respuesta
+#----------------------------------------------------------------------------------------------------
+
+
     def ctrlValidarExisteFormula(formula):
         respuesta = PiezometroModel.mdlValidarExisteFormula(formula)
         return respuesta

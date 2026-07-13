@@ -304,11 +304,11 @@ class VistaDatos:
         if acelerografos:
             headers = [
                 "", "Acelerógrafo", "Fecha Hora", "Magnitud", "Distancia (Km)",
-                "Este (m)", "Norte (m)", "Elevación (msnm)", "Observacion", ""
+                "Este (m)", "Norte (m)", "Elevación (msnm)", "Observacion", "Estado", ""
             ]
-            VistaDatos.llenarTabla(tabla, headers, acelerografos, main, tipo)
+            VistaDatos.llenarTabla(tabla, headers, acelerografos, main, tipo, 9)
             tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(9, True)
+            tabla.setColumnHidden(10, True)
         else:
             VistaDatos.limpiarTablaDatos(tabla)
     

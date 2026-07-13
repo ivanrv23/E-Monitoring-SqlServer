@@ -704,9 +704,12 @@ class CeldaModel:
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
+            estado_texto = data[6]
+            estado_valor = 1 if estado_texto == "Activo" else 0
+            data_final = list(data[:6]) + [estado_valor, data[7]]
             # guardar en historial
             query_select = f"""SELECT fecha_detalle, frecuencia_digits, frecuencia_hz, temperatura_detalle, medida_calculada,
-            observacion_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
+            observacion_detalle, estado_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
             cursor.execute(query_select, (data[-1],))
             datos_anteriores = cursor.fetchone()
             if datos_anteriores:
@@ -718,8 +721,8 @@ class CeldaModel:
                 cursor.execute(query_historial, (idproyecto, fecha_cambio, accion, tabla, cambios, username, nombres))
             # actualizar prisma
             query = f"""UPDATE {tabla} SET fecha_detalle = ?, frecuencia_digits = ?, frecuencia_hz = ?, temperatura_detalle = ?,
-            medida_calculada = ?, observacion_detalle = ? WHERE id_detalle = ?;"""
-            cursor.execute(query, data)
+            medida_calculada = ?, observacion_detalle = ?, estado_detalle = ? WHERE id_detalle = ?;"""
+            cursor.execute(query, data_final)
             conexion.commit()
             return True
         except Exception as e:
