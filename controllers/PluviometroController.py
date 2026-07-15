@@ -37,10 +37,10 @@ class PluviometroController:
         return respuesta
     
     # obtener data pluviometros mostrar tabla
-    def ctrlObtenerDataPluviometrosDetalle(marcados):
+    def ctrlObtenerDataPluviometrosDetalle(idproyecto, marcados):
         datainclinometros = []
         for idpluvio, nombre, tipo in marcados:
-            datos = PluviometroModel.mdlObtenerDataPluviometrosDetalle(idpluvio)
+            datos = PluviometroModel.mdlObtenerDataPluviometrosDetalle(idproyecto, idpluvio)
             if datos is not None:
                 datainclinometros.extend(datos)
         return datainclinometros

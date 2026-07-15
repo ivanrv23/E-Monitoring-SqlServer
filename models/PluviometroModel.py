@@ -172,10 +172,11 @@ class PluviometroModel:
                 conn.close()
     
     # LISTAR DATA PLUVIÓMETROS DETALLE POR ID    
-    def mdlObtenerDataPluviometrosDetalle(idpluvio):
+    def mdlObtenerDataPluviometrosDetalle(idproyecto, idpluvio):
         conn = None
+        tabla = f"pluviometro_detalle{idproyecto}"
         sql = """SELECT p.nombre_pluviometro, d.fecha_pluviometro, d.medida_pluviometro 
-            FROM pluviometro_detalle d INNER JOIN pluviometros p ON d.id_pluviometro = p.id_pluviometro WHERE d.id_pluviometro = ?;"""
+            FROM {tabla} d INNER JOIN pluviometros p ON d.id_pluviometro = p.id_pluviometro WHERE d.id_pluviometro = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -235,12 +236,12 @@ class PluviometroModel:
                 
     def mdlActualizarLecturaPluviometro(tabla, datos, idproyecto, username, nombres):
         conn = None
-        sql = f"""UPDATE {tabla} SET fecha_pluviometro = ?, medida_pluviometro = ?, observacion_pluviometro = ? WHERE id_detalle = ?;"""
+        sql = f"""UPDATE {tabla} SET fecha_pluviometro = ?, medida_pluviometro = ?, observacion_pluviometro = ?, estado_pluviometro = ? WHERE id_detalle = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             # guardar en historial
-            query_select = f"""SELECT fecha_pluviometro, medida_pluviometro, observacion_pluviometro, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
+            query_select = f"""SELECT fecha_pluviometro, medida_pluviometro, observacion_pluviometro, estado_pluviometro, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
             cur.execute(query_select, (datos[-1],))
             row = cur.fetchone()
             datos_anteriores = tuple(row) if row else None

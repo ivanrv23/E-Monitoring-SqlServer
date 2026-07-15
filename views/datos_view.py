@@ -281,17 +281,19 @@ class DatosView:
                 fecha = table.model().data(table.model().index(row, 2), Qt.DisplayRole)
                 medida = table.model().data(table.model().index(row, 3), Qt.DisplayRole)
                 observa = table.model().data(table.model().index(row, 7), Qt.DisplayRole)
-                iddetalle = table.model().data(table.model().index(row, 8), Qt.DisplayRole)
+                estado = table.model().data(table.model().index(row, 8), Qt.DisplayRole)
+                iddetalle = table.model().data(table.model().index(row, 9), Qt.DisplayRole)
                 tablasql = f"pluviometro_detalle{DatosView.idproyecto}"
-                DatosView.generarMenuTablaPluviometros(position, table, nombre, fecha, medida, observa, iddetalle, tablasql)
+                DatosView.generarMenuTablaPluviometros(position, table, nombre, fecha, medida, observa, estado, iddetalle, tablasql)
             elif tipo == 'COTATERRENO':
                 nombre = table.model().data(table.model().index(row, 1), Qt.DisplayRole)
                 fecha = table.model().data(table.model().index(row, 2), Qt.DisplayRole)
                 cota = table.model().data(table.model().index(row, 3), Qt.DisplayRole)
                 observa = table.model().data(table.model().index(row, 4), Qt.DisplayRole)
-                iddetalle = table.model().data(table.model().index(row, 5), Qt.DisplayRole)
+                estado = table.model().data(table.model().index(row, 5), Qt.DisplayRole)
+                iddetalle = table.model().data(table.model().index(row, 6), Qt.DisplayRole)
                 tablasql = f"cotaterreno_detalle{DatosView.idproyecto}"
-                DatosView.generarMenuTablaCotaTerreno(position, table, nombre, fecha, cota, observa, iddetalle, tablasql)
+                DatosView.generarMenuTablaCotaTerreno(position, table, nombre, fecha, cota, observa, estado, iddetalle, tablasql)
             elif tipo == 'CELDA':
                 nombre = table.model().data(table.model().index(row, 1), Qt.DisplayRole)
                 fecha = table.model().data(table.model().index(row, 2), Qt.DisplayRole)
@@ -1054,16 +1056,18 @@ class DatosView:
                         mostrar_mensaje("Eliminar Lecturas", "No se pudo eliminar las lecturas.", "advertencia")
     
     # MENU TABLA PLUVIOMETROS
-    def generarMenuTablaPluviometros(position, table, nombre, fecha, medida, observa, iddetalle, tablasql):
+    def generarMenuTablaPluviometros(position, table, nombre, fecha, medida, observa, estado, iddetalle, tablasql):
         # Crear menú contextual
         menu = QMenu()
         edit_action = QAction("Editar Lectura", table)
+        hide_action = QAction("Omitir/incluir Lectura", table)
         delete_action = QAction("Eliminar Lectura", table)
         # Conectar las acciones con los valores de la fila
-        edit_action.triggered.connect(lambda: DatosView.editarDatosLecturaPluviometros(iddetalle, nombre, fecha, medida, observa, tablasql))
+        edit_action.triggered.connect(lambda: DatosView.editarDatosLecturaPluviometros(iddetalle, nombre, fecha, medida, observa, estado, tablasql))
         delete_action.triggered.connect(lambda: DatosView.delete_row_pluviometros(iddetalle, nombre, fecha, tablasql))
         # Añadir las acciones al menú
         menu.addAction(edit_action)
+        menu.addAction(hide_action)
         menu.addAction(delete_action)
         selected_indexes = table.selectionModel().selectedRows()
         if selected_indexes:
@@ -1072,8 +1076,23 @@ class DatosView:
             menu.addAction(eliminar_action)
         # Mostrar menú contextual en la posición del clic
         menu.exec(table.viewport().mapToGlobal(position))
+
+    def hide_row_pluviometros(iddetalle, nombre, fecha, tablasql):
+        dlg = QMessageBox()
+        dlg.setWindowTitle("Omitir Lectura Pluviómetro")
+        dlg.setText(f"¿Desea omitir/incluir la lectura del '{nombre}' con fecha '{fecha}'?")
+        dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.setIcon(QMessageBox.Question)
+        result = dlg.exec()
+        if result == QMessageBox.Yes:
+            # Asegúrate de tener este método definido en tu PluviometroController o crearlo de forma similar a los otros equipos
+            respuesta = PluviometroController.ctrlCambiarEstadoLecturaPluviometro(tablasql, iddetalle)
+            if respuesta:
+                DatosView.obtenerEquiposMarcados(True)
+            else:
+                mostrar_mensaje("Estado Lectura", "No se pudo omitir/incluir la lectura.", "advertencia")
     
-    def editarDatosLecturaPluviometros(iddetalle, nombre, fecha, medida, observa, tablasql):
+    def editarDatosLecturaPluviometros(iddetalle, nombre, fecha, medida, observa, estado, tablasql):
         dialog = QDialog()
         dialog.setWindowTitle("Editar Lectura Pluviómetro")
         validator = QDoubleValidator()
@@ -1092,11 +1111,21 @@ class DatosView:
         # Campo medida (editable)
         observa_input = QLineEdit()
         observa_input.setText(str(observa))
+
+        estado_combo = QComboBox()
+        estado_combo.addItems([
+            "Activo",
+            "Omitido"
+        ])
+        if estado:
+            estado_combo.setCurrentText(str(estado))
+
         # Añadir los campos al layout
         layout.addRow("Nombre:", nombre_input)
         layout.addRow("Fecha:", fecha_input)
         layout.addRow("Precipitación (mm):", medida_input)
         layout.addRow("Observación:", observa_input)
+        layout.addRow("Estado:", estado_combo)
         label_mensaje = QLabel("")
         label_mensaje.setAlignment(Qt.AlignCenter)
         label_mensaje.setStyleSheet("QLabel { color: red; }")
@@ -1113,10 +1142,12 @@ class DatosView:
             if respfecha:
                 datomedida = medida_input.text()
                 datoobserva = observa_input.text()
+                datoestado = estado_combo.currentText()
+                datoestado = 1 if datoestado == "Activo" else 0 
                 username = Session.get_username()
                 nombres = Session.get_nombres()
                 if Session.is_authenticated() and DatosView.idproyecto and MetodosGenerales.validarEsNumero(datomedida) and datomedida != "":
-                    datanueva = [datofecha, datomedida, datoobserva, iddetalle]
+                    datanueva = [datofecha, datomedida, datoobserva, datoestado, iddetalle]
                     respuesta = PluviometroController.ctrlActualizarLecturaPluviometro(tablasql, datanueva, DatosView.idproyecto, username, nombres)
                     if respuesta:
                         dialog.reject()
@@ -1178,13 +1209,13 @@ class DatosView:
                         mostrar_mensaje("Eliminar Lecturas", "No se pudo eliminar las lecturas.", "advertencia")
     
     # MENU TABLA COTAS TERRENO
-    def generarMenuTablaCotaTerreno(position, table, nombre, fecha, cota, observa, iddetalle, tablasql):
+    def generarMenuTablaCotaTerreno(position, table, nombre, fecha, cota, observa, estado, iddetalle, tablasql):
         # Crear menú contextual
         menu = QMenu()
         edit_action = QAction("Editar Lectura", table)
         delete_action = QAction("Eliminar Lectura", table)
         # Conectar las acciones con los valores de la fila
-        edit_action.triggered.connect(lambda: DatosView.editarDatosLecturaCotasTerreno(iddetalle, nombre, fecha, cota, observa, tablasql))
+        edit_action.triggered.connect(lambda: DatosView.editarDatosLecturaCotasTerreno(iddetalle, nombre, fecha, cota, observa, estado, tablasql))
         delete_action.triggered.connect(lambda: DatosView.delete_row_cotasterreno(iddetalle, nombre, fecha, tablasql))
         # Añadir las acciones al menú
         menu.addAction(edit_action)
@@ -1197,7 +1228,7 @@ class DatosView:
         # Mostrar menú contextual en la posición del clic
         menu.exec(table.viewport().mapToGlobal(position))
     
-    def editarDatosLecturaCotasTerreno(iddetalle, nombre, fecha, cota, observa, tablasql):
+    def editarDatosLecturaCotasTerreno(iddetalle, nombre, fecha, cota, observa, estado, tablasql):
         dialog = QDialog()
         dialog.setWindowTitle("Editar Lectura Cotas Terreno")
         validator = QDoubleValidator()
@@ -1216,11 +1247,19 @@ class DatosView:
         # Campo observación (editable)
         observa_input = QLineEdit()
         observa_input.setText(observa)
+
+        estado_input = QComboBox()
+        estado_input.addItems(["Activo", "Omitido"])
+
+        if estado:
+            estado_input.setCurrentText(str(estado))
+
         # Añadir los campos al layout
         layout.addRow("Nombre:", nombre_input)
         layout.addRow("Fecha:", fecha_input)
         layout.addRow("Cota (msnm):", cota_input)
         layout.addRow("Observación:", observa_input)
+        layout.addRow("Estado:", estado_input)
         label_mensaje = QLabel("")
         label_mensaje.setAlignment(Qt.AlignCenter)
         label_mensaje.setStyleSheet("QLabel { color: red; }")
@@ -1237,10 +1276,11 @@ class DatosView:
             if respfecha:
                 datocota = cota_input.text()
                 datoobserva = observa_input.text()
+                datoestado = estado_input.currentText()
                 username = Session.get_username()
                 nombres = Session.get_nombres()
                 if Session.is_authenticated() and DatosView.idproyecto and MetodosGenerales.validarEsNumero(datocota) and datocota != "":
-                    datanueva = [datofecha, datocota, datoobserva, iddetalle]
+                    datanueva = [datofecha, datocota, datoobserva, datoestado, iddetalle]
                     respuesta = TerrenoController.ctrlActualizarLecturaCotaterreno(tablasql, datanueva, DatosView.idproyecto, username, nombres)
                     if respuesta:
                         dialog.reject()
@@ -1548,6 +1588,9 @@ class DatosView:
 
         estado_combo = QComboBox()
         estado_combo.addItems(["Activo", "Omitido"])
+
+        if estado:
+            estado_combo.setCurrentText(str(estado))
 
         # Añadir los campos al layout
         layout.addRow("Nombre:", nombre_input)

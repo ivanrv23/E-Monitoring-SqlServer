@@ -251,11 +251,11 @@ class VistaDatos:
         pluviometros = DatosController.ctrlObtenerPluviometros(proyecto_id, idzona, lluvias, decimales)
         if pluviometros:
             headers = [
-                "", "Pluviómetro", "Fecha Hora", "Precipitación (mm)", "Este (m)", "Norte (m)", "Elevación (msnm)", "Observación", ""
+                "", "Pluviómetro", "Fecha Hora", "Precipitación (mm)", "Este (m)", "Norte (m)", "Elevación (msnm)", "Observación", "Estado", ""
             ]
             VistaDatos.llenarTabla(tabla, headers, pluviometros, main, tipo)
             tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(8, True)
+            tabla.setColumnHidden(9, True)
         else:
             VistaDatos.limpiarTablaDatos(tabla)
     
@@ -267,10 +267,10 @@ class VistaDatos:
         cotas = [dato[2] for dato in equipos]
         terrenos = DatosController.ctrlObtenerCotasTerreno(proyecto_id, idzona, cotas, decimales)
         if terrenos:
-            headers = [ "", "Nombre Cota", "Fecha Hora", "Cota (msnm)", "Observación", ""]
+            headers = [ "", "Nombre Cota", "Fecha Hora", "Cota (msnm)", "Observación", "Estado", ""]
             VistaDatos.llenarTabla(tabla, headers, terrenos, main, tipo)
             tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(5, True)
+            tabla.setColumnHidden(6, True)
         else:
             VistaDatos.limpiarTablaDatos(tabla)
     

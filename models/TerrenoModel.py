@@ -468,12 +468,22 @@ class TerrenoModel:
             
     def mdlActualizarLecturaCotaterreno(tabla, datos, idproyecto, username, nombres):
         conn = None
-        sql = f"""UPDATE {tabla} SET fecha_detalle = ?, nivel_detalle = ?, observacion_detalle = ? WHERE id_detalle = ?;"""
+        sql = f"""UPDATE {tabla} SET fecha_detalle = ?, nivel_detalle = ?, observacion_detalle = ?, estado_detalle = ? WHERE id_detalle = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
+            fecha, nivel, observacion, estado, id_detalle = datos
+            estado_numerico = 1
+            if isinstance(estado, str):
+                if estado.strip().lower() == "activo":
+                    estado_numerico = 1
+                elif estado.strip().lower() == "omitido":
+                    estado_numerico = 0
+            else:
+                estado_numerico = int(estado)
+
             # guardar en historial
-            query_select = f"""SELECT fecha_detalle, nivel_detalle, observacion_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
+            query_select = f"""SELECT fecha_detalle, nivel_detalle, observacion_detalle, estado_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
             cur.execute(query_select, (datos[-1],))
             row = cur.fetchone()
             datos_anteriores = tuple(row) if row else None
@@ -484,8 +494,9 @@ class TerrenoModel:
                 query_historial = """INSERT INTO historial (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
                 VALUES (?, ?, ?, ?, ?, ?, ?);"""
                 cur.execute(query_historial, (idproyecto, fecha_cambio, accion, tabla, cambios, username, nombres))
+            datos_para_actualizar = (fecha, nivel, observacion, estado_numerico, id_detalle)
             # actualizar cotaterreno
-            cur.execute(sql, datos)
+            cur.execute(sql, datos_para_actualizar)
             conn.commit()
             return True
         except Exception as e:
@@ -513,6 +524,7 @@ class TerrenoModel:
                 query_historial = """INSERT INTO historial (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
                 VALUES (?, ?, ?, ?, ?, ?, ?);"""
                 cur.execute(query_historial, (idproyecto, fecha_cambio, accion, tabla, cambios, username, nombres))
+            
             # eliminar lectura terreno
             cur.execute(sql, (iddetalle,))
             conn.commit()

@@ -435,7 +435,11 @@ class DatosModel:
         sql = f"""SELECT it.tipo_equipo, pm.nombre_pluviometro, pd.fecha_pluviometro,
             ROUND(pd.medida_pluviometro, {decimales}) AS medida_pluviometro, ROUND(pm.este_pluviometro, {decimales}) AS este_pluviometro,
             ROUND(pm.norte_pluviometro, {decimales}) AS norte_pluviometro, ROUND(pm.elevacion_pluviometro, {decimales}) AS elevacion_pluviometro,
-            pd.observacion_pluviometro, pd.id_detalle
+            pd.observacion_pluviometro, 
+            CASE
+                WHEN pd.estado_pluviometro = 1 THEN 'Activo'
+                ELSE 'Omitido'
+            END AS estado,  pd.id_detalle
         FROM pluviometro_detalle{proyecto_id} pd INNER JOIN pluviometros pm ON pd.id_pluviometro = pm.id_pluviometro
         INNER JOIN instrumentacion AS it ON it.id_equipo = pd.id_pluviometro
         INNER JOIN componentes AS co ON co.id_componente = it.id_componente
@@ -459,7 +463,11 @@ class DatosModel:
         placeholders = ', '.join(['?' for _ in terrenos])
         params = [idzona] + terrenos
         sql = f"""SELECT it.tipo_equipo, ct.nombre_terreno, cd.fecha_detalle, ROUND(cd.nivel_detalle, {decimales}) AS nivel_detalle,
-            cd.observacion_detalle, cd.id_detalle
+            cd.observacion_detalle, 
+             CASE
+                WHEN cd.estado_detalle = 1 THEN 'Activo'
+                ELSE 'Omitido'
+            END AS estado, cd.id_detalle
         FROM cotaterreno_detalle{proyecto_id} cd INNER JOIN cotasterreno ct ON cd.id_terreno = ct.id_terreno
         INNER JOIN instrumentacion AS it ON it.id_equipo = cd.id_terreno
         INNER JOIN componentes AS co ON co.id_componente = it.id_componente
