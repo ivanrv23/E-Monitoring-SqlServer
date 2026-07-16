@@ -53,14 +53,24 @@ class MplCanvas(FigureCanvas):
         self.ax.margins(y=0.1)
 
         # Crear textos para los valores
-        self.value_texts = [self.ax.text(
-            bar.get_x() + bar.get_width() / 2,
-            bar.get_height() + 0.1,
-            f'{int(bar.get_height())}',
-            ha='center',
-            va='bottom',
-            fontsize=8  # Tamaño de la fuente
-        ) for bar in self.bars]
+        # self.value_texts = [self.ax.text(
+        #     bar.get_x() + bar.get_width() / 2,
+        #     bar.get_height() + 0.1,
+        #     f'{int(bar.get_height())}',
+        #     ha='center',
+        #     va='bottom',
+        #     fontsize=8  # Tamaño de la fuente
+        # ) for bar in self.bars]
+
+        self.value_texts = self.ax.bar_label(
+        self.bars,
+        padding=5,      # separación respecto a la barra
+        fontsize=20,
+        fmt='%d'
+    )
+
+
+
 
         # Ajustar la visibilidad inicial de las barras
         if len(labels) <= 15:

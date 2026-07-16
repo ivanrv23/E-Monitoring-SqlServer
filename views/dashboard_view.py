@@ -422,12 +422,20 @@ class DashboardView():
 
         series = QBarSeries()
 
+        font_labels = QFont()
+        font_labels.setBold(True)
+        font_labels.setPointSize(10)
+        
         # Un QBarSet por categoría (Operativos, Inoperativos, Desactualizados)
         # cada uno con un valor por cada tipo de equipo en el eje X
         sets_por_categoria = {}
         for categoria in categorias:
             bar_set = QBarSet(categoria)
             bar_set.setColor(colores[categoria])
+
+            bar_set.setLabelColor(QColor("#000000"))   # texto negro
+            bar_set.setLabelFont(font_labels) 
+
             valores = [resumen.get(tipo, {}).get(categoria, 0) for tipo in tipos_equipo_orden]
             bar_set.append(valores)
             sets_por_categoria[categoria] = bar_set
@@ -444,6 +452,8 @@ class DashboardView():
         chart.legend().setVisible(True)
         chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
 
+        chart.setMargins(QMargins(10, 40, 10, 10))
+
         # Eje X: tipos de equipo (Prismas, Piezometros, Inclinometros, etc.)
         axisX = QBarCategoryAxis()
         axisX.append(tipos_equipo_orden)
@@ -451,14 +461,19 @@ class DashboardView():
         series.attachAxis(axisX)
 
         # Eje Y
+        import math
         max_valor = max(
             (resumen.get(tipo, {}).get(cat, 0) for tipo in tipos_equipo_orden for cat in categorias),
             default=0
         )
+
+        tope_eje = math.ceil(max_valor + 1.5) + 10
         axisY = QValueAxis()
         axisY.setMin(0)
-        axisY.setMax(max_valor + 2)
+        axisY.setMax(tope_eje)
+        # axisY.setMax((max_valor * 1.3) + 5)
         axisY.setLabelFormat("%d")
+        axisY.setTickCount(6)
         chart.addAxis(axisY, Qt.AlignmentFlag.AlignLeft)
         series.attachAxis(axisY)
 
