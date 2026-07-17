@@ -1,6 +1,9 @@
 from PySide6.QtWidgets import (QMenu, QTreeWidget, QPushButton, QTableView, QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QMessageBox, QLabel, QComboBox)
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QDoubleValidator
+from PySide6.QtCore import QThread, Signal
+from utils.shared.loading import LoadingView
 from utils.common.alertas import mostrar_mensaje
 from utils.common.metodosGenerales import MetodosGenerales
 from modules.datos.equiposDatos import EquiposDatos
@@ -23,6 +26,8 @@ class DatosView:
     estadochecklist = True
     estadoPagina = True
     
+    loading_dialog = None
+
     def inicializarVistaDatos(main, proyectoid, proyectoname):
         DatosView.main = main
         DatosView.idproyecto = proyectoid
@@ -120,7 +125,17 @@ class DatosView:
             equipos = tipoequipos.get(tipito)
             idzona = zona[1]
             tipo = tipito[0]
-            VistaDatos.mostrarTablaEquipo(DatosView.idproyecto, DatosView.main, idzona, tipo, equipos, refrescar)
+
+            # Iniciar Hilo
+            loading = LoadingView.mostrarLoading()
+            def on_thread_complete():
+                loading.close()
+            procesaDatos = ProcesarDatosThread(DatosView.idproyecto, DatosView.main, idzona, tipo, equipos, refrescar)
+            procesaDatos.task_finishProcesardatos.connect(on_thread_complete)
+            procesaDatos.start()
+            loading.exec()
+
+            # VistaDatos.mostrarTablaEquipo(DatosView.idproyecto, DatosView.main, idzona, tipo, equipos, refrescar)
         else:
             tabla =  DatosView.main.findChild(QTableView, "table_datos")
             VistaDatos.limpiarTablaDatos(tabla)
@@ -1768,3 +1783,21 @@ class DatosView:
         dialog.setLayout(layout)
         dialog.exec()
     
+
+class ProcesarDatosThread(QThread):
+    task_finishProcesardatos = Signal()
+
+    def __init__(self, idproyecto, main, idzona, tipo, equipos, refrescar):
+        super().__init__()
+        self.idproyecto = idproyecto
+        self.main = main
+        self.idzona = idzona
+        self.tipo = tipo
+        self.equipos = equipos
+        self.refrescar = refrescar
+
+    def run(self):
+        # procesar datos
+        VistaDatos.mostrarTablaEquipo(self.idproyecto, self.main, self.idzona, self.tipo, self.equipos, self.refrescar)
+        # mandar señal
+        self.task_finishProcesardatos.emit()

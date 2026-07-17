@@ -61,6 +61,7 @@ class VisorView:
     main, idproyecto, nameproyecto, estadochecklist = None, None, "SIN PROYECTO", True
     equiposgenerales, colorvectores, limites_corte = [], [], []
     visorVisible, estadoPagina, estadografico, cambioproyecto = False, True, False, False
+    conexionesRealizadas = False
     vtkWidgetVisor, rendererVisor, actorVisor = None, None, None
     listatopograficados, vectoresDXF, piezometrostuboscuerda, piezometrostubosmanual, cablescoaxiales = [], [], [], [], []
     vtkWidgetCorte, rendererCorte, lista_actoresDXF_corte, solidoDXF_corte = None, None, [], None
@@ -189,6 +190,7 @@ class VisorView:
                 # CONFIGURACIÓN DE BOTONES Y CONTROLES
                 paginacionvisor = VisorView.main.findChild(QStackedWidget, "stacked_visor")
                 
+            if not VisorView.conexionesRealizadas:  
                 botonRefrescarVisor = VisorView.main.findChild(QPushButton, "btn_refrescar_vista_visor")
                 if botonRefrescarVisor:
                     botonRefrescarVisor.clicked.connect(lambda: VisorView.obtenerMostrarEquiposMarcados(tree_actual_visor, paginacionvisor))
@@ -264,6 +266,8 @@ class VisorView:
                 botongraficasLidar = VisorView.main.findChild(QPushButton, "btn_graficar_desplazamientos_lidar")
                 if botongraficasLidar:
                     botongraficasLidar.clicked.connect(VisorView.ProcesarDesplazamientoLidar)
+
+                VisorView.conexionesRealizadas = True 
 
                 # Actualizar estado y forzar renderizado inicial
                 VisorView.estadoPagina = False
@@ -2558,13 +2562,18 @@ class VisorView:
             mostrar_mensaje("SIN INCLINÓMETROS", "Debe marcar los inclinómetros.", "advertencia")
     
     def aplicarDTMtopografia(tree_actual, paginacion):
+        if VisorView.main.findChild(QPushButton, "btn_aplicar_dtm").isEnabled() is False:
+            return
         if len(VisorView.listatopograficados) > 0:
             lista = EquiposVisor.obtener_todos_elementos_marcados(tree_actual)
             if lista:
                 toposmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Topografías")
                 if len(toposmarcados) > 0:
                     if paginacion.currentIndex() == 0:
+                        boton = VisorView.main.findChild(QPushButton, "btn_aplicar_dtm")
+                        boton.setEnabled(False)
                         VisorView.configurarRenderizado(toposmarcados)
+                        boton.setEnabled(True)
                     elif paginacion.currentIndex() == 1:
                         VisorView.renderizarGrafico_corte()
     

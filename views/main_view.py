@@ -80,6 +80,8 @@ class MainView:
     
     @staticmethod
     def InterfazPrincipal():
+        if MainView.main_window is not None:
+            return MainView.main_window
         try:
             loader = QUiLoader()
             ui_file_path = resource_path("ui/principal.ui")
