@@ -810,7 +810,7 @@ GO
 
 ----------------------------------------------------------------------------------------------------
 -- CONSULTAS:
-consultaSQL = """SELECT ID, Name FROM PointGroups ORDER BY ID"""
+consultaSQL = """SELECT ID, Name FROM PointGroups ORDER BY ID;"""
 
 consultaSQL = """
   SELECT 
