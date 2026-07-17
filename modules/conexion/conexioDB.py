@@ -240,9 +240,11 @@ class ConexionDB:
             botonsincronizar.setEnabled(False)
             botonsincronizar.setText("Sincronizando...")
             QApplication.processEvents()
-            SyncManager.sincronizar_ahora()
-            botonsincronizar.setEnabled(True)
-            botonsincronizar.setText("Sincronizar Ahora")
+            try:
+                SyncManager.sincronizar_ahora()
+            finally:
+                botonsincronizar.setEnabled(True)
+                botonsincronizar.setText("Sincronizar Ahora")
             refrescarTabla()
         def aceptarConexiones():
             dialog.close()
