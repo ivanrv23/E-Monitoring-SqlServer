@@ -29,7 +29,7 @@ class SoftwareConfiguracion:
     suavizado = 0
     fechahora = 0
     mesletras = 0 
-    version = "5.4.0"
+    version = "5.4.1"
        
     # MOSTRAR DIALOGO DE AJUSTES DE SOFTWARE
     def mostrarDialogoConfiguracionSoftware():

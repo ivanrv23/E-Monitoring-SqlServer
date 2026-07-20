@@ -3,7 +3,7 @@ import threading
 import time
 import logging
 from logging.handlers import RotatingFileHandler
-from concurrent.futures import ThreadPoolExecutor, Future
+from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import datetime, timedelta
 
 import pyodbc
@@ -269,7 +269,9 @@ class ConexionWorker(QThread):
 
         try:
             self._resetear_proximo_sync()
-            self._ciclo()
+            futuros = self._ciclo()
+            if self._forzar_ahora and futuros:
+                wait(futuros)
         except Exception as e:
             logger.error(f"Error en ciclo inicial: {e}", exc_info=True)
         finally:
@@ -281,8 +283,11 @@ class ConexionWorker(QThread):
             self._evento_despertar.clear()
             if not self._corriendo:
                 break
+            forzado = self._forzar_ahora
             try:
-                self._ciclo()
+                futuros = self._ciclo()
+                if forzado and futuros:
+                    wait(futuros)
             except Exception as e:
                 logger.error(f"Error en ciclo: {e}", exc_info=True)
             self._forzar_ahora = False
@@ -354,7 +359,7 @@ class ConexionWorker(QThread):
             conn = Connection.connectionDB()
             if not conn:
                 self._emit_error("[Ciclo] No se pudo obtener conexión a BD central")
-                return
+                return []
 
             ahora = datetime.now()
             cur = conn.cursor()
@@ -373,16 +378,17 @@ class ConexionWorker(QThread):
             pendientes = cur.fetchall()
         except Exception as e:
             logger.error(f"Error consultando BD central: {e}", exc_info=True)
-            return
+            return []
         finally:
             _cerrar_con_timeout(conn, nombre="conn_central (ciclo)", emit_log=self._emit_log)
 
         if not pendientes:
-            return
+            return []
 
         self._emit_log(f"[Ciclo] {len(pendientes)} conexión(es) pendiente(s) a las {ahora:%H:%M:%S}")
 
         # Enviar tareas al pool SIN bloquear el hilo principal
+        futuros_ciclo = []
         for row in pendientes:
             id_conexion = row[0]
 
@@ -391,6 +397,7 @@ class ConexionWorker(QThread):
                 futuro = self._tareas_activas[id_conexion]
                 if not futuro.done():
                     self._emit_log(f"[Ciclo] ID={id_conexion} ya en ejecución, omitiendo")
+                    futuros_ciclo.append(futuro)
                     continue
                 else:
                     # Limpiar tarea completada
@@ -399,7 +406,9 @@ class ConexionWorker(QThread):
             # Enviar al pool y trackear
             futuro = self._pool.submit(self._intentar_sincronizar, tuple(row))
             self._tareas_activas[id_conexion] = futuro
+            futuros_ciclo.append(futuro)
             self._emit_log(f"[Ciclo] ID={id_conexion} enviado al pool")
+        return futuros_ciclo
 
     def _intentar_sincronizar(self, row):
         (id_conexion, frecuencia_min, servidor, puerto, database, usuario, password,

@@ -810,23 +810,25 @@ GO
 
 ----------------------------------------------------------------------------------------------------
 -- CONSULTAS:
-consultaSQL = """SELECT ID, Name FROM PointGroups ORDER BY ID"""
+consultaSQL = """SELECT ID, Name FROM PointGroups ORDER BY ID;"""
 
 consultaSQL = """
-            SELECT r.ID, r.Point_ID, p.Name, t.Epoch,
-                t.HzAngle, t.VAngle, t.SlopeDistance, t.Pressure, t.Temperature,
-                r.Easting, r.Northing, r.Height, r.HorzDistance, r.LongitudinalDisplacement,
-                r.TransverseDisplacement, r.HeightDisplacement, g.Name
-            FROM Points p
-            INNER JOIN Results r ON p.ID = r.Point_ID
-            INNER JOIN TPSMeasurements t ON t.Point_ID = r.Point_ID
-                AND t.Epoch BETWEEN DATEADD(SECOND, -60, r.Epoch)
-                                AND DATEADD(SECOND,  60, r.Epoch)
-            INNER JOIN PointGroups g ON t.PointGroup_ID = g.ID
-            WHERE r.Easting      IS NOT NULL
-              AND r.Northing     IS NOT NULL
-              AND r.Height       IS NOT NULL
-              AND r.HorzDistance IS NOT NULL
-              AND r.ID >= ?
-            ORDER BY r.ID;
+  SELECT 
+    t.ID, t.Point_ID, p.Name, t.Epoch,
+    t.HzAngle, t.VAngle, t.SlopeDistance, t.Pressure, t.Temperature,
+    r.Easting, r.Northing, r.Height, r.HorzDistance, r.LongitudinalDisplacement,
+    r.TransverseDisplacement, r.HeightDisplacement,
+    pg.Name AS NombreGrupo, pg.ID AS IdGrupo
+  FROM TPSMeasurements t
+  INNER JOIN Points p ON t.Point_ID = p.ID
+  INNER JOIN PointGroupItems pgi ON pgi.Point_ID = p.ID
+  INNER JOIN PointGroups pg ON pg.ID = pgi.PointGroup_ID
+  INNER JOIN Result2TPSMeasurement r2t ON t.ID = r2t.TPSMeasurement_ID
+  INNER JOIN Results r ON r2t.Result_ID = r.ID
+  WHERE r.Easting IS NOT NULL
+    AND r.Northing IS NOT NULL
+    AND r.Height IS NOT NULL
+    AND r.HorzDistance IS NOT NULL
+    AND t.ID >= ?
+  ORDER BY t.ID;
         """
