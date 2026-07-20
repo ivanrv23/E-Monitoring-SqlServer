@@ -53,6 +53,20 @@ INSERT_LOTE_MAX = 50_000
 INSERT_LOTE_INICIAL = 2_000
 MAX_MINUTOS_ESPERA = 240
 
+# --- NUEVO: retry específico ante deadlock (SQLSTATE 40001) ---
+MAX_REINTENTOS_DEADLOCK = 4
+ESPERA_BASE_DEADLOCK_SEG = 1.5
+
+# --- NUEVO: backoff fijo tras varios fallos consecutivos ---
+INTENTOS_ANTES_DE_BACKOFF_LARGO = 3
+BACKOFF_LARGO_MINUTOS = 60
+
+# --- NUEVO: timeout forzado para cierres de conexión que puedan colgarse ---
+CIERRE_CONEXION_TIMEOUT_SEG = 10
+
+# SQLSTATEs que indican error de autenticación/autorización (no debe reintentarse)
+AUTH_SQLSTATES = {'28000', '42000'}
+
 
 class AdaptiveBatcher:
     """Ajusta dinámicamente el tamaño del lote."""
@@ -65,7 +79,7 @@ class AdaptiveBatcher:
     def registrar(self, duracion_seg, filas_procesadas):
         if filas_procesadas <= 0 or duracion_seg <= 0:
             return self.tamano
-        
+
         if duracion_seg > (self.target_seg * 2):
             self.tamano = max(self.minimo, int(self.tamano * 0.6))
             return self.tamano
@@ -73,7 +87,7 @@ class AdaptiveBatcher:
         seg_por_fila = duracion_seg / filas_procesadas
         if seg_por_fila <= 0:
             return self.tamano
-        
+
         tamano_ideal = int(self.target_seg / seg_por_fila)
         nuevo_tamano = int((self.tamano * 0.7) + (tamano_ideal * 0.3))
         self.tamano = max(self.minimo, min(self.maximo, nuevo_tamano))
@@ -92,16 +106,91 @@ def _set_query_timeout(cur, segundos):
         pass
 
 
+def _es_deadlock(e) -> bool:
+    """SQLSTATE 40001 = deadlock victim, SQL Server pide reintentar."""
+    sqlstate = e.args[0] if e.args else ''
+    return sqlstate == '40001'
+
+
+def _es_error_autenticacion(e) -> bool:
+    sqlstate = e.args[0] if e.args else ''
+    return sqlstate in AUTH_SQLSTATES or 'Login failed' in str(e)
+
+
+def _escapar_password_odbc(password: str) -> str:
+    """Envuelve el password en llaves y escapa llaves internas, para que
+    caracteres especiales (; = etc.) dentro del password no rompan la
+    cadena de conexión ODBC."""
+    if password is None:
+        return ''
+    return '{' + str(password).replace('}', '}}') + '}'
+
+
+def _cerrar_con_timeout(conn, timeout_seg=CIERRE_CONEXION_TIMEOUT_SEG, nombre="conexion", emit_log=None):
+    """Cierra una conexión con timeout forzado usando un hilo daemon.
+
+    pyodbc.Connection.close() puede colgarse indefinidamente si la conexión
+    quedó en un estado ambiguo (por ejemplo, tras ser elegida víctima de un
+    deadlock). Sin este wrapper, un close() colgado deja el hilo del pool
+    atrapado para siempre. Si no responde a tiempo, se abandona: el hilo
+    del pool queda libre, aunque el socket subyacente quede huérfano hasta
+    que el proceso lo recicle.
+    """
+    if conn is None:
+        return
+
+    resultado = {"cerrado": False}
+
+    def _cerrar():
+        try:
+            conn.close()
+            resultado["cerrado"] = True
+        except Exception:
+            pass
+
+    hilo = threading.Thread(target=_cerrar, daemon=True, name=f"Close-{nombre}")
+    hilo.start()
+    hilo.join(timeout=timeout_seg)
+
+    if not resultado["cerrado"]:
+        msg = f"[Cierre] {nombre} no respondió en {timeout_seg}s al cerrar, abandonada (posible conexión zombie)"
+        logger.warning(msg)
+        if emit_log:
+            emit_log(msg)
+
+
+def _ejecutar_con_retry_deadlock(cur, consulta, params, emit_log=None):
+    """Ejecuta una query con reintento automático ante deadlock (40001).
+    Cualquier otro error se propaga de inmediato, sin reintentar."""
+    intento = 0
+    while True:
+        intento += 1
+        try:
+            cur.execute(consulta, params)
+            return
+        except pyodbc.Error as e:
+            if _es_deadlock(e) and intento < MAX_REINTENTOS_DEADLOCK:
+                espera = ESPERA_BASE_DEADLOCK_SEG * intento
+                msg = f"[Deadlock] Reintento {intento}/{MAX_REINTENTOS_DEADLOCK} en {espera:.1f}s"
+                logger.warning(msg)
+                if emit_log:
+                    emit_log(msg)
+                time.sleep(espera)
+                continue
+            raise
+
+
 def _conectar_externa(servidor, puerto, database, usuario, password):
     driver = _driver_odbc()
     if not driver:
         raise RuntimeError("No hay driver ODBC disponible.")
-    
+
     conn_str = (
         f"DRIVER={{{driver}}};"
         f"SERVER={servidor},{puerto};"
         f"DATABASE={database};"
-        f"UID={usuario};PWD={password};"
+        f"UID={usuario};"
+        f"PWD={_escapar_password_odbc(password)};"
         "TrustServerCertificate=yes;"
         f"Connection Timeout={CONNECTION_TIMEOUT_SEG};"
         "KeepAliveInterval=30;KeepAliveCount=5;"
@@ -111,6 +200,10 @@ def _conectar_externa(servidor, puerto, database, usuario, password):
         try:
             return pyodbc.connect(conn_str, timeout=CONNECTION_TIMEOUT_SEG)
         except pyodbc.Error as e:
+            if _es_error_autenticacion(e):
+                # No reintentar ante error de credenciales: evita acumular
+                # intentos fallidos que puedan bloquear la cuenta en el servidor.
+                raise
             ultimo_error = e
             if intento < MAX_REINTENTOS_CONEXION_EXTERNA:
                 time.sleep(ESPERA_REINTENTO_CONEXION_SEG)
@@ -152,7 +245,7 @@ class ConexionWorker(QThread):
             if not conn:
                 self._emit_error("[Sync] No se pudo obtener conexión para resetear proximo_sync")
                 return
-            
+
             cur = conn.cursor()
             ahora = datetime.now()
             cur.execute("""
@@ -165,19 +258,15 @@ class ConexionWorker(QThread):
         except Exception as e:
             self._emit_error(f"[Sync] Error al resetear proximo_sync: {e}")
         finally:
-            if conn:
-                try:
-                    conn.close()
-                except:
-                    pass
+            _cerrar_con_timeout(conn, nombre="conn_central (resetear_proximo_sync)", emit_log=self._emit_log)
 
     def run(self):
         self._corriendo = True
         self._evento_despertar.clear()
         self._pool = ThreadPoolExecutor(max_workers=MAX_WORKERS_CONCURRENTES, thread_name_prefix="Sync")
-        
+
         self._emit_log(f"[Sync] Worker iniciado en host: {HOSTNAME} | Pool: {MAX_WORKERS_CONCURRENTES} hilos")
-        
+
         try:
             self._resetear_proximo_sync()
             self._ciclo()
@@ -230,12 +319,12 @@ class ConexionWorker(QThread):
                 SELECT sc.id_conexion, c.instrumento_conexion,
                        COALESCE(sc.ultimo_heartbeat, sc.inicio_ejecucion) AS ultimo_contacto, sc.hostname
                 FROM sync_control sc INNER JOIN conexiones c ON sc.id_conexion = c.id_conexion
-                WHERE sc.ejecutando = 1 
+                WHERE sc.ejecutando = 1
                   AND COALESCE(sc.ultimo_heartbeat, sc.inicio_ejecucion) IS NOT NULL
                   AND COALESCE(sc.ultimo_heartbeat, sc.inicio_ejecucion) < DATEADD(MINUTE, -?, ?)
                   AND c.estado_conexion = 1
             """, LOCK_STALE_MINUTOS, ahora)
-            
+
             huerfanos = cur.fetchall()
             if huerfanos:
                 for row in huerfanos:
@@ -252,6 +341,14 @@ class ConexionWorker(QThread):
             raise
 
     def _ciclo(self):
+        # --- NUEVO: diagnóstico de salud del pool al inicio de cada ciclo ---
+        activos = {k: f for k, f in self._tareas_activas.items() if not f.done()}
+        if activos:
+            self._emit_log(
+                f"[Salud Pool] {len(activos)} tarea(s) aún en ejecución de ciclos anteriores: {list(activos.keys())}"
+            )
+        # ---------------------------------------------------------------------
+
         conn = None
         try:
             conn = Connection.connectionDB()
@@ -266,7 +363,7 @@ class ConexionWorker(QThread):
 
             cur.execute("""
                 SELECT sc.id_conexion, sc.frecuencia_min, c.servidor_conexion, c.puerto_conexion,
-                       c.database_conexion, c.usuario_conexion, c.password_conexion, c.grupos_conexion, 
+                       c.database_conexion, c.usuario_conexion, c.password_conexion, c.grupos_conexion,
                        c.lecturas_conexion, c.dato_conexion, c.instrumento_conexion, c.id_proyecto,
                        sc.ejecutando, sc.proximo_sync, sc.ultimo_sync, sc.hostname, sc.inicio_ejecucion
                 FROM sync_control sc INNER JOIN conexiones c ON sc.id_conexion = c.id_conexion
@@ -278,21 +375,17 @@ class ConexionWorker(QThread):
             logger.error(f"Error consultando BD central: {e}", exc_info=True)
             return
         finally:
-            if conn:
-                try:
-                    conn.close()
-                except:
-                    pass
+            _cerrar_con_timeout(conn, nombre="conn_central (ciclo)", emit_log=self._emit_log)
 
         if not pendientes:
             return
 
         self._emit_log(f"[Ciclo] {len(pendientes)} conexión(es) pendiente(s) a las {ahora:%H:%M:%S}")
-        
+
         # Enviar tareas al pool SIN bloquear el hilo principal
         for row in pendientes:
             id_conexion = row[0]
-            
+
             # Verificación adicional: no enviar si ya está en tareas_activas
             if id_conexion in self._tareas_activas:
                 futuro = self._tareas_activas[id_conexion]
@@ -302,7 +395,7 @@ class ConexionWorker(QThread):
                 else:
                     # Limpiar tarea completada
                     del self._tareas_activas[id_conexion]
-            
+
             # Enviar al pool y trackear
             futuro = self._pool.submit(self._intentar_sincronizar, tuple(row))
             self._tareas_activas[id_conexion] = futuro
@@ -329,6 +422,7 @@ class ConexionWorker(QThread):
         conn_externa = None
         nombretabla = f"prismas{id_proyecto}" if instrumento == "PRISMAS" else None
         staging_listo = False
+        ahora = datetime.now()
 
         batcher_fetch = AdaptiveBatcher(FETCH_LOTE_INICIAL, FETCH_LOTE_MIN, FETCH_LOTE_MAX)
         batcher_insert = AdaptiveBatcher(INSERT_LOTE_INICIAL, INSERT_LOTE_MIN, INSERT_LOTE_MAX)
@@ -338,7 +432,7 @@ class ConexionWorker(QThread):
             conn = Connection.connectionDB()
             if not conn:
                 raise Exception("No se pudo conectar a BD central")
-            
+
             cur = conn.cursor()
             cur.fast_executemany = True
             ahora = datetime.now()
@@ -348,18 +442,18 @@ class ConexionWorker(QThread):
                 WHERE id_conexion = ? AND ejecutando = 0 AND proximo_sync <= ?
             """, HOSTNAME, ahora, ahora, id_conexion, ahora)
             conn.commit()
-            
+
             if cur.rowcount == 0:
                 self._emit_log(f"[Lock] ID={id_conexion} omitido (ya ejecutando por otro proceso)")
                 return
-                
+
             lock_adquirido = True
             self._emit_log(f"[Lock OK] ID={id_conexion} adquirido por {HOSTNAME}")
 
             # FASE 2: CONEXIÓN EXTERNA Y GRUPOS
             conn_externa = _conectar_externa(servidor, puerto, database, usuario, password)
             grupos = self._obtener_grupos_externos(conn_externa, consultagrupos)
-            
+
             if not grupos:
                 self._emit_log(f"[Grupos] ID={id_conexion} sin grupos. Finalizado.")
                 return
@@ -394,7 +488,7 @@ class ConexionWorker(QThread):
 
                 filas_validas = [f for f in lote if f[17] in mapa_componentes]
                 total_filas_procesadas += len(filas_validas)
-                
+
                 nombres_por_componente = {}
                 for fila in filas_validas:
                     id_componente = mapa_componentes[fila[17]]
@@ -437,18 +531,25 @@ class ConexionWorker(QThread):
                 except Exception as e:
                     self._emit_error(f"[Cleanup] ID={id_conexion}: {e}")
 
-            if conn_externa:
-                try:
-                    conn_externa.close()
-                except:
-                    pass
+            # NUEVO: cierre con timeout forzado, evita que un hilo quede
+            # atrapado para siempre si la conexión externa quedó en un
+            # estado ambiguo (p. ej. tras un deadlock).
+            _cerrar_con_timeout(conn_externa, nombre=f"conn_externa ID={id_conexion}", emit_log=self._emit_log)
 
             if lock_adquirido and conn:
                 try:
                     cur = conn.cursor()
                     fallos = self._fallos_consecutivos.get(id_conexion, 0)
-                    factor = 2 ** min(fallos, MAX_REINTENTOS_BACKOFF)
-                    minutos_espera = min(frecuencia_min * (factor if fallos else 1), MAX_MINUTOS_ESPERA)
+
+                    # NUEVO: backoff fijo tras varios fallos consecutivos,
+                    # en vez de exponencial creciente sin techo práctico.
+                    if fallos == 0:
+                        minutos_espera = frecuencia_min
+                    elif fallos <= INTENTOS_ANTES_DE_BACKOFF_LARGO:
+                        minutos_espera = frecuencia_min
+                    else:
+                        minutos_espera = BACKOFF_LARGO_MINUTOS
+
                     proximo = ahora + timedelta(minutes=minutos_espera)
 
                     cur.execute("""
@@ -456,16 +557,13 @@ class ConexionWorker(QThread):
                             ultimo_sync = ?, proximo_sync = ? WHERE id_conexion = ?
                     """, ahora, proximo, id_conexion)
                     conn.commit()
-                    
-                    self._emit_log(f"[Finalizado] ID={id_conexion} | Estado: {'OK' if total_filas_insertadas >= 0 else 'FALLIDO'} | Proc: {total_filas_procesadas} | Ins: {total_filas_insertadas} | Fallos: {fallos} | Próximo: {proximo:%H:%M:%S}")
+
+                    self._emit_log(f"[Finalizado] ID={id_conexion} | Estado: {'OK' if total_filas_insertadas >= 0 else 'FALLIDO'} | Proc: {total_filas_procesadas} | Ins: {total_filas_insertadas} | Fallos: {fallos} | Próximo: {proximo:%H:%M:%S} ({minutos_espera} min)")
                 except Exception as e:
                     logger.error(f"Error liberando lock ID={id_conexion}: {e}", exc_info=True)
-                    
-            if conn:
-                try:
-                    conn.close()
-                except:
-                    pass
+
+            # NUEVO: cierre con timeout forzado también para la conexión central
+            _cerrar_con_timeout(conn, nombre=f"conn_central ID={id_conexion}", emit_log=self._emit_log)
 
     def _obtener_grupos_externos(self, conn_externa, consultagrupos):
         cur = conn_externa.cursor()
@@ -477,8 +575,11 @@ class ConexionWorker(QThread):
         cur = conn_externa.cursor()
         _set_query_timeout(cur, QUERY_TIMEOUT_SEG)
         cur.execute("SET LOCK_TIMEOUT 30000;")
-        cur.execute(consulta, (ultimoid,))
-        
+
+        # NUEVO: retry específico ante deadlock (40001) en vez de fallar
+        # inmediatamente y abortar todo el ciclo de sincronización.
+        _ejecutar_con_retry_deadlock(cur, consulta, (ultimoid,), emit_log=self._emit_log)
+
         while True:
             if not self._corriendo:
                 break
@@ -585,9 +686,9 @@ class ConexionWorker(QThread):
         cur.execute(f"TRUNCATE TABLE {staging};")
 
         insert_staging = f"""
-            INSERT INTO {staging} (nombre_prisma, hora_prisma, angulo_horizontal, angulo_vertical, distancia_prisma, 
-            presion_prisma, temperatura_prisma, este_target, norte_target, elevacion_target, distancia_horizontal, 
-            desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos) 
+            INSERT INTO {staging} (nombre_prisma, hora_prisma, angulo_horizontal, angulo_vertical, distancia_prisma,
+            presion_prisma, temperatura_prisma, este_target, norte_target, elevacion_target, distancia_horizontal,
+            desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
 
@@ -607,15 +708,15 @@ class ConexionWorker(QThread):
             INSERT INTO {nombretabla} (state_prisma, estado_prisma, nombre_prisma, hora_prisma, angulo_horizontal, angulo_vertical,
                 distancia_prisma, presion_prisma, temperatura_prisma, este_target, norte_target, elevacion_target,
                 distancia_horizontal, desplaza_longitudinal, desplaza_transversal, desplaza_altura, grupo_puntos)
-            SELECT 1, 1, s.nombre_prisma, s.hora_prisma, s.angulo_horizontal, s.angulo_vertical, s.distancia_prisma, 
+            SELECT 1, 1, s.nombre_prisma, s.hora_prisma, s.angulo_horizontal, s.angulo_vertical, s.distancia_prisma,
                    s.presion_prisma, s.temperatura_prisma, s.este_target, s.norte_target, s.elevacion_target,
                    s.distancia_horizontal, s.desplaza_longitudinal, s.desplaza_transversal, s.desplaza_altura, s.grupo_puntos
             FROM {staging} s
-            LEFT JOIN {nombretabla} t 
+            LEFT JOIN {nombretabla} t
                 ON t.nombre_prisma = s.nombre_prisma AND t.hora_prisma = s.hora_prisma AND t.grupo_puntos = s.grupo_puntos
             WHERE t.nombre_prisma IS NULL;
         """)
-        
+
         # Contar filas insertadas manualmente
         total_insertadas = len(registros)
         conn.commit()
@@ -637,7 +738,7 @@ class ConexionWorker(QThread):
             FROM {staging} s
             WHERE NOT EXISTS (SELECT 1 FROM instrumentacion i WHERE i.id_componente = s.id_componente AND i.nombre_equipo = s.nombre_equipo);
         """, tipo_equipo, nombretabla)
-        
+
         nuevos = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
         cur.execute(f"DROP TABLE IF EXISTS {staging};")
         conn.commit()
