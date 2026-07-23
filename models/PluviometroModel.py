@@ -217,7 +217,7 @@ class PluviometroModel:
     # LISTAR LOS PLUVIÓMETROS POR PROYECTO    
     def mdlListarPluviometrosCombo(proyecto):
         conn = None
-        sql = """SELECT * FROM pluviometros WHERE id_proyecto = ? AND estado_pluviometro = 1;"""
+        sql = """SELECT * FROM pluviometros WHERE id_proyecto = ? AND estado_detalle = 1;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -236,12 +236,12 @@ class PluviometroModel:
                 
     def mdlActualizarLecturaPluviometro(tabla, datos, idproyecto, username, nombres):
         conn = None
-        sql = f"""UPDATE {tabla} SET fecha_pluviometro = ?, medida_pluviometro = ?, observacion_pluviometro = ?, estado_pluviometro = ? WHERE id_detalle = ?;"""
+        sql = f"""UPDATE {tabla} SET fecha_pluviometro = ?, medida_pluviometro = ?, observacion_pluviometro = ?, estado_detalle = ? WHERE id_detalle = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             # guardar en historial
-            query_select = f"""SELECT fecha_pluviometro, medida_pluviometro, observacion_pluviometro, estado_pluviometro, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
+            query_select = f"""SELECT fecha_pluviometro, medida_pluviometro, observacion_pluviometro, estado_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
             cur.execute(query_select, (datos[-1],))
             row = cur.fetchone()
             datos_anteriores = tuple(row) if row else None

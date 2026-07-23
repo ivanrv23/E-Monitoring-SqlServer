@@ -39,21 +39,24 @@ WHERE tipo_equipo = 'Prismas';
 
 
 ---------------------------------------------------------------------------------------------------
-Alter table celdas
-add Estado INT
-EXEC sp_rename 'celdas.Estado', 'estado_celda', 'COLUMN';
-
-UPDATE celdas
-SET estado_celda = 1
-WHERE estado_celda IS NULL;
-
 ALTER TABLE celdas
-ADD CONSTRAINT df_celdas_estado
-DEFAULT (1) FOR estado_celda;
-
-ALTER TABLE celdas
-ALTER COLUMN estado_celda INT NOT NULL;
+ADD estado_celda INT NOT NULL 
+    CONSTRAINT df_celdas_estado DEFAULT (1);
 
 select * from celdas
 
+
+ALTER TABLE acelerografos
+ADD estado_acelerografo INT NOT NULL 
+    CONSTRAINT df_acelerografos_estado DEFAULT (1);
+
+
+ALTER TABLE acelerografo_detalle1
+ADD estado_detalle INT NOT NULL 
+    CONSTRAINT df_acelerografo_estado_detalle DEFAULT (1);
+
+
+ALTER TABLE pluviometro_detalle2
+ADD estado_detalle INT NOT NULL 
+    CONSTRAINT df_pluviometro_estado_detalle DEFAULT (1);
 -------------------------------------------

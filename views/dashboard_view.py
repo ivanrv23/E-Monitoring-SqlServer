@@ -1,21 +1,95 @@
 import matplotlib
 import matplotlib.pyplot as plt
 from PySide6.QtWidgets import (QGridLayout, QWidget, QSizePolicy, QScrollArea, QGraphicsSimpleTextItem, QComboBox,
-                               QPushButton, QLayout, QToolTip)
+                               QPushButton, QLayout, QToolTip, QLabel)
 from PySide6.QtCharts import (QChart, QChartView, QPieSeries, QPieSlice, 
                                QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis)
-from PySide6.QtCore import Qt, QMargins, QPoint
+from PySide6.QtCore import Qt, QMargins, QPoint, QThread, Signal, QTimer
 from PySide6.QtGui import QPainter, QColor, QBrush, QFont, QPen
 matplotlib.use('QtAgg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from controllers.DashboardController import DashboardController
 
+
+
+class DashboardWorker(QThread):
+    datos_cargados = Signal(dict)
+
+    def __init__(self, proyecto_id, componente_id):
+        super().__init__()
+        self.proyecto_id = proyecto_id
+        self.componente_id = componente_id
+
+    def run(self):
+            instrumentacion = DashboardController.ctrlObtenerInstrumentacionProyecto(self.proyecto_id, self.componente_id)
+            print("instrumentacion OK")
+            operativos_inoperativos = DashboardController.ctrlObtenerInstrumentacionOIProyecto(self.proyecto_id, self.componente_id)
+            print("operativos OK")
+            lecturas_prismas = DashboardController.ctrlObtenerLecturasPrismas(self.proyecto_id, 'prismas', self.componente_id, 'PRISMAS')
+            print("lecturas OK")
+            try: estadoequipos = DashboardController.ctrlObtenerestadoequipos(self.proyecto_id, self.componente_id)
+            except Exception as e:
+                print("Error al obtener estadoequipos:", e)
+                estadoequipos = []  
+
+            data = {
+                'instrumentacion': instrumentacion,
+                'operativos_inoperativos': operativos_inoperativos,
+                'lecturas_prismas': lecturas_prismas,
+                'estadoequipos': estadoequipos
+            }
+            self.datos_cargados.emit(data)
+            print("ERROR DashboardWorker:", data)
+
+class LoadingSpinner(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.rotate)
+        self.angle = 0
+        self.timer.start(80)  # Velocidad de rotación en milisegundos
+
+    def rotate(self):
+        self.angle = (self.angle + 45) % 360
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Mover origen al centro
+        width = self.width()
+        height = self.height()
+        side = min(width, height)
+        painter.translate(width / 2, height / 2)
+
+        # Dibujar 8 bolitas en círculo
+        dots = 8
+        radius = side / 4
+        dot_radius = side / 18
+
+        for i in range(dots):
+            # Rotar el canvas para cada bolita
+            painter.save()
+            painter.rotate(self.angle + (i * (360 / dots)))
+            painter.translate(0, -radius)
+            
+            # Opacidad progresiva para dar efecto de movimiento
+            alpha = int(255 * ((i + 1) / dots))
+            painter.setBrush(QBrush(QColor(50, 50, 50, alpha)))
+            painter.setPen(Qt.NoPen)
+            painter.drawEllipse(QPoint(0, 0), dot_radius, dot_radius)
+            painter.restore()
+
+    def stop(self):
+        self.timer.stop()
 class DashboardView():
     estadoPagina = True
     main, nameproyecto = None, "SIN PROYECTO"
     idproyecto = None
     # Lista para mantener referencias a los widgets creados
     _widgets_referencias = []
+    _worker = None # Variable para almacenar la instancia del worker
 
     def inicializarVistaDashboard(main, idproyecto):
         DashboardView.main = main
@@ -28,22 +102,82 @@ class DashboardView():
             if componentes:
                 for componente in componentes:
                     comboComponentesDashboard.addItem(componente[2], componente[0])
-            DashboardView.setup_dashboard()
+            DashboardView.graficardashboard()
         if DashboardView.estadoPagina:
             btn_refrescar_dashboard = main.findChild(QPushButton, "btn_refrescar_dashboard")        
-            btn_refrescar_dashboard.clicked.connect(DashboardView.setup_dashboard)
-            comboComponentesDashboard.activated.connect(DashboardView.setup_dashboard)
+            btn_refrescar_dashboard.clicked.connect(DashboardView.graficardashboard)
+            comboComponentesDashboard.activated.connect(DashboardView.graficardashboard)
             DashboardView.estadoPagina = False
     
+    def graficardashboard():
+        DashboardView.setup_dashboard()
+
     def setup_dashboard():
         comboComponentesDashboard = DashboardView.main.findChild(QComboBox, "cb_lista_componentes_dashboard")
+        if not comboComponentesDashboard:
+            return
+
         id_componente = comboComponentesDashboard.currentData()
         if id_componente is not None:
-            instrumentacion = DashboardController.ctrlObtenerInstrumentacionProyecto(DashboardView.idproyecto, id_componente)
-            operativos_inoperativos = DashboardController.ctrlObtenerInstrumentacionOIProyecto(DashboardView.idproyecto, id_componente)
-            lecturas_prismas = DashboardController.ctrlObtenerLecturasPrismas(DashboardView.idproyecto, 'prismas', id_componente, 'PRISMAS')
-            # resumenprismas = DashboardController.ctrlObtenerResumenPrismas(DashboardView.idproyecto, id_componente)
-            estadoequipos = DashboardController.ctrlObtenerestadoequipos(DashboardView.idproyecto, id_componente)    
+            # 1. Obtener el contenedor del Dashboard
+            scroll_area = DashboardView.main.findChild(QScrollArea, "scrollArea")
+            scroll_content = DashboardView.main.findChild(QWidget, "widget_grafica_dashboard")
+            if not scroll_content:
+                return
+
+             # Crear o limpiar layout
+            if scroll_content.layout() is None:
+                grid_layout = QGridLayout(scroll_content)
+            else:
+                grid_layout = scroll_content.layout()
+                DashboardView.limpiar_layout(grid_layout)
+
+            # Resetear los stretch factors que quedaron de la carga anterior
+            # (los gráficos dejan columnas 0 y 1 con stretch=1, lo que descentra
+            # el spinner en la segunda carga en adelante)
+            for c in range(grid_layout.columnCount()):
+                grid_layout.setColumnStretch(c, 0)
+            for r in range(grid_layout.rowCount()):
+                grid_layout.setRowStretch(r, 0)
+
+            # 2. CREAR Y MOSTRAR LA BOLITA GIRATORIA EN PANTALLA
+            spinner = LoadingSpinner()
+            spinner.setMinimumSize(80, 80)
+            
+            # Contenedor para centrar el spinner en el área de trabajo
+            center_widget = QWidget()
+            center_layout = QGridLayout(center_widget)
+            center_layout.addWidget(spinner, 0, 0, Qt.AlignCenter)
+            
+            # Ocupar ambas columnas (colspan=2) para centrar respecto al ancho total,
+            # no solo respecto a la columna 0
+            grid_layout.addWidget(center_widget, 0, 0, 1, 2, Qt.AlignCenter)
+
+            
+
+            # 3. INICIAR CARGA EN SEGUNDO PLANO
+            DashboardView._worker = DashboardWorker(DashboardView.idproyecto, id_componente)
+
+            def on_datos_listos(data):
+                spinner.stop() 
+                DashboardView._renderizar_dashboard(data)
+
+            DashboardView._worker.datos_cargados.connect(on_datos_listos)
+            DashboardView._worker.start()
+    @staticmethod
+    def _renderizar_dashboard(data):
+            instrumentacion = data['instrumentacion']
+            operativos_inoperativos = data['operativos_inoperativos']
+            lecturas_prismas = data['lecturas_prismas']
+            estadoequipos = data['estadoequipos']
+
+            # instrumentacion = DashboardController.ctrlObtenerInstrumentacionProyecto(DashboardView.idproyecto, id_componente)
+            # operativos_inoperativos = DashboardController.ctrlObtenerInstrumentacionOIProyecto(DashboardView.idproyecto, id_componente)
+            # lecturas_prismas = DashboardController.ctrlObtenerLecturasPrismas(DashboardView.idproyecto, 'prismas', id_componente, 'PRISMAS')
+            # # resumenprismas = DashboardController.ctrlObtenerResumenPrismas(DashboardView.idproyecto, id_componente)
+            #estadoequipos = DashboardController.ctrlObtenerestadoequipos(DashboardView.idproyecto, id_componente) 
+
+
             # Buscar el scroll area por nombre
             scroll_area = DashboardView.main.findChild(QScrollArea, "scrollArea")
             if not scroll_area:
@@ -70,6 +204,7 @@ class DashboardView():
             #     ["Inoperativos", None, None, 12],
             #     ["Desactualizados", None, None, 8]
             # ]
+
             chart_functions = [
                 (lambda: DashboardView.create_pie_instrumentacion(instrumentacion), 'half'),
                 (lambda: DashboardView.create_donut_chart(operativos_inoperativos), 'half'),

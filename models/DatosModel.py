@@ -437,7 +437,7 @@ class DatosModel:
             ROUND(pm.norte_pluviometro, {decimales}) AS norte_pluviometro, ROUND(pm.elevacion_pluviometro, {decimales}) AS elevacion_pluviometro,
             pd.observacion_pluviometro, 
             CASE
-                WHEN pd.estado_pluviometro = 1 THEN 'Activo'
+                WHEN pd.estado_detalle = 1 THEN 'Activo'
                 ELSE 'Omitido'
             END AS estado,  pd.id_detalle
         FROM pluviometro_detalle{proyecto_id} pd INNER JOIN pluviometros pm ON pd.id_pluviometro = pm.id_pluviometro

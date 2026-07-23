@@ -19,6 +19,7 @@ class AsistenteVoz:
     @staticmethod
     def analizarVisor(proyectoid, prismasmarcados, fechaini, fechafin, inclinometromarcados, piezocuerdamarcados, piezomanualmarcados, otrosequipos, boton_analisis_visor):
         texto = AsistenteVoz.obtenerInformacionVisor(proyectoid, prismasmarcados, fechaini, fechafin, inclinometromarcados, piezocuerdamarcados, piezomanualmarcados, otrosequipos)
+        AsistenteVoz.motor_tts.stop()
         AsistenteVoz.motor_tts.setProperty("rate", 150)
         AsistenteVoz.motor_tts.say(texto)
         AsistenteVoz.motor_tts.runAndWait()
@@ -131,6 +132,7 @@ class AsistenteVoz:
     # ANALISIS ASISTENTE DE VOZ DESPLAZAMIENTO
     def analizarDesplazamiento(proyectoid, prismasmarcados, fechaini, fechafin, tipografico, botonvoz):
         texto = AsistenteVoz.obtenerInformacionMonitor1(proyectoid, prismasmarcados, fechaini, fechafin, tipografico)
+        AsistenteVoz.motor_tts.stop()
         AsistenteVoz.motor_tts.setProperty("rate", 150)
         AsistenteVoz.motor_tts.say(texto)
         AsistenteVoz.motor_tts.runAndWait()
@@ -215,6 +217,7 @@ class AsistenteVoz:
     # ANALISIS ASISTENTE DE VOZ VELOCIDAD
     def analizarVelocidad(proyectoid, prismasmarcados, fechaini, fechafin, tipografico, botonvoz):
         texto = AsistenteVoz.obtenerInformacionMonitor2(proyectoid, prismasmarcados, fechaini, fechafin, tipografico)
+        AsistenteVoz.motor_tts.stop()
         AsistenteVoz.motor_tts.setProperty("rate", 150)
         AsistenteVoz.motor_tts.say(texto)
         AsistenteVoz.motor_tts.runAndWait()
@@ -263,6 +266,7 @@ class AsistenteVoz:
     # ANALISIS ASISTENTE DE VOZ INCLINÓMETROS
     def analizarInclinometros(idproyecto, inclinometrosmarcados, tipo, botonvoz):        
         texto = AsistenteVoz.obtenerAnalisisInclinometros(idproyecto, inclinometrosmarcados, tipo)
+        AsistenteVoz.motor_tts.stop()
         AsistenteVoz.motor_tts.setProperty("rate", 150)
         AsistenteVoz.motor_tts.say(texto)
         AsistenteVoz.motor_tts.runAndWait()
@@ -333,6 +337,7 @@ class AsistenteVoz:
     # ANALISIS ASISTENTE DE VOZ PIEZÓMETROS
     def analizarPiezometros(proyectoid, piezometrocuerdamarcados, piezometrocasamarcados, fechainicuerda, fechafincuerda, fechainimanual, fechafinmanual, tipo, botonvoz):
         texto = AsistenteVoz.obtenerInformacionPiezometros(proyectoid, piezometrocuerdamarcados, piezometrocasamarcados, fechainicuerda, fechafincuerda, fechainimanual, fechafinmanual, tipo)
+        AsistenteVoz.motor_tts.stop()
         AsistenteVoz.motor_tts.setProperty("rate", 150)
         AsistenteVoz.motor_tts.say(texto)
         AsistenteVoz.motor_tts.runAndWait()
@@ -407,6 +412,7 @@ class AsistenteVoz:
     # ANALISIS ASISTENTE DE VOZ CELDAS
     def analizarCeldas(proyectoid, celdasmarcadas, fechaini, fechafin, tipo, tipovelocidad, nrodiasvelocidad, botonvoz):
         texto = AsistenteVoz.obtenerInformacionCeldas(proyectoid, celdasmarcadas, fechaini, fechafin, tipo, tipovelocidad, nrodiasvelocidad)
+        AsistenteVoz.motor_tts.stop()
         AsistenteVoz.motor_tts.setProperty("rate", 150)
         AsistenteVoz.motor_tts.say(texto)
         AsistenteVoz.motor_tts.runAndWait()
@@ -471,6 +477,7 @@ class AsistenteVoz:
     # ANALISIS ASISTENTE DE VOZ VISTA ANALISIS PRISMAS
     def analizarVistaAnalisis(main, idproyecto, prismasmarcados, trayectoriagraficado, histogramagraficado, fechaini, fechafin, tipografico, botonvoz):        
         texto = AsistenteVoz.obtenerAnalisisPrismas(main, idproyecto, prismasmarcados, trayectoriagraficado, histogramagraficado, fechaini, fechafin, tipografico)
+        AsistenteVoz.motor_tts.stop()
         AsistenteVoz.motor_tts.setProperty("rate", 150)
         AsistenteVoz.motor_tts.say(texto)
         AsistenteVoz.motor_tts.runAndWait()
@@ -480,17 +487,17 @@ class AsistenteVoz:
         if tipografico == "TE":
             textotrayectoria, textotalud = "", ""
             if trayectoriagraficado:
-                comboPrismasTrayectoria = main.findChild(QComboBox, "cb_lista_prismas_trayectoria")
-                if comboPrismasTrayectoria.count() > 0:
-                    nombreprisma = comboPrismasTrayectoria.currentText()
-                    tipoprisma = comboPrismasTrayectoria.currentData()
+                # comboPrismasTrayectoria = main.findChild(QComboBox, "cb_lista_prismas_trayectoria")
+                # if comboPrismasTrayectoria.count() > 0:
+                #     nombreprisma = comboPrismasTrayectoria.currentText()
+                #     tipoprisma = comboPrismasTrayectoria.currentData()
                     config = SoftwareConfiguracion.obtenerDataSoftware()
                     filtrado = config[16]
-                    datos = AnalisisController.ctrlCalcularDatosTrayectoria(idproyecto, nombreprisma, tipoprisma, fechaini, fechafin, filtrado)
+                    datos = AnalisisController.ctrlCalcularDatosTrayectoria(idproyecto, prismasmarcados, fechaini, fechafin, filtrado)
                     if datos is not None:
-                        este = datos[-1][2]
-                        norte = datos[-1][3]
-                        elevacion = datos[-1][4] 
+                        este = datos[-1][3]
+                        norte = datos[-1][4]
+                        elevacion = datos[-1][5] 
                         # Movimiento hacia el este
                         if este > 0 and norte == 0 and elevacion > 0:
                             movimiento = f'tiene un movimiento hacia arriba en dirección este.'
@@ -531,7 +538,7 @@ class AsistenteVoz:
                             movimiento = f'tiene un movimiento hacia arriba en dirección suroeste.'
                         elif este < 0 and norte < 0 and elevacion < 0:
                             movimiento = f'tiene un movimiento hacia abajo en dirección suroeste.'
-                        textotrayectoria = textotrayectoria + f"""Se está analizando la trayectoria del prisma {nombreprisma}, donde {movimiento}."""
+                        textotrayectoria = textotrayectoria + f"""Se está analizando la trayectoria de los prismas, donde {movimiento}."""
                     if len(prismasmarcados) > 0:
                         taludes = AnalisisController.ctrObtenerDataEstereografia(idproyecto)
                         data_trend_plunge = AnalisisController.ctrlDatosTrendPlunge(prismasmarcados, fechaini, fechafin, 1)
@@ -585,6 +592,7 @@ class AsistenteVoz:
     # ANALISIS ASISTENTE DE VOZ ACELERÓGRAFOS
     def analizarAcelerografos(proyectoid, aceleromarcados, fechaini, fechafin, botonvoz):
         texto = AsistenteVoz.obtenerInformacionAcelerografos(proyectoid, aceleromarcados, fechaini, fechafin)
+        AsistenteVoz.motor_tts.stop()
         AsistenteVoz.motor_tts.setProperty("rate", 150)
         AsistenteVoz.motor_tts.say(texto)
         AsistenteVoz.motor_tts.runAndWait()
@@ -609,6 +617,7 @@ class AsistenteVoz:
     # ANALISIS ASISTENTE DE VOZ SONDAJES TDR
     def analizarSondajestdr(idproyecto, sondajesmarcados, botonvoz):        
         texto = AsistenteVoz.obtenerAnalisisSondajestdr(idproyecto, sondajesmarcados)
+        AsistenteVoz.motor_tts.stop()
         AsistenteVoz.motor_tts.setProperty("rate", 150)
         AsistenteVoz.motor_tts.say(texto)
         AsistenteVoz.motor_tts.runAndWait()
