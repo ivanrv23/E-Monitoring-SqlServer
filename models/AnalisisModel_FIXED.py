@@ -161,19 +161,28 @@ class AnalisisModel:
         finally:
             if conn:
                 conn.close()
-             
+    
     @staticmethod
     def mdlCalcularVelocidadIV(tabla, prismas, idcomponente, unidadmedida):
         placeholders = ', '.join(['?' for _ in prismas])
         params = [unidadmedida] + prismas + [idcomponente]
+        
         conn = None
         try:
             conn = Connection.connectionDB()
+            
+            # CORRECCIÓN: Se eliminó 'p.nombre_prisma' del ORDER BY dentro de los OVER()
+            # para evitar el error de límite de 900 bytes.
             sql = f"""
             WITH inversoVelocidad AS (
                 SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+                    -- Cálculo de Horas: (Diferencia en segundos / 3600)
                     (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 3600.0) AS horas,
+                    
+                    -- Cálculo de Días: (Diferencia en segundos / 86400)
                     (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                    
+                    -- Cálculo 3D
                     SQRT(
                         POWER(CAST(p.este_target AS FLOAT) - FIRST_VALUE(CAST(p.este_target AS FLOAT)) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
                         POWER(CAST(p.norte_target AS FLOAT) - FIRST_VALUE(CAST(p.norte_target AS FLOAT)) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
@@ -181,11 +190,9 @@ class AnalisisModel:
                     ) * CAST(? AS FLOAT) AS tresD
                 FROM {tabla} p 
                 INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
-                AND p.nombre_prisma IN ({placeholders}) 
-                AND i.id_componente = ?
-                AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+                  AND p.nombre_prisma IN ({placeholders}) 
+                  AND i.id_componente = ?
             )
             SELECT id_instrumentacion, nombre_prisma, hora_prisma, dias, horas,
                 CASE WHEN tresD = 0 THEN 0 ELSE (horas/tresD) END AS iv_horas,
@@ -193,13 +200,18 @@ class AnalisisModel:
             FROM inversoVelocidad
             ORDER BY nombre_prisma, hora_prisma;
             """
+            
             cur = conn.cursor()
             cur.execute(sql, params)
+            
+            # Convertimos Row de Pyodbc a Tuplas para el frontend
             rows = [tuple(row) for row in cur.fetchall()]
+            
             if rows:
                 return rows
             else:
                 return None
+                
         except Exception as e:
             print("Error al consultar inversa velocidad: " + str(e))
             return None
@@ -211,14 +223,22 @@ class AnalisisModel:
     def mdlCalcularVelocidadFechasIV(tabla, prismas, idcomponente, fechaini, fechafin, unidadmedida):
         placeholders = ', '.join(['?' for _ in prismas])
         params = [unidadmedida] + prismas + [idcomponente] + [fechaini] + [fechafin]
+        
         conn = None
         try:
             conn = Connection.connectionDB()
+            
+            # CORRECCIÓN: Se eliminó 'p.nombre_prisma' del ORDER BY dentro de los OVER()
             sql = f"""
             WITH inversoVelocidad AS (
                 SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma,
+                    -- Cálculo de Horas
                     (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 3600.0) AS horas,
+                    
+                    -- Cálculo de Días
                     (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                    
+                    -- Cálculo 3D
                     SQRT(
                         POWER(CAST(p.este_target AS FLOAT) - FIRST_VALUE(CAST(p.este_target AS FLOAT)) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
                         POWER(CAST(p.norte_target AS FLOAT) - FIRST_VALUE(CAST(p.norte_target AS FLOAT)) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
@@ -226,12 +246,10 @@ class AnalisisModel:
                     ) * CAST(? AS FLOAT) AS tresD
                 FROM {tabla} p 
                 INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
-                AND p.nombre_prisma IN ({placeholders}) 
-                AND i.id_componente = ?
-                AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
-                AND p.hora_prisma BETWEEN ? AND ?
+                  AND p.nombre_prisma IN ({placeholders}) 
+                  AND i.id_componente = ?
+                  AND p.hora_prisma BETWEEN ? AND ?
             )
             SELECT id_instrumentacion, nombre_prisma, hora_prisma, dias, horas,
                 CASE WHEN tresD = 0 THEN 0 ELSE (horas/tresD) END AS iv_horas,
@@ -239,19 +257,24 @@ class AnalisisModel:
             FROM inversoVelocidad
             ORDER BY nombre_prisma, hora_prisma;
             """
+            
             cur = conn.cursor()
             cur.execute(sql, params)
+            
+            # Convertimos Row de Pyodbc a Tuplas para el frontend
             rows = [tuple(row) for row in cur.fetchall()]
+            
             if rows:
                 return rows
             else:
                 return None
+                
         except Exception as e:
             print("Error al consultar inversa velocidad por fechas: " + str(e))
             return None
         finally:
             if conn:
-                conn.close()   
+                conn.close()     
     
     @staticmethod
     def mdlObtenerDataEstereografia(idproyecto):
@@ -1616,7 +1639,7 @@ class AnalisisModel:
         finally:
             if conn:
                 conn.close()
-                
+    
     @staticmethod
     def mdlPrismasDesplazamiento3DI(tabla, unidad, idcomponente):
         conn = None
@@ -1974,7 +1997,7 @@ class AnalisisModel:
         finally:
             if conn:
                 conn.close()
-             
+    
     @staticmethod
     def mdlPrismasVelocidadVI3D(tabla, unidad, idcomponente):
         sql = f"""WITH PrismasCTE AS (
@@ -2017,7 +2040,7 @@ class AnalisisModel:
         finally:
             if conn:
                 conn.close()
-                
+    
     @staticmethod
     def mdlPrismasVelocidadVA2D(tabla, unidad, idcomponente):
         sql = f"""WITH PrismasCTE AS (
@@ -2055,7 +2078,7 @@ class AnalisisModel:
         finally:
             if conn:
                 conn.close()
-                
+    
     @staticmethod
     def mdlPrismasVelocidadVI2D(tabla, unidad, prismas, idcomponente):
         sql = f"""WITH PrismasCTE AS (
@@ -2097,7 +2120,7 @@ class AnalisisModel:
         finally:
             if conn:
                 conn.close()
-                
+    
     @staticmethod
     def mdlPrismasVelocidadVASD(tabla, unidad, idcomponente):
         sql = f"""WITH CD AS (
@@ -2137,7 +2160,7 @@ class AnalisisModel:
         finally:
             if conn:
                 conn.close()
-                
+    
     @staticmethod
     def mdlPrismasVelocidadVISD(tabla, unidad, idcomponente):
         sql = f"""WITH velocidad AS (
@@ -2177,7 +2200,7 @@ class AnalisisModel:
         finally:
             if conn:
                 conn.close()
-                
+    
     @staticmethod
     def mdlPiezometrosCuerdaNivelFreatico(tabla, unidad, idcomponente):
         conn = None

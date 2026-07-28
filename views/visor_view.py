@@ -1317,6 +1317,7 @@ class VisorView:
                             # Determinar el color de la flecha en función de la distancia  
                             distancia = abs(float(dato[5]))
                             colorcito = umbrales_color[0][1]
+                            colorcito = umbrales_color[-1][1]  # ← Color por defecto: el ÚLTIMO (mayor riesgo)
                             for nombre, color, valor in umbrales_color:
                                 if distancia <= float(valor):
                                     colorcito = color
