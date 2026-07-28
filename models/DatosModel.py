@@ -46,6 +46,7 @@ class DatosModel:
             INNER JOIN componentes AS co ON co.id_componente = it.id_componente
             WHERE co.id_componente = ? AND it.tipo_equipo = ? AND it.nombre_equipo IN ({placeholders})
             AND it.estado_instrumentacion = {estado} AND p.estado_prisma = 1
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT it.tipo_equipo, p.nombre_prisma, p.hora_prisma, ROUND(p.este_target, {decimales}) AS este_target,
             ROUND(p.norte_target, {decimales}) AS norte_target, ROUND(p.elevacion_target, {decimales}) AS elevacion_target,
@@ -134,6 +135,7 @@ class DatosModel:
             INNER JOIN componentes AS co ON co.id_componente = it.id_componente
             WHERE co.id_componente = ? AND it.tipo_equipo = ? AND it.nombre_equipo IN ({placeholders})
             AND it.estado_instrumentacion = ? AND p.estado_prisma = 1
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         cte_distancias AS (
             SELECT nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target, distancia_prisma,
@@ -1716,7 +1718,7 @@ class DatosModel:
             INNER JOIN componentes AS co ON co.id_componente = it.id_componente
             WHERE co.id_componente = ? AND it.tipo_equipo = ? AND it.nombre_equipo = ? 
             AND p.hora_prisma BETWEEN ? AND ?
-            AND p.state_prisma = 1 AND p.estado_prisma = 1
+            AND p.state_prisma = 1 AND p.estado_prisma = 1 AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '') 
         )
         SELECT nombre_prisma, CAST(hora_prisma AS DATE) AS fecha, CAST(hora_prisma AS TIME) AS hora, este_target,
             norte_target, elevacion_target, distancia_prisma,
@@ -1787,7 +1789,7 @@ class DatosModel:
             INNER JOIN componentes AS co ON co.id_componente = it.id_componente
             WHERE co.id_componente = ? AND it.tipo_equipo = ? AND it.nombre_equipo = ? 
             AND p.hora_prisma BETWEEN ? AND ?
-            AND p.state_prisma = 1 AND p.estado_prisma = 1
+            AND p.state_prisma = 1 AND p.estado_prisma = 1 AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         cte_distancias AS (
             SELECT nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target, distancia_prisma, tiempo_inicial,

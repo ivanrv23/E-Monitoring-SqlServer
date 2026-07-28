@@ -143,11 +143,9 @@ class PrismaModel:
             i.tipo_equipo, p.hora_prisma AS hora,
             ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma ASC) as rn
             FROM {tabla} p 
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo 
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ) t
         WHERE rn = 1
         ORDER BY nombre_equipo, hora;"""
@@ -177,11 +175,9 @@ class PrismaModel:
             i.tipo_equipo, p.hora_prisma AS hora,
             ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma ASC) as rn
             FROM {tabla} p 
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo 
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ?
         ) t
         WHERE rn = 1
@@ -336,11 +332,9 @@ class PrismaModel:
             i.tipo_equipo, p.hora_prisma AS hora,
             ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma DESC) as rn
             FROM {tabla} p 
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo 
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ) t
         WHERE rn = 1
         ORDER BY nombre_equipo, hora;"""
@@ -369,12 +363,10 @@ class PrismaModel:
             i.tipo_equipo, p.hora_prisma AS hora,
             ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma DESC) as rn
             FROM {tabla} p 
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo 
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ) t
         WHERE rn = 1
         ORDER BY nombre_equipo, hora;"""
@@ -405,7 +397,6 @@ class PrismaModel:
             INNER JOIN componentes c ON i.id_componente = c.id_componente 
             WHERE p.state_prisma = 1 AND hora_prisma BETWEEN ? AND ?
             AND c.id_proyecto = ? AND i.tipo_equipo = ?
-            AND (p.grupo_puntos = c.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ) t WHERE rn = 1;"""
         
         conn = None
@@ -796,20 +787,10 @@ class PrismaModel:
     
     @staticmethod
     def mdlCambiarEstadoLecturaPrisma(tabla, iddetalle):
-        sql = f"""
-            UPDATE {tabla}
-            SET estado_detalle = CASE 
-                WHEN estado_detalle = 'Activo' THEN 'Omitido' 
-                ELSE 'Activo' 
-            END
-            WHERE id_detalle = ?;
-        """
         conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            cursor.execute(sql, (iddetalle,))
-            conn.commit()
             query_update = f"""UPDATE {tabla} SET estado_prisma = CASE WHEN estado_prisma = 1 THEN 0 ELSE 1 END
             WHERE id_prisma = ?;"""
             cursor.execute(query_update, (iddetalle,))
@@ -1134,12 +1115,8 @@ class PrismaModel:
                 ABS(p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) AS desplaza_este,
                 ABS(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) AS desplaza_norte,
                 ABS(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) AS desplaza_cota
-            FROM {tabla} p 
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.estado_instrumentacion = 1 
-            AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.estado_instrumentacion = 1 AND p.hora_prisma BETWEEN ? AND ?
         )
         SELECT nombre_prisma, MIN(hora_prisma) AS fechamin, MAX(hora_prisma) AS fechamax, MAX(desplazasd) AS desplazasd,
         MAX(desplaza3d) AS desplaza3d, MAX(desplaza_longitudinal) AS desplaza_longitudinal, MAX(desplaza_transversal) AS desplaza_transversal,
@@ -1208,12 +1185,8 @@ class PrismaModel:
                         (p.distancia_prisma - FIRST_VALUE(p.distancia_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma))
                     ) / (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0))
                 END AS VASD
-            FROM {tabla} p 
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.estado_instrumentacion = 1 
-            AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.estado_instrumentacion = 1 AND p.hora_prisma BETWEEN ? AND ?
         )
         SELECT nombre_prisma, MIN(hora_prisma) AS fechamin, MAX(hora_prisma) AS fechamax, MAX(VI3D) AS VI3D, MAX(VA3D) AS VA3D,
         MAX(VI2D) AS VI2D, MAX(VA2D) AS VA2D, MAX(VISD) AS VISD, MAX(VASD) AS VASD
@@ -1240,12 +1213,8 @@ class PrismaModel:
                 p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS desplaza_este,
                 p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS desplaza_norte,
                 p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS desplaza_elevacion
-            FROM {tabla} p 
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
-            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.estado_instrumentacion = 1 
-            AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.estado_instrumentacion = 1 AND p.hora_prisma BETWEEN ? AND ?
         ),
         MagnitudCalculada AS (
             SELECT nombre_prisma, hora_prisma, desplaza_este, desplaza_norte, desplaza_elevacion,
@@ -1301,11 +1270,8 @@ class PrismaModel:
                     POWER(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
                 ) AS tresD,
                 ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma DESC) AS rn
-            FROM {tabla} p 
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT id_instrumentacion, nombre_prisma, hora_prisma, horas, dias, tresD
         FROM ultimas_lecturas WHERE rn = 1;"""
@@ -1337,12 +1303,9 @@ class PrismaModel:
                     POWER(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
                 ) AS tresD,
                 ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma DESC) AS rn
-            FROM {tabla} p 
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders})
             AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT id_instrumentacion, nombre_prisma, hora_prisma, horas, dias, tresD
         FROM ultimas_lecturas WHERE rn = 1;"""
@@ -1359,7 +1322,7 @@ class PrismaModel:
             return None
         finally:
             if conn: conn.close()
-            
+    
     @staticmethod
     def mdlCalcularVectoresVelocidadPositivaVI3D(tabla, prismas, idcomponente):
         placeholders = ', '.join(['?' for _ in prismas])
@@ -1372,11 +1335,8 @@ class PrismaModel:
                     POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
                     POWER(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
                 ) AS tresD
-            FROM {tabla} p 
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CalculoCompleto AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24 AS HORAS,
@@ -1402,7 +1362,7 @@ class PrismaModel:
             return None
         finally:
             if conn: conn.close()
-            
+    
     @staticmethod
     def mdlCalcularVectoresVelocidadPositivaFechasVI3D(tabla, prismas, idcomponente, fechaini, fechafin):
         placeholders = ', '.join(['?' for _ in prismas])
@@ -1415,12 +1375,9 @@ class PrismaModel:
                     POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
                     POWER(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
                 ) AS tresD
-            FROM {tabla} p 
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CalculoCompleto AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24 AS HORAS,
@@ -1446,7 +1403,7 @@ class PrismaModel:
             return None
         finally:
             if conn: conn.close()
-        
+    
     @staticmethod
     def mdlCalcularVectoresVelocidadVI3D(tabla, prismas, idcomponente):
         placeholders = ', '.join(['?' for _ in prismas])
@@ -1459,11 +1416,8 @@ class PrismaModel:
                     POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
                     POWER(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
                 ) AS tresD
-            FROM {tabla} p 
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CalculoCompleto AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24 AS HORAS,
@@ -1490,7 +1444,7 @@ class PrismaModel:
             return None
         finally:
             if conn: conn.close()
-            
+    
     @staticmethod
     def mdlCalcularVectoresVelocidadFechasVI3D(tabla, prismas, idcomponente, fechaini, fechafin):
         placeholders = ', '.join(['?' for _ in prismas])
@@ -1503,12 +1457,9 @@ class PrismaModel:
                     POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
                     POWER(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
                 ) AS tresD
-            FROM {tabla} p 
-            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CalculoCompleto AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24 AS HORAS,
@@ -1535,7 +1486,7 @@ class PrismaModel:
             return None
         finally:
             if conn: conn.close()
-            
+    
     @staticmethod
     def mdlDatosPrismasDesviaciones(tabla, tipoprisma, prisma):
         sql = f"""SELECT '{tipoprisma}' AS tipo, nombre_prisma, hora_prisma, ROUND(este_target, 3) AS este_target,
