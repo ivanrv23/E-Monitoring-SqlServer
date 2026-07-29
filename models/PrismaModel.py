@@ -399,7 +399,7 @@ class PrismaModel:
         FROM (
             SELECT i.id_instrumentacion, i.nombre_equipo, p.este_target, p.norte_target, p.elevacion_target, c.id_componente,
             i.tipo_equipo, p.hora_prisma AS hora,
-            ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn
+            ROW_NUMBER() OVER (PARTITION BY nombre_prisma, c.id_componente ORDER BY hora_prisma ASC) as rn
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes c ON i.id_componente = c.id_componente 
