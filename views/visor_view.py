@@ -909,25 +909,29 @@ class VisorView:
     
     def mostrarPrismasVisor(prismasmarcados):
         VisorView.limpiarPrismasVisor()
-        # dibujar prismas
+
+        # Precalcular claves válidas una sola vez: O(N*M) pero UNA vez, no por cada actor
+        claves_visibles = {
+            (str(componente[1]), str(prismarcado[0]), str(prismarcado[1]))
+            for componente, listaprismas in prismasmarcados
+            for prismarcado in listaprismas
+        }
+
         listaPrismas = PrismaController.ctrlObtenerPrismasFechaUnicos(VisorView.idproyecto, VisorView.fechainicial, VisorView.fechafinal)
+
         if len(listaPrismas) > 0:
             prismasactor = VisorView.createPointsActorPrismas(listaPrismas)
-            # Agregar prismas a la escena
-            if len(prismasactor) > 0:
-                for prisma in prismasactor:
-                    VisorView.rendererVisor.AddActor(prisma[0])
-                    VisorView.rendererVisor.AddActor(prisma[1])
-                    prisma[0].SetVisibility(False)
-                    prisma[1].SetVisibility(False)
-                    for componente, listaprismas in prismasmarcados:
-                        for prismarcado in listaprismas:
-                            if str(prisma[4]) == str(componente[1]) and str(prisma[2]) == str(prismarcado[0]) and str(prisma[3]) == str(prismarcado[1]):
-                                prisma[0].SetVisibility(True)
-                                prisma[1].SetVisibility(True)
-            # si hay vectores mostrar
+
+            for prisma in prismasactor:
+                VisorView.rendererVisor.AddActor(prisma[0])
+                VisorView.rendererVisor.AddActor(prisma[1])
+                visible = (str(prisma[4]), str(prisma[2]), str(prisma[3])) in claves_visibles
+                prisma[0].SetVisibility(visible)
+                prisma[1].SetVisibility(visible)
+
             if VisorView.estadovector:
                 VisorView.escalarVectores(prismasmarcados)
+
         if VisorView.resetvisor is False:
             camera = VisorView.rendererVisor.GetActiveCamera()
             VisorView.rendererVisor.ResetCamera()
@@ -1320,8 +1324,7 @@ class VisorView:
                             dato = distancias_dict[key]
                             # Determinar el color de la flecha en función de la distancia  
                             distancia = abs(float(dato[5]))
-                            colorcito = umbrales_color[0][1]
-                            colorcito = umbrales_color[-1][1]  # ← Color por defecto: el ÚLTIMO (mayor riesgo)
+                            colorcito = umbrales_color[-1][1]  # Color por defecto: el ÚLTIMO (mayor riesgo)
                             for nombre, color, valor in umbrales_color:
                                 if distancia <= float(valor):
                                     colorcito = color
