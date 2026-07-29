@@ -321,10 +321,14 @@ class VisorView:
             ProcesarLidar.listarLidar(VisorView.idproyecto, VisorView.rendererLidar, VisorView.vtkWidgetLidar, cambiarpagina)
         
     def checkProyectoActualVisor(parent_item, column):
+        # FILTRO: Si el estado en memoria es igual al actual, fue clic en el texto y no en el checkbox
+        if not TreeCheckbox.validarCambioReal(parent_item):
+            return
+            
         treeWidget =  VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
         paginacion = VisorView.main.findChild(QStackedWidget, "stacked_visor")
         EquiposVisor.validarMarcadoCheckbox(parent_item, column, lambda: VisorView.obtenerMostrarEquiposMarcados(treeWidget, paginacion))
-    
+        
     def clicderechoProyectoActualVisor(point):
         treeWidget =  VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
         EquiposVisor.validarOpcionesMenuCheckbox(point, VisorView.main, treeWidget, VisorView.actualizarGraficaFechasInclinometros, VisorView.actualizarGraficaFechasPiezometros, VisorView.validarTopografiasMostrarVisor, VisorView.reiniciarVistasAfectadas)

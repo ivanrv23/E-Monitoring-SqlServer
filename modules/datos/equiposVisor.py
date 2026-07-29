@@ -315,19 +315,25 @@ class EquiposVisor:
         for i in range(nodo.childCount()):
             hijo = nodo.child(i)
             hijo.setCheckState(0, estado)
+            hijo.setData(0, Qt.UserRole + 999, estado) # 🔥 CLAVE: Sincronizar la memoria del hijo
             EquiposVisor.marcardesmarcar_todos_hijos(hijo, estado)
 
     # Función para actualizar el estado del padre en función del estado de sus hijos
     def actualizar_estado_padre_hijos(nodo):
         if nodo.parent():
             estados_hijos = [nodo.parent().child(i).checkState(0) for i in range(nodo.parent().childCount())]
-            # Verificamos los estados de los hijos y actualizamos el padre
+            
+            # Determinamos el nuevo estado
             if all(estado == Qt.Checked for estado in estados_hijos):
-                nodo.parent().setCheckState(0, Qt.Checked)
+                nuevo_estado = Qt.Checked
             elif all(estado == Qt.Unchecked for estado in estados_hijos):
-                nodo.parent().setCheckState(0, Qt.Unchecked)
+                nuevo_estado = Qt.Unchecked
             else:
-                nodo.parent().setCheckState(0, Qt.PartiallyChecked)
+                nuevo_estado = Qt.PartiallyChecked
+                
+            nodo.parent().setCheckState(0, nuevo_estado)
+            nodo.parent().setData(0, Qt.UserRole + 999, nuevo_estado) # 🔥 CLAVE: Sincronizar la memoria del padre
+            
         if nodo.parent():
             if nodo.parent().parent():
                 EquiposVisor.actualizar_estado_padre_hijos(nodo.parent())
