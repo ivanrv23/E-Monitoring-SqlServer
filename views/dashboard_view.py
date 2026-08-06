@@ -3,10 +3,11 @@ import matplotlib.pyplot as plt
 from PySide6.QtWidgets import (QGridLayout, QWidget, QSizePolicy, QScrollArea, QGraphicsSimpleTextItem, QComboBox,
                                QPushButton, QLayout, QToolTip)
 from PySide6.QtCharts import (QChart, QChartView, QPieSeries, QPieSlice)
-from PySide6.QtCore import Qt, QMargins, QPoint
+from PySide6.QtCore import Qt, QMargins, QPoint, QThread, Signal
 from PySide6.QtGui import QPainter, QColor, QBrush, QFont, QPen
 matplotlib.use('QtAgg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from utils.shared.loading import LoadingView
 from controllers.DashboardController import DashboardController
 
 class DashboardView():
@@ -33,79 +34,102 @@ class DashboardView():
             btn_refrescar_dashboard.clicked.connect(DashboardView.setup_dashboard)
             comboComponentesDashboard.activated.connect(DashboardView.setup_dashboard)
             DashboardView.estadoPagina = False
-    
+
+    def dashboardInicial():
+        loading = LoadingView.mostrarLoading()
+        comboComponentesDashboard = DashboardView.main.findChild(QComboBox, "cb_lista_componentes_dashboard")
+        id_componente = comboComponentesDashboard.currentData() if comboComponentesDashboard else None
+
+        def on_threaddashboard_complete(datos):
+            # Este slot corre en el hilo principal (conexión encolada), aquí sí se puede crear UI
+            DashboardView.construir_dashboard(datos)
+            loading.close()
+
+        prom = CargarDashboardThread(DashboardView.idproyecto, id_componente)
+        DashboardView._current_thread = prom  # evitar que el GC lo destruya a mitad de ejecución
+        prom.task_finishDashboard.connect(on_threaddashboard_complete)
+        prom.start()
+        loading.exec()
+
+    def obtener_datos_dashboard(idproyecto, id_componente):
+        """Solo trae datos del controlador/BD. NO crea nada de Qt.
+        Seguro para ejecutarse dentro de un QThread."""
+        instrumentacion = DashboardController.ctrlObtenerInstrumentacionProyecto(idproyecto, id_componente)
+        operativos_inoperativos = DashboardController.ctrlObtenerInstrumentacionOIProyecto(idproyecto, id_componente)
+        lecturas_prismas = DashboardController.ctrlObtenerLecturasPrismas(idproyecto, 'prismas', id_componente, 'PRISMAS')
+        return {
+            'instrumentacion': instrumentacion,
+            'operativos_inoperativos': operativos_inoperativos,
+            'lecturas_prismas': lecturas_prismas,
+        }
+
+    def construir_dashboard(datos):
+        """Construye los widgets/gráficos. SIEMPRE debe correr en el hilo principal (GUI thread)."""
+        if not datos:
+            return
+        instrumentacion = datos.get('instrumentacion')
+        operativos_inoperativos = datos.get('operativos_inoperativos')
+        lecturas_prismas = datos.get('lecturas_prismas')
+
+        scroll_area = DashboardView.main.findChild(QScrollArea, "scrollArea")
+        if not scroll_area:
+            return
+        scroll_content = DashboardView.main.findChild(QWidget, "widget_grafica_dashboard")
+        if not scroll_content:
+            return
+        if scroll_content.layout() is None:
+            grid_layout = QGridLayout(scroll_content)
+        else:
+            grid_layout = scroll_content.layout()
+            DashboardView.limpiar_layout(grid_layout)
+        grid_layout.setSpacing(15)
+        grid_layout.setContentsMargins(15, 15, 15, 15)
+        chart_functions = [
+            (lambda: DashboardView.create_pie_instrumentacion(instrumentacion), 'half'),
+            (lambda: DashboardView.create_donut_chart(operativos_inoperativos), 'half'),
+            (lambda: DashboardView.create_pie_prismas('Lecturas Prismas Activos', lecturas_prismas), 'half'),
+            (lambda: DashboardView.create_pie_prismas('Lecturas Prismas De Baja', lecturas_prismas), 'half'),
+        ]
+        row = 0
+        col = 0
+        for chart_func, size_type in chart_functions:
+            try:
+                chart_widget = chart_func()
+                if chart_widget is None:
+                    continue
+                DashboardView._widgets_referencias.append(chart_widget)
+                chart_widget.setSizePolicy(
+                    QSizePolicy.Policy.Expanding,
+                    QSizePolicy.Policy.Expanding
+                )
+                if size_type == 'full':
+                    chart_widget.setMinimumSize(500, 500)
+                    grid_layout.addWidget(chart_widget, row, 0, 1, 2)
+                    grid_layout.setRowStretch(row, 1)
+                    row += 1
+                    col = 0
+                else:
+                    chart_widget.setMinimumSize(400, 400)
+                    grid_layout.addWidget(chart_widget, row, col)
+                    grid_layout.setColumnStretch(col, 1)
+                    grid_layout.setRowStretch(row, 1)
+                    col += 1
+                    if col > 1:
+                        col = 0
+                        row += 1
+            except Exception as e:
+                print(f"Error al crear gráfico: {str(e)}")
+        scroll_content.adjustSize()
+        scroll_area.setWidgetResizable(True)
+
     def setup_dashboard():
+        """Se usa cuando ya estamos en el hilo principal (botón refrescar / combo)."""
         comboComponentesDashboard = DashboardView.main.findChild(QComboBox, "cb_lista_componentes_dashboard")
         id_componente = comboComponentesDashboard.currentData()
         if id_componente is not None:
-            instrumentacion = DashboardController.ctrlObtenerInstrumentacionProyecto(DashboardView.idproyecto, id_componente)
-            operativos_inoperativos = DashboardController.ctrlObtenerInstrumentacionOIProyecto(DashboardView.idproyecto, id_componente)
-            lecturas_prismas = DashboardController.ctrlObtenerLecturasPrismas(DashboardView.idproyecto, 'prismas', id_componente, 'PRISMAS')
-            # resumenprismas = DashboardController.ctrlObtenerResumenPrismas(DashboardView.idproyecto, id_componente)
-            # Buscar el scroll area por nombre
-            scroll_area = DashboardView.main.findChild(QScrollArea, "scrollArea")
-            if not scroll_area:
-                return
-            # Buscar el widget contenido por nombre
-            scroll_content = DashboardView.main.findChild(QWidget, "widget_grafica_dashboard")
-            if not scroll_content:
-                return
-            # Crear o limpiar el layout existente
-            if scroll_content.layout() is None:
-                grid_layout = QGridLayout(scroll_content)
-            else:
-                grid_layout = scroll_content.layout()
-                # Limpiar el layout si ya tiene contenido
-                DashboardView.limpiar_layout(grid_layout)
-            # Configurar espaciado y márgenes
-            grid_layout.setSpacing(15)
-            grid_layout.setContentsMargins(15, 15, 15, 15)
-            # Lista de TODAS las funciones de gráficos (incluyendo las corregidas)
-            chart_functions = [
-                (lambda: DashboardView.create_pie_instrumentacion(instrumentacion), 'half'),
-                (lambda: DashboardView.create_donut_chart(operativos_inoperativos), 'half'),
-                # (lambda: DashboardView.resumen_prismas_barras(resumenprismas, scroll_content), 'full'),  # Pasar parent
-                (lambda: DashboardView.create_pie_prismas('Lecturas Prismas Activos', lecturas_prismas), 'half'),
-                (lambda: DashboardView.create_pie_prismas('Lecturas Prismas De Baja', lecturas_prismas), 'half'),
-            ]
-            # Agregar gráficos en disposición 2 por fila
-            row = 0
-            col = 0
-            for chart_func, size_type in chart_functions:
-                try:
-                    chart_widget = chart_func()
-                    if chart_widget is None:
-                        continue
-                    
-                    # Mantener referencia del widget para evitar garbage collection
-                    DashboardView._widgets_referencias.append(chart_widget)
-                    
-                    chart_widget.setSizePolicy(
-                        QSizePolicy.Policy.Expanding,
-                        QSizePolicy.Policy.Expanding
-                    )
-                    
-                    if size_type == 'full':
-                        chart_widget.setMinimumSize(500, 500)
-                        grid_layout.addWidget(chart_widget, row, 0, 1, 2)  # fila completa
-                        grid_layout.setRowStretch(row, 1)
-                        row += 1
-                        col = 0
-                    else:  # 'half'
-                        chart_widget.setMinimumSize(400, 400)
-                        grid_layout.addWidget(chart_widget, row, col)
-                        grid_layout.setColumnStretch(col, 1)
-                        grid_layout.setRowStretch(row, 1)
-                        col += 1
-                        if col > 1:
-                            col = 0
-                            row += 1
-                except Exception as e:
-                    print(f"Error al crear gráfico: {str(e)}")
-            # Ajustar la política de tamaño del contenido
-            scroll_content.adjustSize()
-            scroll_area.setWidgetResizable(True)
-    
+            datos = DashboardView.obtener_datos_dashboard(DashboardView.idproyecto, id_componente)
+            DashboardView.construir_dashboard(datos)
+
     def limpiar_layout(layout: QLayout):
         if layout is None:
             return
@@ -524,3 +548,20 @@ class MplCanvas(FigureCanvas):
         except (RuntimeError, AttributeError):
             # El widget fue eliminado o los atributos no existen, no hacer nada
             pass
+
+# Hilo para cargar dashboard
+class CargarDashboardThread(QThread):
+    task_finishDashboard = Signal(dict)
+
+    def __init__(self, idproyecto, id_componente=None):
+        super().__init__()
+        self.idproyecto = idproyecto
+        self.id_componente = id_componente
+
+    def run(self):
+        try:
+            datos = DashboardView.obtener_datos_dashboard(self.idproyecto, self.id_componente)
+        except Exception as e:
+            print(f"Error obteniendo datos del dashboard: {e}")
+            datos = {}
+        self.task_finishDashboard.emit(datos)
