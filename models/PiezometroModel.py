@@ -270,20 +270,20 @@ class PiezometroModel:
             
             # Insertar con OUTPUT INSERTED.id_piezometro para obtener el ID en SQL Server
             sql_insert = """INSERT INTO piezometromanuales (id_proyecto, nombre_piezometro, codigo_piezometro, norte_piezometro, este_piezometro, elevacion_piezometro,
-            fundacion_piezometro, stickup_piezometro, inclinacion_piezometro, azimut_piezometro, comentario_piezometro)
+            fundacion_piezometro, stickup_piezometro, inclinacion_piezometro, azimut_piezometro, estado_piezometro, comentario_piezometro)
             OUTPUT INSERTED.id_piezometro
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
             
             cur.execute(sql_insert, datos)
             id_piezometro = cur.fetchone()[0] # Capturar el ID retornado por OUTPUT
-            
+
             # Registrar la cota en la tabla cotas_piezometricas
             sql_detalle = """INSERT INTO cotas_piezometricas (id_piezometro, tipo_piezometro, fecha_cota, nivel_cota) VALUES (?, ?, ?, ?);"""
             cur.execute(sql_detalle, (id_piezometro, tipo, fecha, nivel))
             
             # Actualizar la tabla instrumentacion
-            sql_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo) VALUES (?, ?, ?, ?, ?);"""
-            cur.execute(sql_instrumentacion, (componente, 'PIEZOMETROMANUAL', datos[1], id_piezometro, 'piezometromanuales'))
+            sql_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo, estado_instrumentacion) VALUES (?, ?, ?, ?, ?, ?);"""
+            cur.execute(sql_instrumentacion, (componente, 'PIEZOMETROMANUAL', datos[1], id_piezometro, 'piezometromanuales', datos[10]))
             
             conn.commit()
             return "OK"
@@ -349,9 +349,9 @@ class PiezometroModel:
             # Insertar con OUTPUT
             sql_insert = """INSERT INTO piezometrocuerdas (id_proyecto, id_formula, nombre_piezometro, serie_sensor, este_piezometro, norte_piezometro,
             elevacion_piezometro, fundacion_piezometro, inclinacion_piezometro, azimut_piezometro, frecuencia_inicial, temperatura_inicial, presion_inicial,
-            factor_calibracion, temperatura_correccion, unidad_lectura, constante_a, constante_b, constante_c, factor_conversion, comentario_piezometro)
+            factor_calibracion, temperatura_correccion, unidad_lectura, constante_a, constante_b, constante_c, factor_conversion, comentario_piezometro, estado_piezometro)
             OUTPUT INSERTED.id_piezometro
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
             
             cur.execute(sql_insert, datos)
             id_piezometro = cur.fetchone()[0]
@@ -361,8 +361,8 @@ class PiezometroModel:
             cur.execute(sql_detalle, (id_piezometro, tipo, fecha, nivelactual))
             
             # Actualizar instrumentacion
-            sql_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo) VALUES (?, ?, ?, ?, ?);"""
-            cur.execute(sql_instrumentacion, (componente, 'PIEZOMETROCUERDA', datos[2], id_piezometro, 'piezometrocuerdas'))
+            sql_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo, estado_instrumentacion) VALUES (?, ?, ?, ?, ?, ?);"""
+            cur.execute(sql_instrumentacion, (componente, 'PIEZOMETROCUERDA', datos[2], id_piezometro, 'piezometrocuerdas', datos[21]))
             
             conn.commit()
             return "OK"
@@ -457,11 +457,11 @@ class PiezometroModel:
             sql = """UPDATE piezometrocuerdas SET id_formula = ?, nombre_piezometro = ?, serie_sensor = ?, este_piezometro = ?, norte_piezometro = ?,
             elevacion_piezometro = ?, fundacion_piezometro = ?, inclinacion_piezometro = ?, azimut_piezometro = ?, factor_calibracion = ?, 
             temperatura_correccion = ?, frecuencia_inicial = ?, temperatura_inicial = ?, presion_inicial = ?, unidad_lectura = ?, constante_a = ?,
-            constante_b = ?, constante_c = ?, factor_conversion = ?, comentario_piezometro = ? WHERE id_piezometro = ?;"""
+            constante_b = ?, constante_c = ?, factor_conversion = ?, comentario_piezometro = ?, estado_piezometro = ? WHERE id_piezometro = ?;"""
             cur = conn.cursor()
             cur.execute(sql, datos)
             
-            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?
+            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?, estado_instrumentacion = ?
             WHERE id_instrumentacion = ? AND tipo_equipo = 'PIEZOMETROCUERDA';"""
             cur = conn.cursor()
             cur.execute(query_instrumentacion, data)
@@ -523,7 +523,7 @@ class PiezometroModel:
         try:
             conn = Connection.connectionDB()
             sql = """UPDATE piezometromanuales SET nombre_piezometro = ?, codigo_piezometro = ?, norte_piezometro = ?, este_piezometro = ?, elevacion_piezometro = ?, 
-            fundacion_piezometro = ?, inclinacion_piezometro = ?, azimut_piezometro = ?, stickup_piezometro = ?, comentario_piezometro = ?
+            fundacion_piezometro = ?, inclinacion_piezometro = ?, azimut_piezometro = ?, stickup_piezometro = ?, comentario_piezometro = ?, estado_piezometro = ?
             WHERE id_piezometro = ?"""
             cur = conn.cursor()
             cur.execute(sql, datos)

@@ -110,7 +110,7 @@ class PiezometroController:
         respuesta = PiezometroModel.mdlMostrarDataPiezometrosManualProyecto(iddetalle)
         return respuesta
     
-    def ctrlGuardarNuevoPiezometroManual(proyectoid,componente, nombre, codigo, norte, este, nivel, fundacion, stick, profundidad, inclinacion, azimut, comentario):
+    def ctrlGuardarNuevoPiezometroManual(proyectoid,componente, nombre, codigo, norte, este, nivel, fundacion, stick, profundidad, inclinacion, azimut, estado, comentario):
         # validar nombre
         respu, info = PiezometroModel.mdlComprobarExisteNombrePiezometro(proyectoid, nombre, "Manual")
         if respu:
@@ -120,7 +120,7 @@ class PiezometroController:
             inclination_rad = inclinacion * np.pi / 180
             dir_z = np.sin(inclination_rad)
             instalacion = "{:.3f}".format(nivel + -abs(profundidad) * dir_z)
-            datos = (proyectoid, nombre, codigo, norte, este, instalacion, fundacion, stick, inclinacion, azimut, comentario)
+            datos = (proyectoid, nombre, codigo, norte, este, instalacion, fundacion, stick, inclinacion, azimut, estado, comentario)
             respuesta = PiezometroModel.mdlGuardarNuevoPiezometroManual(componente,datos, fecha, nivel, "PVC")
         return respuesta
     
@@ -132,13 +132,13 @@ class PiezometroController:
         respuesta = PiezometroModel.mdlRegistrarPiezometroManualFormato(componente, datos, fecha, nivel, tipo)
         return respuesta
     
-    def ctrlGuardarNuevoPiezometroCuerda(proyectoid, componente, formula, nombre, serie, este, norte, instalacion, fundacion, nivelactual, inclinacion, azimut, lecturaini, temperaini, presionini, calibracion, tempecorrec, lectura, variablea, variableb, variablec, conversion, comentario):
+    def ctrlGuardarNuevoPiezometroCuerda(proyectoid, componente, formula, nombre, serie, este, norte, instalacion, fundacion, nivelactual, inclinacion, azimut, lecturaini, temperaini, presionini, calibracion, tempecorrec, lectura, variablea, variableb, variablec, conversion, comentario, estado):
         respu, info = PiezometroModel.mdlComprobarExisteNombrePiezometro(proyectoid, nombre, "Automatizado")
         if respu:
             respuesta = "NO"
         else:
             fecha = f"{datetime.now().strftime('%Y-%m-%d')} 00:00:00"
-            datos = (proyectoid, formula, nombre, serie, este, norte, instalacion, fundacion, inclinacion, azimut, lecturaini, temperaini, presionini, calibracion, tempecorrec, lectura, variablea, variableb, variablec, conversion, comentario)
+            datos = (proyectoid, formula, nombre, serie, este, norte, instalacion, fundacion, inclinacion, azimut, lecturaini, temperaini, presionini, calibracion, tempecorrec, lectura, variablea, variableb, variablec, conversion, comentario, estado)
             respuesta = PiezometroModel.mdlGuardarNuevoPiezometroCuerda(componente, datos, nivelactual, fecha, "PCV")
         return respuesta
     

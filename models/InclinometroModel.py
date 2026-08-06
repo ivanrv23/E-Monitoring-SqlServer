@@ -1114,13 +1114,13 @@ class InclinometroModel:
             query_inclinometro = """
             UPDATE inclinometros SET tipo_inclinometro = ?, nombre_inclinometro = ?, codigo_inclinometro = ?,
             norte_inclinometro = ?, este_inclinometro = ?, elevacion_inclinometro = ?, profundidad_inclinometro = ?,
-            inclinacion_inclinometro = ?, azimut_inclinometro = ?, comentario_inclinometro = ?
+            inclinacion_inclinometro = ?, estado_inclinometro = ?, azimut_inclinometro = ?, comentario_inclinometro = ?
             WHERE id_inclinometro = ?;
             """
             cur.execute(query_inclinometro, (
                 datos['tipoEquipo'], datos['nombre'], datos['codigo'],
                 datos['norte'], datos['este'], datos['nivel'],
-                datos['profundidad'], datos['inclinacion'], datos['azimut'],
+                datos['profundidad'], datos['inclinacion'], datos['estado'], datos['azimut'],
                 datos['comentario'], datos['codeincli']
             ))
 

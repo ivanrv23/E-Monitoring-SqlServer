@@ -40,6 +40,9 @@ class SubirInclinometros:
         inclinacionIncli = dialogoInclinometros.findChild(QSpinBox, "input_inclinacion")
         azimutIncli = dialogoInclinometros.findChild(QSpinBox, "input_azimut")
         profundidadIncli = dialogoInclinometros.findChild(QDoubleSpinBox, "input_profundidad")
+        estado_incli = dialogoInclinometros.findChild(QComboBox, "estado_incli")
+        estado_incli.addItem("Operativo", 1)
+        estado_incli.addItem("Inoperativo", 0)
         comentarioIncli = dialogoInclinometros.findChild(QTextEdit, "input_comentario")
         lblrespuesta = dialogoInclinometros.findChild(QLabel, "label_mensaje_nuevo_inclinometro")
         botonguardar = dialogoInclinometros.findChild(QPushButton, "btn_aceptar_nuevo_inclinometro")
@@ -63,6 +66,7 @@ class SubirInclinometros:
             inclinacion = inclinacionIncli.value()
             azimut = azimutIncli.value()
             profundidad = profundidadIncli.value()
+            estado = estado_incli.currentData()
             comentario = comentarioIncli.toPlainText()
             lblrespuesta.setText("")
             # Validación de campos
@@ -82,6 +86,7 @@ class SubirInclinometros:
                 "inclinacion": inclinacion,
                 "azimut": azimut,
                 "profundidad": profundidad,
+                "estado": estado,
                 "comentario": comentario
             }
 
@@ -98,6 +103,7 @@ class SubirInclinometros:
                 inclinacionIncli.setValue(90)
                 azimutIncli.setValue(0)
                 profundidadIncli.setValue(0)
+                estado_incli.setCurrentIndex(0)
                 comentarioIncli.clear()
             else:
                 lblrespuesta.setText("Error al registrar. Por favor, intente de nuevo.")
@@ -409,6 +415,9 @@ class SubirInclinometros:
         inclinacionIncli = dialogoInclinometros.findChild(QSpinBox, "input_inclinacion")
         azimutIncli = dialogoInclinometros.findChild(QSpinBox, "input_azimut")
         profundidadIncli = dialogoInclinometros.findChild(QDoubleSpinBox, "input_profundidad")
+        estado_incli = dialogoInclinometros.findChild(QComboBox, "estado_incli")
+        estado_incli.addItem("Operativo", 1)
+        estado_incli.addItem("Inoperativo", 0)
         comentarioIncli = dialogoInclinometros.findChild(QTextEdit, "input_comentario")
         lblrespuesta = dialogoInclinometros.findChild(QLabel, "label_mensaje_nuevo_inclinometro")
         botonguardar = dialogoInclinometros.findChild(QPushButton, "btn_aceptar_nuevo_inclinometro")
@@ -435,6 +444,7 @@ class SubirInclinometros:
             inclinacionIncli.setValue(dataincli[9])
             azimutIncli.setValue(dataincli[10])
             profundidadIncli.setValue(dataincli[8])
+            estado_incli.setCurrentIndex(estado_incli.findData(dataincli[12]))
             comentarioIncli.setText(str(dataincli[11]))
         def guardarNuevoInclinometro():
             componente = comboComponente.currentData()
@@ -448,6 +458,7 @@ class SubirInclinometros:
             inclinacion = inclinacionIncli.value()
             azimut = azimutIncli.value()
             profundidad = profundidadIncli.value()
+            estado = estado_incli.currentData()
             comentario = comentarioIncli.toPlainText()
             # Validación de campos
             if not nombre:
@@ -467,7 +478,8 @@ class SubirInclinometros:
                 "profundidad": profundidad,
                 "comentario": comentario,
                 "instrumento" : idinstrumento,
-                "codeincli" : idincli
+                "codeincli" : idincli,
+                "estado": estado
             }
             respuesta = InclinometroController.ctrlActualizarInclinometro(idproyecto, datos)
             if respuesta:

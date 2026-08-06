@@ -89,8 +89,8 @@ class TDRModel:
         conn = None
         sql_check = """SELECT 1 FROM instrumentacion WHERE nombre_equipo = ? AND id_componente = ?;"""
         sql_insert_sondajestdr = """INSERT INTO sondajestdr (id_proyecto, nombre_sondajetdr, este_sondajetdr, norte_sondajetdr, elevacion_sondajetdr, azimut_sondajetdr,
-        inclinacion_sondajetdr, profundidad_sondajetdr) OUTPUT INSERTED.id_sondajetdr VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
-        sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo) VALUES (?, ?, ?, ?, ?);"""
+        inclinacion_sondajetdr, profundidad_sondajetdr, estado_sondajetdr) OUTPUT INSERTED.id_sondajetdr VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+        sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo, estado_instrumentacion ) VALUES (?, ?, ?, ?, ?, ?);"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -99,10 +99,10 @@ class TDRModel:
             if cur.fetchone():
                 return "NO"
             # Insertar en la tabla sondajestdr y obtener ID
-            cur.execute(sql_insert_sondajestdr, (proyecto, data[0], data[1], data[2], data[3], data[4], data[5], data[6]))
+            cur.execute(sql_insert_sondajestdr, (proyecto, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[8]))
             id_equipo = cur.fetchone()[0]
             # Insertar en la tabla instrumentacion
-            cur.execute(sql_insert_instrumentacion, (data[7], 'TDR', data[0], id_equipo, 'sondajestdr'))
+            cur.execute(sql_insert_instrumentacion, (data[7], 'TDR', data[0], id_equipo, 'sondajestdr', data[8]))
             # Confirmar la transacción
             conn.commit()
             return True
@@ -450,12 +450,12 @@ class TDRModel:
     def mdlActualizarSondajeTDR(datos, data):
         conn = None
         query = """UPDATE sondajestdr SET nombre_sondajetdr = ?, este_sondajetdr = ?, norte_sondajetdr = ?, elevacion_sondajetdr = ?,
-        profundidad_sondajetdr = ?, inclinacion_sondajetdr = ?, azimut_sondajetdr = ? WHERE id_sondajetdr = ?;"""
+        profundidad_sondajetdr = ?, inclinacion_sondajetdr = ?, azimut_sondajetdr = ?, estado_sondajetdr = ? WHERE id_sondajetdr = ?;"""
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
             cursor.execute(query, datos)
-            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?
+            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?, estado_instrumentacion = ?
             WHERE id_instrumentacion = ? AND tipo_equipo = 'TDR';"""
             cursor.execute(query_instrumentacion, data)
             conn.commit()

@@ -24,7 +24,7 @@ class CeldaController:
         fecha_actual = f"{datetime.now().strftime('%Y-%m-%d')} 00:00:00"
         idcelda = CeldaModel.mdlRegistrarCelda(data, fecha_actual)
         if idcelda:
-            respuesta = CeldaModel.mdlRegistrarInstrumentacionCelda((idcomponente, "CELDA", data['nombre_celda'], idcelda, "celdas"))
+            respuesta = CeldaModel.mdlRegistrarInstrumentacionCelda((idcomponente, "CELDA", data['nombre_celda'], idcelda, "celdas", data['estado_celda']))
         else:
             respuesta = False
         return respuesta
