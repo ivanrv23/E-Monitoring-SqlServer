@@ -64,11 +64,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} datos
             INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
             AND i.id_componente = ?
-            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             AND datos.hora_prisma BETWEEN ? AND ?
             ORDER BY datos.nombre_prisma, datos.hora_prisma;
             """
@@ -102,10 +100,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -154,11 +150,9 @@ class DesplazamientoModel:
                     FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
                 FROM {tabla} datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
                 AND i.id_componente = ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 AND datos.hora_prisma BETWEEN ? AND ?
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
                         FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
@@ -203,11 +197,9 @@ class DesplazamientoModel:
                 FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}) AS bloque_dias,
                 i.tipo_equipo
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ? 
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
                      i.id_instrumentacion, i.tipo_equipo
@@ -265,11 +257,9 @@ class DesplazamientoModel:
                     DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
                 FROM {tabla} datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
                 AND i.id_componente = ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 AND datos.hora_prisma BETWEEN ? AND ?
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
                         CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
@@ -309,10 +299,8 @@ class DesplazamientoModel:
                 MAX(p.hora_prisma) AS hora_prisma, AVG(CAST(p.distancia_prisma AS FLOAT)) AS promedio_distancia,
                 i.tipo_equipo
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ? 
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
         )
@@ -358,10 +346,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? -- Filtro de optimización
         ORDER BY p.nombre_prisma, p.hora_prisma;
         """
@@ -399,10 +385,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -437,10 +421,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? -- Filtro de optimización
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
                      FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
@@ -492,11 +474,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -543,10 +523,8 @@ class DesplazamientoModel:
                 i.tipo_equipo   
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? -- Filtro de optimización
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -593,10 +571,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -661,11 +637,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} datos
             INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
             AND i.id_componente = ?
-            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             AND datos.hora_prisma BETWEEN ? AND ?
             ORDER BY datos.nombre_prisma, datos.hora_prisma;
             """
@@ -703,10 +677,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -758,11 +730,9 @@ class DesplazamientoModel:
                     FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
                 FROM {tabla} datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
                 AND i.id_componente = ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 AND datos.hora_prisma BETWEEN ? AND ?
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, vc.valor_cero_elev, i.tipo_equipo,
                         FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
@@ -818,11 +788,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE),
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -888,11 +856,9 @@ class DesplazamientoModel:
                     DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
                 FROM {tabla} datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
                 AND i.id_componente = ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 AND datos.hora_prisma BETWEEN ? AND ?
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, vc.valor_cero_elev, i.tipo_equipo,
                         CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
@@ -943,10 +909,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -998,10 +962,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? -- Filtro de optimización
         ORDER BY p.nombre_prisma, p.hora_prisma;
         """
@@ -1043,10 +1005,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -1083,10 +1043,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? -- Filtro de optimización
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
                      FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
@@ -1144,11 +1102,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -1201,10 +1157,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? -- Filtro de optimización
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), 
                      DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
@@ -1257,10 +1211,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -1328,11 +1280,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} datos
             INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
             AND i.id_componente = ?
-            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             AND datos.hora_prisma BETWEEN ? AND ?
             ORDER BY datos.nombre_prisma, datos.hora_prisma;
             """
@@ -1369,10 +1319,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -1422,11 +1370,9 @@ class DesplazamientoModel:
                     FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
                 FROM {tabla} datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
                 AND i.id_componente = ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 AND datos.hora_prisma BETWEEN ? AND ?
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, i.tipo_equipo,
                         FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
@@ -1480,11 +1426,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -1547,11 +1491,9 @@ class DesplazamientoModel:
                     DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
                 FROM {tabla} datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
                 AND i.id_componente = ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 AND datos.hora_prisma BETWEEN ? AND ?
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero_este, vc.valor_cero_norte, i.tipo_equipo,
                         CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
@@ -1600,10 +1542,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -1653,10 +1593,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? -- Filtro de optimización
         ORDER BY p.nombre_prisma, p.hora_prisma;
         """
@@ -1697,10 +1635,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -1736,10 +1672,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? -- Filtro de optimización
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
                      FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
@@ -1795,11 +1729,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -1850,10 +1782,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? -- Filtro de optimización
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), 
                      DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
@@ -1904,10 +1834,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -1972,11 +1900,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} datos
             INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
             AND i.id_componente = ?
-            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             AND datos.hora_prisma BETWEEN ? AND ?
             ORDER BY datos.nombre_prisma, datos.hora_prisma;
             """
@@ -2012,10 +1938,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -2063,11 +1987,9 @@ class DesplazamientoModel:
                     FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
                 FROM {tabla} datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
                 AND i.id_componente = ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 AND datos.hora_prisma BETWEEN ? AND ?
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
                         FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
@@ -2117,11 +2039,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -2179,11 +2099,9 @@ class DesplazamientoModel:
                     DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
                 FROM {tabla} datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
                 AND i.id_componente = ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 AND datos.hora_prisma BETWEEN ? AND ?
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
                         CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
@@ -2228,10 +2146,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -2275,10 +2191,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? -- Filtro de optimización
         ORDER BY p.nombre_prisma, p.hora_prisma;
         """
@@ -2316,10 +2230,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -2354,10 +2266,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? -- Filtro de optimización
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
                      FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
@@ -2409,11 +2319,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -2460,10 +2368,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ?
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), 
                      DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
@@ -2509,10 +2415,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -2571,11 +2475,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} datos
             INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
             AND i.id_componente = ?
-            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             AND datos.hora_prisma BETWEEN ? AND ?
             ORDER BY datos.nombre_prisma, datos.hora_prisma;
             """
@@ -2609,10 +2511,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -2660,11 +2560,9 @@ class DesplazamientoModel:
                     FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
                 FROM {tabla} datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
                 AND i.id_componente = ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 AND datos.hora_prisma BETWEEN ? AND ?
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
                         FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
@@ -2714,11 +2612,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -2776,11 +2672,9 @@ class DesplazamientoModel:
                     DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
                 FROM {tabla} datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
                 AND i.id_componente = ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 AND datos.hora_prisma BETWEEN ? AND ?
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
                         CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
@@ -2825,10 +2719,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -2872,10 +2764,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ?
         ORDER BY p.nombre_prisma, p.hora_prisma;
         """
@@ -2912,10 +2802,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -2950,10 +2838,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ?
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
                      FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
@@ -3004,11 +2890,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -3055,10 +2939,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ?
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), 
                      DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
@@ -3104,10 +2986,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -3166,11 +3046,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} datos
             INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
             AND i.id_componente = ?
-            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             AND datos.hora_prisma BETWEEN ? AND ?
             ORDER BY datos.nombre_prisma, datos.hora_prisma;
             """
@@ -3203,10 +3081,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -3247,11 +3123,9 @@ class DesplazamientoModel:
                     FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
                 FROM {tabla} datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
                 AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
                         FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
             )
@@ -3301,11 +3175,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -3355,11 +3227,9 @@ class DesplazamientoModel:
                     CAST(datos.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
                 FROM {tabla} datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
                 AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, i.tipo_equipo,
                         CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
             )
@@ -3401,10 +3271,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -3448,10 +3316,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ?
         ORDER BY p.nombre_prisma, p.hora_prisma;
         """
@@ -3487,10 +3353,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -3523,10 +3387,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
                      FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
         )
@@ -3576,11 +3438,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -3625,10 +3485,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
         )
         SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
@@ -3672,10 +3530,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -3724,11 +3580,9 @@ class DesplazamientoModel:
                 (datos.norte_target - vc.valor_cero) * ? AS distancia,
                 i.tipo_equipo
             FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
             AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             ORDER BY datos.nombre_prisma, datos.hora_prisma;
             """
             params = prismas + [unidad, idcomponente, fechaini, fechafin]
@@ -3760,10 +3614,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -3801,11 +3653,9 @@ class DesplazamientoModel:
                     AVG(CAST(datos.norte_target AS FLOAT)) AS promedio_norte,
                     FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
                 FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
                 AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
                         FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
             )
@@ -3852,11 +3702,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -3903,11 +3751,9 @@ class DesplazamientoModel:
                     AVG(CAST(datos.norte_target AS FLOAT)) AS promedio_norte,
                     CAST(datos.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
                 FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
                 AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
                         CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
             )
@@ -3949,10 +3795,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -3995,10 +3839,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders})
         AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ORDER BY p.nombre_prisma, p.hora_prisma;
         """
         try:
@@ -4034,11 +3876,9 @@ class DesplazamientoModel:
                 (datos.este_target - vc.valor_cero) * ? AS distancia,
                 i.tipo_equipo
             FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
             AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             ORDER BY datos.nombre_prisma, datos.hora_prisma;
             """
             params = prismas + [unidad, idcomponente, fechaini, fechafin]
@@ -4070,10 +3910,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -4111,11 +3949,9 @@ class DesplazamientoModel:
                     AVG(CAST(datos.este_target AS FLOAT)) AS promedio_este,
                     FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
                 FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
                 AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
                         FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
             )
@@ -4162,11 +3998,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -4213,11 +4047,9 @@ class DesplazamientoModel:
                     AVG(CAST(datos.este_target AS FLOAT)) AS promedio_este,
                     CAST(datos.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
                 FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
                 AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
                         CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
             )
@@ -4259,10 +4091,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -4304,10 +4134,8 @@ class DesplazamientoModel:
             END AS FLOAT) AS distancia,
             i.tipo_equipo
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders})
         AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ORDER BY p.nombre_prisma, p.hora_prisma;
         """
         try:
@@ -4342,10 +4170,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -4377,10 +4203,8 @@ class DesplazamientoModel:
                 FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad}) AS bloque_dias,
                 i.tipo_equipo
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
                      FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
         )
@@ -4429,11 +4253,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -4477,10 +4299,8 @@ class DesplazamientoModel:
                 AVG(CAST(p.este_target AS FLOAT)) AS promedio_este,
                 i.tipo_equipo
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
         )
         SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
@@ -4523,10 +4343,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -4574,10 +4392,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -4609,10 +4425,8 @@ class DesplazamientoModel:
                 FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad}) AS bloque_dias,
                 i.tipo_equipo
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
                      FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
         )
@@ -4661,11 +4475,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -4709,10 +4521,8 @@ class DesplazamientoModel:
                 AVG(CAST(p.norte_target AS FLOAT)) AS promedio_norte,
                 i.tipo_equipo
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
         )
         SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
@@ -4755,10 +4565,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -4807,11 +4615,9 @@ class DesplazamientoModel:
                 (datos.elevacion_target - vc.valor_cero) * ? AS distancia,
                 i.tipo_equipo
             FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
             AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             ORDER BY datos.nombre_prisma, datos.hora_prisma;
             """
             params = prismas + [unidad, idcomponente, fechaini, fechafin]
@@ -4843,10 +4649,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -4884,11 +4688,9 @@ class DesplazamientoModel:
                     AVG(CAST(datos.elevacion_target AS FLOAT)) AS promedio_elevacion,
                     FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
                 FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
                 AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
                         FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
             )
@@ -4935,11 +4737,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -4986,11 +4786,9 @@ class DesplazamientoModel:
                     AVG(CAST(datos.elevacion_target AS FLOAT)) AS promedio_elevacion,
                     CAST(datos.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
                 FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 
                 AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
                         CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
             )
@@ -5032,10 +4830,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -5077,10 +4873,8 @@ class DesplazamientoModel:
             END AS FLOAT) AS distancia,
             i.tipo_equipo
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders})
         AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ORDER BY p.nombre_prisma, p.hora_prisma;
         """
         try:
@@ -5114,10 +4908,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -5149,10 +4941,8 @@ class DesplazamientoModel:
                 FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad}) AS bloque_dias,
                 i.tipo_equipo
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
                      FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
         )
@@ -5201,11 +4991,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -5249,10 +5037,8 @@ class DesplazamientoModel:
                 AVG(CAST(p.elevacion_target AS FLOAT)) AS promedio_elevacion,
                 i.tipo_equipo
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
         )
         SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
@@ -5295,10 +5081,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -5347,10 +5131,8 @@ class DesplazamientoModel:
             END AS angulo_horizontal, 
             i.tipo_equipo
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ?
         ORDER BY p.nombre_prisma, p.hora_prisma;
         """
@@ -5392,10 +5174,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -5435,10 +5215,8 @@ class DesplazamientoModel:
                 FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad}) AS bloque_dias,
                 i.tipo_equipo
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
                      FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
         )
@@ -5493,11 +5271,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -5546,10 +5322,8 @@ class DesplazamientoModel:
                 ) AS promedio_horizontal,
                 i.tipo_equipo
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
         )
         SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
@@ -5599,10 +5373,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -5637,19 +5409,21 @@ class DesplazamientoModel:
             placeholders = ', '.join(['?' for _ in prismas])
             sql = f"""
             WITH AnguloDecimal AS (
-                SELECT *,
-                CASE 
-                    WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_horizontal AS FLOAT)
-                END AS angulo_dec
+                SELECT
+                    *,
+                    CASE 
+                        WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_horizontal AS FLOAT)
+                    END AS angulo_dec
                 FROM {tabla}
                 WHERE nombre_prisma IN ({placeholders})
             ),
             ValoresCero AS (
-                SELECT p_cte.nombre_prisma, p_cte.angulo_dec AS valor_cero, p_cte.hora_prisma AS hora_cero
+                SELECT 
+                    p_cte.nombre_prisma, p_cte.angulo_dec AS valor_cero, p_cte.hora_prisma AS hora_cero
                 FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY nombre_prisma ORDER BY hora_prisma ASC) as rn FROM AnguloDecimal) p_cte
                 WHERE p_cte.rn = 1
             )
@@ -5661,11 +5435,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM AnguloDecimal datos
             INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1
             AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             ORDER BY datos.nombre_prisma, datos.hora_prisma;
             """
             params = prismas + [idcomponente, fechaini, fechafin]
@@ -5680,7 +5452,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+         
     @staticmethod
     def mdlCalcularDesplazamientoFechasAHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
@@ -5715,10 +5487,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -5746,13 +5516,13 @@ class DesplazamientoModel:
             sql = f"""
             WITH AnguloDecimal AS (
                 SELECT *,
-                CASE 
-                    WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_horizontal AS FLOAT)
-                END AS angulo_dec
+                    CASE 
+                        WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_horizontal AS FLOAT)
+                    END AS angulo_dec
                 FROM {tabla} WHERE nombre_prisma IN ({placeholders})
             ),
             ValoresCero AS (
@@ -5768,15 +5538,13 @@ class DesplazamientoModel:
                     FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
                 FROM AnguloDecimal datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 AND i.id_componente = ?
                 AND datos.hora_prisma BETWEEN ? AND ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
+                        FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
             )
-            SELECT 
+            SELECT
                 da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
                 (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
                 (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
@@ -5796,7 +5564,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-    
+
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasAHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -5828,11 +5596,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -5869,13 +5635,13 @@ class DesplazamientoModel:
             sql = f"""
             WITH AnguloDecimal AS (
                 SELECT *,
-                CASE 
-                    WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_horizontal AS FLOAT)
-                END AS angulo_dec
+                    CASE 
+                        WHEN angulo_horizontal LIKE '%°%' AND angulo_horizontal LIKE '%''%' AND angulo_horizontal LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_horizontal, 1, CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('°', angulo_horizontal) + 1, CHARINDEX('''', angulo_horizontal) - CHARINDEX('°', angulo_horizontal) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_horizontal, CHARINDEX('''', angulo_horizontal) + 1, CHARINDEX('"', angulo_horizontal) - CHARINDEX('''', angulo_horizontal) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_horizontal AS FLOAT)
+                    END AS angulo_dec
                 FROM {tabla} WHERE nombre_prisma IN ({placeholders})
             ),
             ValoresCero AS (
@@ -5891,15 +5657,13 @@ class DesplazamientoModel:
                     CAST(datos.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
                 FROM AnguloDecimal datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 AND i.id_componente = ?
                 AND datos.hora_prisma BETWEEN ? AND ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
+                        CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
             )
-            SELECT 
+            SELECT
                 da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
                 (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
                 (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
@@ -5919,7 +5683,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasAHA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -5946,10 +5710,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -6007,9 +5769,7 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM AnguloDecimal p
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             ORDER BY p.nombre_prisma, p.hora_prisma;
             """
             params = prismas + [fechaini, fechafin, idcomponente]
@@ -6063,10 +5823,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -6111,10 +5869,8 @@ class DesplazamientoModel:
                     FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad}) AS bloque_dias, 
                     i.tipo_equipo
                 FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
                 AND p.hora_prisma BETWEEN ? AND ?
-                AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
                         FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
             )
@@ -6171,11 +5927,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}), 
@@ -6232,10 +5986,8 @@ class DesplazamientoModel:
                     AVG(p.angulo_dec) AS promedio_horizontal,
                     i.tipo_equipo
                 FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
                 AND p.hora_prisma BETWEEN ? AND ?
-                AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
             )
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
@@ -6286,10 +6038,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -6337,10 +6087,8 @@ class DesplazamientoModel:
             END AS angulo_vertical, 
             i.tipo_equipo
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
         AND p.hora_prisma BETWEEN ? AND ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ORDER BY p.nombre_prisma, p.hora_prisma;
         """
         try:
@@ -6379,10 +6127,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -6422,10 +6168,8 @@ class DesplazamientoModel:
                 FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad}) AS bloque_dias,
                 i.tipo_equipo
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
                      FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
         )
@@ -6481,11 +6225,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -6534,10 +6276,8 @@ class DesplazamientoModel:
                 ) AS promedio_vertical,
                 i.tipo_equipo
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
         )
         SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
@@ -6586,10 +6326,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -6625,13 +6363,13 @@ class DesplazamientoModel:
             sql = f"""
             WITH AnguloDecimal AS (
                 SELECT *,
-                CASE 
-                    WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_vertical AS FLOAT)
-                END AS angulo_dec
+                    CASE 
+                        WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_vertical AS FLOAT)
+                    END AS angulo_dec
                 FROM {tabla} WHERE nombre_prisma IN ({placeholders})
             ),
             ValoresCero AS (
@@ -6647,11 +6385,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM AnguloDecimal datos
             INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 AND i.id_componente = ?
             AND datos.hora_prisma BETWEEN ? AND ?
-            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             ORDER BY datos.nombre_prisma, datos.hora_prisma;
             """
             params = prismas + [idcomponente, fechaini, fechafin]
@@ -6666,7 +6402,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoFechasAVA(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
         conn = None
@@ -6701,10 +6437,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -6732,13 +6466,13 @@ class DesplazamientoModel:
             sql = f"""
             WITH AnguloDecimal AS (
                 SELECT *,
-                CASE 
-                    WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_vertical AS FLOAT)
-                END AS angulo_dec
+                    CASE 
+                        WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_vertical AS FLOAT)
+                    END AS angulo_dec
                 FROM {tabla} WHERE nombre_prisma IN ({placeholders})
             ),
             ValoresCero AS (
@@ -6754,15 +6488,13 @@ class DesplazamientoModel:
                     FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad}) AS bloque_dias
                 FROM AnguloDecimal datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 AND i.id_componente = ?
                 AND datos.hora_prisma BETWEEN ? AND ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
+                        FLOOR(DATEDIFF(DAY, vc.hora_cero, datos.hora_prisma) / {cantidad})
             )
-            SELECT 
+            SELECT
                 da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
                 (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
                 (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
@@ -6782,7 +6514,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoDiasFechasAVA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -6814,11 +6546,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}),
@@ -6855,13 +6585,13 @@ class DesplazamientoModel:
             sql = f"""
             WITH AnguloDecimal AS (
                 SELECT *,
-                CASE 
-                    WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
-                        CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
-                        CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
-                    ELSE CAST(angulo_vertical AS FLOAT)
-                END AS angulo_dec
+                    CASE 
+                        WHEN angulo_vertical LIKE '%°%' AND angulo_vertical LIKE '%''%' AND angulo_vertical LIKE '%"%' THEN
+                            CAST(SUBSTRING(angulo_vertical, 1, CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('°', angulo_vertical) + 1, CHARINDEX('''', angulo_vertical) - CHARINDEX('°', angulo_vertical) - 1) AS FLOAT) / 60.0 +
+                            CAST(SUBSTRING(angulo_vertical, CHARINDEX('''', angulo_vertical) + 1, CHARINDEX('"', angulo_vertical) - CHARINDEX('''', angulo_vertical) - 1) AS FLOAT) / 3600.0
+                        ELSE CAST(angulo_vertical AS FLOAT)
+                    END AS angulo_dec
                 FROM {tabla} WHERE nombre_prisma IN ({placeholders})
             ),
             ValoresCero AS (
@@ -6877,15 +6607,13 @@ class DesplazamientoModel:
                     CAST(datos.hora_prisma AS DATE) AS fecha_bloque, DATEPART(HOUR, datos.hora_prisma) / {cantidad} AS bloque_num
                 FROM AnguloDecimal datos
                 INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
                 WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 AND i.id_componente = ?
                 AND datos.hora_prisma BETWEEN ? AND ?
-                AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, datos.nombre_prisma, vc.hora_cero, vc.valor_cero, i.tipo_equipo,
-                CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
+                        CAST(datos.hora_prisma AS DATE), DATEPART(HOUR, datos.hora_prisma) / {cantidad}
             )
-            SELECT 
+            SELECT
                 da.id_instrumentacion, da.nombre_prisma, da.hora_bloque,
                 (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) * 24.0 AS horas,
                 (CAST(DATEDIFF(SECOND, da.hora_cero, da.hora_bloque) AS FLOAT) / 86400.0) AS dias,
@@ -6905,7 +6633,7 @@ class DesplazamientoModel:
             return None
         finally:
             if conn: conn.close()
-            
+        
     @staticmethod
     def mdlCalcularDesplazamientoHorasFechasAVA(tabla, unidad, prismas, idcomponente, fechaini, fechafin, cantidad):
         conn = None
@@ -6932,10 +6660,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
@@ -6990,9 +6716,7 @@ class DesplazamientoModel:
                 END AS FLOAT) AS angulo,
                 i.tipo_equipo
             FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             ORDER BY p.nombre_prisma, p.hora_prisma;
             """
             params = prismas + [fechaini, fechafin, idcomponente]
@@ -7046,10 +6770,8 @@ class DesplazamientoModel:
             i.tipo_equipo
         FROM {tabla} p 
         INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-        INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
         AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ? 
         ORDER BY p.nombre_prisma, p.hora_prisma;"""
         
@@ -7094,10 +6816,8 @@ class DesplazamientoModel:
                     FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad}) AS bloque_dias, 
                     i.tipo_equipo
                 FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
                 AND p.hora_prisma BETWEEN ? AND ?
-                AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), i.tipo_equipo,
                         FLOOR(DATEDIFF(DAY, MIN(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma), p.hora_prisma) / {cantidad})
             )
@@ -7154,11 +6874,9 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, f.fecha_inicio, CAST(p.hora_prisma AS DATE), 
                      FLOOR( (CAST(DATEDIFF(SECOND, f.fecha_inicio, CAST(p.hora_prisma AS DATE)) AS FLOAT) / 86400.0) / {cantidad}), 
@@ -7215,10 +6933,8 @@ class DesplazamientoModel:
                     AVG(p.angulo_dec) AS promedio_vertical,
                     i.tipo_equipo
                 FROM AnguloDecimal p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-                INNER JOIN componentes co ON i.id_componente = co.id_componente
                 WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ?
                 AND p.hora_prisma BETWEEN ? AND ?
-                AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
                 GROUP BY i.id_instrumentacion, p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.tipo_equipo
             )
             SELECT pd.id_instrumentacion, pd.nombre_prisma, pd.hora_prisma,
@@ -7269,10 +6985,8 @@ class DesplazamientoModel:
                 i.tipo_equipo
             FROM {tabla} p 
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
-            INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ? 
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad},
                      i.id_instrumentacion, i.tipo_equipo
