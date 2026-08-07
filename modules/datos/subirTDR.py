@@ -756,6 +756,9 @@ class SubirTDR:
         azimutTDR = dialogoTDR.findChild(QSpinBox, "input_azimut")
         inclinacionTDR = dialogoTDR.findChild(QSpinBox, "input_inclinacion")
         botonguardar = dialogoTDR.findChild(QPushButton, "btn_registrar")
+        combo_estado_tdr = dialogoTDR.findChild(QComboBox, "combo_estado_tdr")
+        combo_estado_tdr.addItem("Operativo", 1)
+        combo_estado_tdr.addItem("Inoperativo", 0)
         # cargar data componentes
         componentes = ProyectoController.ctrlObtenerComponentesProyecto(idproyecto)
         if componentes:
@@ -777,6 +780,7 @@ class SubirTDR:
             produndidadTDR.setValue(datatdr[6])
             azimutTDR.setValue(datatdr[8])
             inclinacionTDR.setValue(datatdr[7])
+            combo_estado_tdr.setCurrentIndex(combo_estado_tdr.findData(datatdr[11])) 
         def actualizarDatos():
             componente = comboComponente.currentData()
             nombrezona = comboComponente.currentText()
@@ -787,9 +791,10 @@ class SubirTDR:
             profundidad = produndidadTDR.value()
             azimut = azimutTDR.value()
             inclinacion = inclinacionTDR.value()
+            estado_tdr = combo_estado_tdr.currentData()
             if nombre:
-                datos = [nombre, este, norte, nivel, profundidad, inclinacion, azimut, idtdr]
-                data = [componente, nombre, idinstrumento]
+                datos = [nombre, este, norte, nivel, profundidad, inclinacion, azimut, estado_tdr, idtdr]
+                data = [componente, nombre, estado_tdr, idinstrumento]
                 respuesta = TDRController.ctrlActualizarSondajeTDR(datos, data)
                 if respuesta:
                     dialogoTDR.close()

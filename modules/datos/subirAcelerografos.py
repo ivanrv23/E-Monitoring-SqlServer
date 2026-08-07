@@ -481,6 +481,9 @@ class SubirAcelerografos:
         nombreXML = dialogoAcelerografo.findChild(QLineEdit, 'input_nombre_xml')
         botonSubirXML = dialogoAcelerografo.findChild(QPushButton, "btn_cargar_xml")
         botonGuardarData = dialogoAcelerografo.findChild(QPushButton, "btn_guardar")
+        combo_estado_acel = dialogoAcelerografo.findChild(QComboBox, "combo_estado_acel")
+        combo_estado_acel.addItem("Operativo", 1)
+        combo_estado_acel.addItem("Inoperativo", 0)
         # cargar data componentes
         componentes = ProyectoController.ctrlObtenerComponentesProyecto(idproyecto)
         if componentes:
@@ -499,6 +502,7 @@ class SubirAcelerografos:
             este_acelero.setText(str(datapiezo[3]))
             norte_acelero.setText(str(datapiezo[4]))
             cota_acelero.setText(str(datapiezo[5]))
+            combo_estado_acel.setCurrentIndex(combo_estado_acel.findData(datapiezo[6]))
         def subirXML():
             # Abrir diálogo para seleccionar archivo
             file_dialog = QFileDialog()
@@ -515,10 +519,11 @@ class SubirAcelerografos:
             coory = norte_acelero.text()
             coorz = cota_acelero.text()
             archivo_xml = nombreXML.text()
+            estado = combo_estado_acel.currentData()
 
             if nombre != "" and coorx != "" and coory != "" and coorz != "":
-                datos = [nombre, coorx, coory, coorz, idacelero]
-                data = [componente, nombre, idinstrumento]
+                datos = [nombre, coorx, coory, coorz, estado, idacelero]
+                data = [componente, nombre, estado, idinstrumento]
                 respuesta = AcelerografoController.ctrlActualizarAcelerografo(datos, data)
 
                 if respuesta:

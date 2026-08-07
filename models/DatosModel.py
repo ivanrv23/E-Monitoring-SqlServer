@@ -1629,14 +1629,14 @@ class DatosModel:
                 id_proyecto, tipo_inclinometro, nombre_inclinometro, codigo_inclinometro,
                 norte_inclinometro, este_inclinometro, elevacion_inclinometro,
                 profundidad_inclinometro, inclinacion_inclinometro, azimut_inclinometro,
-                comentario_inclinometro
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                estado_inclinometro, comentario_inclinometro
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             SELECT CAST(SCOPE_IDENTITY() AS INT);
             """
             cur.execute(query_inclinometro, (
                 idproyecto, datos['tipoEquipo'], datos['nombre'], datos['codigo'],
                 datos['norte'], datos['este'], datos['nivel'],
-                datos['profundidad'], datos['inclinacion'], datos['azimut'],
+                datos['profundidad'], datos['inclinacion'], datos['azimut'], datos['estado'],
                 datos['comentario']
             ))
 
@@ -1650,11 +1650,11 @@ class DatosModel:
             # Insertar en la tabla instrumentacion
             query_instrumentacion = """
             INSERT INTO instrumentacion (
-                id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo
-            ) VALUES (?, ?, ?, ?, ?)
+                id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo, estado_instrumentacion
+            ) VALUES (?, ?, ?, ?, ?, ?)
             """
             cur.execute(query_instrumentacion, (
-                datos['componente'], 'INCLINOMETRO', datos['nombre'], id_inclinometro, 'inclinometros'
+                datos['componente'], 'INCLINOMETRO', datos['nombre'], id_inclinometro, 'inclinometros', datos['estado']
             ))
 
             conn.commit()

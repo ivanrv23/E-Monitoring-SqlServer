@@ -57,9 +57,14 @@ class RegistroEquipos:
         inclinacionPiezo = dialog.findChild(QSpinBox, "input_inclinacion")
         azimutPiezo = dialog.findChild(QSpinBox, "input_azimut")
         factorConversion = dialog.findChild(QDoubleSpinBox, "input_factor_conversion")
+        comboEstados = dialog.findChild(QComboBox, "cb_estados")
         comentarioPiezo = dialog.findChild(QTextEdit, "input_comentario")
         lblrespuesta = dialog.findChild(QLabel, "label_mensaje_error")
         botonguardar = dialog.findChild(QPushButton, "btn_guardar_nuevo")
+        
+        # --- Cargando el ComboBox de Estados ---
+        comboEstados.addItems(["Operativo", "Inoperativo"])
+
         # cargar data componentes
         RegistroEquipos.llenar_componentes_combo(proyectoid, comboComponente)
         comboFormula.addItem("Seleccione Fórmula", 0)
@@ -90,8 +95,10 @@ class RegistroEquipos:
             variablec = constanteC.value()
             conversion = factorConversion.value()
             comentario = comentarioPiezo.toPlainText()
+            estado = comboEstados.currentText()
+            estado_valor = 1 if estado == "Operativo" else 0
             if nombre != "" and proyectoid != 0:
-                respu = PiezometroController.ctrlGuardarNuevoPiezometroCuerda(proyectoid, componente, formula, nombre, serie, este, norte, instalacion, fundacion, nivelactual, inclinacion, azimut, lecturaini, temperaini, presionini, calibracion, tempecorrec, lectura, variablea, variableb, variablec, conversion, comentario)
+                respu = PiezometroController.ctrlGuardarNuevoPiezometroCuerda(proyectoid, componente, formula, nombre, serie, este, norte, instalacion, fundacion, nivelactual, inclinacion, azimut, lecturaini, temperaini, presionini, calibracion, tempecorrec, lectura, variablea, variableb, variablec, conversion, comentario, estado_valor)
                 if respu == "OK":
                     lblrespuesta.setText("Registrado Correctamente")
                     lblrespuesta.setStyleSheet("color: green;")
@@ -153,6 +160,9 @@ class RegistroEquipos:
         profundidadPiezo = dialog.findChild(QDoubleSpinBox, "input_profundidad")
         inclinacionPiezo = dialog.findChild(QSpinBox, "input_inclinacion")
         azimutPiezo = dialog.findChild(QSpinBox, "input_azimut")
+        estadonuevo_piezomanual = dialog.findChild(QComboBox, "estadonuevo_piezomanual")
+        estadonuevo_piezomanual.addItem("Operativo", 1)
+        estadonuevo_piezomanual.addItem("Inoperativo", 0)
         comentarioPiezo = dialog.findChild(QTextEdit, "input_comentario")
         lblrespuesta = dialog.findChild(QLabel, "label_mensaje_error")
         botonguardar = dialog.findChild(QPushButton, "btn_aceptar_nuevo")
@@ -172,8 +182,9 @@ class RegistroEquipos:
             azimut = azimutPiezo.value()
             profundidad = profundidadPiezo.value()
             comentario = comentarioPiezo.toPlainText()
+            estado = estadonuevo_piezomanual.currentData()
             if nombre != "" and proyectoid != 0:
-                respu = PiezometroController.ctrlGuardarNuevoPiezometroManual(proyectoid, componente, nombre, codigo, norte, este, nivel, fundacion, stick, profundidad, inclinacion, azimut, comentario)
+                respu = PiezometroController.ctrlGuardarNuevoPiezometroManual(proyectoid, componente, nombre, codigo, norte, este, nivel, fundacion, stick, profundidad, inclinacion, azimut, estado, comentario)
                 if respu == "OK":
                     lblrespuesta.setText("Piezómetro Registrado")
                     lblrespuesta.setStyleSheet("color: green;")
@@ -186,6 +197,7 @@ class RegistroEquipos:
                     fundacionPiezo.setValue(0)
                     inclinacionPiezo.setValue(90)
                     azimutPiezo.setValue(0)
+                    estadonuevo_piezomanual.setCurrentIndex(0)
                     stickupPiezo.setValue(0)
                     profundidadPiezo.setValue(0)
                     comentarioPiezo.clear()
@@ -233,6 +245,9 @@ class RegistroEquipos:
         produndidadTDR = dialogoTDR.findChild(QDoubleSpinBox, "input_profundidad")
         azimutTDR = dialogoTDR.findChild(QSpinBox, "input_azimut")
         inclinacionTDR = dialogoTDR.findChild(QSpinBox, "input_inclinacion")
+        combo_estado_tdr = dialogoTDR.findChild(QComboBox, "combo_estado_tdr")
+        combo_estado_tdr.addItem("Operativo", 1)
+        combo_estado_tdr.addItem("Inoperativo", 0)
         RegistroEquipos.llenar_componentes_combo(proyecto_id, comboComponente)
         def guardarNuevoTDR():
             componente = comboComponente.currentData()
@@ -243,7 +258,8 @@ class RegistroEquipos:
             profun = produndidadTDR.value()
             azimut = azimutTDR.value()
             inclinacion = inclinacionTDR.value()
-            data = [nombre, este, norte, nivel, azimut, inclinacion, profun, componente]
+            estado = combo_estado_tdr.currentData()
+            data = [nombre, este, norte, nivel, azimut, inclinacion, profun, componente, estado]
             respuesta = TDRController.ctrlGuardarEquipoTDR(proyecto_id, data)
             if respuesta == "NO":
                 lblrespuesta.setText("El nombre y el componente ya existen.")
@@ -259,6 +275,7 @@ class RegistroEquipos:
                 produndidadTDR.setValue(0)
                 inclinacionTDR.setValue(90)
                 azimutTDR.setValue(0)
+                combo_estado_tdr.setCurrentIndex(0) 
             else:
                 lblrespuesta.setText("Error al guardar el sondaje.")
                 lblrespuesta.setStyleSheet("color: red;")
@@ -292,6 +309,9 @@ class RegistroEquipos:
         botonGuardarData = dialogoAcelerografo.findChild(QPushButton, "btn_guardar")
         nombreXML = dialogoAcelerografo.findChild(QLineEdit, 'input_nombre_xml')
         botonSubirXML = dialogoAcelerografo.findChild(QPushButton, "btn_cargar_xml")
+        combo_estado_acel = dialogoAcelerografo.findChild(QComboBox, "combo_estado_acel")
+        combo_estado_acel.addItem("Operativo", 1)
+        combo_estado_acel.addItem("Inoperativo", 0)
         def subirXML():
             # Abrir diálogo para seleccionar archivo
             file_dialog = QFileDialog()
@@ -306,8 +326,9 @@ class RegistroEquipos:
             coory = norte.text()
             coorz = cota.text()
             archivo_xml = nombreXML.text()
+            estado = combo_estado_acel.currentData()
             if nombre:
-                datos = [nombre, coorx, coory, coorz, componente]
+                datos = [nombre, coorx, coory, coorz, componente, estado]
                 respuesta, id_acelerografo = AcelerografoController.ctrlRegistrarAcelerografo(proyecto_id, datos)
                 if respuesta == "NO":
                     lblrespuesta.setText("El equipo ya existe.")
@@ -337,6 +358,11 @@ class RegistroEquipos:
                     else:
                         lblrespuesta.setText("Acelerógrafo registrado exitosamente.")
                         lblrespuesta.setStyleSheet("color: green;")
+                        # Limpiar los inputs
+                        nombreacelero.clear()
+                        este.setText("0")
+                        norte.setText("0")
+                        cota.setText("0")
                 else:
                     lblrespuesta.setText("Error al registrar el acelerógrafo.")
                     lblrespuesta.setStyleSheet("color: red;")
@@ -365,6 +391,10 @@ class RegistroEquipos:
         comentarioPiezo = dialogopluviometros.findChild(QTextEdit, "input_comentario")
         botonguardar = dialogopluviometros.findChild(QPushButton, "btn_registrar")
         lblrespuesta = dialogopluviometros.findChild(QLabel, "label_mensaje")
+        estado_pluvio = dialogopluviometros.findChild(QComboBox, "estado_pluvio")
+        estado_pluvio.addItem("Operativo", 1)
+        estado_pluvio.addItem("Inoperativo", 0) 
+
         RegistroEquipos.llenar_componentes_combo(proyecto_id, comboComponente)
         def guardarNuevoPluviometro():
             componente = comboComponente.currentData()
@@ -374,8 +404,9 @@ class RegistroEquipos:
             este = estePluvio.value()
             nivel = elevacionPluvio.value()
             comentario = comentarioPiezo.toPlainText()
+            estado = estado_pluvio.currentData()
             if nombre:
-                datos = [nombre, codigo, norte, este, nivel,comentario,componente]
+                datos = [nombre, codigo, norte, este, nivel, comentario, estado, componente]
                 respuesta = PluviometroController.ctrlGuardarNuevoPluviometro(proyecto_id, datos)
                 if respuesta == "NO":
                     lblrespuesta.setText("El equipo ya existe.")

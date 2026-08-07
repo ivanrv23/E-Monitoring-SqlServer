@@ -19,6 +19,37 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <layout class="QFormLayout" name="formLayout">
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_11">
+       <property name="text">
+        <string>Componente:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QComboBox" name="cb_lista_componentes"/>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="label_10">
+       <property name="text">
+        <string>Equipo:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QComboBox" name="cb_tipo_inclinometro">
+       <item>
+        <property name="text">
+         <string>RST</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>GEOKON</string>
+        </property>
+       </item>
+      </widget>
+     </item>
      <item row="3" column="0">
       <widget class="QLabel" name="label_2">
        <property name="text">
@@ -46,57 +77,6 @@
        </property>
       </widget>
      </item>
-     <item row="8" column="0">
-      <widget class="QLabel" name="label_6">
-       <property name="text">
-        <string>Elevación (m):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="9" column="0">
-      <widget class="QLabel" name="label_7">
-       <property name="text">
-        <string>Inclinación:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="10" column="0">
-      <widget class="QLabel" name="label_8">
-       <property name="text">
-        <string>Azimut:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="11" column="0">
-      <widget class="QLabel" name="label_9">
-       <property name="text">
-        <string>Profundidad:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="12" column="0">
-      <widget class="QLabel" name="label">
-       <property name="text">
-        <string>Comentario:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="12" column="1">
-      <widget class="QTextEdit" name="input_comentario">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>0</width>
-         <height>0</height>
-        </size>
-       </property>
-      </widget>
-     </item>
      <item row="6" column="1">
       <widget class="QDoubleSpinBox" name="input_este">
        <property name="decimals">
@@ -104,6 +84,30 @@
        </property>
        <property name="maximum">
         <double>999999999.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0">
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Norte (m):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1">
+      <widget class="QDoubleSpinBox" name="input_norte">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="maximum">
+        <double>9999999999.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="0">
+      <widget class="QLabel" name="label_6">
+       <property name="text">
+        <string>Elevación (m):</string>
        </property>
       </widget>
      </item>
@@ -120,10 +124,24 @@
        </property>
       </widget>
      </item>
+     <item row="9" column="0">
+      <widget class="QLabel" name="label_7">
+       <property name="text">
+        <string>Inclinación:</string>
+       </property>
+      </widget>
+     </item>
      <item row="9" column="1">
       <widget class="QSpinBox" name="input_inclinacion">
        <property name="maximum">
         <number>90</number>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="0">
+      <widget class="QLabel" name="label_8">
+       <property name="text">
+        <string>Azimut:</string>
        </property>
       </widget>
      </item>
@@ -141,53 +159,45 @@
        </property>
       </widget>
      </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="label_10">
+     <item row="13" column="0">
+      <widget class="QLabel" name="label">
        <property name="text">
-        <string>Equipo:</string>
+        <string>Comentario:</string>
        </property>
       </widget>
      </item>
-     <item row="2" column="1">
-      <widget class="QComboBox" name="cb_tipo_inclinometro">
-       <item>
-        <property name="text">
-         <string>RST</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>GEOKON</string>
-        </property>
-       </item>
+     <item row="13" column="1">
+      <widget class="QTextEdit" name="input_comentario">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
       </widget>
      </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="label_11">
+     <item row="11" column="0">
+      <widget class="QLabel" name="label_9">
        <property name="text">
-        <string>Componente:</string>
+        <string>Profundidad:</string>
        </property>
       </widget>
      </item>
-     <item row="1" column="1">
-      <widget class="QComboBox" name="cb_lista_componentes"/>
-     </item>
-     <item row="7" column="1">
-      <widget class="QDoubleSpinBox" name="input_norte">
-       <property name="decimals">
-        <number>3</number>
-       </property>
-       <property name="maximum">
-        <double>9999999999.000000000000000</double>
-       </property>
-      </widget>
-     </item>
-     <item row="7" column="0">
-      <widget class="QLabel" name="label_4">
+     <item row="12" column="0">
+      <widget class="QLabel" name="label_12">
        <property name="text">
-        <string>Norte (m):</string>
+        <string>Estado:</string>
        </property>
       </widget>
+     </item>
+     <item row="12" column="1">
+      <widget class="QComboBox" name="estado_incli"/>
      </item>
     </layout>
    </item>
