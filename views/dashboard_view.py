@@ -28,26 +28,58 @@ class DashboardView():
             if componentes:
                 for componente in componentes:
                     comboComponentesDashboard.addItem(componente[2], componente[0])
-            DashboardView.setup_dashboard()
-        if DashboardView.estadoPagina:
-            btn_refrescar_dashboard = main.findChild(QPushButton, "btn_refrescar_dashboard")        
-            btn_refrescar_dashboard.clicked.connect(DashboardView.setup_dashboard)
-            comboComponentesDashboard.activated.connect(DashboardView.setup_dashboard)
-            DashboardView.estadoPagina = False
+            DashboardView.dashboardInicial()
+
+        btn_refrescar_dashboard = main.findChild(QPushButton, "btn_refrescar_dashboard")
+
+        # Desconectar conexiones previas SIEMPRE antes de reconectar.
+        try:
+            btn_refrescar_dashboard.clicked.disconnect(DashboardView.dashboardInicial)
+        except (TypeError, RuntimeError):
+            pass
+        try:
+            comboComponentesDashboard.activated.disconnect(DashboardView.dashboardInicial)
+        except (TypeError, RuntimeError):
+            pass
+
+        btn_refrescar_dashboard.clicked.connect(DashboardView.dashboardInicial)
+        comboComponentesDashboard.activated.connect(DashboardView.dashboardInicial)
+        DashboardView.estadoPagina = False
 
     def dashboardInicial():
+        # Evitar lanzar un thread nuevo mientras el anterior sigue vivo.
+        thread_previo = getattr(DashboardView, '_current_thread', None)
+        if thread_previo is not None:
+            try:
+                if thread_previo.isRunning():
+                    thread_previo.quit()
+                    thread_previo.wait()
+            except RuntimeError:
+                # El objeto C++ ya fue eliminado (deleteLater ya se ejecutó); ignorar
+                pass
+
         loading = LoadingView.mostrarLoading()
         comboComponentesDashboard = DashboardView.main.findChild(QComboBox, "cb_lista_componentes_dashboard")
         id_componente = comboComponentesDashboard.currentData() if comboComponentesDashboard else None
 
         def on_threaddashboard_complete(datos):
-            # Este slot corre en el hilo principal (conexión encolada), aquí sí se puede crear UI
             DashboardView.construir_dashboard(datos)
             loading.close()
 
+        def on_thread_finished():
+            # Limpiar la referencia para no quedarnos con un puntero a un objeto
+            # que está a punto de ser destruido por deleteLater()
+            if DashboardView._current_thread is prom:
+                DashboardView._current_thread = None
+
         prom = CargarDashboardThread(DashboardView.idproyecto, id_componente)
-        DashboardView._current_thread = prom  # evitar que el GC lo destruya a mitad de ejecución
-        prom.task_finishDashboard.connect(on_threaddashboard_complete)
+        DashboardView._current_thread = prom
+        prom.task_finishDashboard.connect(
+            on_threaddashboard_complete,
+            Qt.ConnectionType.QueuedConnection
+        )
+        prom.finished.connect(on_thread_finished)
+        prom.finished.connect(prom.deleteLater)
         prom.start()
         loading.exec()
 
