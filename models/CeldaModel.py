@@ -53,8 +53,8 @@ class CeldaModel:
         query = """
         SET NOCOUNT ON;
         INSERT INTO celdas (id_proyecto, nombre_celda, marca_celda, modelo_celda, serie_celda, rango_celda, 
-        instalacion_celda, este_celda, norte_celda, fundacion_celda, frecuencia_inicial, temperatura_inicial, cf_celda, tk_celda)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        instalacion_celda, este_celda, norte_celda, fundacion_celda, frecuencia_inicial, temperatura_inicial, cf_celda, tk_celda, estado_celda)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         SELECT CAST(SCOPE_IDENTITY() AS INT);
         """
         valores = (
@@ -71,7 +71,8 @@ class CeldaModel:
             data['frecuencia_inicial'], 
             data['temperatura_inicial_celda'], 
             data['cf_celda'], 
-            data['tk_celda']
+            data['tk_celda'],
+            data['estado_celda']
         )
         
         conexion = None
@@ -122,8 +123,8 @@ class CeldaModel:
     
     @staticmethod
     def mdlRegistrarInstrumentacionCelda(valores):
-        query = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo)
-        VALUES (?, ?, ?, ?, ?);"""
+        query = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo, estado_instrumentacion)
+        VALUES (?, ?, ?, ?, ?, ?);"""
         conexion = None
         try:
             conexion = Connection.connectionDB()
@@ -704,9 +705,12 @@ class CeldaModel:
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
+            estado_texto = data[6]
+            estado_valor = 1 if estado_texto == "Activo" else 0
+            data_final = list(data[:6]) + [estado_valor, data[7]]
             # guardar en historial
             query_select = f"""SELECT fecha_detalle, frecuencia_digits, frecuencia_hz, temperatura_detalle, medida_calculada,
-            observacion_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
+            observacion_detalle, estado_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
             cursor.execute(query_select, (data[-1],))
             datos_anteriores = cursor.fetchone()
             if datos_anteriores:
@@ -718,8 +722,8 @@ class CeldaModel:
                 cursor.execute(query_historial, (idproyecto, fecha_cambio, accion, tabla, cambios, username, nombres))
             # actualizar prisma
             query = f"""UPDATE {tabla} SET fecha_detalle = ?, frecuencia_digits = ?, frecuencia_hz = ?, temperatura_detalle = ?,
-            medida_calculada = ?, observacion_detalle = ? WHERE id_detalle = ?;"""
-            cursor.execute(query, data)
+            medida_calculada = ?, observacion_detalle = ?, estado_detalle = ? WHERE id_detalle = ?;"""
+            cursor.execute(query, data_final)
             conexion.commit()
             return True
         except Exception as e:
@@ -1030,21 +1034,21 @@ class CeldaModel:
     def mdlActualizarCelda(data):
         query = """UPDATE celdas SET nombre_celda = ?, marca_celda = ?, modelo_celda = ?, rango_celda = ?, instalacion_celda = ?,
         este_celda = ?, norte_celda = ?, fundacion_celda = ?, frecuencia_inicial = ?, temperatura_inicial = ?, cf_celda = ?,
-        tk_celda = ? WHERE id_celda = ?;"""
+        tk_celda = ?, estado_celda = ? WHERE id_celda = ?;"""
         valores = (
             data['nombre_celda'], data['marca_celda'], data['modelo_celda'], data['rango_celda'], data['cota_instalacion_celda'],
             data['coordenada_este_celda'], data['coordenada_norte_celda'], data['cota_fundacion_celda'], data['frecuencia_inicial'],
-            data['temperatura_inicial_celda'], data['cf_celda'], data['tk_celda'], data['idcelda']
+            data['temperatura_inicial_celda'], data['cf_celda'], data['tk_celda'], data['estado_celda'], data['idcelda']
         )
         conexion = None
         try:
             conexion = Connection.connectionDB()
             cursor = conexion.cursor()
             cursor.execute(query, valores)
-            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?
+            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?, estado_instrumentacion = ?
             WHERE id_instrumentacion = ? AND tipo_equipo = 'CELDA';"""
             datos = (
-                data['componente'], data['nombre_celda'], data['instrumento']
+                data['componente'], data['nombre_celda'], data['estado_celda'], data['instrumento']
             )
             cursor.execute(query_instrumentacion, datos)
             conexion.commit()

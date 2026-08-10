@@ -1157,9 +1157,13 @@ class SubirPiezometros:
         inclinacionPiezo = dialog.findChild(QSpinBox, "input_inclinacion")
         azimutPiezo = dialog.findChild(QSpinBox, "input_azimut")
         factorConversion = dialog.findChild(QDoubleSpinBox, "input_factor_conversion")
+        comboEstados = dialog.findChild(QComboBox, "cb_estados")
         comentarioPiezo = dialog.findChild(QTextEdit, "input_comentario")
         lblrespuesta = dialog.findChild(QLabel, "label_mensaje_error")
         botonguardar = dialog.findChild(QPushButton, "btn_guardar_nuevo")
+        comboEstados.addItem("Operativo", 1)
+        comboEstados.addItem("Inoperativo", 0)
+        
         # cargar data componentes
         componentes = ProyectoController.ctrlObtenerComponentesProyecto(idproyecto)
         if componentes:
@@ -1197,7 +1201,8 @@ class SubirPiezometros:
             constanteB.setValue(datapiezo[18])
             constanteC.setValue(datapiezo[19])
             factorConversion.setValue(datapiezo[20])
-            comentarioPiezo.setPlainText(str(datapiezo[21]))
+            comentarioPiezo.setPlainText(datapiezo[21])
+            comboEstados.setCurrentIndex(comboEstados.findData(datapiezo[23]))
         def actualizarPiezometro():
             componente = comboComponente.currentData()
             nombrezona = comboComponente.currentText()
@@ -1220,10 +1225,11 @@ class SubirPiezometros:
             variableb = constanteB.value()
             variablec = constanteC.value()
             conversion = factorConversion.value()
+            estado = comboEstados.currentData()
             comentario = comentarioPiezo.toPlainText()
             if nombre != "":
-                datos = (idformula, nombre, serie, este, norte, instalacion, fundacion, inclinacion, azimut, calibracion, tempecorrec, frecuenini, temperaini, presionini, unidad, variablea, variableb, variablec, conversion, comentario, idpiezo)
-                data = (componente, nombre, idinstrumento)
+                datos = (idformula, nombre, serie, este, norte, instalacion, fundacion, inclinacion, azimut, calibracion, tempecorrec, frecuenini, temperaini, presionini, unidad, variablea, variableb, variablec, conversion, comentario, estado, idpiezo)
+                data = (componente, nombre, estado, idinstrumento)
                 respuesta = PiezometroController.ctrlActualizarPiezometroCuerda(datos, data)
                 if respuesta:
                     dialog.close()
@@ -1363,8 +1369,12 @@ class SubirPiezometros:
         inclinacionPiezo = dialog.findChild(QSpinBox, "input_inclinacion")
         azimutPiezo = dialog.findChild(QSpinBox, "input_azimut")
         comentarioPiezo = dialog.findChild(QTextEdit, "input_comentario")
+        estado_piezomanual = dialog.findChild(QComboBox, "estado_piezomanual")
+        estado_piezomanual.addItem("Operativo", 1)
+        estado_piezomanual.addItem("Inoperativo", 0)
         lblrespuesta = dialog.findChild(QLabel, "label_mensaje_error")
         botonguardar = dialog.findChild(QPushButton, "btn_aceptar_nuevo")
+
         # cargar data componentes
         componentes = ProyectoController.ctrlObtenerComponentesProyecto(idproyecto)
         if componentes:
@@ -1389,6 +1399,7 @@ class SubirPiezometros:
             inclinacionPiezo.setValue(datapiezo[8])
             azimutPiezo.setValue(datapiezo[9])
             comentarioPiezo.setPlainText(str(datapiezo[11]))
+            estado_piezomanual.setCurrentIndex(estado_piezomanual.findData(datapiezo[13]))
         def actualizarPiezometroManual():
             componente = comboComponente.currentData()
             nombrezona = comboComponente.currentText()
@@ -1402,8 +1413,9 @@ class SubirPiezometros:
             inclinacion = inclinacionPiezo.value()
             azimut = azimutPiezo.value()
             comentario = comentarioPiezo.toPlainText()
+            estado = estado_piezomanual.currentData()
             if nombre != "":
-                datos = (nombre, codigo, norte, este, nivel, fundacion, inclinacion, azimut, stick, comentario, idpiezo)
+                datos = (nombre, codigo, norte, este, nivel, fundacion, inclinacion, azimut, stick, comentario, estado, idpiezo)
                 data = (componente, nombre, idinstrumento)
                 respuesta = PiezometroController.ctrlActualizarPiezometroManual(datos, data)
                 if respuesta:

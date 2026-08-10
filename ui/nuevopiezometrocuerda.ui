@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>722</width>
-    <height>522</height>
+    <width>742</width>
+    <height>558</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,128 +19,47 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <layout class="QGridLayout" name="gridLayout">
-     <item row="2" column="6">
-      <widget class="QPushButton" name="btn_formula">
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_2">
        <property name="text">
-        <string/>
+        <string>Nombre del Piezómetro:</string>
        </property>
       </widget>
      </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="label_16">
+     <item row="10" column="3" colspan="2">
+      <widget class="QLabel" name="label_19">
        <property name="text">
-        <string>Fórmula:</string>
+        <string>Constante C:</string>
        </property>
       </widget>
      </item>
-     <item row="0" column="0" colspan="7">
-      <widget class="QLabel" name="label_20">
-       <property name="font">
-        <font>
-         <pointsize>10</pointsize>
-         <weight>75</weight>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="text">
-        <string>PIEZÓMETRO DE CUERDA VIBRANTE</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignCenter</set>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="5" colspan="2">
-      <widget class="QComboBox" name="cb_lista_componentes"/>
-     </item>
-     <item row="4" column="0">
-      <widget class="QLabel" name="label_13">
-       <property name="text">
-        <string>Norte (m):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="3" colspan="2">
-      <widget class="QLabel" name="label_4">
-       <property name="text">
-        <string>Cota de Instalación (msnm):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="5" colspan="2">
-      <widget class="QDoubleSpinBox" name="input_este">
+     <item row="8" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="input_frecuencia_inicial">
        <property name="decimals">
         <number>3</number>
        </property>
        <property name="maximum">
-        <double>999999999.998999953269958</double>
+        <double>99999999.998999997973442</double>
        </property>
       </widget>
      </item>
-     <item row="4" column="5" colspan="2">
-      <widget class="QDoubleSpinBox" name="input_cota_instalacion">
-       <property name="decimals">
-        <number>3</number>
-       </property>
-       <property name="minimum">
-        <double>-500.000000000000000</double>
-       </property>
-       <property name="maximum">
-        <double>9999.998999999999796</double>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="0">
-      <widget class="QLabel" name="label_11">
+     <item row="8" column="3" colspan="2">
+      <widget class="QLabel" name="label_17">
        <property name="text">
-        <string>Serie Sensor:</string>
+        <string>Temperatura Inicial (°C):</string>
        </property>
       </widget>
      </item>
-     <item row="6" column="5" colspan="2">
-      <widget class="QSpinBox" name="input_azimut">
-       <property name="maximum">
-        <number>360</number>
-       </property>
-      </widget>
+     <item row="3" column="1" colspan="2">
+      <widget class="QLineEdit" name="input_serie_sensor"/>
      </item>
-     <item row="6" column="0">
-      <widget class="QLabel" name="label_7">
+     <item row="13" column="1" colspan="6">
+      <widget class="QTextEdit" name="input_comentario"/>
+     </item>
+     <item row="8" column="0">
+      <widget class="QLabel" name="label_10">
        <property name="text">
-        <string>Inclinación:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="5" colspan="2">
-      <widget class="QDoubleSpinBox" name="input_cota_actual">
-       <property name="decimals">
-        <number>3</number>
-       </property>
-       <property name="minimum">
-        <double>-500.000000000000000</double>
-       </property>
-       <property name="maximum">
-        <double>9999.998999999999796</double>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="3" colspan="2">
-      <widget class="QLabel" name="label_12">
-       <property name="text">
-        <string>Cota Superficie Actual (msnm):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="8" column="5" colspan="2">
-      <widget class="QDoubleSpinBox" name="input_tempeartura_inicial">
-       <property name="decimals">
-        <number>3</number>
-       </property>
-       <property name="minimum">
-        <double>-999.999000000000024</double>
-       </property>
-       <property name="maximum">
-        <double>999.999000000000024</double>
+        <string>Frecuencia Inicial:</string>
        </property>
       </widget>
      </item>
@@ -171,10 +90,195 @@
        </property>
       </widget>
      </item>
-     <item row="8" column="0">
-      <widget class="QLabel" name="label_10">
+     <item row="2" column="6">
+      <widget class="QPushButton" name="btn_formula">
        <property name="text">
-        <string>Frecuencia Inicial:</string>
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="5" colspan="2">
+      <widget class="QComboBox" name="cb_lista_componentes"/>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="label_16">
+       <property name="text">
+        <string>Fórmula:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0" colspan="7">
+      <widget class="QLabel" name="label_20">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>PIEZÓMETRO DE CUERDA VIBRANTE</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="9" column="3" colspan="2">
+      <widget class="QLabel" name="label_9">
+       <property name="text">
+        <string>Constante A:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="9" column="5" colspan="2">
+      <widget class="QDoubleSpinBox" name="input_constante_a">
+       <property name="decimals">
+        <number>15</number>
+       </property>
+       <property name="minimum">
+        <double>-99999999.998999997973442</double>
+       </property>
+       <property name="maximum">
+        <double>99999999.998999997973442</double>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="label_6">
+       <property name="text">
+        <string>Cota de Fundación (msnm):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="3" colspan="2">
+      <widget class="QLabel" name="label_8">
+       <property name="text">
+        <string>Azimuth:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="5" colspan="2">
+      <widget class="QDoubleSpinBox" name="input_constante_c">
+       <property name="decimals">
+        <number>15</number>
+       </property>
+       <property name="minimum">
+        <double>-99999999.998999997973442</double>
+       </property>
+       <property name="maximum">
+        <double>99999999.998999997973442</double>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="3" colspan="2">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Este (m):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="3" colspan="2">
+      <widget class="QLabel" name="label_14">
+       <property name="text">
+        <string>Componente:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="input_cota_fundacion">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="minimum">
+        <double>-500.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>9999.998999999999796</double>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="input_correccion_temperatura">
+       <property name="decimals">
+        <number>9</number>
+       </property>
+       <property name="minimum">
+        <double>-99999.998999999996158</double>
+       </property>
+       <property name="maximum">
+        <double>99999.998999999996158</double>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1" colspan="2">
+      <widget class="QSpinBox" name="input_inclinacion">
+       <property name="maximum">
+        <number>90</number>
+       </property>
+       <property name="value">
+        <number>90</number>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1" colspan="2">
+      <widget class="QLineEdit" name="input_nombre"/>
+     </item>
+     <item row="4" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="input_norte">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="maximum">
+        <double>9999999999.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="11" column="0">
+      <widget class="QLabel" name="label_22">
+       <property name="text">
+        <string>Factor de Conversión:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1" colspan="5">
+      <widget class="QComboBox" name="combo_formula"/>
+     </item>
+     <item row="15" column="4" colspan="3">
+      <widget class="QPushButton" name="btn_guardar_nuevo">
+       <property name="text">
+        <string>GUARDAR</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="5" colspan="2">
+      <widget class="QDoubleSpinBox" name="input_este">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="maximum">
+        <double>999999999.998999953269958</double>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="3" colspan="2">
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Cota de Instalación (msnm):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="label_13">
+       <property name="text">
+        <string>Norte (m):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="13" column="0">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Comentario:</string>
        </property>
       </widget>
      </item>
@@ -198,14 +302,7 @@
        </property>
       </widget>
      </item>
-     <item row="12" column="0">
-      <widget class="QLabel" name="label">
-       <property name="text">
-        <string>Comentario:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="14" column="0" colspan="4">
+     <item row="15" column="0" colspan="4">
       <widget class="QFrame" name="frame">
        <property name="styleSheet">
         <string notr="true">QFrame {
@@ -249,7 +346,7 @@
        </layout>
       </widget>
      </item>
-     <item row="13" column="0" colspan="7">
+     <item row="14" column="0" colspan="7">
       <widget class="QLabel" name="label_mensaje_error">
        <property name="styleSheet">
         <string notr="true">color: rgb(255, 0, 0);</string>
@@ -262,106 +359,8 @@
        </property>
       </widget>
      </item>
-     <item row="3" column="3" colspan="2">
-      <widget class="QLabel" name="label_3">
-       <property name="text">
-        <string>Este (m):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="3" colspan="2">
-      <widget class="QLabel" name="label_14">
-       <property name="text">
-        <string>Componente:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="9" column="5" colspan="2">
-      <widget class="QDoubleSpinBox" name="input_constante_a">
-       <property name="decimals">
-        <number>15</number>
-       </property>
-       <property name="minimum">
-        <double>-99999999.998999997973442</double>
-       </property>
-       <property name="maximum">
-        <double>99999999.998999997973442</double>
-       </property>
-      </widget>
-     </item>
-     <item row="10" column="5" colspan="2">
-      <widget class="QDoubleSpinBox" name="input_constante_c">
-       <property name="decimals">
-        <number>15</number>
-       </property>
-       <property name="minimum">
-        <double>-99999999.998999997973442</double>
-       </property>
-       <property name="maximum">
-        <double>99999999.998999997973442</double>
-       </property>
-      </widget>
-     </item>
-     <item row="6" column="3" colspan="2">
-      <widget class="QLabel" name="label_8">
-       <property name="text">
-        <string>Azimuth:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="9" column="3" colspan="2">
-      <widget class="QLabel" name="label_9">
-       <property name="text">
-        <string>Constante A:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="0">
-      <widget class="QLabel" name="label_6">
-       <property name="text">
-        <string>Cota de Fundación (msnm):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="8" column="3" colspan="2">
-      <widget class="QLabel" name="label_17">
-       <property name="text">
-        <string>Temperatura Inicial (°C):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="10" column="3" colspan="2">
-      <widget class="QLabel" name="label_19">
-       <property name="text">
-        <string>Constante C:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="8" column="1" colspan="2">
-      <widget class="QDoubleSpinBox" name="input_frecuencia_inicial">
-       <property name="decimals">
-        <number>3</number>
-       </property>
-       <property name="maximum">
-        <double>99999999.998999997973442</double>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="label_2">
-       <property name="text">
-        <string>Nombre del Piezómetro:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="12" column="1" colspan="6">
-      <widget class="QTextEdit" name="input_comentario"/>
-     </item>
-     <item row="3" column="1" colspan="2">
-      <widget class="QLineEdit" name="input_serie_sensor"/>
-     </item>
-     <item row="5" column="1" colspan="2">
-      <widget class="QDoubleSpinBox" name="input_cota_fundacion">
+     <item row="4" column="5" colspan="2">
+      <widget class="QDoubleSpinBox" name="input_cota_instalacion">
        <property name="decimals">
         <number>3</number>
        </property>
@@ -373,76 +372,57 @@
        </property>
       </widget>
      </item>
-     <item row="7" column="1" colspan="2">
-      <widget class="QDoubleSpinBox" name="input_correccion_temperatura">
-       <property name="decimals">
-        <number>9</number>
-       </property>
-       <property name="minimum">
-        <double>-99999.998999999996158</double>
-       </property>
-       <property name="maximum">
-        <double>99999.998999999996158</double>
+     <item row="6" column="0">
+      <widget class="QLabel" name="label_7">
+       <property name="text">
+        <string>Inclinación:</string>
        </property>
       </widget>
      </item>
-     <item row="4" column="1" colspan="2">
-      <widget class="QDoubleSpinBox" name="input_norte">
+     <item row="6" column="5" colspan="2">
+      <widget class="QSpinBox" name="input_azimut">
+       <property name="maximum">
+        <number>360</number>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="label_11">
+       <property name="text">
+        <string>Serie Sensor:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="3" colspan="2">
+      <widget class="QLabel" name="label_12">
+       <property name="text">
+        <string>Cota Superficie Actual (msnm):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="5" colspan="2">
+      <widget class="QDoubleSpinBox" name="input_tempeartura_inicial">
        <property name="decimals">
         <number>3</number>
        </property>
+       <property name="minimum">
+        <double>-999.999000000000024</double>
+       </property>
        <property name="maximum">
-        <double>9999999999.000000000000000</double>
+        <double>999.999000000000024</double>
        </property>
       </widget>
      </item>
-     <item row="6" column="1" colspan="2">
-      <widget class="QSpinBox" name="input_inclinacion">
-       <property name="maximum">
-        <number>90</number>
-       </property>
-       <property name="value">
-        <number>90</number>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1" colspan="2">
-      <widget class="QLineEdit" name="input_nombre"/>
-     </item>
-     <item row="14" column="4" colspan="3">
-      <widget class="QPushButton" name="btn_guardar_nuevo">
-       <property name="text">
-        <string>GUARDAR</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="1" colspan="5">
-      <widget class="QComboBox" name="combo_formula"/>
-     </item>
-     <item row="11" column="0">
-      <widget class="QLabel" name="label_22">
-       <property name="text">
-        <string>Factor de Conversión:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="11" column="1" colspan="2">
-      <widget class="QDoubleSpinBox" name="input_factor_conversion">
+     <item row="5" column="5" colspan="2">
+      <widget class="QDoubleSpinBox" name="input_cota_actual">
        <property name="decimals">
-        <number>6</number>
+        <number>3</number>
        </property>
        <property name="minimum">
-        <double>-999999999.999999046325684</double>
+        <double>-500.000000000000000</double>
        </property>
        <property name="maximum">
-        <double>999999999.999999046325684</double>
-       </property>
-      </widget>
-     </item>
-     <item row="9" column="0">
-      <widget class="QLabel" name="label_23">
-       <property name="text">
-        <string>Presión Barométrica Inicial:</string>
+        <double>9999.998999999999796</double>
        </property>
       </widget>
      </item>
@@ -481,6 +461,36 @@
         </property>
        </item>
       </widget>
+     </item>
+     <item row="9" column="0">
+      <widget class="QLabel" name="label_23">
+       <property name="text">
+        <string>Presión Barométrica Inicial:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="11" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="input_factor_conversion">
+       <property name="decimals">
+        <number>6</number>
+       </property>
+       <property name="minimum">
+        <double>-999999999.999999046325684</double>
+       </property>
+       <property name="maximum">
+        <double>999999999.999999046325684</double>
+       </property>
+      </widget>
+     </item>
+     <item row="12" column="0">
+      <widget class="QLabel" name="label_24">
+       <property name="text">
+        <string>Estado:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="12" column="1" colspan="2">
+      <widget class="QComboBox" name="cb_estados"/>
      </item>
     </layout>
    </item>

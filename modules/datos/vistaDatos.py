@@ -15,6 +15,57 @@ class CustomTableModel(QAbstractTableModel):
         self.page_size = page_size
         self.current_page = 0  # Página actual
         self.columna_color = columna_color
+        
+        # Definir columnas numéricas por tipo de datos
+        self.columnas_numericas = self._identificar_columnas_numericas(headers)
+
+    def _identificar_columnas_numericas(self, headers):
+        """Identifica qué columnas contienen datos numéricos basándose en los encabezados"""
+        columnas_num = []
+        
+        # Palabras clave que indican columnas numéricas
+        keywords_numericos = [
+            'este', 'norte', 'elevación', 'cota', 'distancia', 'frecuencia', 
+            'temperatura', 'presión', 'mca', 'nivel', 'profundidad', 'magnitud',
+            'desplazamiento', 'impedancia', 'precipitación', 'stick up',
+            'face a+', 'face a-', 'face b+', 'face b-', 'di3d', 'da3d', 
+            'vi3d', 'va3d', 'fundación', 'superficie', 'instalación', 'fondo'
+        ]
+        
+        for idx, header in enumerate(headers):
+            header_lower = header.lower()
+            if any(keyword in header_lower for keyword in keywords_numericos):
+                columnas_num.append(idx)
+        
+        return columnas_num
+    
+    def _formatear_numero(self, valor, col_index):
+        """
+        Formatea un número con decimales específicos según el tipo de columna
+        """
+        if valor is None or valor == '':
+            return ''
+        
+        try:
+            num = float(valor)
+            header = self._headers[col_index].lower()
+            
+            # Definir decimales según tipo de dato
+            if any(x in header for x in ['este', 'norte']):
+                decimales = 4  # Coordenadas UTM: 4 decimales
+            elif any(x in header for x in ['elevación', 'cota', 'profundidad', 'nivel']):
+                decimales = 3  # Elevaciones: 3 decimales
+            elif any(x in header for x in ['di3d', 'da3d', 'desplazamiento']):
+                decimales = 2  # Desplazamientos: 2 decimales
+            elif any(x in header for x in ['vi3d', 'va3d', 'velocidad']):
+                decimales = 2  # Velocidades: 2 decimales
+            else:
+                decimales = 2  # Por defecto: 2 decimales
+            
+            return f"{num:.{decimales}f}"
+                    
+        except (ValueError, TypeError):
+            return str(valor)
 
     def rowCount(self, parent=QModelIndex()):
         if not self._data:
@@ -35,12 +86,18 @@ class CustomTableModel(QAbstractTableModel):
             return None
             
         col = index.column()
+        valor = self._data[row][col]
+        
         if role == Qt.DisplayRole:
-            return str(self._data[row][col])
+            # Si la columna es numérica, formatear el número
+            if col in self.columnas_numericas:
+                return self._formatear_numero(valor, col)  # Pasar el índice de columna
+            else:
+                return str(valor)
             
         if self.columna_color is not None:
             if role == Qt.ForegroundRole and col == self.columna_color:
-                if str(self._data[row][col]) == "Omitido":
+                if str(valor) == "Omitido":
                     return QColor("blue")
                     
         return None
@@ -194,11 +251,11 @@ class VistaDatos:
         pluviometros = DatosController.ctrlObtenerPluviometros(proyecto_id, idzona, lluvias, decimales)
         if pluviometros:
             headers = [
-                "", "Pluviómetro", "Fecha Hora", "Precipitación (mm)", "Este (m)", "Norte (m)", "Elevación (msnm)", "Observación", ""
+                "", "Pluviómetro", "Fecha Hora", "Precipitación (mm)", "Este (m)", "Norte (m)", "Elevación (msnm)", "Observación", "Estado", ""
             ]
             VistaDatos.llenarTabla(tabla, headers, pluviometros, main, tipo)
             tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(8, True)
+            tabla.setColumnHidden(9, True)
         else:
             VistaDatos.limpiarTablaDatos(tabla)
     
@@ -210,10 +267,10 @@ class VistaDatos:
         cotas = [dato[2] for dato in equipos]
         terrenos = DatosController.ctrlObtenerCotasTerreno(proyecto_id, idzona, cotas, decimales)
         if terrenos:
-            headers = [ "", "Nombre Cota", "Fecha Hora", "Cota (msnm)", "Observación", ""]
+            headers = [ "", "Nombre Cota", "Fecha Hora", "Cota (msnm)", "Observación", "Estado", ""]
             VistaDatos.llenarTabla(tabla, headers, terrenos, main, tipo)
             tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(5, True)
+            tabla.setColumnHidden(6, True)
         else:
             VistaDatos.limpiarTablaDatos(tabla)
     
@@ -246,11 +303,11 @@ class VistaDatos:
         if acelerografos:
             headers = [
                 "", "Acelerógrafo", "Fecha Hora", "Magnitud", "Distancia (Km)",
-                "Este (m)", "Norte (m)", "Elevación (msnm)", "Observacion", ""
+                "Este (m)", "Norte (m)", "Elevación (msnm)", "Observacion", "Estado", ""
             ]
-            VistaDatos.llenarTabla(tabla, headers, acelerografos, main, tipo)
+            VistaDatos.llenarTabla(tabla, headers, acelerografos, main, tipo, 9)
             tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(9, True)
+            tabla.setColumnHidden(10, True)
         else:
             VistaDatos.limpiarTablaDatos(tabla)
     

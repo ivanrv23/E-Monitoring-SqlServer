@@ -756,8 +756,12 @@ class SubirCeldas:
         temperatura_inicial_celda = dialogo.findChild(QDoubleSpinBox, "dsb_temperatura_inicial_celda")
         tk_celda = dialogo.findChild(QDoubleSpinBox, "dsb_tk_celda")
         labelmensaje = dialogo.findChild(QLabel, "label_mensaje")
+        combo_estados = dialogo.findChild(QComboBox, "combo_estados")
         boton_guardar = dialogo.findChild(QPushButton, f"btn_guardar_celda")
         cota_superficie_celda.setEnabled(False)
+        combo_estados.addItem("Operativo", 1)
+        combo_estados.addItem("Inoperativo", 0)
+        
         # cargar data componentes
         componentes = ProyectoController.ctrlObtenerComponentesProyecto(idproyecto)
         if componentes:
@@ -784,6 +788,7 @@ class SubirCeldas:
             cf_celda.setValue(datapiezo[13])
             temperatura_inicial_celda.setValue(datapiezo[12])
             tk_celda.setValue(datapiezo[14])
+            combo_estados.setCurrentIndex(combo_estados.findData(datapiezo[15]))
         def actualizarDatos():
             if nombre_celda and nombre_celda.text().strip():
                 componente = comboComponente.currentData()
@@ -804,7 +809,8 @@ class SubirCeldas:
                     "tk_celda": tk_celda.value(),
                     "idcelda": idcelda,
                     "instrumento": idinstrumento,
-                    "componente": componente
+                    "componente": componente,
+                    "estado_celda": combo_estados.currentData()
                 }
                 # Llamar al método para guardar en la base de datos
                 respuesta = CeldaController.ctrlActualizarCelda(celda_data)

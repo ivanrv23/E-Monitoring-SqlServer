@@ -14,6 +14,11 @@ class DashboardController:
         respuesta = DashboardModel.mdlObtenerLecturasPrismas(tabla_prismas,id_componete,tipo)
         return respuesta
     
+    def ctrlObtenerestadoequipos(proyecto_id, id_componente):
+        # tabla_prismas=f'{tabla}{proyecto_id}'
+        respuesta = DashboardModel.mdlObtenerestadoequipos(proyecto_id, id_componente)
+        return respuesta
+    
     def ctrlObtenerComponentes(proyecto_id):
         respuesta = DashboardModel.mdlObtenerObtenerComponentes(proyecto_id)
         return respuesta

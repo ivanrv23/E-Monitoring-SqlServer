@@ -509,6 +509,9 @@ class SubirPluviometros:
         comentarioPluvio = dialogopluviometros.findChild(QTextEdit, "input_comentario")
         botonguardar = dialogopluviometros.findChild(QPushButton, "btn_registrar")
         lblrespuesta = dialogopluviometros.findChild(QLabel, "label_mensaje_estado")
+        estado_pluviometro = dialogopluviometros.findChild(QComboBox, "estado_pluvio")
+        estado_pluviometro.addItem("Operativo", 1)
+        estado_pluviometro.addItem("Inoperativo", 0)
         # cargar data componentes
         componentes = ProyectoController.ctrlObtenerComponentesProyecto(idproyecto)
         if componentes:
@@ -529,6 +532,7 @@ class SubirPluviometros:
             nortePluvio.setValue(datapiezo[5])
             elevacionPluvio.setValue(datapiezo[6])
             comentarioPluvio.setPlainText(str(datapiezo[7]))
+            estado_pluviometro.setCurrentIndex(estado_pluviometro.findData(datapiezo[8]))
         def guardarNuevoPluviometro():
             componente = comboComponente.currentData()
             nombrezona = comboComponente.currentText()
@@ -538,8 +542,9 @@ class SubirPluviometros:
             este = estePluvio.value()
             nivel = elevacionPluvio.value()
             comentario = comentarioPluvio.toPlainText()
+            estado = estado_pluviometro.currentData()
             if nombre:
-                datos = (nombre, codigo, norte, este, nivel, comentario, idpluvio)
+                datos = (nombre, codigo, norte, este, nivel, comentario, estado, idpluvio)
                 data = (componente, nombre, idinstrumento)
                 respuesta = PluviometroController.ctrlActualizarPluviometro(datos, data)
                 if respuesta:

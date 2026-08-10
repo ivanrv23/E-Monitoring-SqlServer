@@ -437,7 +437,11 @@ class DatosModel:
         sql = f"""SELECT it.tipo_equipo, pm.nombre_pluviometro, pd.fecha_pluviometro,
             ROUND(pd.medida_pluviometro, {decimales}) AS medida_pluviometro, ROUND(pm.este_pluviometro, {decimales}) AS este_pluviometro,
             ROUND(pm.norte_pluviometro, {decimales}) AS norte_pluviometro, ROUND(pm.elevacion_pluviometro, {decimales}) AS elevacion_pluviometro,
-            pd.observacion_pluviometro, pd.id_detalle
+            pd.observacion_pluviometro, 
+            CASE
+                WHEN pd.estado_detalle = 1 THEN 'Activo'
+                ELSE 'Omitido'
+            END AS estado,  pd.id_detalle
         FROM pluviometro_detalle{proyecto_id} pd INNER JOIN pluviometros pm ON pd.id_pluviometro = pm.id_pluviometro
         INNER JOIN instrumentacion AS it ON it.id_equipo = pd.id_pluviometro
         INNER JOIN componentes AS co ON co.id_componente = it.id_componente
@@ -461,7 +465,11 @@ class DatosModel:
         placeholders = ', '.join(['?' for _ in terrenos])
         params = [idzona] + terrenos
         sql = f"""SELECT it.tipo_equipo, ct.nombre_terreno, cd.fecha_detalle, ROUND(cd.nivel_detalle, {decimales}) AS nivel_detalle,
-            cd.observacion_detalle, cd.id_detalle
+            cd.observacion_detalle, 
+             CASE
+                WHEN cd.estado_detalle = 1 THEN 'Activo'
+                ELSE 'Omitido'
+            END AS estado, cd.id_detalle
         FROM cotaterreno_detalle{proyecto_id} cd INNER JOIN cotasterreno ct ON cd.id_terreno = ct.id_terreno
         INNER JOIN instrumentacion AS it ON it.id_equipo = cd.id_terreno
         INNER JOIN componentes AS co ON co.id_componente = it.id_componente
@@ -528,7 +536,11 @@ class DatosModel:
         sql = f"""SELECT it.tipo_equipo, a.nombre_acelerografo, ad.fecha_detalle, ROUND(ad.magnitud_detalle, {decimales}) AS magnitud_detalle,
             ROUND(ad.distancia_detalle, {decimales}) AS distancia_detalle,
             ROUND(a.este_acelerografo, {decimales}) AS este_acelerografo, ROUND(a.norte_acelerografo, {decimales}) AS norte_acelerografo,
-            ROUND(a.elevacion_acelerografo, {decimales}) AS elevacion_acelerografo, ad.observacion_detalle, ad.id_detalle
+            ROUND(a.elevacion_acelerografo, {decimales}) AS elevacion_acelerografo, ad.observacion_detalle, 
+            CASE
+                WHEN ad.estado_detalle = 1 THEN 'Activo'
+                ELSE 'Omitido'
+            END AS estado, ad.id_detalle
         FROM acelerografo_detalle{proyecto_id} ad INNER JOIN acelerografos a ON ad.id_acelerografo = a.id_acelerografo
         INNER JOIN instrumentacion AS it ON it.id_equipo = ad.id_acelerografo
         INNER JOIN componentes AS co ON co.id_componente = it.id_componente
@@ -1617,14 +1629,14 @@ class DatosModel:
                 id_proyecto, tipo_inclinometro, nombre_inclinometro, codigo_inclinometro,
                 norte_inclinometro, este_inclinometro, elevacion_inclinometro,
                 profundidad_inclinometro, inclinacion_inclinometro, azimut_inclinometro,
-                comentario_inclinometro
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                estado_inclinometro, comentario_inclinometro
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             SELECT CAST(SCOPE_IDENTITY() AS INT);
             """
             cur.execute(query_inclinometro, (
                 idproyecto, datos['tipoEquipo'], datos['nombre'], datos['codigo'],
                 datos['norte'], datos['este'], datos['nivel'],
-                datos['profundidad'], datos['inclinacion'], datos['azimut'],
+                datos['profundidad'], datos['inclinacion'], datos['azimut'], datos['estado'],
                 datos['comentario']
             ))
 
@@ -1638,11 +1650,11 @@ class DatosModel:
             # Insertar en la tabla instrumentacion
             query_instrumentacion = """
             INSERT INTO instrumentacion (
-                id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo
-            ) VALUES (?, ?, ?, ?, ?)
+                id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo, estado_instrumentacion
+            ) VALUES (?, ?, ?, ?, ?, ?)
             """
             cur.execute(query_instrumentacion, (
-                datos['componente'], 'INCLINOMETRO', datos['nombre'], id_inclinometro, 'inclinometros'
+                datos['componente'], 'INCLINOMETRO', datos['nombre'], id_inclinometro, 'inclinometros', datos['estado']
             ))
 
             conn.commit()

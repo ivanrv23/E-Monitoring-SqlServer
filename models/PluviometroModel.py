@@ -42,14 +42,14 @@ class PluviometroModel:
                 return "NO"
             # Insertar el nuevo pluviometro con OUTPUT para obtener el ID
             sql_insert = """INSERT INTO pluviometros (id_proyecto, nombre_pluviometro, codigo_pluviometro, norte_pluviometro, este_pluviometro, 
-                            elevacion_pluviometro, comentario_pluviometro) OUTPUT INSERTED.id_pluviometro VALUES (?, ?, ?, ?, ?, ?, ?)"""
-            cur.execute(sql_insert, (proyecto_id, datos[0], datos[1], datos[2], datos[3], datos[4], datos[5]))
+                            elevacion_pluviometro, comentario_pluviometro, estado_pluviometro) OUTPUT INSERTED.id_pluviometro VALUES (?, ?, ?, ?, ?, ?, ?, ?)"""
+            cur.execute(sql_insert, (proyecto_id, datos[0], datos[1], datos[2], datos[3], datos[4], datos[5], datos[6]))
             # Obtener el ID del pluvio recién insertado
             pluviometro_id = cur.fetchone()[0]
             # Insertar en la tabla instrumentacion
-            sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo)
-                                            VALUES (?, ?, ?, ?, ?);"""
-            cur.execute(sql_insert_instrumentacion, (datos[6], 'PLUVIOMETRO', datos[0], pluviometro_id, 'pluviometros'))
+            sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo, estado_instrumentacion)
+                                            VALUES (?, ?, ?, ?, ?, ?);"""
+            cur.execute(sql_insert_instrumentacion, (datos[6], 'PLUVIOMETRO', datos[0], pluviometro_id, 'pluviometros', datos[6]))
             # Confirmar la transacción
             conn.commit()
             return True
@@ -127,7 +127,8 @@ class PluviometroModel:
                         id_pluviometro INT NOT NULL,
                         fecha_pluviometro DATETIME2(0) NOT NULL,
                         medida_pluviometro DECIMAL(18,6) NOT NULL,
-                        observacion_pluviometro VARCHAR(500)
+                        observacion_pluviometro VARCHAR(500),
+                        estado_detalle INT NOT NULL DEFAULT 1
                     )
                 END
             """)
@@ -172,10 +173,11 @@ class PluviometroModel:
                 conn.close()
     
     # LISTAR DATA PLUVIÓMETROS DETALLE POR ID    
-    def mdlObtenerDataPluviometrosDetalle(idpluvio):
+    def mdlObtenerDataPluviometrosDetalle(idproyecto, idpluvio):
         conn = None
+        tabla = f"pluviometro_detalle{idproyecto}"
         sql = """SELECT p.nombre_pluviometro, d.fecha_pluviometro, d.medida_pluviometro 
-            FROM pluviometro_detalle d INNER JOIN pluviometros p ON d.id_pluviometro = p.id_pluviometro WHERE d.id_pluviometro = ?;"""
+            FROM {tabla} d INNER JOIN pluviometros p ON d.id_pluviometro = p.id_pluviometro WHERE d.id_pluviometro = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -196,7 +198,7 @@ class PluviometroModel:
     def mdlActualizarPluviometro(datos, data):
         conn = None
         sql = """UPDATE pluviometros SET nombre_pluviometro = ?, codigo_pluviometro = ?, norte_pluviometro = ?, este_pluviometro = ?, 
-        elevacion_pluviometro = ?, comentario_pluviometro = ? WHERE id_pluviometro = ?;"""
+        elevacion_pluviometro = ?, comentario_pluviometro = ?, estado_pluviometro = ? WHERE id_pluviometro = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -216,7 +218,7 @@ class PluviometroModel:
     # LISTAR LOS PLUVIÓMETROS POR PROYECTO    
     def mdlListarPluviometrosCombo(proyecto):
         conn = None
-        sql = """SELECT * FROM pluviometros WHERE id_proyecto = ? AND estado_pluviometro = 1;"""
+        sql = """SELECT * FROM pluviometros WHERE id_proyecto = ? AND estado_detalle = 1;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -235,12 +237,12 @@ class PluviometroModel:
                 
     def mdlActualizarLecturaPluviometro(tabla, datos, idproyecto, username, nombres):
         conn = None
-        sql = f"""UPDATE {tabla} SET fecha_pluviometro = ?, medida_pluviometro = ?, observacion_pluviometro = ? WHERE id_detalle = ?;"""
+        sql = f"""UPDATE {tabla} SET fecha_pluviometro = ?, medida_pluviometro = ?, observacion_pluviometro = ?, estado_detalle = ? WHERE id_detalle = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             # guardar en historial
-            query_select = f"""SELECT fecha_pluviometro, medida_pluviometro, observacion_pluviometro, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
+            query_select = f"""SELECT fecha_pluviometro, medida_pluviometro, observacion_pluviometro, estado_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
             cur.execute(query_select, (datos[-1],))
             row = cur.fetchone()
             datos_anteriores = tuple(row) if row else None

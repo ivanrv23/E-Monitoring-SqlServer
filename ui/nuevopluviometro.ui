@@ -19,13 +19,71 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <layout class="QGridLayout" name="gridLayout">
-     <item row="8" column="1">
+     <item row="9" column="1">
       <widget class="QTextEdit" name="input_comentario"/>
      </item>
      <item row="1" column="1">
       <widget class="QComboBox" name="cb_lista_componentes"/>
      </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Este (m):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QDoubleSpinBox" name="input_este">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="maximum">
+        <double>999999999.998999953269958</double>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_6">
+       <property name="text">
+        <string>Componente:</string>
+       </property>
+      </widget>
+     </item>
      <item row="10" column="0" colspan="2">
+      <widget class="QLabel" name="label_mensaje">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Norte (m):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0" colspan="2">
+      <widget class="QLabel" name="label_7">
+       <property name="font">
+        <font>
+         <pointsize>10</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Registro de Pluviómetros</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLineEdit" name="input_codigo"/>
+     </item>
+     <item row="11" column="0" colspan="2">
       <widget class="QFrame" name="frame_piepagina">
        <property name="styleSheet">
         <string notr="true">QFrame {
@@ -64,23 +122,10 @@
        </layout>
       </widget>
      </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="label_6">
+     <item row="9" column="0">
+      <widget class="QLabel" name="label_5">
        <property name="text">
-        <string>Componente:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="1">
-      <widget class="QDoubleSpinBox" name="input_norte">
-       <property name="decimals">
-        <number>3</number>
-       </property>
-       <property name="maximum">
-        <double>9999999999.999000549316406</double>
-       </property>
-       <property name="value">
-        <double>0.000000000000000</double>
+        <string>Comentario:</string>
        </property>
       </widget>
      </item>
@@ -97,10 +142,16 @@
        </property>
       </widget>
      </item>
-     <item row="8" column="0">
-      <widget class="QLabel" name="label_5">
-       <property name="text">
-        <string>Comentario:</string>
+     <item row="5" column="1">
+      <widget class="QDoubleSpinBox" name="input_norte">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="maximum">
+        <double>9999999999.999000549316406</double>
+       </property>
+       <property name="value">
+        <double>0.000000000000000</double>
        </property>
       </widget>
      </item>
@@ -111,15 +162,15 @@
        </property>
       </widget>
      </item>
-     <item row="2" column="1">
-      <widget class="QLineEdit" name="input_nombre"/>
-     </item>
      <item row="2" column="0">
       <widget class="QLabel" name="label">
        <property name="text">
         <string>Nombre del equipo:</string>
        </property>
       </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QLineEdit" name="input_nombre"/>
      </item>
      <item row="3" column="0">
       <widget class="QLabel" name="label_2">
@@ -128,56 +179,15 @@
        </property>
       </widget>
      </item>
-     <item row="0" column="0" colspan="2">
-      <widget class="QLabel" name="label_7">
-       <property name="font">
-        <font>
-         <pointsize>10</pointsize>
-         <weight>75</weight>
-         <bold>true</bold>
-        </font>
-       </property>
+     <item row="8" column="0">
+      <widget class="QLabel" name="label_9">
        <property name="text">
-        <string>Registro de Pluviómetros</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignCenter</set>
+        <string>Estado:</string>
        </property>
       </widget>
      </item>
-     <item row="9" column="0" colspan="2">
-      <widget class="QLabel" name="label_mensaje">
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="1">
-      <widget class="QLineEdit" name="input_codigo"/>
-     </item>
-     <item row="5" column="0">
-      <widget class="QLabel" name="label_3">
-       <property name="text">
-        <string>Norte (m):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="0">
-      <widget class="QLabel" name="label_4">
-       <property name="text">
-        <string>Este (m):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="1">
-      <widget class="QDoubleSpinBox" name="input_este">
-       <property name="decimals">
-        <number>3</number>
-       </property>
-       <property name="maximum">
-        <double>999999999.998999953269958</double>
-       </property>
-      </widget>
+     <item row="8" column="1">
+      <widget class="QComboBox" name="estado_pluvio"/>
      </item>
     </layout>
    </item>

@@ -100,14 +100,17 @@ class AcelerografoModel:
     @staticmethod
     def mdlActualizarLecturaAcelerografo(tabla, datos, idproyecto, username, nombres):
         # T-SQL: UPDATE estándar
-        sql_insert = f"""UPDATE {tabla} SET fecha_detalle = ?, magnitud_detalle = ?, distancia_detalle = ?, observacion_detalle = ? WHERE id_detalle = ?;"""
+        sql_insert = f"""UPDATE {tabla} SET fecha_detalle = ?, magnitud_detalle = ?, distancia_detalle = ?, observacion_detalle = ?, estado_detalle = ? WHERE id_detalle = ?;"""
         conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
+            estado_texto = datos[4]
+            estado_valor = 1 if estado_texto == "Activo" else 0
+            data_final = list(datos[:4]) + [estado_valor, datos[5]]
             # guardar en historial
-            query_select = f"""SELECT fecha_detalle, magnitud_detalle, distancia_detalle, observacion_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
-            cur.execute(query_select, (datos[-1],))
+            query_select = f"""SELECT fecha_detalle, magnitud_detalle, distancia_detalle, observacion_detalle, estado_detalle, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
+            cur.execute(query_select, (datos[5],))
             row = cur.fetchone()
             datos_anteriores = tuple(row) if row else None
             
@@ -120,7 +123,7 @@ class AcelerografoModel:
                 cur.execute(query_historial, (idproyecto, fecha_cambio, accion, tabla, cambios, username, nombres))
             
             # actualizar
-            cur.execute(sql_insert, datos)
+            cur.execute(sql_insert, data_final)
             conn.commit()
             return True
         except Exception as e:
@@ -236,13 +239,13 @@ class AcelerografoModel:
             
             # Insertar el nuevo acelerógrafo
             sql_insert = """INSERT INTO acelerografos (id_proyecto, nombre_acelerografo, este_acelerografo, norte_acelerografo,
-            elevacion_acelerografo) OUTPUT INSERTED.id_acelerografo VALUES (?, ?, ?, ?, ?);"""
-            cur.execute(sql_insert, (proyecto_id, datos[0], datos[1], datos[2], datos[3]))
+            elevacion_acelerografo, estado_acelerografo) OUTPUT INSERTED.id_acelerografo VALUES (?, ?, ?, ?, ?, ?);"""
+            cur.execute(sql_insert, (proyecto_id, datos[0], datos[1], datos[2], datos[3], datos[5]))
             acelerografo_id = cur.fetchone()[0]
             # Insertar en la tabla instrumentacion
             sql_insert_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo,
-            tabla_equipo) VALUES (?, ?, ?, ?, ?);"""
-            cur.execute(sql_insert_instrumentacion, (datos[4], 'ACELEROGRAFO', datos[0], acelerografo_id, 'acelerografos'))
+            tabla_equipo, estado_instrumentacion) VALUES (?, ?, ?, ?, ?, ?);"""
+            cur.execute(sql_insert_instrumentacion, (datos[4], 'ACELEROGRAFO', datos[0], acelerografo_id, 'acelerografos', datos[5]))
             # Confirmar la transacción
             conn.commit()
             return "SI", acelerografo_id
@@ -315,7 +318,8 @@ class AcelerografoModel:
                 fecha_detalle DATETIME2(0) NOT NULL,
                 magnitud_detalle FLOAT NOT NULL,
                 distancia_detalle FLOAT NOT NULL,
-                observacion_detalle VARCHAR(MAX)
+                observacion_detalle VARCHAR(MAX),
+                estado_detalle INT NOT NULL DEFAULT 1
             );
         END
         """
@@ -482,13 +486,13 @@ class AcelerografoModel:
     @staticmethod
     def mdlActualizarAcelerografo(datos, data):
         query = """UPDATE acelerografos SET nombre_acelerografo = ?, este_acelerografo = ?, norte_acelerografo = ?,
-        elevacion_acelerografo = ? WHERE id_acelerografo  = ?;"""
+        elevacion_acelerografo = ?, estado_acelerografo = ? WHERE id_acelerografo  = ?;"""
         conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
             cursor.execute(query, datos)
-            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?
+            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?, estado_instrumentacion = ?
             WHERE id_instrumentacion = ? AND tipo_equipo = 'ACELEROGRAFO';"""
             cursor.execute(query_instrumentacion, data)
             conn.commit()

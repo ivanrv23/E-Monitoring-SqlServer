@@ -1,5 +1,6 @@
 import copy
 from PySide6.QtUiTools import QUiLoader
+from functools import partial
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QColorDialog, QPushButton)
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QSize
@@ -69,7 +70,7 @@ class ConfigurarDTM:
                 nombrecolorDinamico.setObjectName(nombrecolorbtn)
                 nombrecolorDinamico.setFixedSize(QSize(40, 28))
                 nombrecolorDinamico.setStyleSheet("background-color: %s" % colorsoli)
-                nombrecolorDinamico.clicked.connect(lambda *args, idc=f"{codcompon}_{codtopo}", nombreBtnColor=nombrecolorDinamico: ConfigurarDTM.cambiarColorSolido(idc, nombreBtnColor))
+                nombrecolorDinamico.clicked.connect(partial(ConfigurarDTM.cambiarColorSolido, f"{codcompon}_{codtopo}",nombrecolorDinamico))
                 fila_layout.addWidget(nombrecolorDinamico)
                 fila_layout.addWidget(etiqueta_nombre)
                 fila_layout.setContentsMargins(5, 0, 5, 0)
@@ -93,13 +94,23 @@ class ConfigurarDTM:
     
     @staticmethod
     def cambiarColorSolido(id_elemento, nombreBoton):
-        for i, elemento in enumerate(ConfigurarDTM.estadosRenderizadoDXF):
-            if f"{elemento[0]}_{elemento[1]}" == id_elemento:
+        # for i, elemento in enumerate(ConfigurarDTM.estadosRenderizadoDXF):
+        #     if f"{elemento[0]}_{elemento[1]}" == id_elemento:
+
                 colorcito = QColorDialog.getColor()
-                if colorcito.isValid():
-                    nombreBoton.setStyleSheet("background-color: %s" % colorcito.name())
-                    colorsolidonuevo = colorcito.name()
-                    ConfigurarDTM.estadosRenderizadoDXF[i] = (elemento[0], elemento[1], elemento[2], colorsolidonuevo, elemento[4], elemento[5])
+
+                if not colorcito.isValid():
+                    return
+                nombreBoton.setStyleSheet(f"background-color: {colorcito.name()}")
+                nuevo_color = colorcito.name()
+                for i, elemento in enumerate(ConfigurarDTM.estadosRenderizadoDXF):
+                    if f"{elemento[0]}_{elemento[1]}" == id_elemento:
+                        ConfigurarDTM.estadosRenderizadoDXF[i] = (elemento[0], elemento[1], elemento[2], nuevo_color, elemento[4], elemento[5])
+    
+                # if colorcito.isValid():
+                #     nombreBoton.setStyleSheet("background-color: %s" % colorcito.name())
+                #     colorsolidonuevo = colorcito.name()
+                #     ConfigurarDTM.estadosRenderizadoDXF[i] = (elemento[0], elemento[1], elemento[2], colorcito.name(), elemento[4], elemento[5])
     
     def confirmarConfiguracion(dialogo):
         ConfigurarDTM.elementosRenderizado = copy.deepcopy(ConfigurarDTM.estadosRenderizadoDXF)

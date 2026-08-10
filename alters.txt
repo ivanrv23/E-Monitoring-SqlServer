@@ -35,3 +35,22 @@ GO
 
 UPDATE instrumentacion SET tipo_equipo = 'PRISMAS'
 WHERE tipo_equipo = 'Prismas';
+
+
+
+---------------------------------------------------------------------------------------------------
+ALTER TABLE celdas
+ADD estado_celda INT NOT NULL DEFAULT 1;
+
+
+ALTER TABLE acelerografos
+ADD estado_acelerografo INT NOT NULL DEFAULT 1;
+
+
+ALTER TABLE acelerografo_detalle1
+ADD estado_detalle INT NOT NULL DEFAULT 1;
+
+
+ALTER TABLE pluviometro_detalle2
+ADD estado_detalle INT NOT NULL DEFAULT 1;
+-------------------------------------------

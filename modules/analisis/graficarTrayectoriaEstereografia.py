@@ -156,6 +156,8 @@ class GraficarEstereografiaTrayectoria:
                         ax.scatter(0, 0, color=color_flecha, s=50, zorder=5, marker='o')
                     else:
                         x_dest, y_dest = mpl.line(plunge_abs, trend)
+                        x_dest = float(np.asarray(x_dest).ravel()[0])
+                        y_dest = float(np.asarray(y_dest).ravel()[0])
                         ax.annotate('', xy=(x_dest, y_dest), xytext=(0, 0), arrowprops=dict(arrowstyle='->', linewidth=2, color=color_flecha, shrinkA=0, shrinkB=0), zorder=5)
                     legendline = Line2D([0], [0], color=color_flecha, linewidth=2, label=f"{nombre}: ({trend:06.2f}°, {plunge:05.2f}°)")
                     legend_lines.append(legendline)

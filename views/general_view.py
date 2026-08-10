@@ -162,6 +162,9 @@ class ViewGeneral:
         temperatura_inicial_celda = dialogo.findChild(QDoubleSpinBox, "dsb_temperatura_inicial_celda")
         tk_celda = dialogo.findChild(QDoubleSpinBox, "dsb_tk_celda")
         labelmensaje = dialogo.findChild(QLabel, "label_mensaje")
+        combo_estados = dialogo.findChild(QComboBox, "combo_estados")
+        combo_estados.addItem("Operativo", 1)
+        combo_estados.addItem("Inoperativo", 0)
         boton_guardar = dialogo.findChild(QPushButton, f"btn_guardar_celda")
         if proyectoid:
             componentes = ProyectoController.ctrlObtenerComponentesProyecto(proyectoid)
@@ -193,6 +196,7 @@ class ViewGeneral:
                     "cota_instalacion_celda": cota_instalacion_celda.value(),
                     "temperatura_inicial_celda": temperatura_inicial_celda.value(),
                     "tk_celda": tk_celda.value(),
+                    "estado_celda": combo_estados.currentData()
                 }
                 # Llamar al método para guardar en la base de datos
                 respuesta = CeldaController.ctrlRegistrarCelda(idcomponente, celda_data)
@@ -213,6 +217,7 @@ class ViewGeneral:
                     cota_instalacion_celda.setValue(0)
                     temperatura_inicial_celda.setValue(0)
                     tk_celda.setValue(0)
+                    combo_estados.setCurrentIndex(0)
                 else:
                     labelmensaje.setText("Error al registrar la celda.")
                     labelmensaje.setStyleSheet("color: orange;")

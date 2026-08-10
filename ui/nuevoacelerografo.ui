@@ -22,6 +22,13 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <layout class="QGridLayout" name="gridLayout">
+     <item row="9" column="2">
+      <widget class="QPushButton" name="btn_guardar">
+       <property name="text">
+        <string>Guardar</string>
+       </property>
+      </widget>
+     </item>
      <item row="4" column="0" colspan="2">
       <widget class="QLabel" name="label_4">
        <property name="text">
@@ -29,10 +36,10 @@
        </property>
       </widget>
      </item>
-     <item row="8" column="2">
-      <widget class="QPushButton" name="btn_guardar">
+     <item row="8" column="0" colspan="3">
+      <widget class="QLabel" name="label_mensaje">
        <property name="text">
-        <string>Guardar</string>
+        <string/>
        </property>
       </widget>
      </item>
@@ -57,10 +64,31 @@
        </property>
       </widget>
      </item>
-     <item row="7" column="0" colspan="3">
-      <widget class="QLabel" name="label_mensaje">
+     <item row="5" column="2">
+      <widget class="QLineEdit" name="input_cota">
        <property name="text">
-        <string/>
+        <string>0</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="2">
+      <widget class="QLineEdit" name="input_este">
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0" colspan="2">
+      <widget class="QLabel" name="label_6">
+       <property name="text">
+        <string>Componente:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="2">
+      <widget class="QLineEdit" name="input_norte">
+       <property name="text">
+        <string>0</string>
        </property>
       </widget>
      </item>
@@ -74,34 +102,13 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="0" colspan="2">
-      <widget class="QLabel" name="label_6">
-       <property name="text">
-        <string>Componente:</string>
-       </property>
-      </widget>
-     </item>
      <item row="1" column="2">
       <widget class="QComboBox" name="cb_lista_componentes"/>
      </item>
-     <item row="4" column="2">
-      <widget class="QLineEdit" name="input_norte">
+     <item row="6" column="2">
+      <widget class="QPushButton" name="btn_cargar_xml">
        <property name="text">
-        <string>0</string>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="2">
-      <widget class="QLineEdit" name="input_cota">
-       <property name="text">
-        <string>0</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="2">
-      <widget class="QLineEdit" name="input_este">
-       <property name="text">
-        <string>0</string>
+        <string>XML</string>
        </property>
       </widget>
      </item>
@@ -122,12 +129,15 @@
        </property>
       </widget>
      </item>
-     <item row="6" column="2">
-      <widget class="QPushButton" name="btn_cargar_xml">
+     <item row="7" column="0">
+      <widget class="QLabel" name="label_7">
        <property name="text">
-        <string>XML</string>
+        <string>Estado</string>
        </property>
       </widget>
+     </item>
+     <item row="7" column="2">
+      <widget class="QComboBox" name="combo_estado_acel"/>
      </item>
     </layout>
    </item>

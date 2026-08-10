@@ -235,7 +235,7 @@ class PiezometroModel:
     @staticmethod
     def mdlMostrarDataPiezometrosManualProyecto(iddetalle):
         conn = None
-        sql = """SELECT p.nombre_piezometro, d.fecha_piezometro, d.medida_piezometro, d.observacion_detalle, p.norte_piezometro, p.este_piezometro, 
+        sql = """SELECT p.nombre_piezometro, d.fecha_piezometro, d.medida_piezometro, d.observacion_detalle, d.estado, p.norte_piezometro, p.este_piezometro, 
         p.elevacion_piezometro FROM piezometros p INNER JOIN piezometro_detalle d ON p.id_piezometro = d.id_piezometro WHERE d.id_detalle = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -270,20 +270,20 @@ class PiezometroModel:
             
             # Insertar con OUTPUT INSERTED.id_piezometro para obtener el ID en SQL Server
             sql_insert = """INSERT INTO piezometromanuales (id_proyecto, nombre_piezometro, codigo_piezometro, norte_piezometro, este_piezometro, elevacion_piezometro,
-            fundacion_piezometro, stickup_piezometro, inclinacion_piezometro, azimut_piezometro, comentario_piezometro)
+            fundacion_piezometro, stickup_piezometro, inclinacion_piezometro, azimut_piezometro, estado_piezometro, comentario_piezometro)
             OUTPUT INSERTED.id_piezometro
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
             
             cur.execute(sql_insert, datos)
             id_piezometro = cur.fetchone()[0] # Capturar el ID retornado por OUTPUT
-            
+
             # Registrar la cota en la tabla cotas_piezometricas
             sql_detalle = """INSERT INTO cotas_piezometricas (id_piezometro, tipo_piezometro, fecha_cota, nivel_cota) VALUES (?, ?, ?, ?);"""
             cur.execute(sql_detalle, (id_piezometro, tipo, fecha, nivel))
             
             # Actualizar la tabla instrumentacion
-            sql_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo) VALUES (?, ?, ?, ?, ?);"""
-            cur.execute(sql_instrumentacion, (componente, 'PIEZOMETROMANUAL', datos[1], id_piezometro, 'piezometromanuales'))
+            sql_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo, estado_instrumentacion) VALUES (?, ?, ?, ?, ?, ?);"""
+            cur.execute(sql_instrumentacion, (componente, 'PIEZOMETROMANUAL', datos[1], id_piezometro, 'piezometromanuales', datos[10]))
             
             conn.commit()
             return "OK"
@@ -349,9 +349,9 @@ class PiezometroModel:
             # Insertar con OUTPUT
             sql_insert = """INSERT INTO piezometrocuerdas (id_proyecto, id_formula, nombre_piezometro, serie_sensor, este_piezometro, norte_piezometro,
             elevacion_piezometro, fundacion_piezometro, inclinacion_piezometro, azimut_piezometro, frecuencia_inicial, temperatura_inicial, presion_inicial,
-            factor_calibracion, temperatura_correccion, unidad_lectura, constante_a, constante_b, constante_c, factor_conversion, comentario_piezometro)
+            factor_calibracion, temperatura_correccion, unidad_lectura, constante_a, constante_b, constante_c, factor_conversion, comentario_piezometro, estado_piezometro)
             OUTPUT INSERTED.id_piezometro
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
             
             cur.execute(sql_insert, datos)
             id_piezometro = cur.fetchone()[0]
@@ -361,8 +361,8 @@ class PiezometroModel:
             cur.execute(sql_detalle, (id_piezometro, tipo, fecha, nivelactual))
             
             # Actualizar instrumentacion
-            sql_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo) VALUES (?, ?, ?, ?, ?);"""
-            cur.execute(sql_instrumentacion, (componente, 'PIEZOMETROCUERDA', datos[2], id_piezometro, 'piezometrocuerdas'))
+            sql_instrumentacion = """INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo, estado_instrumentacion) VALUES (?, ?, ?, ?, ?, ?);"""
+            cur.execute(sql_instrumentacion, (componente, 'PIEZOMETROCUERDA', datos[2], id_piezometro, 'piezometrocuerdas', datos[21]))
             
             conn.commit()
             return "OK"
@@ -457,11 +457,11 @@ class PiezometroModel:
             sql = """UPDATE piezometrocuerdas SET id_formula = ?, nombre_piezometro = ?, serie_sensor = ?, este_piezometro = ?, norte_piezometro = ?,
             elevacion_piezometro = ?, fundacion_piezometro = ?, inclinacion_piezometro = ?, azimut_piezometro = ?, factor_calibracion = ?, 
             temperatura_correccion = ?, frecuencia_inicial = ?, temperatura_inicial = ?, presion_inicial = ?, unidad_lectura = ?, constante_a = ?,
-            constante_b = ?, constante_c = ?, factor_conversion = ?, comentario_piezometro = ? WHERE id_piezometro = ?;"""
+            constante_b = ?, constante_c = ?, factor_conversion = ?, comentario_piezometro = ?, estado_piezometro = ? WHERE id_piezometro = ?;"""
             cur = conn.cursor()
             cur.execute(sql, datos)
             
-            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?
+            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?, estado_instrumentacion = ?
             WHERE id_instrumentacion = ? AND tipo_equipo = 'PIEZOMETROCUERDA';"""
             cur = conn.cursor()
             cur.execute(query_instrumentacion, data)
@@ -523,7 +523,7 @@ class PiezometroModel:
         try:
             conn = Connection.connectionDB()
             sql = """UPDATE piezometromanuales SET nombre_piezometro = ?, codigo_piezometro = ?, norte_piezometro = ?, este_piezometro = ?, elevacion_piezometro = ?, 
-            fundacion_piezometro = ?, inclinacion_piezometro = ?, azimut_piezometro = ?, stickup_piezometro = ?, comentario_piezometro = ?
+            fundacion_piezometro = ?, inclinacion_piezometro = ?, azimut_piezometro = ?, stickup_piezometro = ?, comentario_piezometro = ?, estado_piezometro = ?
             WHERE id_piezometro = ?"""
             cur = conn.cursor()
             cur.execute(sql, datos)
@@ -1613,6 +1613,22 @@ class PiezometroModel:
         conn = None
         sql = f"""UPDATE {tabla} SET fecha_cuerda = ?, frecuencia_cuerda = ?, temperatura_cuerda = ?, presion_barometrica = ?, 
         medida_calculada = ?, observacion_cuerda = ? WHERE id_cuerda = ?;"""
+                # AGREGAR esta conversión
+        if len(datos) == 8:  # Si incluye estado
+            estado_valor = 1 if datos[6] == "Activo" else 0
+            sql = f"""UPDATE {tabla} 
+            SET fecha_cuerda = ?, frecuencia_cuerda = ?, temperatura_cuerda = ?, 
+                presion_barometrica = ?, medida_calculada = ?, observacion_cuerda = ?, 
+                estado_cuerda = ?
+            WHERE id_cuerda = ?;"""
+            params_update = [datos[0], datos[1], datos[2], datos[3], datos[4], datos[5], estado_valor, datos[7]]
+        else:  # Sin estado (mantener compatibilidad)
+            sql = f"""UPDATE {tabla} 
+            SET fecha_cuerda = ?, frecuencia_cuerda = ?, temperatura_cuerda = ?, 
+                presion_barometrica = ?, medida_calculada = ?, observacion_cuerda = ?
+            WHERE id_cuerda = ?;"""
+            params_update = datos
+
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -1647,8 +1663,246 @@ class PiezometroModel:
                 conn.close()
     
     @staticmethod
+    def mdlActualizarLecturaPiezometroCuerdaConEstado(tabla, datos, idproyecto, username, nombres):
+        """
+        Actualiza lectura de piezómetro cuerda incluyendo estado.
+
+        datos = [
+            fecha,
+            frecuencia,
+            temperatura,
+            presion,
+            medida,
+            observacion,
+            estado,
+            iddetalle
+        ]
+        """
+        conn = None
+
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+
+            # Convertir estado
+            estado_valor = 1 if str(datos[6]) == "Activo" else 0
+
+            # Obtener datos actuales
+            query_select = f"""
+            SELECT fecha_cuerda,
+                frecuencia_cuerda,
+                temperatura_cuerda,
+                presion_barometrica,
+                medida_calculada,
+                observacion_cuerda,
+                estado_cuerda,
+                id_cuerda
+            FROM {tabla}
+            WHERE id_cuerda = ?;
+            """
+
+            cur.execute(query_select, (datos[7],))
+            datos_anteriores = cur.fetchone()
+
+            if not datos_anteriores:
+                return False
+
+            # Guardar historial
+            fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            accion = "update"
+            cambios = f"Antiguos: {tuple(datos_anteriores)}, Nuevos: {datos}"
+
+            query_historial = """
+            INSERT INTO historial
+            (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
+            VALUES (?, ?, ?, ?, ?, ?, ?);
+            """
+
+            cur.execute(
+                query_historial,
+                (
+                    idproyecto,
+                    fecha_cambio,
+                    accion,
+                    tabla,
+                    cambios,
+                    username,
+                    nombres,
+                ),
+            )
+
+            # Mantener valores actuales cuando llegue "-"
+            frecuencia = (
+                datos_anteriores[1]
+                if str(datos[1]).strip() in ("", "-")
+                else float(datos[1])
+            )
+
+            temperatura = (
+                datos_anteriores[2]
+                if str(datos[2]).strip() in ("", "-")
+                else float(datos[2])
+            )
+
+            presion = (
+                datos_anteriores[3]
+                if str(datos[3]).strip() in ("", "-")
+                else float(datos[3])
+            )
+
+            medida = (
+                datos_anteriores[4]
+                if str(datos[4]).strip() in ("", "-")
+                else float(datos[4])
+            )
+
+            # Si observación viene vacía, conservar la actual
+            observacion = (
+                datos_anteriores[5]
+                if datos[5] == ""
+                else datos[5]
+            )
+
+            sql = f"""
+            UPDATE {tabla}
+            SET fecha_cuerda = ?,
+                frecuencia_cuerda = ?,
+                temperatura_cuerda = ?,
+                presion_barometrica = ?,
+                medida_calculada = ?,
+                observacion_cuerda = ?,
+                estado_cuerda = ?
+            WHERE id_cuerda = ?;
+            """
+
+            params_update = (
+                datos[0],
+                frecuencia,
+                temperatura,
+                presion,
+                medida,
+                observacion,
+                estado_valor,
+                datos[7],
+            )
+
+            cur.execute(sql, params_update)
+            conn.commit()
+
+            return True
+
+        except Exception as e:
+            print("Error al editar lectura cuerda vibrante con estado:", e)
+            if conn:
+                conn.rollback()
+            return False
+
+        finally:
+            if conn:
+                conn.close()
+
+
+
+    @staticmethod
+    def mdlActualizarLecturaPiezometroManualConEstado(tabla, datos, idproyecto, username, nombres):
+        """
+        Actualiza lectura de piezómetro manual INCLUYENDO el campo estado
+        datos = [datofecha, datomedida, datoobserva, datoestado, iddetalle]
+        """
+        conn = None
+        # Convertir estado de texto a valor numérico
+        estado_valor = 1 if datos[3] == "Activo" else 0
+        
+        sql = f"""UPDATE {tabla} 
+        SET fecha_piezometro = ?, medida_piezometro = ?, observacion_detalle = ?, 
+            estado_manual = ? 
+        WHERE id_detalle = ?;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            
+            # Guardar en historial
+            query_select = f"""SELECT fecha_piezometro, medida_piezometro, observacion_detalle, 
+            estado_manual, id_detalle FROM {tabla} WHERE id_detalle = ?;"""
+            cur.execute(query_select, (datos[4],))
+            datos_anteriores = cur.fetchone()
+            
+            if datos_anteriores:
+                datos_anteriores_tuple = tuple(datos_anteriores)
+                fecha_cambio = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                accion = "update"
+                cambios = f"Antiguos: {datos_anteriores_tuple}, Nuevos: {datos}"
+                query_historial = """INSERT INTO historial (idproyecto, fecha, accion, tabla, cambios, usuario, nombres)
+                VALUES (?, ?, ?, ?, ?, ?, ?);"""
+                cur.execute(query_historial, (idproyecto, fecha_cambio, accion, tabla, cambios, username, nombres))
+            
+            # Actualizar con estado
+            params_update = [datos[0], datos[1], datos[2], estado_valor, datos[4]]
+            cur.execute(sql, params_update)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al editar lectura casagrande con estado: " + str(e))
+            if conn:
+                conn.rollback()
+            return False
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlObtenerEstadoLecturaPiezoCuerda(tabla, iddetalle):
+        """
+        Obtiene el estado actual de una lectura de piezómetro cuerda
+        Retorna 1 (Activo) o 0 (Omitido)
+        """
+        conn = None
+        sql = f"""SELECT estado_cuerda FROM {tabla} WHERE id_cuerda = ?;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (iddetalle,))
+            row = cur.fetchone()
+            if row:
+                return row[0]  # Retorna el valor numérico
+            else:
+                return None
+        except Exception as e:
+            print("Error al obtener estado lectura cuerda: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlObtenerEstadoLecturaPiezoManual(tabla, iddetalle):
+        """
+        Obtiene el estado actual de una lectura de piezómetro manual
+        Retorna 1 (Activo) o 0 (Omitido)
+        """
+        conn = None
+        sql = f"""SELECT estado_manual FROM {tabla} WHERE id_detalle = ?;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (iddetalle,))
+            row = cur.fetchone()
+            if row:
+                return row[0]
+            else:
+                return None
+        except Exception as e:
+            print("Error al obtener estado lectura manual: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+
+    @staticmethod
     def mdlCambiarEstadoLecturaPiezoCuerda(tabla, iddetalle):
         conn = None
+        sql = f"""SELECT estado_cuerda FROM {tabla} WHERE id_cuerda = ?;"""
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()

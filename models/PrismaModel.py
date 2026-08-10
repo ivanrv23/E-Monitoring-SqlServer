@@ -796,10 +796,20 @@ class PrismaModel:
     
     @staticmethod
     def mdlCambiarEstadoLecturaPrisma(tabla, iddetalle):
+        sql = f"""
+            UPDATE {tabla}
+            SET estado_detalle = CASE 
+                WHEN estado_detalle = 'Activo' THEN 'Omitido' 
+                ELSE 'Activo' 
+            END
+            WHERE id_detalle = ?;
+        """
         conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
+            cursor.execute(sql, (iddetalle,))
+            conn.commit()
             query_update = f"""UPDATE {tabla} SET estado_prisma = CASE WHEN estado_prisma = 1 THEN 0 ELSE 1 END
             WHERE id_prisma = ?;"""
             cursor.execute(query_update, (iddetalle,))

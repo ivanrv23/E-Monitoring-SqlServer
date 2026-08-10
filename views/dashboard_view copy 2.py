@@ -1,8 +1,8 @@
 import matplotlib
 import matplotlib.pyplot as plt
 from PySide6.QtWidgets import (QGridLayout, QWidget, QSizePolicy, QScrollArea, QGraphicsSimpleTextItem, QComboBox,
-                               QPushButton, QLayout, QToolTip, QLabel)
-from PySide6.QtCharts import (QChart, QChartView, QPieSeries, QPieSlice, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis)
+                               QPushButton, QLayout, QToolTip)
+from PySide6.QtCharts import (QChart, QChartView, QPieSeries, QPieSlice)
 from PySide6.QtCore import Qt, QMargins, QPoint, QThread, Signal
 from PySide6.QtGui import QPainter, QColor, QBrush, QFont, QPen
 matplotlib.use('QtAgg')
@@ -62,11 +62,6 @@ class DashboardView():
         comboComponentesDashboard = DashboardView.main.findChild(QComboBox, "cb_lista_componentes_dashboard")
         id_componente = comboComponentesDashboard.currentData() if comboComponentesDashboard else None
 
-        nombre_componente = comboComponentesDashboard.currentText() if comboComponentesDashboard and comboComponentesDashboard.currentData() is not None else ""
-        label_dashboard = DashboardView.main.findChild(QLabel, "label_dashboard")
-        if label_dashboard:
-            label_dashboard.setText(f"DASHBOARD {nombre_componente}")
-
         def on_threaddashboard_complete(datos):
             DashboardView.construir_dashboard(datos)
             loading.close()
@@ -94,18 +89,10 @@ class DashboardView():
         instrumentacion = DashboardController.ctrlObtenerInstrumentacionProyecto(idproyecto, id_componente)
         operativos_inoperativos = DashboardController.ctrlObtenerInstrumentacionOIProyecto(idproyecto, id_componente)
         lecturas_prismas = DashboardController.ctrlObtenerLecturasPrismas(idproyecto, 'prismas', id_componente, 'PRISMAS')
-        
-        try:
-            estadoequipos = DashboardController.ctrlObtenerestadoequipos(idproyecto, id_componente)
-        except Exception as e:
-            print(f"Error al obtener estadoequipos: {e}")
-            estadoequipos = []
-
         return {
             'instrumentacion': instrumentacion,
             'operativos_inoperativos': operativos_inoperativos,
             'lecturas_prismas': lecturas_prismas,
-            'estadoequipos': estadoequipos,
         }
 
     def construir_dashboard(datos):
@@ -115,8 +102,6 @@ class DashboardView():
         instrumentacion = datos.get('instrumentacion')
         operativos_inoperativos = datos.get('operativos_inoperativos')
         lecturas_prismas = datos.get('lecturas_prismas')
-        estadoequipos = datos.get('estadoequipos')
-        
 
         scroll_area = DashboardView.main.findChild(QScrollArea, "scrollArea")
         if not scroll_area:
@@ -134,10 +119,8 @@ class DashboardView():
         chart_functions = [
             (lambda: DashboardView.create_pie_instrumentacion(instrumentacion), 'half'),
             (lambda: DashboardView.create_donut_chart(operativos_inoperativos), 'half'),
-            (lambda: DashboardView.create_bar_chart_estados(estadoequipos), 'half'),
             (lambda: DashboardView.create_pie_prismas('Lecturas Prismas Activos', lecturas_prismas), 'half'),
             (lambda: DashboardView.create_pie_prismas('Lecturas Prismas De Baja', lecturas_prismas), 'half'),
-
         ]
         row = 0
         col = 0
@@ -450,91 +433,6 @@ class DashboardView():
             canvas.plot_data(datos)
             return canvas
         return None
-
-    @staticmethod
-    def create_bar_chart_estados(data):
-        """
-        data viene como:
-        [('Prismas', 'Operativos', 12), ('Prismas', 'Inoperativos', 3), ('Prismas', 'Desactualizados', 5)]
-        """
-        if not data:
-            return None
-
-        # Reorganizar: { tipo_equipo: {categoria: cantidad} }
-        resumen = {}
-        tipos_equipo_orden = []
-        for tipo_equipo, categoria, cantidad in data:
-            if tipo_equipo not in resumen:
-                resumen[tipo_equipo] = {}
-                tipos_equipo_orden.append(tipo_equipo)
-            resumen[tipo_equipo][categoria] = cantidad
-
-        if not tipos_equipo_orden:
-            return None
-
-        categorias = ["Operativos", "Inoperativos", "Desactualizados"]
-        colores = {
-            "Operativos": QColor("#2ecc71"),
-            "Inoperativos": QColor("#e74c3c"),
-            "Desactualizados": QColor("#f39c12"),
-        }
-
-        series = QBarSeries()
-
-        font_labels = QFont()
-        font_labels.setBold(True)
-        font_labels.setPointSize(10)
-
-        for categoria in categorias:
-            bar_set = QBarSet(categoria)
-            bar_set.setColor(colores[categoria])
-            bar_set.setLabelColor(QColor("#000000"))
-            bar_set.setLabelFont(font_labels)
-            valores = [resumen.get(tipo, {}).get(categoria, 0) for tipo in tipos_equipo_orden]
-            bar_set.append(valores)
-            series.append(bar_set)
-
-        series.setLabelsVisible(True)
-        series.setLabelsFormat("@value")
-        series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
-
-        chart = QChart()
-        chart.addSeries(series)
-        chart.setTitle("Estado de Equipos")
-        chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        chart.legend().setVisible(True)
-        chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
-        chart.setMargins(QMargins(10, 40, 10, 10))
-
-        font_axis = QFont()
-        font_axis.setPointSize(9)
-
-        axisX = QBarCategoryAxis()
-        axisX.append(tipos_equipo_orden)
-        axisX.setLabelsAngle(-45)
-        axisX.setLabelsFont(font_axis)
-        axisX.setTruncateLabels(False)
-        chart.addAxis(axisX, Qt.AlignmentFlag.AlignBottom)
-        series.attachAxis(axisX)
-
-        import math
-        max_valor = max(
-            (resumen.get(tipo, {}).get(cat, 0) for tipo in tipos_equipo_orden for cat in categorias),
-            default=0
-        )
-        tope_eje = math.ceil(max_valor + 1.5) + 10
-        axisY = QValueAxis()
-        axisY.setMin(0)
-        axisY.setMax(tope_eje)
-        axisY.setLabelFormat("%d")
-        axisY.setTickCount(6)
-        chart.addAxis(axisY, Qt.AlignmentFlag.AlignLeft)
-        series.attachAxis(axisY)
-
-        chart_view = QChartView(chart)
-        chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
-        chart_view.setMinimumSize(400, 420)
-        return chart_view
 
 
 class MplCanvas(FigureCanvas):
