@@ -1,16 +1,15 @@
 import sys
 import os
-import threading
-import tempfile
 import traceback
 import datetime
 import logging
 import subprocess
+import psutil
 import atexit
 import platform
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import QTimer, QLockFile
+from PySide6.QtCore import QTimer
 from views.splashscreen import SplashScreen
 from utils.common.rutasarchivos import resource_path
 from services.exportar.exportarDatos import ExportarDatos
@@ -19,20 +18,14 @@ from services.sync.sync_manager import SyncManager
 LOG_FILE_PATH = "errores.log"
 ICON_PATH = "resources/logo.png"
 MESA_PATH = "resources/assets/mesa3d"
-CIERRE_TIMEOUT_SEG = 8  # tiempo máximo a esperar el apagado ordenado antes de forzar el cierre
 
 class MyApp:
     
     def __init__(self, mode="development"): # Cambiar a production
         self.mode = mode
-        self._cleanup_ejecutado = False
-        self._cleanup_lock = threading.Lock()
         self.setup_logging()
         self.setup_gpu_handling()
         self.app = QApplication(sys.argv)
-        # --- NUEVO: evitar que se abra una segunda instancia del software ---
-        if not self.verificar_instancia_unica():
-            sys.exit(0)
         self.app.setStyle("WindowsVista")
         self.app.setWindowIcon(QIcon(resource_path(ICON_PATH)))
         self.splash = SplashScreen()
@@ -41,19 +34,13 @@ class MyApp:
         sys.excepthook = self.handle_exception
         atexit.register(self.cleanup)
     
-    def verificar_instancia_unica(self):
-        """Usa QLockFile para impedir que se abra una segunda instancia.
-        Si el proceso dueño del lock ya no existe (crash previo), Qt detecta
-        el lock como 'stale' y lo libera automáticamente."""
-        carpeta_lock = os.path.join(os.getenv("LOCALAPPDATA", tempfile.gettempdir()), "EMonitoring")
-        os.makedirs(carpeta_lock, exist_ok=True)
-        ruta_lock = os.path.join(carpeta_lock, "emonitoring.lock")
-        self.lock_file = QLockFile(ruta_lock)
-        self.lock_file.setStaleLockTime(30000)  # 30s
-        if not self.lock_file.tryLock(100):
-            QMessageBox.warning(None, "E-Monitoring", "El programa ya se encuentra en ejecución.")
-            return False
-        return True
+    def kill_existing_instance(self):
+        for proc in psutil.process_iter(['pid', 'name']):
+            if proc.info['name'] == 'python.exe':  # Cambiar a E-Monitoring.exe en producción
+                try:
+                    proc.kill()
+                except psutil.NoSuchProcess:
+                    pass
     
     def setup_gpu_handling(self):
         if not self.is_gpu_available():
@@ -136,33 +123,8 @@ class MyApp:
             self.cleanup()
     
     def cleanup(self):
-        """Apagado ordenado con límite de tiempo. Si SyncManager.detener()
-        se queda colgado esperando una consulta de red muerta, este método
-        no espera indefinidamente: fuerza el cierre del proceso igual."""
-        with self._cleanup_lock:
-            if self._cleanup_ejecutado:
-                return
-            self._cleanup_ejecutado = True
-
-        def _apagado_ordenado():
-            try:
-                SyncManager.detener()
-            except Exception as e:
-                logging.error(f"Error deteniendo SyncManager: {e}")
-
-        hilo = threading.Thread(target=_apagado_ordenado, daemon=True, name="Shutdown")
-        hilo.start()
-        hilo.join(timeout=CIERRE_TIMEOUT_SEG)
-
-        if hasattr(self, "lock_file"):
-            self.lock_file.unlock()
-
-        if hilo.is_alive():
-            logging.warning(
-                f"Cierre forzado: el apagado ordenado no terminó en {CIERRE_TIMEOUT_SEG}s "
-                "(probablemente por una consulta de red colgada). Terminando proceso."
-            )
-            os._exit(0)
+        SyncManager.detener()
+        self.kill_existing_instance()
     
     def handle_exception(self, exc_type, exc_value, exc_traceback):
         error_message = ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))
