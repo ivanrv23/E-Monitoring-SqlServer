@@ -8,6 +8,7 @@ from PySide6.QtGui import QPainter, QColor, QBrush, QFont, QPen
 matplotlib.use('QtAgg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from utils.shared.loading import LoadingView
+from utils.shared.loading import LoadingView
 from controllers.DashboardController import DashboardController
 
 class DashboardView():
@@ -682,6 +683,23 @@ class MplCanvas(FigureCanvas):
         except (RuntimeError, AttributeError):
             # El widget fue eliminado o los atributos no existen, no hacer nada
             pass
+
+# Hilo para cargar dashboard
+class CargarDashboardThread(QThread):
+    task_finishDashboard = Signal(dict)
+
+    def __init__(self, idproyecto, id_componente=None):
+        super().__init__()
+        self.idproyecto = idproyecto
+        self.id_componente = id_componente
+
+    def run(self):
+        try:
+            datos = DashboardView.obtener_datos_dashboard(self.idproyecto, self.id_componente)
+        except Exception as e:
+            print(f"Error obteniendo datos del dashboard: {e}")
+            datos = {}
+        self.task_finishDashboard.emit(datos)
 
 # Hilo para cargar dashboard
 class CargarDashboardThread(QThread):

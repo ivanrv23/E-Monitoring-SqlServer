@@ -260,6 +260,40 @@ class ConexionWorker(QThread):
         finally:
             _cerrar_con_timeout(conn, nombre="conn_central (resetear_proximo_sync)", emit_log=self._emit_log)
 
+    def _liberar_locks_propios_al_iniciar(self):
+        """Al arrancar el worker, si existen filas marcadas ejecutando=1 con
+        el hostname de ESTA máquina, es porque la sesión anterior del software
+        se cerró (o fue forzada a cerrar por el watchdog) a mitad de una
+        sincronización. No hay que esperar LOCK_STALE_MINUTOS: sabemos con
+        certeza que esos locks son inválidos porque solo puede correr una
+        instancia por máquina. Se liberan y se reprograman para AHORA MISMO,
+        así el copiado interrumpido se retoma apenas abre el software,
+        en vez de quedar "en el aire" varios minutos."""
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            if not conn:
+                self._emit_error("[Startup] No se pudo conectar para liberar locks propios")
+                return
+            cur = conn.cursor()
+            ahora = datetime.now()
+            cur.execute("""
+                UPDATE sc SET sc.ejecutando = 0, sc.inicio_ejecucion = NULL,
+                              sc.ultimo_heartbeat = NULL, sc.proximo_sync = ?
+                FROM sync_control sc INNER JOIN conexiones c ON sc.id_conexion = c.id_conexion
+                WHERE sc.hostname = ? AND sc.ejecutando = 1 AND c.estado_conexion = 1
+            """, ahora, HOSTNAME)
+            conn.commit()
+            if cur.rowcount:
+                self._emit_log(
+                    f"[Startup] {cur.rowcount} lock(s) propio(s) de una sesión anterior "
+                    f"liberados y reprogramados de inmediato (host: {HOSTNAME})"
+                )
+        except Exception as e:
+            self._emit_error(f"[Startup] Error al liberar locks propios: {e}")
+        finally:
+            _cerrar_con_timeout(conn, nombre="conn_central (liberar_locks_propios)", emit_log=self._emit_log)
+
     def run(self):
         self._corriendo = True
         self._evento_despertar.clear()
@@ -268,6 +302,7 @@ class ConexionWorker(QThread):
         self._emit_log(f"[Sync] Worker iniciado en host: {HOSTNAME} | Pool: {MAX_WORKERS_CONCURRENTES} hilos")
 
         try:
+            self._liberar_locks_propios_al_iniciar()
             self._resetear_proximo_sync()
             futuros = self._ciclo()
             if self._forzar_ahora and futuros:
@@ -444,6 +479,14 @@ class ConexionWorker(QThread):
 
             cur = conn.cursor()
             cur.fast_executemany = True
+
+            # --- Solo UN copiado corre por proyecto a la vez; proyectos distintos sí pueden correr en paralelo ---
+            self._emit_log(f"[Turno] ID={id_conexion} esperando turno para el proyecto {id_proyecto}...")
+            if not self._tomar_lock_copiado_proyecto(cur, id_proyecto):
+                self._emit_log(f"[Turno] ID={id_conexion} no obtuvo turno en {self.TIMEOUT_LOCK_GLOBAL_MS/1000:.0f}s (proyecto {id_proyecto} ocupado), se reintentará en el próximo ciclo")
+                return
+            self._emit_log(f"[Turno] ID={id_conexion} obtuvo el turno del proyecto {id_proyecto}")
+
             ahora = datetime.now()
 
             cur.execute("""
@@ -658,6 +701,37 @@ class ConexionWorker(QThread):
         staging = self._nombre_staging(nombretabla)
         cur.execute(f"DROP TABLE IF EXISTS {staging};")
 
+    TIMEOUT_LOCK_GLOBAL_MS = 600000
+
+    def _tomar_lock_copiado_proyecto(self, cur, id_proyecto):
+        """Lock exclusivo por PROYECTO. Dos proyectos distintos pueden
+        sincronizar en paralelo sin problema (no comparten componentes,
+        instrumentacion ni tabla prismas<id_proyecto>). Pero dentro del
+        MISMO proyecto, sin importar cuántos servidores/usuarios lo estén
+        sincronizando a la vez, solo UNO corre; los demás esperan su turno.
+        Se libera solo al cerrar esta conexión (LockOwner='Session')."""
+        recurso = f"EMonitoring_Copiado_Proyecto_{id_proyecto}"
+        cur.execute("""
+            DECLARE @resultado INT;
+            EXEC @resultado = sp_getapplock @Resource = ?, @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = ?;
+            SELECT @resultado;
+        """, recurso, self.TIMEOUT_LOCK_GLOBAL_MS)
+        resultado = cur.fetchone()[0]
+        return resultado >= 0  # 0 o 1 = lock obtenido; -1 timeout; <-1 error
+    
+    def _tomar_lock_tabla(self, cur, nombre_recurso, timeout_ms=20000):
+        """Lock distribuido a nivel de SQL Server (sp_getapplock), visible
+        para CUALQUIER conexión/proceso/servidor. Serializa las escrituras
+        a una misma tabla en vez de dejar que choquen y hagan deadlock.
+        LockOwner='Transaction' -> se libera solo al hacer commit/rollback."""
+        cur.execute("""
+            DECLARE @resultado INT;
+            EXEC @resultado = sp_getapplock @Resource = ?, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = ?;
+            SELECT @resultado;
+        """, nombre_recurso, timeout_ms)
+        resultado = cur.fetchone()[0]
+        return resultado >= 0  # 0 o 1 = lock obtenido; negativo = timeout/error
+    
     def _insertar_en_bd_central(self, conn, cur, datos, instrumento, id_proyecto, nombretabla, batcher_insert):
         if instrumento != "PRISMAS" or not nombretabla or not datos:
             return 0, set()
@@ -691,6 +765,9 @@ class ConexionWorker(QThread):
         return insertadas, nombres_unicos
 
     def _insertar_lotes_con_staging(self, conn, cur, nombretabla, registros, batcher_insert):
+        if not self._tomar_lock_tabla(cur, f"sync_{nombretabla}"):
+            raise Exception(f"No se pudo obtener lock de escritura para '{nombretabla}' (otro proceso lo tiene tomado hace tiempo)")
+
         staging = self._nombre_staging(nombretabla)
         cur.execute(f"TRUNCATE TABLE {staging};")
 
