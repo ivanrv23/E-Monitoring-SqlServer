@@ -2,20 +2,94 @@ import matplotlib
 import matplotlib.pyplot as plt
 from PySide6.QtWidgets import (QGridLayout, QWidget, QSizePolicy, QScrollArea, QGraphicsSimpleTextItem, QComboBox,
                                QPushButton, QLayout, QToolTip, QLabel)
-from PySide6.QtCharts import (QChart, QChartView, QPieSeries, QPieSlice, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis)
-from PySide6.QtCore import Qt, QMargins, QPoint, QThread, Signal
+from PySide6.QtCharts import (QChart, QChartView, QPieSeries, QPieSlice, 
+                               QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis)
+from PySide6.QtCore import Qt, QMargins, QPoint, QThread, Signal, QTimer
 from PySide6.QtGui import QPainter, QColor, QBrush, QFont, QPen
 matplotlib.use('QtAgg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from utils.shared.loading import LoadingView
 from controllers.DashboardController import DashboardController
 
+
+
+class DashboardWorker(QThread):
+    datos_cargados = Signal(dict)
+
+    def __init__(self, proyecto_id, componente_id):
+        super().__init__()
+        self.proyecto_id = proyecto_id
+        self.componente_id = componente_id
+
+    def run(self):
+            instrumentacion = DashboardController.ctrlObtenerInstrumentacionProyecto(self.proyecto_id, self.componente_id)
+            print("instrumentacion OK")
+            operativos_inoperativos = DashboardController.ctrlObtenerInstrumentacionOIProyecto(self.proyecto_id, self.componente_id)
+            print("operativos OK")
+            lecturas_prismas = DashboardController.ctrlObtenerLecturasPrismas(self.proyecto_id, 'prismas', self.componente_id, 'PRISMAS')
+            print("lecturas OK")
+            try: estadoequipos = DashboardController.ctrlObtenerestadoequipos(self.proyecto_id, self.componente_id)
+            except Exception as e:
+                print("Error al obtener estadoequipos:", e)
+                estadoequipos = []  
+
+            data = {
+                'instrumentacion': instrumentacion,
+                'operativos_inoperativos': operativos_inoperativos,
+                'lecturas_prismas': lecturas_prismas,
+                'estadoequipos': estadoequipos
+            }
+            self.datos_cargados.emit(data)
+            print("ERROR DashboardWorker:", data)
+
+class LoadingSpinner(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.rotate)
+        self.angle = 0
+        self.timer.start(80)  # Velocidad de rotación en milisegundos
+
+    def rotate(self):
+        self.angle = (self.angle + 45) % 360
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Mover origen al centro
+        width = self.width()
+        height = self.height()
+        side = min(width, height)
+        painter.translate(width / 2, height / 2)
+
+        # Dibujar 8 bolitas en círculo
+        dots = 8
+        radius = side / 4
+        dot_radius = side / 18
+
+        for i in range(dots):
+            # Rotar el canvas para cada bolita
+            painter.save()
+            painter.rotate(self.angle + (i * (360 / dots)))
+            painter.translate(0, -radius)
+            
+            # Opacidad progresiva para dar efecto de movimiento
+            alpha = int(255 * ((i + 1) / dots))
+            painter.setBrush(QBrush(QColor(50, 50, 50, alpha)))
+            painter.setPen(Qt.NoPen)
+            painter.drawEllipse(QPoint(0, 0), dot_radius, dot_radius)
+            painter.restore()
+
+    def stop(self):
+        self.timer.stop()
 class DashboardView():
     estadoPagina = True
     main, nameproyecto = None, "SIN PROYECTO"
     idproyecto = None
     # Lista para mantener referencias a los widgets creados
     _widgets_referencias = []
+    _worker = None # Variable para almacenar la instancia del worker
 
     def inicializarVistaDashboard(main, idproyecto):
         DashboardView.main = main
@@ -28,157 +102,163 @@ class DashboardView():
             if componentes:
                 for componente in componentes:
                     comboComponentesDashboard.addItem(componente[2], componente[0])
-            DashboardView.dashboardInicial()
+            DashboardView.graficardashboard()
+        if DashboardView.estadoPagina:
+            btn_refrescar_dashboard = main.findChild(QPushButton, "btn_refrescar_dashboard")        
+            btn_refrescar_dashboard.clicked.connect(DashboardView.graficardashboard)
+            comboComponentesDashboard.activated.connect(DashboardView.graficardashboard)
+            DashboardView.estadoPagina = False
+    
+    def graficardashboard():
+        DashboardView.setup_dashboard()
 
-        btn_refrescar_dashboard = main.findChild(QPushButton, "btn_refrescar_dashboard")
-
-        # Desconectar conexiones previas SIEMPRE antes de reconectar.
-        try:
-            btn_refrescar_dashboard.clicked.disconnect(DashboardView.dashboardInicial)
-        except (TypeError, RuntimeError):
-            pass
-        try:
-            comboComponentesDashboard.activated.disconnect(DashboardView.dashboardInicial)
-        except (TypeError, RuntimeError):
-            pass
-
-        btn_refrescar_dashboard.clicked.connect(DashboardView.dashboardInicial)
-        comboComponentesDashboard.activated.connect(DashboardView.dashboardInicial)
-        DashboardView.estadoPagina = False
-
-    def dashboardInicial():
-        # Evitar lanzar un thread nuevo mientras el anterior sigue vivo.
-        thread_previo = getattr(DashboardView, '_current_thread', None)
-        if thread_previo is not None:
-            try:
-                if thread_previo.isRunning():
-                    thread_previo.quit()
-                    thread_previo.wait()
-            except RuntimeError:
-                # El objeto C++ ya fue eliminado (deleteLater ya se ejecutó); ignorar
-                pass
-
-        loading = LoadingView.mostrarLoading()
+    def setup_dashboard():
         comboComponentesDashboard = DashboardView.main.findChild(QComboBox, "cb_lista_componentes_dashboard")
-        id_componente = comboComponentesDashboard.currentData() if comboComponentesDashboard else None
+        if not comboComponentesDashboard:
+            return
 
-        nombre_componente = comboComponentesDashboard.currentText() if comboComponentesDashboard and comboComponentesDashboard.currentData() is not None else ""
+        id_componente = comboComponentesDashboard.currentData()
+
+        nombre_componente = comboComponentesDashboard.currentText() if comboComponentesDashboard.currentData() is not None else ""
         label_dashboard = DashboardView.main.findChild(QLabel, "label_dashboard")
         if label_dashboard:
             label_dashboard.setText(f"DASHBOARD {nombre_componente}")
 
-        def on_threaddashboard_complete(datos):
-            DashboardView.construir_dashboard(datos)
-            loading.close()
-
-        def on_thread_finished():
-            # Limpiar la referencia para no quedarnos con un puntero a un objeto
-            # que está a punto de ser destruido por deleteLater()
-            if DashboardView._current_thread is prom:
-                DashboardView._current_thread = None
-
-        prom = CargarDashboardThread(DashboardView.idproyecto, id_componente)
-        DashboardView._current_thread = prom
-        prom.task_finishDashboard.connect(
-            on_threaddashboard_complete,
-            Qt.ConnectionType.QueuedConnection
-        )
-        prom.finished.connect(on_thread_finished)
-        prom.finished.connect(prom.deleteLater)
-        prom.start()
-        loading.exec()
-
-    def obtener_datos_dashboard(idproyecto, id_componente):
-        """Solo trae datos del controlador/BD. NO crea nada de Qt.
-        Seguro para ejecutarse dentro de un QThread."""
-        instrumentacion = DashboardController.ctrlObtenerInstrumentacionProyecto(idproyecto, id_componente)
-        operativos_inoperativos = DashboardController.ctrlObtenerInstrumentacionOIProyecto(idproyecto, id_componente)
-        lecturas_prismas = DashboardController.ctrlObtenerLecturasPrismas(idproyecto, 'prismas', id_componente, 'PRISMAS')
-        
-        try:
-            estadoequipos = DashboardController.ctrlObtenerestadoequipos(idproyecto, id_componente)
-        except Exception as e:
-            print(f"Error al obtener estadoequipos: {e}")
-            estadoequipos = []
-
-        return {
-            'instrumentacion': instrumentacion,
-            'operativos_inoperativos': operativos_inoperativos,
-            'lecturas_prismas': lecturas_prismas,
-            'estadoequipos': estadoequipos,
-        }
-
-    def construir_dashboard(datos):
-        """Construye los widgets/gráficos. SIEMPRE debe correr en el hilo principal (GUI thread)."""
-        if not datos:
-            return
-        instrumentacion = datos.get('instrumentacion')
-        operativos_inoperativos = datos.get('operativos_inoperativos')
-        lecturas_prismas = datos.get('lecturas_prismas')
-        estadoequipos = datos.get('estadoequipos')
-        
-
-        scroll_area = DashboardView.main.findChild(QScrollArea, "scrollArea")
-        if not scroll_area:
-            return
-        scroll_content = DashboardView.main.findChild(QWidget, "widget_grafica_dashboard")
-        if not scroll_content:
-            return
-        if scroll_content.layout() is None:
-            grid_layout = QGridLayout(scroll_content)
-        else:
-            grid_layout = scroll_content.layout()
-            DashboardView.limpiar_layout(grid_layout)
-        grid_layout.setSpacing(15)
-        grid_layout.setContentsMargins(15, 15, 15, 15)
-        chart_functions = [
-            (lambda: DashboardView.create_pie_instrumentacion(instrumentacion), 'half'),
-            (lambda: DashboardView.create_donut_chart(operativos_inoperativos), 'half'),
-            (lambda: DashboardView.create_bar_chart_estados(estadoequipos), 'half'),
-            (lambda: DashboardView.create_pie_prismas('Lecturas Prismas Activos', lecturas_prismas), 'half'),
-            (lambda: DashboardView.create_pie_prismas('Lecturas Prismas De Baja', lecturas_prismas), 'half'),
-
-        ]
-        row = 0
-        col = 0
-        for chart_func, size_type in chart_functions:
-            try:
-                chart_widget = chart_func()
-                if chart_widget is None:
-                    continue
-                DashboardView._widgets_referencias.append(chart_widget)
-                chart_widget.setSizePolicy(
-                    QSizePolicy.Policy.Expanding,
-                    QSizePolicy.Policy.Expanding
-                )
-                if size_type == 'full':
-                    chart_widget.setMinimumSize(500, 500)
-                    grid_layout.addWidget(chart_widget, row, 0, 1, 2)
-                    grid_layout.setRowStretch(row, 1)
-                    row += 1
-                    col = 0
-                else:
-                    chart_widget.setMinimumSize(400, 400)
-                    grid_layout.addWidget(chart_widget, row, col)
-                    grid_layout.setColumnStretch(col, 1)
-                    grid_layout.setRowStretch(row, 1)
-                    col += 1
-                    if col > 1:
-                        col = 0
-                        row += 1
-            except Exception as e:
-                print(f"Error al crear gráfico: {str(e)}")
-        scroll_content.adjustSize()
-        scroll_area.setWidgetResizable(True)
-
-    def setup_dashboard():
-        """Se usa cuando ya estamos en el hilo principal (botón refrescar / combo)."""
-        comboComponentesDashboard = DashboardView.main.findChild(QComboBox, "cb_lista_componentes_dashboard")
-        id_componente = comboComponentesDashboard.currentData()
         if id_componente is not None:
-            datos = DashboardView.obtener_datos_dashboard(DashboardView.idproyecto, id_componente)
-            DashboardView.construir_dashboard(datos)
+            # 1. Obtener el contenedor del Dashboard
+            scroll_area = DashboardView.main.findChild(QScrollArea, "scrollArea")
+            scroll_content = DashboardView.main.findChild(QWidget, "widget_grafica_dashboard")
+            if not scroll_content:
+                return
 
+             # Crear o limpiar layout
+            if scroll_content.layout() is None:
+                grid_layout = QGridLayout(scroll_content)
+            else:
+                grid_layout = scroll_content.layout()
+                DashboardView.limpiar_layout(grid_layout)
+
+            # Resetear los stretch factors que quedaron de la carga anterior
+            # (los gráficos dejan columnas 0 y 1 con stretch=1, lo que descentra
+            # el spinner en la segunda carga en adelante)
+            for c in range(grid_layout.columnCount()):
+                grid_layout.setColumnStretch(c, 0)
+            for r in range(grid_layout.rowCount()):
+                grid_layout.setRowStretch(r, 0)
+
+            # 2. CREAR Y MOSTRAR LA BOLITA GIRATORIA EN PANTALLA
+            spinner = LoadingSpinner()
+            spinner.setMinimumSize(80, 80)
+            
+            # Contenedor para centrar el spinner en el área de trabajo
+            center_widget = QWidget()
+            center_layout = QGridLayout(center_widget)
+            center_layout.addWidget(spinner, 0, 0, Qt.AlignCenter)
+            
+            # Ocupar ambas columnas (colspan=2) para centrar respecto al ancho total,
+            # no solo respecto a la columna 0
+            grid_layout.addWidget(center_widget, 0, 0, 1, 2, Qt.AlignCenter)
+
+            
+
+            # 3. INICIAR CARGA EN SEGUNDO PLANO
+            DashboardView._worker = DashboardWorker(DashboardView.idproyecto, id_componente)
+
+            def on_datos_listos(data):
+                spinner.stop() 
+                DashboardView._renderizar_dashboard(data)
+
+            DashboardView._worker.datos_cargados.connect(on_datos_listos)
+            DashboardView._worker.start()
+    @staticmethod
+    def _renderizar_dashboard(data):
+            instrumentacion = data['instrumentacion']
+            operativos_inoperativos = data['operativos_inoperativos']
+            lecturas_prismas = data['lecturas_prismas']
+            estadoequipos = data['estadoequipos']
+
+            # instrumentacion = DashboardController.ctrlObtenerInstrumentacionProyecto(DashboardView.idproyecto, id_componente)
+            # operativos_inoperativos = DashboardController.ctrlObtenerInstrumentacionOIProyecto(DashboardView.idproyecto, id_componente)
+            # lecturas_prismas = DashboardController.ctrlObtenerLecturasPrismas(DashboardView.idproyecto, 'prismas', id_componente, 'PRISMAS')
+            # # resumenprismas = DashboardController.ctrlObtenerResumenPrismas(DashboardView.idproyecto, id_componente)
+            #estadoequipos = DashboardController.ctrlObtenerestadoequipos(DashboardView.idproyecto, id_componente) 
+
+
+            # Buscar el scroll area por nombre
+            scroll_area = DashboardView.main.findChild(QScrollArea, "scrollArea")
+            if not scroll_area:
+                return
+            # Buscar el widget contenido por nombre
+            scroll_content = DashboardView.main.findChild(QWidget, "widget_grafica_dashboard")
+            if not scroll_content:
+                return
+            # Crear o limpiar el layout existente
+            if scroll_content.layout() is None:
+                grid_layout = QGridLayout(scroll_content)
+            else:
+                grid_layout = scroll_content.layout()
+                # Limpiar el layout si ya tiene contenido
+                DashboardView.limpiar_layout(grid_layout)
+            # Configurar espaciado y márgenes
+            grid_layout.setSpacing(15)
+            grid_layout.setContentsMargins(15, 15, 15, 15)
+            # Lista de TODAS las funciones de gráficos (incluyendo las corregidas)
+
+        #    Igual a este tiene que decirle a la ia
+            # estadoequipos= [
+            #     ["Operativos", None, None, 45],
+            #     ["Inoperativos", None, None, 12],
+            #     ["Desactualizados", None, None, 8]
+            # ]
+
+            chart_functions = [
+                (lambda: DashboardView.create_pie_instrumentacion(instrumentacion), 'half'),
+                (lambda: DashboardView.create_donut_chart(operativos_inoperativos), 'half'),
+                # (lambda: DashboardView.resumen_prismas_barras(resumenprismas, scroll_content), 'full'),  # Pasar parent
+                
+                # NUEVO GRÁFICO DE BARRAS:
+                (lambda: DashboardView.create_bar_chart_estados(estadoequipos), 'half'), 
+                (lambda: DashboardView.create_pie_prismas('Lecturas Prismas Activos', lecturas_prismas), 'half'),
+                # (lambda: DashboardView.create_pie_prismas('Lecturas Prismas De Baja', lecturas_prismas), 'half'),
+            ]
+            # Agregar gráficos en disposición 2 por fila
+            row = 0
+            col = 0
+            for chart_func, size_type in chart_functions:
+                try:
+                    chart_widget = chart_func()
+                    if chart_widget is None:
+                        continue
+                    
+                    # Mantener referencia del widget para evitar garbage collection
+                    DashboardView._widgets_referencias.append(chart_widget)
+                    
+                    chart_widget.setSizePolicy(
+                        QSizePolicy.Policy.Expanding,
+                        QSizePolicy.Policy.Expanding
+                    )
+                    
+                    if size_type == 'full':
+                        chart_widget.setMinimumSize(500, 500)
+                        grid_layout.addWidget(chart_widget, row, 0, 1, 2)  # fila completa
+                        grid_layout.setRowStretch(row, 1)
+                        row += 1
+                        col = 0
+                    else:  # 'half'
+                        chart_widget.setMinimumSize(400, 400)
+                        grid_layout.addWidget(chart_widget, row, col)
+                        grid_layout.setColumnStretch(col, 1)
+                        grid_layout.setRowStretch(row, 1)
+                        col += 1
+                        if col > 1:
+                            col = 0
+                            row += 1
+                except Exception as e:
+                    print(f"Error al crear gráfico: {str(e)}")
+            # Ajustar la política de tamaño del contenido
+            scroll_content.adjustSize()
+            scroll_area.setWidgetResizable(True)
+    
     def limpiar_layout(layout: QLayout):
         if layout is None:
             return
@@ -450,19 +530,21 @@ class DashboardView():
             canvas.plot_data(datos)
             return canvas
         return None
-
+    
+    
     @staticmethod
     def create_bar_chart_estados(data):
         """
         data viene como:
         [('Prismas', 'Operativos', 12), ('Prismas', 'Inoperativos', 3), ('Prismas', 'Desactualizados', 5)]
+        (más adelante también vendrán filas de 'Piezometros', 'Inclinometros', etc.)
         """
         if not data:
             return None
 
         # Reorganizar: { tipo_equipo: {categoria: cantidad} }
         resumen = {}
-        tipos_equipo_orden = []
+        tipos_equipo_orden = []  # para mantener orden de aparición en eje X
         for tipo_equipo, categoria, cantidad in data:
             if tipo_equipo not in resumen:
                 resumen[tipo_equipo] = {}
@@ -474,9 +556,9 @@ class DashboardView():
 
         categorias = ["Operativos", "Inoperativos", "Desactualizados"]
         colores = {
-            "Operativos": QColor("#2ecc71"),
-            "Inoperativos": QColor("#e74c3c"),
-            "Desactualizados": QColor("#f39c12"),
+            "Operativos": QColor("#2ecc71"),      # Verde
+            "Inoperativos": QColor("#e74c3c"),    # Rojo
+            "Desactualizados": QColor("#f39c12"), # Naranja
         }
 
         series = QBarSeries()
@@ -484,14 +566,20 @@ class DashboardView():
         font_labels = QFont()
         font_labels.setBold(True)
         font_labels.setPointSize(10)
-
+        
+        # Un QBarSet por categoría (Operativos, Inoperativos, Desactualizados)
+        # cada uno con un valor por cada tipo de equipo en el eje X
+        sets_por_categoria = {}
         for categoria in categorias:
             bar_set = QBarSet(categoria)
             bar_set.setColor(colores[categoria])
-            bar_set.setLabelColor(QColor("#000000"))
-            bar_set.setLabelFont(font_labels)
+
+            bar_set.setLabelColor(QColor("#000000"))   # texto negro
+            bar_set.setLabelFont(font_labels) 
+
             valores = [resumen.get(tipo, {}).get(categoria, 0) for tipo in tipos_equipo_orden]
             bar_set.append(valores)
+            sets_por_categoria[categoria] = bar_set
             series.append(bar_set)
 
         series.setLabelsVisible(True)
@@ -504,28 +592,27 @@ class DashboardView():
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         chart.legend().setVisible(True)
         chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
+
         chart.setMargins(QMargins(10, 40, 10, 10))
 
-        font_axis = QFont()
-        font_axis.setPointSize(9)
-
+        # Eje X: tipos de equipo (Prismas, Piezometros, Inclinometros, etc.)
         axisX = QBarCategoryAxis()
         axisX.append(tipos_equipo_orden)
-        axisX.setLabelsAngle(-45)
-        axisX.setLabelsFont(font_axis)
-        axisX.setTruncateLabels(False)
         chart.addAxis(axisX, Qt.AlignmentFlag.AlignBottom)
         series.attachAxis(axisX)
 
+        # Eje Y
         import math
         max_valor = max(
             (resumen.get(tipo, {}).get(cat, 0) for tipo in tipos_equipo_orden for cat in categorias),
             default=0
         )
+
         tope_eje = math.ceil(max_valor + 1.5) + 10
         axisY = QValueAxis()
         axisY.setMin(0)
         axisY.setMax(tope_eje)
+        # axisY.setMax((max_valor * 1.3) + 5)
         axisY.setLabelFormat("%d")
         axisY.setTickCount(6)
         chart.addAxis(axisY, Qt.AlignmentFlag.AlignLeft)
@@ -533,7 +620,7 @@ class DashboardView():
 
         chart_view = QChartView(chart)
         chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
-        chart_view.setMinimumSize(400, 420)
+        chart_view.setMinimumSize(350, 350)
         return chart_view
 
 
@@ -682,20 +769,3 @@ class MplCanvas(FigureCanvas):
         except (RuntimeError, AttributeError):
             # El widget fue eliminado o los atributos no existen, no hacer nada
             pass
-
-# Hilo para cargar dashboard
-class CargarDashboardThread(QThread):
-    task_finishDashboard = Signal(dict)
-
-    def __init__(self, idproyecto, id_componente=None):
-        super().__init__()
-        self.idproyecto = idproyecto
-        self.id_componente = id_componente
-
-    def run(self):
-        try:
-            datos = DashboardView.obtener_datos_dashboard(self.idproyecto, self.id_componente)
-        except Exception as e:
-            print(f"Error obteniendo datos del dashboard: {e}")
-            datos = {}
-        self.task_finishDashboard.emit(datos)
