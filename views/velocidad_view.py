@@ -62,27 +62,28 @@ class VelocidadView:
         VelocidadView.idproyecto = proyectoid
         VelocidadView.nameproyecto = proyectoname
         VelocidadView.fechainicial, VelocidadView.fechafinal = fechaini, fechafin
-        if VelocidadView.estadochecklist:
-            tree_widget = main.findChild(QTreeWidget, "tree_actual_velocidad")
-            tree_widget.setHeaderLabels([VelocidadView.nameproyecto.upper()])
-            EquiposVelocidad.inicializar_lista_equipos(tree_widget, VelocidadView.idproyecto, VelocidadView.nameproyecto)
-            def sincronizar_memoria(nodo):
-                for i in range(nodo.childCount()):
-                    hijo = nodo.child(i)
-                    hijo.setData(0, Qt.UserRole + 999, hijo.checkState(0))
-                    sincronizar_memoria(hijo)
-            
-            root = tree_widget.invisibleRootItem()
-            sincronizar_memoria(root)
-            VelocidadView.estadochecklist = False
+
+        # if VelocidadView.estadochecklist:
+        #     tree_widget = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+        #     tree_widget.setHeaderLabels([VelocidadView.nameproyecto.upper()])
+        #     EquiposVelocidad.inicializar_lista_equipos(tree_widget, VelocidadView.idproyecto, VelocidadView.nameproyecto)
+        #     def sincronizar_memoria(nodo):
+        #         for i in range(nodo.childCount()):
+        #             hijo = nodo.child(i)
+        #             hijo.setData(0, Qt.UserRole + 999, hijo.checkState(0))
+        #             sincronizar_memoria(hijo)
+        #     root = tree_widget.invisibleRootItem()
+        #     sincronizar_memoria(root)
+        #     VelocidadView.estadochecklist = False
+        
         if VelocidadView.estadoPagina:
-            tree_actual_velocidad =  main.findChild(QTreeWidget, "tree_actual_velocidad")
-            tree_actual_velocidad.itemClicked.connect(VelocidadView.checkProyectoActualVelocidad)
-            tree_actual_velocidad.setContextMenuPolicy(Qt.CustomContextMenu)
-            tree_actual_velocidad.customContextMenuRequested.connect(VelocidadView.clicderechoProyectoActualVelocidad)
-            header = tree_actual_velocidad.header()
-            header.setContextMenuPolicy(Qt.CustomContextMenu)
-            header.customContextMenuRequested.connect(VelocidadView.clicderechoEncabezadoProyecto)
+            tree_actual_velocidad =  main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+            # tree_actual_velocidad.itemClicked.connect(VelocidadView.checkProyectoActualVelocidad)
+            # tree_actual_velocidad.setContextMenuPolicy(Qt.CustomContextMenu)
+            # tree_actual_velocidad.customContextMenuRequested.connect(VelocidadView.clicderechoProyectoActualVelocidad)
+            # header = tree_actual_velocidad.header()
+            # header.setContextMenuPolicy(Qt.CustomContextMenu)
+            # header.customContextMenuRequested.connect(VelocidadView.clicderechoEncabezadoProyecto)
             botonRefrescarVelocidad = main.findChild(QPushButton, "btn_refrescar_vista_velocidad")
             botonRefrescarVelocidad.clicked.connect(lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual_velocidad))
             btn_umbral_velocidad = main.findChild(QPushButton, "btn_umbral_velocidad")
@@ -162,7 +163,7 @@ class VelocidadView:
             
     # En VelocidadView (dentro de la clase)
     def clicderechoEncabezadoProyecto(point):
-        tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_velocidad")
+        tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
         # LA CLAVE: El mapeo debe ser desde el header al Global
         pos_global = tree_actual.header().mapToGlobal(point)
         
@@ -239,7 +240,7 @@ class VelocidadView:
                 unidadmedida = 100/24
             else:
                 unidadmedida = 1000/24
-            tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_velocidad")
+            tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
             lista = EquiposVelocidad.obtener_todos_elementos_marcados(tree_actual)
             if lista:
                 prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
@@ -267,11 +268,11 @@ class VelocidadView:
                         GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unidadmedida)
     
     def checkProyectoActualVelocidad(parent_item, column):
-        treeWidget =  VelocidadView.main.findChild(QTreeWidget, "tree_actual_velocidad")
+        treeWidget =  VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
         EquiposVelocidad.validarMarcadoCheckbox(parent_item, column, lambda: VelocidadView.obtenerMostrarPrismasMarcados(treeWidget))
         
     def clicderechoProyectoActualVelocidad(point):
-        treeWidget =  VelocidadView.main.findChild(QTreeWidget, "tree_actual_velocidad")
+        treeWidget =  VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
         
         # Añade el lambda al final para enviar la función de graficado
         EquiposVelocidad.validarOpcionesMenuCheckbox(
@@ -635,7 +636,7 @@ class VelocidadView:
         VelocidadView.fechainicial = fechaini
         VelocidadView.fechafinal = fechafin       
         if VelocidadView.idproyecto:
-            treeWidget =  VelocidadView.main.findChild(QTreeWidget, "tree_actual_velocidad")
+            treeWidget =  VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
             VelocidadView.obtenerMostrarPrismasMarcados(treeWidget)
     
     def reiniciarVistaVelocidad(main, proyecto_id, proyecto_name):

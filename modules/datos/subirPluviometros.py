@@ -175,7 +175,7 @@ class SubirPluviometros:
                             idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
                             treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
                             treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
-                            treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_velocidad")
+                            treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
                             treewidgetpiezo = main.findChild(QTreeWidget, "tree_actual_piezometros")
                             TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Pluviómetros", idinstrumento, "pluviometro")
                             TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Pluviómetros", idinstrumento, "pluviometro")
@@ -258,7 +258,7 @@ class SubirPluviometros:
                                 idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
                                 treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
                                 treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
-                                treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_velocidad")
+                                treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
                                 treewidgetpiezo = main.findChild(QTreeWidget, "tree_actual_piezometros")
                                 TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Pluviómetros", idinstrumento, "pluviometro")
                                 TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Pluviómetros", idinstrumento, "pluviometro")

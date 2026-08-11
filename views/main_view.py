@@ -123,7 +123,9 @@ class MainView:
                     if not Session.is_authenticated() or Session.get_idrole() != 1:
                         return
                 MainView.main_window.findChild(QStackedWidget, "stackedWidget_principal").setCurrentIndex(pagina_index)
-                if pagina_index < 10 or pagina_index>0:
+                if pagina_index == 3 or pagina_index == 4:
+                    MainView.main_window.findChild(QStackedWidget, "stacked_lista_checks").setCurrentIndex(2)
+                elif pagina_index < 10 or pagina_index > 0:
                     MainView.main_window.findChild(QStackedWidget, "stacked_lista_checks").setCurrentIndex(pagina_index-1)
                 boton_activo = list(MainView.botones_menu.values())[pagina_index]
                 resaltar_boton_activo(boton_activo)
@@ -211,7 +213,14 @@ class MainView:
             cargarIcono(btnCompareLAS, ListaIconos.ICONOS["comparar"])
             btn_graficar_prismas_lidar= MainView.main_window.findChild(QPushButton, "btn_graficar_desplazamientos_lidar")
             cargarIcono(btn_graficar_prismas_lidar, ListaIconos.ICONOS["desplaza"])
-            
+            ############################## ÁRBOL COMPARTIDO (DESPLAZAMIENTO / VELOCIDAD) #############################
+            tree_compartido = MainView.main_window.findChild(QTreeWidget, "tree_actual_desplazamiento")
+            tree_compartido.itemClicked.connect(MainView.manejarClicArbolCompartido)
+            tree_compartido.setContextMenuPolicy(Qt.CustomContextMenu)
+            tree_compartido.customContextMenuRequested.connect(MainView.manejarClicDerechoArbolCompartido)
+            header_compartido = tree_compartido.header()
+            header_compartido.setContextMenuPolicy(Qt.CustomContextMenu)
+            header_compartido.customContextMenuRequested.connect(MainView.manejarClicDerechoEncabezadoCompartido)
             ############################## BOTONES DESPLAZAMIENTO #############################
             btn_refrescar_vista_desplazamiento = MainView.main_window.findChild(QPushButton, "btn_refrescar_vista_desplazamiento")
             cargarIcono(btn_refrescar_vista_desplazamiento, ListaIconos.ICONOS["refrescar_general"])
@@ -1029,7 +1038,7 @@ class MainView:
             treewidget = DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
             result = CrearProyecto.dialogo_editar_componente(idcomponente, nombrecompo, treewidget, DesplazamientoView.reiniciarVistasAfectadas)
         elif indexactual == 4:
-            treewidget = VelocidadView.main.findChild(QTreeWidget, "tree_actual_velocidad")
+            treewidget = VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
             result = CrearProyecto.dialogo_editar_componente(idcomponente, nombrecompo, treewidget, VelocidadView.reiniciarVistasAfectadas)
         elif indexactual == 5:
             treewidget = InclinometrosView.main.findChild(QTreeWidget, "tree_actual_inclinometros")
@@ -1076,7 +1085,7 @@ class MainView:
             treewidget = DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
             result = CrearProyecto.eliminar_componente(idproyecto, idcomponente, nombrecompo, treewidget, DesplazamientoView.reiniciarVistasAfectadas)
         elif indexactual == 4:
-            treewidget = VelocidadView.main.findChild(QTreeWidget, "tree_actual_velocidad")
+            treewidget = VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
             result = CrearProyecto.eliminar_componente(idproyecto, idcomponente, nombrecompo, treewidget, VelocidadView.reiniciarVistasAfectadas)
         elif indexactual == 5:
             treewidget = InclinometrosView.main.findChild(QTreeWidget, "tree_actual_inclinometros")
@@ -1154,6 +1163,7 @@ class MainView:
     def reiniciarAplicacion(main, proyecto_id, proyecto_name):
         pagina = MainView.main_window.findChild(QStackedWidget, "stackedWidget_principal").currentIndex()
         MainView.actualizarRangoFechas()
+        MainView.actualizarArbolEquiposCompartido()
         DashboardView.reiniciarVistaDashboard(main, proyecto_id, proyecto_name)
         DatosView.reiniciarVistaDatos(main, proyecto_id, proyecto_name)
         VisorView.reiniciarVistaVisor(main, proyecto_id, proyecto_name)
@@ -1395,7 +1405,47 @@ class MainView:
                 UmbralView.modalUmbralesPiezometros(MainView.proyecto_id, tipo, unidad)
         else:
             mostrar_mensaje('Sin Proyecto', 'Inicie un proyecto primero.','advertencia')
-    
+
+    @staticmethod
+    def actualizarArbolEquiposCompartido():
+        from modules.datos.equiposDesplazamiento import EquiposDesplazamiento
+        tree_widget = MainView.main_window.findChild(QTreeWidget, "tree_actual_desplazamiento")
+        tree_widget.setHeaderLabels([MainView.proyecto_name.upper()])
+        EquiposDesplazamiento.inicializar_lista_equipos(tree_widget, MainView.proyecto_id, MainView.proyecto_name)
+        def sincronizar_memoria(nodo):
+            for i in range(nodo.childCount()):
+                hijo = nodo.child(i)
+                hijo.setData(0, Qt.UserRole + 999, hijo.checkState(0))
+                sincronizar_memoria(hijo)
+        sincronizar_memoria(tree_widget.invisibleRootItem())
+
+    def manejarClicArbolCompartido(item, column):
+        from views.velocidad_view import VelocidadView
+        from views.desplazamiento_view import DesplazamientoView
+        pagina = MainView.main_window.findChild(QStackedWidget, "stackedWidget_principal").currentIndex()
+        if pagina == 4:  # Velocidad
+            VelocidadView.checkProyectoActualVelocidad(item, column)
+        else:  # 3 = Desplazamiento (comportamiento por defecto)
+            DesplazamientoView.checkProyectoActualDesplazamiento(item, column)
+
+    def manejarClicDerechoArbolCompartido(point):
+        from views.velocidad_view import VelocidadView
+        from views.desplazamiento_view import DesplazamientoView
+        pagina = MainView.main_window.findChild(QStackedWidget, "stackedWidget_principal").currentIndex()
+        if pagina == 4:
+            VelocidadView.clicderechoProyectoActualVelocidad(point)
+        else:
+            DesplazamientoView.clicderechoProyectoActualDesplazamiento(point)
+
+    def manejarClicDerechoEncabezadoCompartido(point):
+        from views.velocidad_view import VelocidadView
+        from views.desplazamiento_view import DesplazamientoView
+        pagina = MainView.main_window.findChild(QStackedWidget, "stackedWidget_principal").currentIndex()
+        if pagina == 4:
+            VelocidadView.clicderechoEncabezadoProyecto(point)
+        else:
+            DesplazamientoView.clicderechoEncabezadoProyecto(point)
+        
     def check_stacked_widget():
         # Encuentra el QStackedWidget principal
         stacked_widget_principal = MainView.main_window.findChild(QStackedWidget, "stackedWidget_principal")

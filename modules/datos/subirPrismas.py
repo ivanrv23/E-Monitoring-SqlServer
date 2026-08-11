@@ -248,20 +248,20 @@ class SubirPrismas:
                         treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
                         treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
                         treewidgetdespla = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-                        treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_velocidad")
+                        # treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_velocidad")
                         treewidgetanalisis = main.findChild(QTreeWidget, "tree_actual_analisis")
                         if tipodata == 2:  # reemplazar
                             for nombre in prismas:
                                 TreeCheckbox.eliminarCheckboxPrisma(treewidgetdatos, "Prismas", idcompo, "prisma", nombre[3], f"prismas{idproyecto}")
                                 TreeCheckbox.eliminarCheckboxPrisma(treewidgetvisor, "Prismas", idcompo, "prisma", nombre[3], f"prismas{idproyecto}")
                                 TreeCheckbox.eliminarCheckboxPrisma(treewidgetdespla, "Prismas", idcompo, "prisma", nombre[3], f"prismas{idproyecto}")
-                                TreeCheckbox.eliminarCheckboxPrisma(treewidgetveloci, "Prismas", idcompo, "prisma", nombre[3], f"prismas{idproyecto}")
+                                # TreeCheckbox.eliminarCheckboxPrisma(treewidgetveloci, "Prismas", idcompo, "prisma", nombre[3], f"prismas{idproyecto}")
                                 TreeCheckbox.eliminarCheckboxPrisma(treewidgetanalisis, "Prismas", idcompo, "prisma", nombre[3], f"prismas{idproyecto}")
                         # añadir a checkbox
                         TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
                         TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, namecompo, idcompo, idproyecto, "Prismas", "2", prismas, "prisma")
                         TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdespla, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
-                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetveloci, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
+                        # TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetveloci, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
                         TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetanalisis, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
                         # actualizar combos analisis
                         from views.analisis_view import AnalisisView
@@ -467,13 +467,13 @@ class SubirPrismas:
                                     treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
                                     treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
                                     treewidgetdespla = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-                                    treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_velocidad")
+                                    # treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_velocidad")
                                     treewidgetanalisis = main.findChild(QTreeWidget, "tree_actual_analisis")
                                     # añadir a checkbox
                                     TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
                                     TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, namecompo, idcompo, idproyecto, "Prismas", "2", prismas, "prisma")
                                     TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdespla, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetveloci, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
+                                    # TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetveloci, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
                                     TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetanalisis, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
                                     # actualizar combos analisis
                                     from views.analisis_view import AnalisisView
@@ -557,13 +557,13 @@ class SubirPrismas:
                                     treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
                                     treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
                                     treewidgetdespla = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-                                    treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_velocidad")
+                                    # treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_velocidad")
                                     treewidgetanalisis = main.findChild(QTreeWidget, "tree_actual_analisis")
                                     # añadir a checkbox
                                     TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
                                     TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, namecompo, idcompo, idproyecto, "Prismas", "2", prismas, "prisma")
                                     TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdespla, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetveloci, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
+                                    # TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetveloci, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
                                     TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetanalisis, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
                                     # actualizar combos analisis
                                     from views.analisis_view import AnalisisView

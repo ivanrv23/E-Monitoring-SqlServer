@@ -67,30 +67,29 @@ class DesplazamientoView:
         DesplazamientoView.idproyecto = proyectoid
         DesplazamientoView.nameproyecto = proyectoname
         DesplazamientoView.fechainicial, DesplazamientoView.fechafinal = fechaini, fechafin
-        if DesplazamientoView.estadochecklist:
-            tree_widget = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-            tree_widget.setHeaderLabels([DesplazamientoView.nameproyecto.upper()])
-            EquiposDesplazamiento.inicializar_lista_equipos(tree_widget, DesplazamientoView.idproyecto, DesplazamientoView.nameproyecto)
-            
-            def sincronizar_memoria(nodo):
-                for i in range(nodo.childCount()):
-                    hijo = nodo.child(i)
-                    hijo.setData(0, Qt.UserRole + 999, hijo.checkState(0))
-                    sincronizar_memoria(hijo)
-            
-            root = tree_widget.invisibleRootItem()
-            sincronizar_memoria(root)
 
-            DesplazamientoView.estadochecklist = False # Cerrar paso
+        # if DesplazamientoView.estadochecklist:
+        #     tree_widget = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+        #     tree_widget.setHeaderLabels([DesplazamientoView.nameproyecto.upper()])
+        #     EquiposDesplazamiento.inicializar_lista_equipos(tree_widget, DesplazamientoView.idproyecto, DesplazamientoView.nameproyecto)
+        #     def sincronizar_memoria(nodo):
+        #         for i in range(nodo.childCount()):
+        #             hijo = nodo.child(i)
+        #             hijo.setData(0, Qt.UserRole + 999, hijo.checkState(0))
+        #             sincronizar_memoria(hijo)
+        #     root = tree_widget.invisibleRootItem()
+        #     sincronizar_memoria(root)
+        #     DesplazamientoView.estadochecklist = False # Cerrar paso
+
         if DesplazamientoView.estadoPagina:
             tree_actual_desplaza =  main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-            tree_actual_desplaza.itemClicked.connect(DesplazamientoView.checkProyectoActualDesplazamiento)
-            tree_actual_desplaza.setContextMenuPolicy(Qt.CustomContextMenu)
-            tree_actual_desplaza.customContextMenuRequested.connect(DesplazamientoView.clicderechoProyectoActualDesplazamiento)
+            # tree_actual_desplaza.itemClicked.connect(DesplazamientoView.checkProyectoActualDesplazamiento)
+            # tree_actual_desplaza.setContextMenuPolicy(Qt.CustomContextMenu)
+            # tree_actual_desplaza.customContextMenuRequested.connect(DesplazamientoView.clicderechoProyectoActualDesplazamiento)
             # Habilitar clic derecho en el encabezado (Header)
-            header = tree_actual_desplaza.header()
-            header.setContextMenuPolicy(Qt.CustomContextMenu)
-            header.customContextMenuRequested.connect(DesplazamientoView.clicderechoEncabezadoProyecto)
+            # header = tree_actual_desplaza.header()
+            # header.setContextMenuPolicy(Qt.CustomContextMenu)
+            # header.customContextMenuRequested.connect(DesplazamientoView.clicderechoEncabezadoProyecto)
             botonRefrescarDesplazamiento = main.findChild(QPushButton, "btn_refrescar_vista_desplazamiento")
             botonRefrescarDesplazamiento.clicked.connect(lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(tree_actual_desplaza))
             # Cargar Unidades de Medida

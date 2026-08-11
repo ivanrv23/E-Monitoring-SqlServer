@@ -147,7 +147,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ) t
         WHERE rn = 1
         ORDER BY nombre_equipo, hora;"""
@@ -181,7 +181,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ?
         ) t
         WHERE rn = 1
@@ -340,7 +340,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ) t
         WHERE rn = 1
         ORDER BY nombre_equipo, hora;"""
@@ -374,7 +374,7 @@ class PrismaModel:
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ) t
         WHERE rn = 1
         ORDER BY nombre_equipo, hora;"""
@@ -405,7 +405,7 @@ class PrismaModel:
             INNER JOIN componentes c ON i.id_componente = c.id_componente 
             WHERE p.state_prisma = 1 AND hora_prisma BETWEEN ? AND ?
             AND c.id_proyecto = ? AND i.tipo_equipo = ?
-            AND (p.grupo_puntos = c.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = c.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ) t WHERE rn = 1;"""
         
         conn = None
@@ -1139,7 +1139,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.estado_instrumentacion = 1 
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT nombre_prisma, MIN(hora_prisma) AS fechamin, MAX(hora_prisma) AS fechamax, MAX(desplazasd) AS desplazasd,
         MAX(desplaza3d) AS desplaza3d, MAX(desplaza_longitudinal) AS desplaza_longitudinal, MAX(desplaza_transversal) AS desplaza_transversal,
@@ -1213,7 +1213,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.estado_instrumentacion = 1 
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT nombre_prisma, MIN(hora_prisma) AS fechamin, MAX(hora_prisma) AS fechamax, MAX(VI3D) AS VI3D, MAX(VA3D) AS VA3D,
         MAX(VI2D) AS VI2D, MAX(VA2D) AS VA2D, MAX(VISD) AS VISD, MAX(VASD) AS VASD
@@ -1245,7 +1245,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.estado_instrumentacion = 1 
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         MagnitudCalculada AS (
             SELECT nombre_prisma, hora_prisma, desplaza_este, desplaza_norte, desplaza_elevacion,
@@ -1305,7 +1305,7 @@ class PrismaModel:
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT id_instrumentacion, nombre_prisma, hora_prisma, horas, dias, tresD
         FROM ultimas_lecturas WHERE rn = 1;"""
@@ -1342,7 +1342,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders})
             AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT id_instrumentacion, nombre_prisma, hora_prisma, horas, dias, tresD
         FROM ultimas_lecturas WHERE rn = 1;"""
@@ -1376,7 +1376,7 @@ class PrismaModel:
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CalculoCompleto AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24 AS HORAS,
@@ -1420,7 +1420,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CalculoCompleto AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24 AS HORAS,
@@ -1463,7 +1463,7 @@ class PrismaModel:
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CalculoCompleto AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24 AS HORAS,
@@ -1508,7 +1508,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CalculoCompleto AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24 AS HORAS,
