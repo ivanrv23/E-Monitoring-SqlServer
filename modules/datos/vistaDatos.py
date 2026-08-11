@@ -1,10 +1,9 @@
 from PySide6.QtGui import QIntValidator, QStandardItemModel, QColor
 from PySide6.QtCore import QAbstractTableModel, Qt, QModelIndex, QSortFilterProxyModel
-from PySide6.QtWidgets import QTableView, QPushButton, QLineEdit
+from PySide6.QtWidgets import QPushButton, QLineEdit
 from utils.common.metodosGenerales import MetodosGenerales
 from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 from controllers.DatosController import DatosController
-import warnings
 
 # Clase CustomTableModel
 class CustomTableModel(QAbstractTableModel):
@@ -134,42 +133,49 @@ class VistaDatos:
     def reiniciarPagina():
         VistaDatos.pagina_actual = 1
     
-    def mostrarTablaEquipo(proyecto_id, main, idzona, tipo, equipos, refrescar):
-        tabla = main.findChild(QTableView, "table_datos")
-        # Reiniciar página si es un nuevo tipo de tabla
-        if tipo != VistaDatos.tipo_actual:
-            VistaDatos.tipo_actual = tipo
-            VistaDatos.reiniciarPagina()
-        
-        if tipo == 'Prismas':
-            VistaDatos.mostrar_tabla_prismas(proyecto_id, main, idzona, equipos, tabla, tipo, 1)
-        elif tipo == 'Inclinómetros':
-            VistaDatos.mostrar_tabla_inclinometros(proyecto_id, main, idzona, equipos, tabla, tipo)
-        elif tipo == 'Piezómetros Cuerda Vibrante':
-            VistaDatos.mostrar_tabla_piezometros_cuerda(proyecto_id, main, idzona, equipos, tabla, tipo)
-        elif tipo == 'Piezómetros Casagrande':
-            VistaDatos.mostrar_tabla_piezometros_manual(proyecto_id, main, idzona, equipos, tabla, tipo)
-        elif tipo == 'Pluviómetros':
-            VistaDatos.mostrar_tabla_pluviometros(proyecto_id, main, idzona, equipos, tabla, tipo)
-        elif tipo == 'Cotas de Terreno':
-            VistaDatos.mostrar_tabla_cotas_terreno(proyecto_id, main, idzona, equipos, tabla, tipo)
-        elif tipo == 'Celdas de Asentamiento':
-            VistaDatos.mostrar_tabla_celdas_asentamiento(proyecto_id, main, idzona, equipos, tabla, tipo)
-        elif tipo == 'Acelerógrafos':
-            VistaDatos.mostrar_tabla_acelerografos(proyecto_id, main, idzona, equipos, tabla, tipo)
-        elif tipo == 'TDR':
-            VistaDatos.mostrar_tabla_sondajestdr(proyecto_id, main, idzona, equipos, tabla, tipo)
-        elif tipo == 'Equipos Adicionales':
-            VistaDatos.mostrar_tabla_equipos_adicionales(proyecto_id, main, idzona, equipos, tabla, tipo)
-        elif tipo == 'Prismas de Baja':
-            VistaDatos.mostrar_tabla_prismas(proyecto_id, main, idzona, equipos, tabla, tipo, 0)
-
-    def mostrar_tabla_prismas(proyecto_id, main, idzona, equipos, tablawidget, tipo, estado):
-        dataprismasunido = []
+    def obtenerDatosTablaEquipo(proyecto_id, idzona, tipo, equipos):
+        """Solo trae y prepara datos (headers/filas). NO toca widgets Qt.
+        Seguro para ejecutarse dentro de un QThread."""
         decimales, tipovelocidad = 2, 1
         respuesta = SoftwareConfiguracion.obtenerDataSoftware()
         if respuesta:
             decimales, tipovelocidad = respuesta[14], respuesta[15]
+
+        if tipo == 'Prismas':
+            return VistaDatos.datos_tabla_prismas(proyecto_id, idzona, equipos, decimales, tipovelocidad, 1)
+        elif tipo == 'Prismas de Baja':
+            return VistaDatos.datos_tabla_prismas(proyecto_id, idzona, equipos, decimales, tipovelocidad, 0)
+        elif tipo == 'Inclinómetros':
+            return VistaDatos.datos_tabla_inclinometros(proyecto_id, idzona, equipos, decimales)
+        elif tipo == 'Piezómetros Cuerda Vibrante':
+            return VistaDatos.datos_tabla_piezometros_cuerda(proyecto_id, idzona, equipos, decimales)
+        elif tipo == 'Piezómetros Casagrande':
+            return VistaDatos.datos_tabla_piezometros_manual(proyecto_id, idzona, equipos, decimales)
+        elif tipo == 'Pluviómetros':
+            return VistaDatos.datos_tabla_pluviometros(proyecto_id, idzona, equipos, decimales)
+        elif tipo == 'Cotas de Terreno':
+            return VistaDatos.datos_tabla_cotas_terreno(proyecto_id, idzona, equipos, decimales)
+        elif tipo == 'Celdas de Asentamiento':
+            return VistaDatos.datos_tabla_celdas_asentamiento(proyecto_id, idzona, equipos, decimales)
+        elif tipo == 'Acelerógrafos':
+            return VistaDatos.datos_tabla_acelerografos(proyecto_id, idzona, equipos, decimales)
+        elif tipo == 'TDR':
+            return VistaDatos.datos_tabla_sondajestdr(proyecto_id, idzona, equipos, decimales)
+        elif tipo == 'Equipos Adicionales':
+            return VistaDatos.datos_tabla_equipos_adicionales(proyecto_id, idzona, equipos, decimales)
+        return None
+
+    def construirTablaEquipo(main, tabla, tipo, resultado):
+        """Aplica el resultado a la tabla. SIEMPRE debe correr en el hilo principal (GUI thread)."""
+        if resultado:
+            VistaDatos.llenarTabla(tabla, resultado['headers'], resultado['data'], main, tipo, resultado.get('columnacolor', 0))
+            for col in resultado.get('hidden', []):
+                tabla.setColumnHidden(col, True)
+        else:
+            VistaDatos.limpiarTablaDatos(tabla)
+
+    def datos_tabla_prismas(proyecto_id, idzona, equipos, decimales, tipovelocidad, estado):
+        dataprismasunido = []
         resultado = MetodosGenerales.ctrlAgruparPrismasSegunTipo(equipos)
         for tabla, prismas in resultado.items():
             prismasdata = DatosController.ctrlObtenerDataPrismasMarcados(proyecto_id, tabla, idzona, prismas, tipovelocidad, estado, decimales)
@@ -180,17 +186,10 @@ class VistaDatos:
                 "", "Prisma", "Fecha Hora", "Este (m)", "Norte (m)", "Elevación (msnm)", "Distancia Inclinada (m)", "DI3D (cm)",
                 "DA3D (cm)", "VI3D (cm/dia)", "VA3D (cm/dia)", "A. Horizontal", "A. Vertical", "Estado", ""
             ]
-            VistaDatos.llenarTabla(tablawidget, headers, dataprismasunido, main, tipo, 13)
-            tablawidget.setColumnHidden(0, True)
-            tablawidget.setColumnHidden(14, True)
-        else:
-            VistaDatos.limpiarTablaDatos(tablawidget)
-        
-    def mostrar_tabla_inclinometros(proyecto_id, main, idzona, equipos, tabla, tipo):
-        decimales = 2
-        respuesta = SoftwareConfiguracion.obtenerDataSoftware()
-        if respuesta:
-            decimales = respuesta[14]
+            return {'headers': headers, 'data': dataprismasunido, 'columnacolor': 13, 'hidden': [0, 14]}
+        return None
+
+    def datos_tabla_inclinometros(proyecto_id, idzona, equipos, decimales):
         inclino = [dato[2] for dato in equipos]
         inclinometros = DatosController.ctrlObtenerInclinometros(proyecto_id, idzona, inclino, decimales)
         if inclinometros:
@@ -198,17 +197,10 @@ class VistaDatos:
                 "", "Inclinómetro", "Tipo Equipo", "Fecha Hora", "Profundidad (m)", "Face A+ (m)", "Face A- (m)",
                 "Face B+ (m)", "Face B- (m)", "Este (m)", "Norte (m)", "Elevación (msnm)", ""
             ]
-            VistaDatos.llenarTabla(tabla, headers, inclinometros, main, tipo)
-            tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(12, True)
-        else:
-            VistaDatos.limpiarTablaDatos(tabla)
-        
-    def mostrar_tabla_piezometros_cuerda(proyecto_id, main, idzona, equipos, tabla, tipo):
-        decimales = 2
-        respuesta = SoftwareConfiguracion.obtenerDataSoftware()
-        if respuesta:
-            decimales = respuesta[14]
+            return {'headers': headers, 'data': inclinometros, 'columnacolor': 0, 'hidden': [0, 12]}
+        return None
+
+    def datos_tabla_piezometros_cuerda(proyecto_id, idzona, equipos, decimales):
         cuerdas = [dato[2] for dato in equipos]
         piezometros = DatosController.ctrlObtenerPiezometrosCuerda(proyecto_id, idzona, cuerdas, decimales)
         if piezometros:
@@ -216,18 +208,10 @@ class VistaDatos:
                 "", "Piezómetro", "Fecha Hora", "Frecuencia", "Temperatura (°C)", "Presión", "MCA", "Instalación", "Nivel Agua",
                 "Este (m)", "Norte (m)", "Superficie (msnm)", "Fundación (msnm)", "Estado", "Observación", "", ""
             ]
-            VistaDatos.llenarTabla(tabla, headers, piezometros, main, tipo, 13)
-            tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(15, True)
-            tabla.setColumnHidden(16, True)
-        else:
-            VistaDatos.limpiarTablaDatos(tabla)
-    
-    def mostrar_tabla_piezometros_manual(proyecto_id, main, idzona, equipos, tabla, tipo):
-        decimales = 2
-        respuesta = SoftwareConfiguracion.obtenerDataSoftware()
-        if respuesta:
-            decimales = respuesta[14]
+            return {'headers': headers, 'data': piezometros, 'columnacolor': 13, 'hidden': [0, 15, 16]}
+        return None
+
+    def datos_tabla_piezometros_manual(proyecto_id, idzona, equipos, decimales):
         manuales = [dato[2] for dato in equipos]
         piezometros = DatosController.ctrlObtenerPiezometrosManuales(proyecto_id, idzona, manuales, decimales)
         if piezometros:
@@ -235,50 +219,28 @@ class VistaDatos:
                 "", "Piezómetro", "Fecha Hora", "Nivel Piezómetrico (m)", "Profundidad (m)", "Superficie (msnm)", "Nivel Agua (msnm)",
                 "Stick Up (m)", "Este (m)", "Norte (m)", "Fondo (msnm)", "Fundación (msnm)", "Estado", "Observación", "", ""
             ]
-            VistaDatos.llenarTabla(tabla, headers, piezometros, main, tipo, 12)
-            tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(14, True)
-            tabla.setColumnHidden(15, True)
-        else:
-            VistaDatos.limpiarTablaDatos(tabla)
-    
-    def mostrar_tabla_pluviometros(proyecto_id, main, idzona, equipos, tabla, tipo):
-        decimales = 2
-        respuesta = SoftwareConfiguracion.obtenerDataSoftware()
-        if respuesta:
-            decimales = respuesta[14]
+            return {'headers': headers, 'data': piezometros, 'columnacolor': 12, 'hidden': [0, 14, 15]}
+        return None
+
+    def datos_tabla_pluviometros(proyecto_id, idzona, equipos, decimales):
         lluvias = [dato[2] for dato in equipos]
         pluviometros = DatosController.ctrlObtenerPluviometros(proyecto_id, idzona, lluvias, decimales)
         if pluviometros:
             headers = [
                 "", "Pluviómetro", "Fecha Hora", "Precipitación (mm)", "Este (m)", "Norte (m)", "Elevación (msnm)", "Observación", "Estado", ""
             ]
-            VistaDatos.llenarTabla(tabla, headers, pluviometros, main, tipo)
-            tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(9, True)
-        else:
-            VistaDatos.limpiarTablaDatos(tabla)
-    
-    def mostrar_tabla_cotas_terreno(proyecto_id, main, idzona, equipos, tabla, tipo):
-        decimales = 2
-        respuesta = SoftwareConfiguracion.obtenerDataSoftware()
-        if respuesta:
-            decimales = respuesta[14]
+            return {'headers': headers, 'data': pluviometros, 'columnacolor': 0, 'hidden': [0, 9]}
+        return None
+
+    def datos_tabla_cotas_terreno(proyecto_id, idzona, equipos, decimales):
         cotas = [dato[2] for dato in equipos]
         terrenos = DatosController.ctrlObtenerCotasTerreno(proyecto_id, idzona, cotas, decimales)
         if terrenos:
-            headers = [ "", "Nombre Cota", "Fecha Hora", "Cota (msnm)", "Observación", "Estado", ""]
-            VistaDatos.llenarTabla(tabla, headers, terrenos, main, tipo)
-            tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(6, True)
-        else:
-            VistaDatos.limpiarTablaDatos(tabla)
-    
-    def mostrar_tabla_celdas_asentamiento(proyecto_id, main, idzona, equipos, tabla, tipo):
-        decimales = 2
-        respuesta = SoftwareConfiguracion.obtenerDataSoftware()
-        if respuesta:
-            decimales = respuesta[14]
+            headers = ["", "Nombre Cota", "Fecha Hora", "Cota (msnm)", "Observación", "Estado", ""]
+            return {'headers': headers, 'data': terrenos, 'columnacolor': 0, 'hidden': [0, 6]}
+        return None
+
+    def datos_tabla_celdas_asentamiento(proyecto_id, idzona, equipos, decimales):
         asentamiento = [dato[2] for dato in equipos]
         celdas = DatosController.ctrlObtenerCeldasAsentamiento(proyecto_id, idzona, asentamiento, decimales)
         if celdas:
@@ -287,17 +249,10 @@ class VistaDatos:
                 "Desplazamiento (m)", "Cota (msnm)", "Instalación (msnm)", "Rango", "Este (m)", "Norte (m)",
                 "Fundación (msnm)", "Superficie (msnm)", "Estado", "Observación", ""
             ]
-            VistaDatos.llenarTabla(tabla, headers, celdas, main, tipo, 14)
-            tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(16, True)
-        else:
-            VistaDatos.limpiarTablaDatos(tabla)
-    
-    def mostrar_tabla_acelerografos(proyecto_id, main, idzona, equipos, tabla, tipo):
-        decimales = 2
-        respuesta = SoftwareConfiguracion.obtenerDataSoftware()
-        if respuesta:
-            decimales = respuesta[14]
+            return {'headers': headers, 'data': celdas, 'columnacolor': 14, 'hidden': [0, 16]}
+        return None
+
+    def datos_tabla_acelerografos(proyecto_id, idzona, equipos, decimales):
         acelero = [dato[2] for dato in equipos]
         acelerografos = DatosController.ctrlObtenerAcelerografos(proyecto_id, idzona, acelero, decimales)
         if acelerografos:
@@ -305,17 +260,10 @@ class VistaDatos:
                 "", "Acelerógrafo", "Fecha Hora", "Magnitud", "Distancia (Km)",
                 "Este (m)", "Norte (m)", "Elevación (msnm)", "Observacion", "Estado", ""
             ]
-            VistaDatos.llenarTabla(tabla, headers, acelerografos, main, tipo, 9)
-            tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(10, True)
-        else:
-            VistaDatos.limpiarTablaDatos(tabla)
-    
-    def mostrar_tabla_sondajestdr(proyecto_id, main, idzona, equipos, tabla, tipo):
-        decimales = 2
-        respuesta = SoftwareConfiguracion.obtenerDataSoftware()
-        if respuesta:
-            decimales = respuesta[14]
+            return {'headers': headers, 'data': acelerografos, 'columnacolor': 9, 'hidden': [0, 10]}
+        return None
+
+    def datos_tabla_sondajestdr(proyecto_id, idzona, equipos, decimales):
         tdr = [dato[2] for dato in equipos]
         sondajestdr = DatosController.ctrlObtenerSondajestdr(proyecto_id, idzona, tdr, decimales)
         if sondajestdr:
@@ -323,28 +271,18 @@ class VistaDatos:
                 "", "TDR", "Fecha y Hora", "Profundidad (m)", "Impedancia", "Este (m)", "Norte (m)",
                 "Elevación (msnm)", "Observación", ""
             ]
-            VistaDatos.llenarTabla(tabla, headers, sondajestdr, main, tipo)
-            tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(9, True)
-        else:
-            VistaDatos.limpiarTablaDatos(tabla)
-    
-    def mostrar_tabla_equipos_adicionales(proyecto_id, main, idzona, equipos, tabla, tipo):
-        decimales = 2
-        respuesta = SoftwareConfiguracion.obtenerDataSoftware()
-        if respuesta:
-            decimales = respuesta[14]
+            return {'headers': headers, 'data': sondajestdr, 'columnacolor': 0, 'hidden': [0, 9]}
+        return None
+
+    def datos_tabla_equipos_adicionales(proyecto_id, idzona, equipos, decimales):
         adicionales = [dato[2] for dato in equipos]
-        equipos = DatosController.ctrlObtenerEquiposAdicionales(proyecto_id, idzona, adicionales, decimales)
-        if equipos:
+        equiposdata = DatosController.ctrlObtenerEquiposAdicionales(proyecto_id, idzona, adicionales, decimales)
+        if equiposdata:
             headers = [
                 "", "Equipo", "Tipo Equipo", "Este (m)", "Norte (m)", "Elevación (msnm)", "Descripción", ""
             ]
-            VistaDatos.llenarTabla(tabla, headers, equipos, main, tipo)
-            tabla.setColumnHidden(0, True)
-            tabla.setColumnHidden(7, True)
-        else:
-            VistaDatos.limpiarTablaDatos(tabla)
+            return {'headers': headers, 'data': equiposdata, 'columnacolor': 0, 'hidden': [0, 7]}
+        return None
     
     def llenarTabla(tabla, headers, data, main, tipo, columnacolor=0):
         # Limpiar selecciones antes de cambiar el modelo

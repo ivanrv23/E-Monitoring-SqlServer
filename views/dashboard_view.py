@@ -1,9 +1,9 @@
 import matplotlib
 import matplotlib.pyplot as plt
 from PySide6.QtWidgets import (QGridLayout, QWidget, QSizePolicy, QScrollArea, QGraphicsSimpleTextItem, QComboBox,
-                               QPushButton, QLayout, QToolTip, QLabel)
+                               QGraphicsTextItem, QPushButton, QLayout, QToolTip, QLabel)
 from PySide6.QtCharts import (QChart, QChartView, QPieSeries, QPieSlice, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis)
-from PySide6.QtCore import Qt, QMargins, QPoint, QThread, Signal
+from PySide6.QtCore import Qt, QMargins, QPoint, QThread, Signal, QRectF
 from PySide6.QtGui import QPainter, QColor, QBrush, QFont, QPen
 matplotlib.use('QtAgg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -15,13 +15,22 @@ class DashboardView():
     estadoPagina = True
     main, nameproyecto = None, "SIN PROYECTO"
     idproyecto = None
-    # Lista para mantener referencias a los widgets creados
     _widgets_referencias = []
+    _signals_conectadas = False
+    _NOMBRES_EQUIPO_DISPLAY = {
+        'Prismas': 'Prismas',
+        'Inclinometros': 'Inclinómetros',
+        'PiezometrosCuerda': 'Piezómetros Cuerda Vibrante',
+        'PiezometrosManual': 'Piezómetros Casagrande',
+        'Celdas': 'Celdas',
+        'Pluviometros': 'Pluviómetros',
+        'Acelerografos': 'Acelerógrafos',
+        'SondajesTDR': 'Sondajes TDR',
+    }
 
     def inicializarVistaDashboard(main, idproyecto):
         DashboardView.main = main
         DashboardView.idproyecto = idproyecto
-        # Limpiar combo
         comboComponentesDashboard = main.findChild(QComboBox, "cb_lista_componentes_dashboard")
         comboComponentesDashboard.clear()
         if DashboardView.idproyecto:
@@ -33,18 +42,12 @@ class DashboardView():
 
         btn_refrescar_dashboard = main.findChild(QPushButton, "btn_refrescar_dashboard")
 
-        # Desconectar conexiones previas SIEMPRE antes de reconectar.
-        try:
-            btn_refrescar_dashboard.clicked.disconnect(DashboardView.dashboardInicial)
-        except (TypeError, RuntimeError):
-            pass
-        try:
-            comboComponentesDashboard.activated.disconnect(DashboardView.dashboardInicial)
-        except (TypeError, RuntimeError):
-            pass
+        # Conectar solo una vez por proceso, sin desconectar (evita el warning)
+        if not DashboardView._signals_conectadas:
+            btn_refrescar_dashboard.clicked.connect(DashboardView.dashboardInicial)
+            comboComponentesDashboard.activated.connect(DashboardView.dashboardInicial)
+            DashboardView._signals_conectadas = True
 
-        btn_refrescar_dashboard.clicked.connect(DashboardView.dashboardInicial)
-        comboComponentesDashboard.activated.connect(DashboardView.dashboardInicial)
         DashboardView.estadoPagina = False
 
     def dashboardInicial():
@@ -136,8 +139,7 @@ class DashboardView():
             (lambda: DashboardView.create_pie_instrumentacion(instrumentacion), 'half'),
             (lambda: DashboardView.create_donut_chart(operativos_inoperativos), 'half'),
             (lambda: DashboardView.create_bar_chart_estados(estadoequipos), 'half'),
-            (lambda: DashboardView.create_pie_prismas('Lecturas Prismas Activos', lecturas_prismas), 'half'),
-            (lambda: DashboardView.create_pie_prismas('Lecturas Prismas De Baja', lecturas_prismas), 'half'),
+            (lambda: DashboardView.create_pie_prismas('Lecturas por Prisma', lecturas_prismas), 'half'),
 
         ]
         row = 0
@@ -453,6 +455,70 @@ class DashboardView():
         return None
 
     @staticmethod
+    def _dividir_etiqueta_dos_lineas(texto):
+        """Divide un texto en dos líneas, cortando en el espacio más cercano al centro.
+        Devuelve una tupla (linea1, linea2). Si no se puede dividir, linea2 queda vacía."""
+        palabras = texto.split()
+        if len(palabras) <= 1:
+            return (texto, "")
+        mitad = len(texto) // 2
+        mejor_corte = 1
+        menor_diferencia = len(texto)
+        acumulado = 0
+        for i, palabra in enumerate(palabras[:-1]):
+            acumulado += len(palabra) + 1
+            diferencia = abs(acumulado - mitad)
+            if diferencia < menor_diferencia:
+                menor_diferencia = diferencia
+                mejor_corte = i + 1
+        linea1 = " ".join(palabras[:mejor_corte])
+        linea2 = " ".join(palabras[mejor_corte:])
+        return (linea1, linea2)
+
+    @staticmethod
+    def _dibujar_etiquetas_eje_x(chart, categorias, font_axis):
+        """Dibuja manualmente las etiquetas del eje X en dos líneas, ya que
+        QBarCategoryAxis ignora cualquier salto de línea en sus labels nativas.
+        También reposiciona la leyenda debajo de estas etiquetas, ya que por
+        defecto Qt Charts la coloca justo pegada al área de trazado."""
+        etiquetas_items = []
+        for categoria in categorias:
+            linea1, linea2 = DashboardView._dividir_etiqueta_dos_lineas(categoria)
+            texto = f"{linea1}\n{linea2}" if linea2 else linea1
+            item = QGraphicsTextItem(chart)
+            item.setPlainText(texto)
+            item.setFont(font_axis)
+            item.setDefaultTextColor(QColor("#000000"))
+            item.setZValue(20)
+            etiquetas_items.append(item)
+        DashboardView._widgets_referencias.extend(etiquetas_items)
+
+        leyenda = chart.legend()
+        leyenda.detachFromChart()
+        leyenda.setVisible(True)
+        leyenda.setBackgroundVisible(False)
+
+        def reposicionar():
+            plot_area = chart.plotArea()
+            n = len(categorias)
+            if n == 0:
+                return
+            ancho_categoria = plot_area.width() / n
+            max_bottom = plot_area.bottom()
+            for i, item in enumerate(etiquetas_items):
+                centro_x = plot_area.left() + ancho_categoria * (i + 0.5)
+                rect = item.boundingRect()
+                pos_y = plot_area.bottom() + 4
+                item.setPos(centro_x - rect.width() / 2, pos_y)
+                max_bottom = max(max_bottom, pos_y + rect.height())
+
+            alto_leyenda = max(leyenda.geometry().height(), 24)
+            leyenda.setGeometry(QRectF(plot_area.left(), max_bottom + 6, plot_area.width(), alto_leyenda))
+
+        reposicionar()
+        chart.plotAreaChanged.connect(reposicionar)
+        
+    @staticmethod
     def create_bar_chart_estados(data):
         """
         data viene como:
@@ -464,7 +530,8 @@ class DashboardView():
         # Reorganizar: { tipo_equipo: {categoria: cantidad} }
         resumen = {}
         tipos_equipo_orden = []
-        for tipo_equipo, categoria, cantidad in data:
+        for tipo_equipo_raw, categoria, cantidad in data:
+            tipo_equipo = DashboardView._NOMBRES_EQUIPO_DISPLAY.get(tipo_equipo_raw, tipo_equipo_raw)
             if tipo_equipo not in resumen:
                 resumen[tipo_equipo] = {}
                 tipos_equipo_orden.append(tipo_equipo)
@@ -505,15 +572,14 @@ class DashboardView():
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         chart.legend().setVisible(True)
         chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
-        chart.setMargins(QMargins(10, 40, 10, 10))
+        chart.setMargins(QMargins(10, 40, 10, 75))
 
         font_axis = QFont()
         font_axis.setPointSize(9)
 
         axisX = QBarCategoryAxis()
         axisX.append(tipos_equipo_orden)
-        axisX.setLabelsAngle(-45)
-        axisX.setLabelsFont(font_axis)
+        axisX.setLabelsVisible(False)
         axisX.setTruncateLabels(False)
         chart.addAxis(axisX, Qt.AlignmentFlag.AlignBottom)
         series.attachAxis(axisX)
@@ -531,6 +597,8 @@ class DashboardView():
         axisY.setTickCount(6)
         chart.addAxis(axisY, Qt.AlignmentFlag.AlignLeft)
         series.attachAxis(axisY)
+
+        DashboardView._dibujar_etiquetas_eje_x(chart, tipos_equipo_orden, font_axis)
 
         chart_view = QChartView(chart)
         chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)

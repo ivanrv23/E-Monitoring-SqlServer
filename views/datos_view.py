@@ -1,5 +1,4 @@
 from PySide6.QtWidgets import (QMenu, QTreeWidget, QPushButton, QTableView, QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QMessageBox, QLabel, QComboBox)
-from PySide6.QtCore import Qt, QTimer
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QDoubleValidator
 from PySide6.QtCore import QThread, Signal
@@ -25,7 +24,7 @@ class DatosView:
     nameproyecto = "SIN PROYECTO"
     estadochecklist = True
     estadoPagina = True
-    
+    _current_thread_datos = None
     loading_dialog = None
 
     def inicializarVistaDatos(main, proyectoid, proyectoname):
@@ -118,6 +117,7 @@ class DatosView:
     def obtenerEquiposMarcados(refrescar=False):
         treeWidget_lista_checks_datos = DatosView.main.findChild(QTreeWidget, "tree_actual_datos")
         lista = EquiposDatos.obtener_todos_elementos_marcados(treeWidget_lista_checks_datos)
+        tabla = DatosView.main.findChild(QTableView, "table_datos")
         if lista:
             zona = list(lista.keys())[0]
             tipoequipos = lista.get(zona)
@@ -126,18 +126,37 @@ class DatosView:
             idzona = zona[1]
             tipo = tipito[0]
 
-            # Iniciar Hilo
+            # Evitar lanzar un thread nuevo mientras el anterior sigue vivo
+            thread_previo = DatosView._current_thread_datos
+            if thread_previo is not None:
+                try:
+                    if thread_previo.isRunning():
+                        thread_previo.quit()
+                        thread_previo.wait()
+                except RuntimeError:
+                    pass
+
             loading = LoadingView.mostrarLoading()
-            def on_thread_complete():
+
+            def on_thread_complete(resultado):
+                VistaDatos.construirTablaEquipo(DatosView.main, tabla, tipo, resultado)
                 loading.close()
-            procesaDatos = ProcesarDatosThread(DatosView.idproyecto, DatosView.main, idzona, tipo, equipos, refrescar)
-            procesaDatos.task_finishProcesardatos.connect(on_thread_complete)
+
+            def on_thread_finished():
+                if DatosView._current_thread_datos is procesaDatos:
+                    DatosView._current_thread_datos = None
+
+            procesaDatos = ProcesarDatosThread(DatosView.idproyecto, idzona, tipo, equipos)
+            DatosView._current_thread_datos = procesaDatos
+            procesaDatos.task_finishProcesardatos.connect(
+                on_thread_complete,
+                Qt.ConnectionType.QueuedConnection
+            )
+            procesaDatos.finished.connect(on_thread_finished)
+            procesaDatos.finished.connect(procesaDatos.deleteLater)
             procesaDatos.start()
             loading.exec()
-
-            # VistaDatos.mostrarTablaEquipo(DatosView.idproyecto, DatosView.main, idzona, tipo, equipos, refrescar)
         else:
-            tabla =  DatosView.main.findChild(QTableView, "table_datos")
             VistaDatos.limpiarTablaDatos(tabla)
     
     def descargarFormatosData():
@@ -1785,19 +1804,19 @@ class DatosView:
     
 
 class ProcesarDatosThread(QThread):
-    task_finishProcesardatos = Signal()
+    task_finishProcesardatos = Signal(object)
 
-    def __init__(self, idproyecto, main, idzona, tipo, equipos, refrescar):
+    def __init__(self, idproyecto, idzona, tipo, equipos):
         super().__init__()
         self.idproyecto = idproyecto
-        self.main = main
         self.idzona = idzona
         self.tipo = tipo
         self.equipos = equipos
-        self.refrescar = refrescar
 
     def run(self):
-        # procesar datos
-        VistaDatos.mostrarTablaEquipo(self.idproyecto, self.main, self.idzona, self.tipo, self.equipos, self.refrescar)
-        # mandar señal
-        self.task_finishProcesardatos.emit()
+        try:
+            resultado = VistaDatos.obtenerDatosTablaEquipo(self.idproyecto, self.idzona, self.tipo, self.equipos)
+        except Exception as e:
+            print(f"Error al obtener datos de equipos: {e}")
+            resultado = None
+        self.task_finishProcesardatos.emit(resultado)
