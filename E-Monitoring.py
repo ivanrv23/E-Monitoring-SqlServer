@@ -30,11 +30,12 @@ class MyApp:
         self.setup_logging()
         self.setup_gpu_handling()
         self.app = QApplication(sys.argv)
-        # --- NUEVO: evitar que se abra una segunda instancia del software ---
+
         if not self.verificar_instancia_unica():
             sys.exit(0)
+
         self.app.setStyle("WindowsVista")
-        self.app.setWindowIcon(QIcon(resource_path(ICON_PATH)))
+        self.app.setWindowIcon(QIcon(resource_path(ICON_PATH)))  # se setea después de verificar
         self.splash = SplashScreen()
         self.splash.show()
         QTimer.singleShot(1000, self.show_interfaz_principal)
@@ -50,10 +51,23 @@ class MyApp:
         ruta_lock = os.path.join(carpeta_lock, "emonitoring.lock")
         self.lock_file = QLockFile(ruta_lock)
         self.lock_file.setStaleLockTime(30000)  # 30s
+
         if not self.lock_file.tryLock(100):
-            QMessageBox.warning(None, "E-Monitoring", "El programa ya se encuentra en ejecución.")
+            self._mostrar_dialogo_instancia_duplicada()
             return False
         return True
+
+    def _mostrar_dialogo_instancia_duplicada(self):
+        """Muestra un QMessageBox con ícono de la aplicación cuando ya hay una instancia corriendo."""
+        icono = QIcon(resource_path(ICON_PATH))
+
+        dialogo = QMessageBox()
+        dialogo.setWindowTitle("E-Monitoring")
+        dialogo.setText("E-Monitoring ya se encuentra en ejecución.")
+        dialogo.setIcon(QMessageBox.Icon.Warning)
+        dialogo.setWindowIcon(icono)
+        dialogo.setStandardButtons(QMessageBox.StandardButton.Ok)
+        dialogo.exec()
     
     def setup_gpu_handling(self):
         if not self.is_gpu_available():

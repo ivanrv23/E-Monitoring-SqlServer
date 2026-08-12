@@ -222,7 +222,7 @@ class DesplazamientoView:
             Personalizacion.dialogoConfigurarMarcadoPredeterminado(tree_actual, prefs_actuales, callback_guardar)
 
 
-        menu.addAction("Configurar Plantilla Predeterminada...").triggered.connect(accion_configurar)
+        menu.addAction("Configurar Plantilla").triggered.connect(accion_configurar)
 
         menu.exec(pos_global)
         
@@ -297,7 +297,7 @@ class DesplazamientoView:
         if tipoequipo == "Prisma":
             DatosView.reiniciarVistaDatos(DesplazamientoView.main, DesplazamientoView.idproyecto, DesplazamientoView.nameproyecto)
             VisorView.reiniciarVistaVisor(DesplazamientoView.main, DesplazamientoView.idproyecto, DesplazamientoView.nameproyecto)
-            VelocidadView.reiniciarVistaVelocidad(DesplazamientoView.main, DesplazamientoView.idproyecto, DesplazamientoView.nameproyecto)
+            # VelocidadView.reiniciarVistaVelocidad(DesplazamientoView.main, DesplazamientoView.idproyecto, DesplazamientoView.nameproyecto)
             AnalisisView.reiniciarVistaAnalisis(DesplazamientoView.main, DesplazamientoView.idproyecto, DesplazamientoView.nameproyecto)
         else:
             DatosView.reiniciarVistaDatos(DesplazamientoView.main, DesplazamientoView.idproyecto, DesplazamientoView.nameproyecto)
@@ -621,6 +621,8 @@ class DesplazamientoView:
         DesplazamientoView.idproyecto = proyecto_id
         DesplazamientoView.nameproyecto = proyecto_name
         DesplazamientoView.estadochecklist = True
+        treeWidget =  main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+        EquiposDesplazamiento.inicializar_lista_equipos(treeWidget, proyecto_id, proyecto_name)
         DesplazamientoView.limpiarGraficaDesplazamiento()
     
     def iniciarAsistenteVozDesplazamiento(treeWidget, botonvoz):

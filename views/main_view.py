@@ -1168,7 +1168,7 @@ class MainView:
         DatosView.reiniciarVistaDatos(main, proyecto_id, proyecto_name)
         VisorView.reiniciarVistaVisor(main, proyecto_id, proyecto_name)
         DesplazamientoView.reiniciarVistaDesplazamiento(main, proyecto_id, proyecto_name)
-        VelocidadView.reiniciarVistaVelocidad(main, proyecto_id, proyecto_name)
+        # VelocidadView.reiniciarVistaVelocidad(main, proyecto_id, proyecto_name)
         InclinometrosView.reiniciarVistaInclinometros(main, proyecto_id, proyecto_name)
         PiezometrosView.reiniciarVistaPiezometros(main, proyecto_id, proyecto_name)
         CeldasView.reiniciarVistaCeldas(main, proyecto_id, proyecto_name)
@@ -1187,8 +1187,12 @@ class MainView:
             VisorView.inicializarVistaVisor(main, proyecto_id, proyecto_name, MainView.prismafechainicial, MainView.prismafechafinal)
         elif pagina == 3: # Desplazamiento
             DesplazamientoView.inicializarVistaDesplazamiento(main, proyecto_id, proyecto_name, MainView.prismafechainicial, MainView.prismafechafinal)
+            tree_compartido = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+            DesplazamientoView.obtenerMostrarPrismasMarcados(tree_compartido)
         elif pagina == 4: # Velocidad
             VelocidadView.inicializarVistaVelocidad(main, proyecto_id, proyecto_name, MainView.prismafechainicial, MainView.prismafechafinal)
+            tree_compartido = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+            VelocidadView.obtenerMostrarPrismasMarcados(tree_compartido)
         elif pagina == 5: # Inclinometros
             InclinometrosView.inicializarVistaInclinometros(main, proyecto_id, proyecto_name)
         elif pagina == 6: # Piezometros

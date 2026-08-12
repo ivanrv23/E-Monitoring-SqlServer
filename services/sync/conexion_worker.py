@@ -2,13 +2,11 @@ import socket
 import threading
 import time
 import logging
+import pyodbc
 from logging.handlers import RotatingFileHandler
 from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import datetime, timedelta
-
-import pyodbc
 from PySide6.QtCore import QThread, Signal
-
 from services.security.apis.conexiones.connection import Connection
 
 # ==========================================
