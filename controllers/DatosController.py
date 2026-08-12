@@ -74,6 +74,8 @@ class DatosController:
                 # Usamos regex=False para evitar advertencias futuras de Pandas
                 data_chunk.iloc[:, 4] = data_chunk.iloc[:, 4].apply(lambda x: x.replace('ï¿½', '°') if isinstance(x, str) else x)
                 data_chunk.iloc[:, 5] = data_chunk.iloc[:, 5].apply(lambda x: x.replace('ï¿½', '°') if isinstance(x, str) else x)
+                # Forzar 'Point group' (última columna) a NULL siempre, sin importar el archivo
+                data_chunk.iloc[:, -1] = None
 
                 # --- INICIO AJUSTE PARA SQL SERVER DATETIME2(0) ---
                 
@@ -142,6 +144,8 @@ class DatosController:
                 # Limpiar caracteres no válidos en las columnas de ángulos
                 data_chunk.iloc[:, 21] = data_chunk.iloc[:, 21].apply(lambda x: x.replace('ï¿½', '°') if isinstance(x, str) else x)
                 data_chunk.iloc[:, 22] = data_chunk.iloc[:, 22].apply(lambda x: x.replace('ï¿½', '°') if isinstance(x, str) else x)
+                # Forzar 'Point group' (columna índice 20) a NULL siempre, sin importar el archivo
+                data_chunk.iloc[:, 20] = None
 
                 # --- REGLAS DE ORO: ISO 'T' + FILTRO 1900 ---
                 # 1. Convertir a datetime (vectorizado, sin apply externo)

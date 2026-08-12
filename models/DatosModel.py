@@ -1,10 +1,35 @@
 import pandas as pd
-import pyodbc
 from services.security.apis.conexiones.connection import Connection
 from datetime import datetime
 
 class DatosModel:
-    
+
+    def asegurar_tabla_prismas(conn, cursor, nombretabla):
+        """Crea la tabla de prismas (si no existe), incluyendo el índice único
+        de deduplicación (nombre_prisma, hora_prisma, grupo_puntos)."""
+        cursor.execute(f"""
+            IF OBJECT_ID('{nombretabla}', 'U') IS NULL
+            CREATE TABLE {nombretabla} (
+                id_prisma INT IDENTITY(1,1) NOT NULL PRIMARY KEY, state_prisma INT NOT NULL DEFAULT 1, estado_prisma INT NOT NULL DEFAULT 1,
+                nombre_prisma VARCHAR(255) NOT NULL, perfil_prisma VARCHAR(255), hora_prisma DATETIME2(0) NOT NULL,
+                angulo_horizontal VARCHAR(50), angulo_vertical VARCHAR(50), distancia_prisma FLOAT DEFAULT 0,
+                tipoppm_prisma VARCHAR(50), ppm_prisma FLOAT DEFAULT 0, presion_prisma FLOAT DEFAULT 0,
+                temperatura_prisma FLOAT DEFAULT 0, constante_prisma FLOAT DEFAULT 0, este_target FLOAT NOT NULL,
+                norte_target FLOAT NOT NULL, elevacion_target FLOAT NOT NULL, altura_reflector FLOAT DEFAULT 0,
+                altura_instrumento FLOAT DEFAULT 0, este_estacion FLOAT DEFAULT 0, norte_estacion FLOAT DEFAULT 0,
+                altura_estacion FLOAT DEFAULT 0, medicion_prisma FLOAT DEFAULT 0, diferencia_tiempocorto FLOAT DEFAULT 0,
+                diferencia_tiempolargo FLOAT DEFAULT 0, diferencia_limitevelocidad FLOAT DEFAULT 0,
+                distancia_horizontal FLOAT DEFAULT 0, diferencia_atipica FLOAT DEFAULT 0, desplaza_longitudinal FLOAT DEFAULT 0,
+                desplaza_transversal FLOAT DEFAULT 0, desplaza_altura FLOAT DEFAULT 0, grupo_puntos VARCHAR(255)
+            );
+        """)
+        idx_name = f"UX_{nombretabla}_dedupe"
+        cursor.execute(f"""
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = '{idx_name}' AND object_id = OBJECT_ID('{nombretabla}'))
+            CREATE UNIQUE INDEX {idx_name} ON {nombretabla} (nombre_prisma, hora_prisma, grupo_puntos);
+        """)
+        conn.commit()
+
     @staticmethod
     def mdlObtenerListaPrismasMarcados(tabla, zona, prismas):
         placeholders = ','.join(['?'] * len(prismas))
@@ -609,52 +634,12 @@ class DatosModel:
     @staticmethod
     def mdlRegistrarPrismasAutomatizadosUno(idproyecto, datos_procesados):
         respuesta = True
-        nombretabla = f"prismas{idproyecto}"
-        
-        # 1. USO DE DATETIME2(0)
-        sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
-        CREATE TABLE {nombretabla} (
-            id_prisma INT IDENTITY(1,1) NOT NULL,
-            state_prisma INT NOT NULL DEFAULT ((1)),
-            estado_prisma INT NOT NULL DEFAULT ((1)), 
-            nombre_prisma NVARCHAR(500) NOT NULL, 
-            perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME2(0) NOT NULL, 
-            angulo_horizontal NVARCHAR(50), 
-            angulo_vertical NVARCHAR(50), 
-            distancia_prisma FLOAT DEFAULT ((0)), 
-            tipoppm_prisma NVARCHAR(50), 
-            ppm_prisma FLOAT DEFAULT ((0)), 
-            presion_prisma FLOAT DEFAULT ((0)), 
-            temperatura_prisma FLOAT DEFAULT ((0)), 
-            constante_prisma FLOAT DEFAULT ((0)), 
-            este_target FLOAT NOT NULL, 
-            norte_target FLOAT NOT NULL, 
-            elevacion_target FLOAT NOT NULL, 
-            altura_reflector FLOAT DEFAULT ((0)), 
-            altura_instrumento FLOAT DEFAULT ((0)), 
-            este_estacion FLOAT DEFAULT ((0)), 
-            norte_estacion FLOAT DEFAULT ((0)), 
-            altura_estacion FLOAT DEFAULT ((0)), 
-            medicion_prisma FLOAT DEFAULT ((0)), 
-            diferencia_tiempocorto FLOAT DEFAULT ((0)),
-            diferencia_tiempolargo FLOAT DEFAULT ((0)), 
-            diferencia_limitevelocidad FLOAT DEFAULT ((0)), 
-            distancia_horizontal FLOAT DEFAULT ((0)), 
-            diferencia_atipica FLOAT DEFAULT ((0)), 
-            desplaza_longitudinal FLOAT DEFAULT ((0)), 
-            desplaza_transversal FLOAT DEFAULT ((0)), 
-            desplaza_altura FLOAT DEFAULT ((0)), 
-            grupo_puntos NVARCHAR(MAX),
-            CONSTRAINT [PK_{nombretabla}] PRIMARY KEY CLUSTERED (id_prisma)
-        );"""
-        
         conn = None
         try:
+            nombretabla = f"prismas{idproyecto}"
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            cursor.execute(sqltable)
-            conn.commit()
+            DatosModel.asegurar_tabla_prismas(conn, cursor, nombretabla)
             
             # 2. FORMATO ISO CON 'T' PARA COMPARACIÓN EXACTA
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
@@ -705,51 +690,12 @@ class DatosModel:
     @staticmethod
     def mdlRemplazarPrismasAutomatizadosUno(idproyecto, datos_procesados, componente=None):
         respuesta = True
-        nombretabla = f"prismas{idproyecto}"
-        
-        sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
-        CREATE TABLE {nombretabla} (
-            id_prisma INT IDENTITY(1,1) NOT NULL,
-            state_prisma INT NOT NULL DEFAULT ((1)),
-            estado_prisma INT NOT NULL DEFAULT ((1)), 
-            nombre_prisma NVARCHAR(500) NOT NULL, 
-            perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME2(0) NOT NULL, 
-            angulo_horizontal NVARCHAR(50), 
-            angulo_vertical NVARCHAR(50), 
-            distancia_prisma FLOAT DEFAULT ((0)), 
-            tipoppm_prisma NVARCHAR(50), 
-            ppm_prisma FLOAT DEFAULT ((0)), 
-            presion_prisma FLOAT DEFAULT ((0)), 
-            temperatura_prisma FLOAT DEFAULT ((0)), 
-            constante_prisma FLOAT DEFAULT ((0)), 
-            este_target FLOAT NOT NULL, 
-            norte_target FLOAT NOT NULL, 
-            elevacion_target FLOAT NOT NULL, 
-            altura_reflector FLOAT DEFAULT ((0)), 
-            altura_instrumento FLOAT DEFAULT ((0)), 
-            este_estacion FLOAT DEFAULT ((0)), 
-            norte_estacion FLOAT DEFAULT ((0)), 
-            altura_estacion FLOAT DEFAULT ((0)), 
-            medicion_prisma FLOAT DEFAULT ((0)), 
-            diferencia_tiempocorto FLOAT DEFAULT ((0)),
-            diferencia_tiempolargo FLOAT DEFAULT ((0)), 
-            diferencia_limitevelocidad FLOAT DEFAULT ((0)), 
-            distancia_horizontal FLOAT DEFAULT ((0)), 
-            diferencia_atipica FLOAT DEFAULT ((0)), 
-            desplaza_longitudinal FLOAT DEFAULT ((0)), 
-            desplaza_transversal FLOAT DEFAULT ((0)), 
-            desplaza_altura FLOAT DEFAULT ((0)), 
-            grupo_puntos NVARCHAR(MAX),
-            CONSTRAINT [PK_{nombretabla}] PRIMARY KEY CLUSTERED (id_prisma)
-        );"""
-        
         conn = None
         try:
+            nombretabla = f"prismas{idproyecto}"
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            cursor.execute(sqltable)
-            conn.commit()
+            DatosModel.asegurar_tabla_prismas(conn, cursor, nombretabla)
             
             if componente:
                 cursor.execute(f"SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
@@ -806,50 +752,12 @@ class DatosModel:
     @staticmethod
     def mdlRegistrarPrismasAutomatizadosDos(idproyecto, datos_procesados):
         respuesta = True
-        nombretabla = f"prismas{idproyecto}"
-        sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
-        CREATE TABLE {nombretabla} (
-            id_prisma INT IDENTITY(1,1) NOT NULL,
-            state_prisma INT NOT NULL DEFAULT ((1)),
-            estado_prisma INT NOT NULL DEFAULT ((1)), 
-            nombre_prisma NVARCHAR(500) NOT NULL, 
-            perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME2(0) NOT NULL, 
-            angulo_horizontal NVARCHAR(50), 
-            angulo_vertical NVARCHAR(50), 
-            distancia_prisma FLOAT DEFAULT ((0)), 
-            tipoppm_prisma NVARCHAR(50), 
-            ppm_prisma FLOAT DEFAULT ((0)), 
-            presion_prisma FLOAT DEFAULT ((0)), 
-            temperatura_prisma FLOAT DEFAULT ((0)), 
-            constante_prisma FLOAT DEFAULT ((0)), 
-            este_target FLOAT NOT NULL, 
-            norte_target FLOAT NOT NULL, 
-            elevacion_target FLOAT NOT NULL, 
-            altura_reflector FLOAT DEFAULT ((0)), 
-            altura_instrumento FLOAT DEFAULT ((0)), 
-            este_estacion FLOAT DEFAULT ((0)), 
-            norte_estacion FLOAT DEFAULT ((0)), 
-            altura_estacion FLOAT DEFAULT ((0)), 
-            medicion_prisma FLOAT DEFAULT ((0)), 
-            diferencia_tiempocorto FLOAT DEFAULT ((0)),
-            diferencia_tiempolargo FLOAT DEFAULT ((0)), 
-            diferencia_limitevelocidad FLOAT DEFAULT ((0)), 
-            distancia_horizontal FLOAT DEFAULT ((0)), 
-            diferencia_atipica FLOAT DEFAULT ((0)), 
-            desplaza_longitudinal FLOAT DEFAULT ((0)), 
-            desplaza_transversal FLOAT DEFAULT ((0)), 
-            desplaza_altura FLOAT DEFAULT ((0)), 
-            grupo_puntos NVARCHAR(MAX),
-            CONSTRAINT [PK_{nombretabla}] PRIMARY KEY CLUSTERED (id_prisma)
-        );"""
-        
         conn = None
         try:
+            nombretabla = f"prismas{idproyecto}"
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            cursor.execute(sqltable)
-            conn.commit()
+            DatosModel.asegurar_tabla_prismas(conn, cursor, nombretabla)
             
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
@@ -892,52 +800,13 @@ class DatosModel:
     
     @staticmethod
     def mdlRemplazarPrismasAutomatizadosDos(idproyecto, datos_procesados, componente=None):
-        # Mismos cambios: DATETIME2(0), formato con T, contador seguro
         respuesta = True
-        nombretabla = f"prismas{idproyecto}"
-        sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
-        CREATE TABLE {nombretabla} (
-            id_prisma INT IDENTITY(1,1) NOT NULL,
-            state_prisma INT NOT NULL DEFAULT ((1)),
-            estado_prisma INT NOT NULL DEFAULT ((1)), 
-            nombre_prisma NVARCHAR(500) NOT NULL, 
-            perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME2(0) NOT NULL, 
-            angulo_horizontal NVARCHAR(50), 
-            angulo_vertical NVARCHAR(50), 
-            distancia_prisma FLOAT DEFAULT ((0)), 
-            tipoppm_prisma NVARCHAR(50), 
-            ppm_prisma FLOAT DEFAULT ((0)), 
-            presion_prisma FLOAT DEFAULT ((0)), 
-            temperatura_prisma FLOAT DEFAULT ((0)), 
-            constante_prisma FLOAT DEFAULT ((0)), 
-            este_target FLOAT NOT NULL, 
-            norte_target FLOAT NOT NULL, 
-            elevacion_target FLOAT NOT NULL, 
-            altura_reflector FLOAT DEFAULT ((0)), 
-            altura_instrumento FLOAT DEFAULT ((0)), 
-            este_estacion FLOAT DEFAULT ((0)), 
-            norte_estacion FLOAT DEFAULT ((0)), 
-            altura_estacion FLOAT DEFAULT ((0)), 
-            medicion_prisma FLOAT DEFAULT ((0)), 
-            diferencia_tiempocorto FLOAT DEFAULT ((0)),
-            diferencia_tiempolargo FLOAT DEFAULT ((0)), 
-            diferencia_limitevelocidad FLOAT DEFAULT ((0)), 
-            distancia_horizontal FLOAT DEFAULT ((0)), 
-            diferencia_atipica FLOAT DEFAULT ((0)), 
-            desplaza_longitudinal FLOAT DEFAULT ((0)), 
-            desplaza_transversal FLOAT DEFAULT ((0)), 
-            desplaza_altura FLOAT DEFAULT ((0)), 
-            grupo_puntos NVARCHAR(MAX),
-            CONSTRAINT [PK_{nombretabla}] PRIMARY KEY CLUSTERED (id_prisma)
-        );"""
-        
         conn = None
         try:
+            nombretabla = f"prismas{idproyecto}"
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            cursor.execute(sqltable)
-            conn.commit()
+            DatosModel.asegurar_tabla_prismas(conn, cursor, nombretabla)
             
             if componente:
                 cursor.execute(f"SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
@@ -988,52 +857,13 @@ class DatosModel:
     
     @staticmethod
     def mdlRegistrarPrismasAutomatizadosTres(idproyecto, datos_procesados, encode, delimitador):
-        # CAMBIO: Usar T en SQL y en el parseo manual del CSV
         equipos_unicos = set()
-        nombretabla = f"prismas{idproyecto}"
-        sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
-        CREATE TABLE {nombretabla} (
-            id_prisma INT IDENTITY(1,1) NOT NULL,
-            state_prisma INT NOT NULL DEFAULT ((1)),
-            estado_prisma INT NOT NULL DEFAULT ((1)), 
-            nombre_prisma NVARCHAR(500) NOT NULL, 
-            perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME2(0) NOT NULL, 
-            angulo_horizontal NVARCHAR(50), 
-            angulo_vertical NVARCHAR(50), 
-            distancia_prisma FLOAT DEFAULT ((0)), 
-            tipoppm_prisma NVARCHAR(50), 
-            ppm_prisma FLOAT DEFAULT ((0)), 
-            presion_prisma FLOAT DEFAULT ((0)), 
-            temperatura_prisma FLOAT DEFAULT ((0)), 
-            constante_prisma FLOAT DEFAULT ((0)), 
-            este_target FLOAT NOT NULL, 
-            norte_target FLOAT NOT NULL, 
-            elevacion_target FLOAT NOT NULL, 
-            altura_reflector FLOAT DEFAULT ((0)), 
-            altura_instrumento FLOAT DEFAULT ((0)), 
-            este_estacion FLOAT DEFAULT ((0)), 
-            norte_estacion FLOAT DEFAULT ((0)), 
-            altura_estacion FLOAT DEFAULT ((0)), 
-            medicion_prisma FLOAT DEFAULT ((0)), 
-            diferencia_tiempocorto FLOAT DEFAULT ((0)),
-            diferencia_tiempolargo FLOAT DEFAULT ((0)), 
-            diferencia_limitevelocidad FLOAT DEFAULT ((0)), 
-            distancia_horizontal FLOAT DEFAULT ((0)), 
-            diferencia_atipica FLOAT DEFAULT ((0)), 
-            desplaza_longitudinal FLOAT DEFAULT ((0)), 
-            desplaza_transversal FLOAT DEFAULT ((0)), 
-            desplaza_altura FLOAT DEFAULT ((0)), 
-            grupo_puntos NVARCHAR(MAX),
-            CONSTRAINT [PK_{nombretabla}] PRIMARY KEY CLUSTERED (id_prisma)
-        );"""
-        
         conn = None
         try:
+            nombretabla = f"prismas{idproyecto}"
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            cursor.execute(sqltable)
-            conn.commit()
+            DatosModel.asegurar_tabla_prismas(conn, cursor, nombretabla)
             
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
@@ -1084,7 +914,8 @@ class DatosModel:
                 
                 if (fila.iloc[0], fechahora) not in existing_records:
                     datos_fila = fila.tolist()
-                    datos_fila[3] = fechahora # Actualizamos con el formato T
+                    datos_fila[1] = None
+                    datos_fila[3] = fechahora  # Actualizamos con el formato T
                     
                     datos_limpios = [None if pd.isna(x) else x for x in datos_fila]
                     lote_registros.append(tuple(datos_limpios))
@@ -1108,53 +939,13 @@ class DatosModel:
             
     @staticmethod
     def mdlRemplazarPrismasAutomatizadosTres(idproyecto, datos_procesados, encode, delimitador, componente=None):
-        # Mismos cambios que RegistrarTres
         equipos_unicos = set()
-        nombretabla = f"prismas{idproyecto}"
-        
-        sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
-        CREATE TABLE {nombretabla} (
-            id_prisma INT IDENTITY(1,1) NOT NULL,
-            state_prisma INT NOT NULL DEFAULT ((1)),
-            estado_prisma INT NOT NULL DEFAULT ((1)), 
-            nombre_prisma NVARCHAR(500) NOT NULL, 
-            perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME2(0) NOT NULL, 
-            angulo_horizontal NVARCHAR(50), 
-            angulo_vertical NVARCHAR(50), 
-            distancia_prisma FLOAT DEFAULT ((0)), 
-            tipoppm_prisma NVARCHAR(50), 
-            ppm_prisma FLOAT DEFAULT ((0)), 
-            presion_prisma FLOAT DEFAULT ((0)), 
-            temperatura_prisma FLOAT DEFAULT ((0)), 
-            constante_prisma FLOAT DEFAULT ((0)), 
-            este_target FLOAT NOT NULL, 
-            norte_target FLOAT NOT NULL, 
-            elevacion_target FLOAT NOT NULL, 
-            altura_reflector FLOAT DEFAULT ((0)), 
-            altura_instrumento FLOAT DEFAULT ((0)), 
-            este_estacion FLOAT DEFAULT ((0)), 
-            norte_estacion FLOAT DEFAULT ((0)), 
-            altura_estacion FLOAT DEFAULT ((0)), 
-            medicion_prisma FLOAT DEFAULT ((0)), 
-            diferencia_tiempocorto FLOAT DEFAULT ((0)),
-            diferencia_tiempolargo FLOAT DEFAULT ((0)), 
-            diferencia_limitevelocidad FLOAT DEFAULT ((0)), 
-            distancia_horizontal FLOAT DEFAULT ((0)), 
-            diferencia_atipica FLOAT DEFAULT ((0)), 
-            desplaza_longitudinal FLOAT DEFAULT ((0)), 
-            desplaza_transversal FLOAT DEFAULT ((0)), 
-            desplaza_altura FLOAT DEFAULT ((0)), 
-            grupo_puntos NVARCHAR(MAX),
-            CONSTRAINT [PK_{nombretabla}] PRIMARY KEY CLUSTERED (id_prisma)
-        );"""
-        
         conn = None
         try:
+            nombretabla = f"prismas{idproyecto}"
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            cursor.execute(sqltable)
-            conn.commit()
+            DatosModel.asegurar_tabla_prismas(conn, cursor, nombretabla)
             
             if componente:
                 cursor.execute(f"SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
@@ -1212,6 +1003,7 @@ class DatosModel:
                 
                 if (fila.iloc[0], fechahora) not in existing_records:
                     datos_fila = fila.tolist()
+                    datos_fila[1] = None
                     datos_fila[3] = fechahora
                     datos_limpios = [None if pd.isna(x) else x for x in datos_fila]
                     lote_registros.append(tuple(datos_limpios))
@@ -1236,50 +1028,12 @@ class DatosModel:
     @staticmethod
     def mdlRegistrarPrismasAutomatizadosCuatro(idproyecto, datos_procesados):
         respuesta = True
-        nombretabla = f"prismas{idproyecto}"
-        sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
-        CREATE TABLE {nombretabla} (
-            id_prisma INT IDENTITY(1,1) NOT NULL,
-            state_prisma INT NOT NULL DEFAULT ((1)),
-            estado_prisma INT NOT NULL DEFAULT ((1)), 
-            nombre_prisma NVARCHAR(500) NOT NULL, 
-            perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME2(0) NOT NULL, 
-            angulo_horizontal NVARCHAR(50), 
-            angulo_vertical NVARCHAR(50), 
-            distancia_prisma FLOAT DEFAULT ((0)), 
-            tipoppm_prisma NVARCHAR(50), 
-            ppm_prisma FLOAT DEFAULT ((0)), 
-            presion_prisma FLOAT DEFAULT ((0)), 
-            temperatura_prisma FLOAT DEFAULT ((0)), 
-            constante_prisma FLOAT DEFAULT ((0)), 
-            este_target FLOAT NOT NULL, 
-            norte_target FLOAT NOT NULL, 
-            elevacion_target FLOAT NOT NULL, 
-            altura_reflector FLOAT DEFAULT ((0)), 
-            altura_instrumento FLOAT DEFAULT ((0)), 
-            este_estacion FLOAT DEFAULT ((0)), 
-            norte_estacion FLOAT DEFAULT ((0)), 
-            altura_estacion FLOAT DEFAULT ((0)), 
-            medicion_prisma FLOAT DEFAULT ((0)), 
-            diferencia_tiempocorto FLOAT DEFAULT ((0)),
-            diferencia_tiempolargo FLOAT DEFAULT ((0)), 
-            diferencia_limitevelocidad FLOAT DEFAULT ((0)), 
-            distancia_horizontal FLOAT DEFAULT ((0)), 
-            diferencia_atipica FLOAT DEFAULT ((0)), 
-            desplaza_longitudinal FLOAT DEFAULT ((0)), 
-            desplaza_transversal FLOAT DEFAULT ((0)), 
-            desplaza_altura FLOAT DEFAULT ((0)), 
-            grupo_puntos NVARCHAR(MAX),
-            CONSTRAINT [PK_{nombretabla}] PRIMARY KEY CLUSTERED (id_prisma)
-        );"""
-        
         conn = None
         try:
+            nombretabla = f"prismas{idproyecto}"
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            cursor.execute(sqltable)
-            conn.commit()
+            DatosModel.asegurar_tabla_prismas(conn, cursor, nombretabla)
             
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
@@ -1323,50 +1077,12 @@ class DatosModel:
     @staticmethod
     def mdlRemplazarPrismasAutomatizadosCuatro(idproyecto, datos_procesados, componente=None):
         respuesta = True
-        nombretabla = f"prismas{idproyecto}"
-        sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
-        CREATE TABLE {nombretabla} (
-            id_prisma INT IDENTITY(1,1) NOT NULL,
-            state_prisma INT NOT NULL DEFAULT ((1)),
-            estado_prisma INT NOT NULL DEFAULT ((1)), 
-            nombre_prisma NVARCHAR(500) NOT NULL, 
-            perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME2(0) NOT NULL, 
-            angulo_horizontal NVARCHAR(50), 
-            angulo_vertical NVARCHAR(50), 
-            distancia_prisma FLOAT DEFAULT ((0)), 
-            tipoppm_prisma NVARCHAR(50), 
-            ppm_prisma FLOAT DEFAULT ((0)), 
-            presion_prisma FLOAT DEFAULT ((0)), 
-            temperatura_prisma FLOAT DEFAULT ((0)), 
-            constante_prisma FLOAT DEFAULT ((0)), 
-            este_target FLOAT NOT NULL, 
-            norte_target FLOAT NOT NULL, 
-            elevacion_target FLOAT NOT NULL, 
-            altura_reflector FLOAT DEFAULT ((0)), 
-            altura_instrumento FLOAT DEFAULT ((0)), 
-            este_estacion FLOAT DEFAULT ((0)), 
-            norte_estacion FLOAT DEFAULT ((0)), 
-            altura_estacion FLOAT DEFAULT ((0)), 
-            medicion_prisma FLOAT DEFAULT ((0)), 
-            diferencia_tiempocorto FLOAT DEFAULT ((0)),
-            diferencia_tiempolargo FLOAT DEFAULT ((0)), 
-            diferencia_limitevelocidad FLOAT DEFAULT ((0)), 
-            distancia_horizontal FLOAT DEFAULT ((0)), 
-            diferencia_atipica FLOAT DEFAULT ((0)), 
-            desplaza_longitudinal FLOAT DEFAULT ((0)), 
-            desplaza_transversal FLOAT DEFAULT ((0)), 
-            desplaza_altura FLOAT DEFAULT ((0)), 
-            grupo_puntos NVARCHAR(MAX),
-            CONSTRAINT [PK_{nombretabla}] PRIMARY KEY CLUSTERED (id_prisma)
-        );"""
-        
         conn = None
         try:
+            nombretabla = f"prismas{idproyecto}"
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            cursor.execute(sqltable)
-            conn.commit()
+            DatosModel.asegurar_tabla_prismas(conn, cursor, nombretabla)
             
             if componente:
                 cursor.execute(f"SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))
@@ -1419,50 +1135,12 @@ class DatosModel:
     @staticmethod
     def mdlRegistrarPrismasAutomatizadosCinco(idproyecto, datos_procesados):
         respuesta = True
-        nombretabla = f"prismas{idproyecto}"
-        sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
-        CREATE TABLE {nombretabla} (
-            id_prisma INT IDENTITY(1,1) NOT NULL,
-            state_prisma INT NOT NULL DEFAULT ((1)),
-            estado_prisma INT NOT NULL DEFAULT ((1)), 
-            nombre_prisma NVARCHAR(500) NOT NULL, 
-            perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME2(0) NOT NULL, 
-            angulo_horizontal NVARCHAR(50), 
-            angulo_vertical NVARCHAR(50), 
-            distancia_prisma FLOAT DEFAULT ((0)), 
-            tipoppm_prisma NVARCHAR(50), 
-            ppm_prisma FLOAT DEFAULT ((0)), 
-            presion_prisma FLOAT DEFAULT ((0)), 
-            temperatura_prisma FLOAT DEFAULT ((0)), 
-            constante_prisma FLOAT DEFAULT ((0)), 
-            este_target FLOAT NOT NULL, 
-            norte_target FLOAT NOT NULL, 
-            elevacion_target FLOAT NOT NULL, 
-            altura_reflector FLOAT DEFAULT ((0)), 
-            altura_instrumento FLOAT DEFAULT ((0)), 
-            este_estacion FLOAT DEFAULT ((0)), 
-            norte_estacion FLOAT DEFAULT ((0)), 
-            altura_estacion FLOAT DEFAULT ((0)), 
-            medicion_prisma FLOAT DEFAULT ((0)), 
-            diferencia_tiempocorto FLOAT DEFAULT ((0)),
-            diferencia_tiempolargo FLOAT DEFAULT ((0)), 
-            diferencia_limitevelocidad FLOAT DEFAULT ((0)), 
-            distancia_horizontal FLOAT DEFAULT ((0)), 
-            diferencia_atipica FLOAT DEFAULT ((0)), 
-            desplaza_longitudinal FLOAT DEFAULT ((0)), 
-            desplaza_transversal FLOAT DEFAULT ((0)), 
-            desplaza_altura FLOAT DEFAULT ((0)), 
-            grupo_puntos NVARCHAR(MAX),
-            CONSTRAINT [PK_{nombretabla}] PRIMARY KEY CLUSTERED (id_prisma)
-        );"""
-        
         conn = None
         try:
+            nombretabla = f"prismas{idproyecto}"
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            cursor.execute(sqltable)
-            conn.commit()
+            DatosModel.asegurar_tabla_prismas(conn, cursor, nombretabla)
             
             cursor.execute(f"SELECT nombre_prisma, hora_prisma FROM {nombretabla};")
             existing_records = set()
@@ -1507,50 +1185,12 @@ class DatosModel:
     @staticmethod
     def mdlRemplazarPrismasAutomatizadosCinco(idproyecto, datos_procesados, componente=None):
         respuesta = True
-        nombretabla = f"prismas{idproyecto}"
-        sqltable = f"""IF OBJECT_ID(N'dbo.{nombretabla}', N'U') IS NULL
-        CREATE TABLE {nombretabla} (
-            id_prisma INT IDENTITY(1,1) NOT NULL,
-            state_prisma INT NOT NULL DEFAULT ((1)),
-            estado_prisma INT NOT NULL DEFAULT ((1)), 
-            nombre_prisma NVARCHAR(500) NOT NULL, 
-            perfil_prisma NVARCHAR(MAX), 
-            hora_prisma DATETIME2(0) NOT NULL, 
-            angulo_horizontal NVARCHAR(50), 
-            angulo_vertical NVARCHAR(50), 
-            distancia_prisma FLOAT DEFAULT ((0)), 
-            tipoppm_prisma NVARCHAR(50), 
-            ppm_prisma FLOAT DEFAULT ((0)), 
-            presion_prisma FLOAT DEFAULT ((0)), 
-            temperatura_prisma FLOAT DEFAULT ((0)), 
-            constante_prisma FLOAT DEFAULT ((0)), 
-            este_target FLOAT NOT NULL, 
-            norte_target FLOAT NOT NULL, 
-            elevacion_target FLOAT NOT NULL, 
-            altura_reflector FLOAT DEFAULT ((0)), 
-            altura_instrumento FLOAT DEFAULT ((0)), 
-            este_estacion FLOAT DEFAULT ((0)), 
-            norte_estacion FLOAT DEFAULT ((0)), 
-            altura_estacion FLOAT DEFAULT ((0)), 
-            medicion_prisma FLOAT DEFAULT ((0)), 
-            diferencia_tiempocorto FLOAT DEFAULT ((0)),
-            diferencia_tiempolargo FLOAT DEFAULT ((0)), 
-            diferencia_limitevelocidad FLOAT DEFAULT ((0)), 
-            distancia_horizontal FLOAT DEFAULT ((0)), 
-            diferencia_atipica FLOAT DEFAULT ((0)), 
-            desplaza_longitudinal FLOAT DEFAULT ((0)), 
-            desplaza_transversal FLOAT DEFAULT ((0)), 
-            desplaza_altura FLOAT DEFAULT ((0)), 
-            grupo_puntos NVARCHAR(MAX),
-            CONSTRAINT [PK_{nombretabla}] PRIMARY KEY CLUSTERED (id_prisma)
-        );"""
-        
         conn = None
         try:
+            nombretabla = f"prismas{idproyecto}"
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            cursor.execute(sqltable)
-            conn.commit()
+            DatosModel.asegurar_tabla_prismas(conn, cursor, nombretabla)
             
             if componente:
                 cursor.execute(f"SELECT nombre_equipo FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PRISMAS'", (componente,))

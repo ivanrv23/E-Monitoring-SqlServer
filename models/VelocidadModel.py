@@ -12,14 +12,14 @@ class VelocidadModel:
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ? AND p.nombre_prisma IN ({placeholders})
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma <= ?
             UNION
             SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma, p.distancia_prisma, i.tipo_equipo
             FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_componente = ? AND p.nombre_prisma IN ({placeholders})
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ?
             ),
             velocidad AS (
@@ -57,7 +57,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CD_Dif AS (
         SELECT id_instrumentacion, nombre_prisma, hora_prisma, dias, dif_fechas, SD,
@@ -88,13 +88,13 @@ class VelocidadModel:
             FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             UNION ALL
             SELECT p.nombre_prisma, p.hora_prisma, p.distancia_prisma, i.id_instrumentacion, i.tipo_equipo
             FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND CAST(p.hora_prisma AS DATE) = (SELECT MAX(CAST(p_inner.hora_prisma AS DATE)) FROM {tabla} p_inner WHERE p_inner.nombre_prisma = p.nombre_prisma AND p_inner.hora_prisma < ?)
             ),
             bloques AS (
@@ -132,7 +132,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), f.fecha_inicio, i.id_instrumentacion, i.tipo_equipo
         ),
         velocidad AS (
@@ -169,12 +169,12 @@ class VelocidadModel:
             SELECT p.nombre_prisma, p.hora_prisma, p.distancia_prisma, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             UNION ALL
             SELECT p.nombre_prisma, p.hora_prisma, p.distancia_prisma, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma IN (SELECT TOP 1 WITH TIES p_inner.hora_prisma FROM {tabla} p_inner WHERE p_inner.nombre_prisma = p.nombre_prisma AND p_inner.hora_prisma < ? ORDER BY p_inner.hora_prisma DESC)
             ),
             bloques AS (
@@ -208,7 +208,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.id_instrumentacion, i.tipo_equipo
         ),
         velocidad AS (
@@ -254,7 +254,7 @@ class VelocidadModel:
             FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-            ---AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
+            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             ORDER BY datos.nombre_prisma, datos.hora_prisma;"""
             params = prismas + [unidad, idcomponente, fechaini, fechafin]
             conn = Connection.connectionDB(); cur = conn.cursor(); cur.arraysize = 1000
@@ -276,7 +276,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CD_Dif AS (
         SELECT id_instrumentacion, nombre_prisma, hora_prisma, dif_fechas, SD,
@@ -313,7 +313,7 @@ class VelocidadModel:
             FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ? AND p.state_prisma = 1 AND p.estado_prisma = 1
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE)
             )
             SELECT br.id_instrumentacion, br.nombre_prisma, br.hora_bloque AS FECHAS,
@@ -344,7 +344,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), f.fecha_inicio, i.id_instrumentacion, i.tipo_equipo
         ),
         velocidad AS (
@@ -388,7 +388,7 @@ class VelocidadModel:
             FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ? AND p.state_prisma = 1 AND p.estado_prisma = 1
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
             )
             SELECT br.id_instrumentacion, br.nombre_prisma, br.hora_bloque AS FECHAS,
@@ -415,7 +415,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.id_instrumentacion, i.tipo_equipo
         ),
         velocidad AS (
@@ -455,7 +455,7 @@ class VelocidadModel:
             SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, i.tipo_equipo FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             ),
             PrismasCTE AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma, tipo_equipo,
@@ -488,7 +488,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24.0 AS HORAS,
         CASE WHEN ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) = 1 THEN 0 ELSE
@@ -514,12 +514,12 @@ class VelocidadModel:
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             UNION ALL
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND CAST(p.hora_prisma AS DATE) = (SELECT MAX(CAST(p_inner.hora_prisma AS DATE)) FROM {tabla} p_inner WHERE p_inner.nombre_prisma = p.nombre_prisma AND p_inner.hora_prisma < ?)
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             ),
             bloques AS (
             SELECT nombre_prisma, MAX(hora_prisma) AS hora_prisma, AVG(CAST(este_target AS FLOAT)) AS promedio_este, AVG(CAST(norte_target AS FLOAT)) AS promedio_norte, MAX(id_instrumentacion) AS id_instrumentacion, MAX(tipo_equipo) AS tipo_equipo
@@ -562,7 +562,7 @@ class VelocidadModel:
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         AND p.hora_prisma BETWEEN ? AND ?
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), f.fecha_inicio, i.id_instrumentacion, i.tipo_equipo
         ),
@@ -609,12 +609,12 @@ class VelocidadModel:
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             UNION ALL
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma IN (SELECT TOP 1 WITH TIES p_inner.hora_prisma FROM {tabla} p_inner WHERE p_inner.nombre_prisma = p.nombre_prisma AND p_inner.hora_prisma < ? ORDER BY p_inner.hora_prisma DESC)
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             ),
             bloques AS (
             SELECT nombre_prisma, MAX(hora_prisma) AS hora_prisma, AVG(CAST(este_target AS FLOAT)) AS promedio_este, AVG(CAST(norte_target AS FLOAT)) AS promedio_norte, MAX(id_instrumentacion) AS id_instrumentacion, MAX(tipo_equipo) AS tipo_equipo
@@ -646,7 +646,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.id_instrumentacion, i.tipo_equipo
         ),
         velocidad AS (
@@ -688,7 +688,7 @@ class VelocidadModel:
             FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-            ---AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
+            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             )
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24.0 AS HORAS,
             CASE WHEN dias = 0 THEN 0 ELSE dosD / NULLIF(dias, 0) END AS VA2D, tipo_equipo FROM CalculoCTE ORDER BY nombre_prisma, hora_prisma;"""
@@ -713,7 +713,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24.0 AS HORAS,
         CASE WHEN DATEDIFF(SECOND, FIRST_VALUE(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), hora_prisma) = 0 THEN 0
@@ -747,7 +747,7 @@ class VelocidadModel:
             FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ? AND p.state_prisma = 1 AND p.estado_prisma = 1
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE)
             )
             SELECT br.id_instrumentacion, br.nombre_prisma, br.hora_bloque AS FECHAS,
@@ -779,7 +779,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), f.fecha_inicio, i.id_instrumentacion, i.tipo_equipo
         ),
         velocidad AS (
@@ -821,7 +821,7 @@ class VelocidadModel:
             FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ? AND p.state_prisma = 1 AND p.estado_prisma = 1
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
             )
             SELECT br.id_instrumentacion, br.nombre_prisma, br.hora_bloque AS FECHAS,
@@ -849,7 +849,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.id_instrumentacion, i.tipo_equipo
         ),
         velocidad AS (
@@ -874,6 +874,7 @@ class VelocidadModel:
 
     @staticmethod
     def mdlCalcularVelocidadPositivaVI3D(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        print("posit vi3d", tabla, unidad, prismas, idcomponente, fechaini, fechafin)
         if not prismas: return None
         conn = None
         try:
@@ -886,7 +887,7 @@ class VelocidadModel:
             SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, p.elevacion_target, i.tipo_equipo FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             ),
             PrismasCTE AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma, tipo_equipo,
@@ -907,6 +908,7 @@ class VelocidadModel:
 
     @staticmethod
     def mdlCalcularVelocidadPositivaFechasVI3D(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        print("posit vi3d fech", tabla, unidad, prismas, idcomponente, fechaini, fechafin)
         placeholders = ', '.join(['?' for _ in prismas])
         params = [unidad] + prismas + [idcomponente] + [fechaini] + [fechafin]
         sql = f"""WITH PrismasCTE AS (
@@ -916,7 +918,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24.0 AS HORAS,
         CASE WHEN LAG(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) IS NULL THEN 0
@@ -942,12 +944,12 @@ class VelocidadModel:
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, p.elevacion_target, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             UNION ALL
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, p.elevacion_target, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND CAST(p.hora_prisma AS DATE) = (SELECT MAX(CAST(p_inner.hora_prisma AS DATE)) FROM {tabla} p_inner WHERE p_inner.nombre_prisma = p.nombre_prisma AND p_inner.hora_prisma < ?)
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             ),
             bloques AS (
             SELECT nombre_prisma, MAX(hora_prisma) AS hora_prisma, AVG(CAST(este_target AS FLOAT)) AS promedio_este, AVG(CAST(norte_target AS FLOAT)) AS promedio_norte, AVG(CAST(elevacion_target AS FLOAT)) AS promedio_elevacion, MAX(id_instrumentacion) AS id_instrumentacion, MAX(tipo_equipo) AS tipo_equipo
@@ -982,7 +984,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), f.fecha_inicio, i.id_instrumentacion, i.tipo_equipo
         ),
         velocidad AS (
@@ -1015,12 +1017,12 @@ class VelocidadModel:
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, p.elevacion_target, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             UNION ALL
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, p.elevacion_target, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma IN (SELECT TOP 1 WITH TIES p_inner.hora_prisma FROM {tabla} p_inner WHERE p_inner.nombre_prisma = p.nombre_prisma AND p_inner.hora_prisma < ? ORDER BY p_inner.hora_prisma DESC)
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             ),
             bloques AS (
             SELECT nombre_prisma, MAX(hora_prisma) AS hora_prisma, AVG(CAST(este_target AS FLOAT)) AS promedio_este, AVG(CAST(norte_target AS FLOAT)) AS promedio_norte, AVG(CAST(elevacion_target AS FLOAT)) AS promedio_elevacion, MAX(id_instrumentacion) AS id_instrumentacion, MAX(tipo_equipo) AS tipo_equipo
@@ -1051,7 +1053,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.id_instrumentacion, i.tipo_equipo
         ),
         velocidad AS (
@@ -1076,6 +1078,7 @@ class VelocidadModel:
 
     @staticmethod
     def mdlCalcularVelocidadVI3D(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
+        print("ve vi3d", tabla, unidad, prismas, idcomponente, fechaini, fechafin)
         if not prismas: return None
         conn = None
         try:
@@ -1088,7 +1091,7 @@ class VelocidadModel:
             SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, p.elevacion_target, i.tipo_equipo FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             ),
             PrismasCTE AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma, tipo_equipo,
@@ -1120,7 +1123,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24.0 AS HORAS,
         CASE WHEN ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) = 1 THEN 0 ELSE
@@ -1146,12 +1149,12 @@ class VelocidadModel:
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, p.elevacion_target, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             UNION ALL
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, p.elevacion_target, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND CAST(p.hora_prisma AS DATE) = (SELECT MAX(CAST(p_inner.hora_prisma AS DATE)) FROM {tabla} p_inner WHERE p_inner.nombre_prisma = p.nombre_prisma AND p_inner.hora_prisma < ?)
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             ),
             bloques AS (
             SELECT nombre_prisma, MAX(hora_prisma) AS hora_prisma, AVG(CAST(este_target AS FLOAT)) AS promedio_este, AVG(CAST(norte_target AS FLOAT)) AS promedio_norte, AVG(CAST(elevacion_target AS FLOAT)) AS promedio_elevacion, MAX(id_instrumentacion) AS id_instrumentacion, MAX(tipo_equipo) AS tipo_equipo
@@ -1186,7 +1189,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), f.fecha_inicio, i.id_instrumentacion, i.tipo_equipo
         ),
         velocidad AS (
@@ -1219,12 +1222,12 @@ class VelocidadModel:
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, p.elevacion_target, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             UNION ALL
             SELECT p.nombre_prisma, p.hora_prisma, p.este_target, p.norte_target, p.elevacion_target, i.id_instrumentacion, i.tipo_equipo FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma IN (SELECT TOP 1 WITH TIES p_inner.hora_prisma FROM {tabla} p_inner WHERE p_inner.nombre_prisma = p.nombre_prisma AND p_inner.hora_prisma < ? ORDER BY p_inner.hora_prisma DESC)
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             ),
             bloques AS (
             SELECT nombre_prisma, MAX(hora_prisma) AS hora_prisma, AVG(CAST(este_target AS FLOAT)) AS promedio_este, AVG(CAST(norte_target AS FLOAT)) AS promedio_norte, AVG(CAST(elevacion_target AS FLOAT)) AS promedio_elevacion, MAX(id_instrumentacion) AS id_instrumentacion, MAX(tipo_equipo) AS tipo_equipo
@@ -1255,7 +1258,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.id_instrumentacion, i.tipo_equipo
         ),
         velocidad AS (
@@ -1295,7 +1298,7 @@ class VelocidadModel:
             FROM {tabla} datos INNER JOIN instrumentacion i ON datos.nombre_prisma = i.nombre_equipo INNER JOIN ValoresCero vc ON datos.nombre_prisma = vc.nombre_prisma
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE datos.state_prisma = 1 AND datos.estado_prisma = 1 AND i.id_componente = ? AND datos.hora_prisma BETWEEN ? AND ?
-            ---AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
+            AND (datos.grupo_puntos = co.nombre_componente OR datos.grupo_puntos IS NULL OR datos.grupo_puntos = '')
             )
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24.0 AS HORAS,
             CASE WHEN dias = 0 THEN 0 ELSE tresD / NULLIF(dias, 0) END AS VA3D, tipo_equipo FROM CalculoCTE ORDER BY nombre_prisma, hora_prisma;"""
@@ -1319,7 +1322,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24.0 AS HORAS,
         CASE WHEN DATEDIFF(SECOND, FIRST_VALUE(hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), hora_prisma) = 0 THEN 0
@@ -1353,7 +1356,7 @@ class VelocidadModel:
             FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ? AND p.state_prisma = 1 AND p.estado_prisma = 1
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE)
             )
             SELECT br.id_instrumentacion, br.nombre_prisma, br.hora_bloque AS FECHAS,
@@ -1385,7 +1388,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo INNER JOIN fechas_inicio f ON f.nombre_prisma = p.nombre_prisma
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), f.fecha_inicio, i.id_instrumentacion, i.tipo_equipo
         ),
         velocidad AS (
@@ -1426,7 +1429,7 @@ class VelocidadModel:
             FROM {tabla} p JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ? AND p.state_prisma = 1 AND p.estado_prisma = 1
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}
             )
             SELECT br.id_instrumentacion, br.nombre_prisma, br.hora_bloque AS FECHAS,
@@ -1454,7 +1457,7 @@ class VelocidadModel:
         FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
         INNER JOIN componentes co ON i.id_componente = co.id_componente
         WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-        ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         GROUP BY p.nombre_prisma, CAST(p.hora_prisma AS DATE), DATEPART(HOUR, p.hora_prisma) / {cantidad}, i.id_instrumentacion, i.tipo_equipo
         ),
         velocidad AS (

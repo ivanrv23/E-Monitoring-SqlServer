@@ -1,4 +1,3 @@
-import pyodbc
 from services.security.apis.conexiones.connection import Connection
 from datetime import datetime
 
@@ -8,6 +7,32 @@ class PrismaModel:
     # DELETE FROM tabla; 
     # DBCC CHECKIDENT ('tabla', RESEED, 0);
 
+    def asegurar_tabla_prismas(conn, cursor, nombretabla):
+        """Crea la tabla de prismas (si no existe), incluyendo el índice único
+        de deduplicación (nombre_prisma, hora_prisma, grupo_puntos)."""
+        cursor.execute(f"""
+            IF OBJECT_ID('{nombretabla}', 'U') IS NULL
+            CREATE TABLE {nombretabla} (
+                id_prisma INT IDENTITY(1,1) NOT NULL PRIMARY KEY, state_prisma INT NOT NULL DEFAULT 1, estado_prisma INT NOT NULL DEFAULT 1,
+                nombre_prisma VARCHAR(255) NOT NULL, perfil_prisma VARCHAR(255), hora_prisma DATETIME2(0) NOT NULL,
+                angulo_horizontal VARCHAR(50), angulo_vertical VARCHAR(50), distancia_prisma FLOAT DEFAULT 0,
+                tipoppm_prisma VARCHAR(50), ppm_prisma FLOAT DEFAULT 0, presion_prisma FLOAT DEFAULT 0,
+                temperatura_prisma FLOAT DEFAULT 0, constante_prisma FLOAT DEFAULT 0, este_target FLOAT NOT NULL,
+                norte_target FLOAT NOT NULL, elevacion_target FLOAT NOT NULL, altura_reflector FLOAT DEFAULT 0,
+                altura_instrumento FLOAT DEFAULT 0, este_estacion FLOAT DEFAULT 0, norte_estacion FLOAT DEFAULT 0,
+                altura_estacion FLOAT DEFAULT 0, medicion_prisma FLOAT DEFAULT 0, diferencia_tiempocorto FLOAT DEFAULT 0,
+                diferencia_tiempolargo FLOAT DEFAULT 0, diferencia_limitevelocidad FLOAT DEFAULT 0,
+                distancia_horizontal FLOAT DEFAULT 0, diferencia_atipica FLOAT DEFAULT 0, desplaza_longitudinal FLOAT DEFAULT 0,
+                desplaza_transversal FLOAT DEFAULT 0, desplaza_altura FLOAT DEFAULT 0, grupo_puntos VARCHAR(255)
+            );
+        """)
+        idx_name = f"UX_{nombretabla}_dedupe"
+        cursor.execute(f"""
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = '{idx_name}' AND object_id = OBJECT_ID('{nombretabla}'))
+            CREATE UNIQUE INDEX {idx_name} ON {nombretabla} (nombre_prisma, hora_prisma, grupo_puntos);
+        """)
+        conn.commit()
+    
     @staticmethod
     def mdlObtenerFechasMaximasPrismas(tabla):
         sql = f"""SELECT TOP 1 MAX(hora_prisma) AS max_fecha FROM {tabla} WHERE state_prisma = 1;"""
@@ -147,7 +172,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ) t
         WHERE rn = 1
         ORDER BY nombre_equipo, hora;"""
@@ -181,7 +206,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
             AND p.hora_prisma BETWEEN ? AND ?
         ) t
         WHERE rn = 1
@@ -340,7 +365,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ) t
         WHERE rn = 1
         ORDER BY nombre_equipo, hora;"""
@@ -374,7 +399,7 @@ class PrismaModel:
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1
             AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ) t
         WHERE rn = 1
         ORDER BY nombre_equipo, hora;"""
@@ -405,7 +430,7 @@ class PrismaModel:
             INNER JOIN componentes c ON i.id_componente = c.id_componente 
             WHERE p.state_prisma = 1 AND hora_prisma BETWEEN ? AND ?
             AND c.id_proyecto = ? AND i.tipo_equipo = ?
-            ---AND (p.grupo_puntos = c.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = c.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ) t WHERE rn = 1;"""
         
         conn = None
@@ -488,46 +513,7 @@ class PrismaModel:
             conn = Connection.connectionDB()
             nombretabla = "prismas" + str(proyecto)
             cursor = conn.cursor()
-            
-            # --- USO DE DATETIME2(0) PARA COMPATIBILIDAD ---
-            sqltable = f"""IF OBJECT_ID('{nombretabla}', 'U') IS NULL
-            CREATE TABLE {nombretabla} (
-                id_prisma INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-                state_prisma INT NOT NULL DEFAULT 1,
-                estado_prisma INT NOT NULL DEFAULT 1, 
-                nombre_prisma VARCHAR(255) NOT NULL, 
-                perfil_prisma VARCHAR(255), 
-                hora_prisma DATETIME2(0) NOT NULL, 
-                angulo_horizontal VARCHAR(50), 
-                angulo_vertical VARCHAR(50), 
-                distancia_prisma FLOAT DEFAULT 0, 
-                tipoppm_prisma VARCHAR(50), 
-                ppm_prisma FLOAT DEFAULT 0, 
-                presion_prisma FLOAT DEFAULT 0, 
-                temperatura_prisma FLOAT DEFAULT 0, 
-                constante_prisma FLOAT DEFAULT 0, 
-                este_target FLOAT NOT NULL, 
-                norte_target FLOAT NOT NULL, 
-                elevacion_target FLOAT NOT NULL, 
-                altura_reflector FLOAT DEFAULT 0, 
-                altura_instrumento FLOAT DEFAULT 0, 
-                este_estacion FLOAT DEFAULT 0, 
-                norte_estacion FLOAT DEFAULT 0, 
-                altura_estacion FLOAT DEFAULT 0, 
-                medicion_prisma FLOAT DEFAULT 0, 
-                diferencia_tiempocorto FLOAT DEFAULT 0,
-                diferencia_tiempolargo FLOAT DEFAULT 0, 
-                diferencia_limitevelocidad FLOAT DEFAULT 0, 
-                distancia_horizontal FLOAT DEFAULT 0, 
-                diferencia_atipica FLOAT DEFAULT 0, 
-                desplaza_longitudinal FLOAT DEFAULT 0, 
-                desplaza_transversal FLOAT DEFAULT 0, 
-                desplaza_altura FLOAT DEFAULT 0, 
-                grupo_puntos VARCHAR(255)
-            );"""
-            
-            cursor.execute(sqltable)
-            conn.commit() 
+            PrismaModel.asegurar_tabla_prismas(conn, cursor, nombretabla)
             
             # --- VALIDACIÓN DE DUPLICADOS CON 'T' ---
             cursor.execute(f"SELECT nombre_prisma, FORMAT(hora_prisma, 'yyyy-MM-ddTHH:mm:ss') FROM {nombretabla}")
@@ -1139,7 +1125,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.estado_instrumentacion = 1 
             AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT nombre_prisma, MIN(hora_prisma) AS fechamin, MAX(hora_prisma) AS fechamax, MAX(desplazasd) AS desplazasd,
         MAX(desplaza3d) AS desplaza3d, MAX(desplaza_longitudinal) AS desplaza_longitudinal, MAX(desplaza_transversal) AS desplaza_transversal,
@@ -1213,7 +1199,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.estado_instrumentacion = 1 
             AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT nombre_prisma, MIN(hora_prisma) AS fechamin, MAX(hora_prisma) AS fechamax, MAX(VI3D) AS VI3D, MAX(VA3D) AS VA3D,
         MAX(VI2D) AS VI2D, MAX(VA2D) AS VA2D, MAX(VISD) AS VISD, MAX(VASD) AS VASD
@@ -1245,7 +1231,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.estado_instrumentacion = 1 
             AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         MagnitudCalculada AS (
             SELECT nombre_prisma, hora_prisma, desplaza_este, desplaza_norte, desplaza_elevacion,
@@ -1305,7 +1291,7 @@ class PrismaModel:
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT id_instrumentacion, nombre_prisma, hora_prisma, horas, dias, tresD
         FROM ultimas_lecturas WHERE rn = 1;"""
@@ -1342,7 +1328,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders})
             AND i.id_componente = ? AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT id_instrumentacion, nombre_prisma, hora_prisma, horas, dias, tresD
         FROM ultimas_lecturas WHERE rn = 1;"""
@@ -1376,7 +1362,7 @@ class PrismaModel:
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CalculoCompleto AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24 AS HORAS,
@@ -1420,7 +1406,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CalculoCompleto AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24 AS HORAS,
@@ -1463,7 +1449,7 @@ class PrismaModel:
             INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CalculoCompleto AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24 AS HORAS,
@@ -1508,7 +1494,7 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND p.nombre_prisma IN ({placeholders}) AND i.id_componente = ?
             AND p.hora_prisma BETWEEN ? AND ?
-            ---AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         CalculoCompleto AS (
             SELECT id_instrumentacion, nombre_prisma, hora_prisma AS FECHAS, dias AS DIAS, dias * 24 AS HORAS,
