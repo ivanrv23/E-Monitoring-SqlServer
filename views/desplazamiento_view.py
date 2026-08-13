@@ -22,37 +22,54 @@ from controllers.InterfazController import InterfazController
 
 from PySide6.QtCore import QThread, Signal, QTimer
 
-class DataWorker(QThread):
-    # Señal que enviará los datos a la interfaz al terminar
-    data_ready = Signal(list)
+from services.queries.graph_query_manager import desplazamiento_query_manager
+from services.queries.query_context import set_active_request, clear_active_request
+from services.queries.query_registry import query_registry
 
-    def __init__(self, params):
+class DataWorker(QThread):
+    """Worker de consulta con soporte de cancelación real via SPID."""
+    data_ready = Signal(str, list)    # (request_id, datos)
+    worker_done = Signal(str, str)    # (request_id, estado: FINISHED|FAILED|CANCELLED)
+
+    def __init__(self, params, request_id):
         super().__init__()
         self.params = params
-        self._is_killed = False # Bandera para anular el hilo
+        self.request_id = request_id
 
     def run(self):
+        estado_final = 'FINISHED'
         try:
-            # Si se marcó como anulado antes de empezar, salimos inmediatamente
-            if self._is_killed:
+            # Verificar cancelación antes de empezar
+            if query_registry.is_cancel_requested(self.request_id):
+                estado_final = 'CANCELLED'
                 return
 
-            from controllers.DesplazamientoController import DesplazamientoController
-            # Llamada al controlador (esto es lo que tarda)
-            datos = DesplazamientoController.ctrlDatosPrismasMarcados(*self.params)
-            
-            # Solo emitimos la señal si el hilo no ha sido anulado por una nueva petición
-            if not self._is_killed:
-                self.data_ready.emit(datos)
-        except Exception as e:
-            print(f"Error en hilo de datos: {e}")
-            if not self._is_killed:
-                self.data_ready.emit([])
+            # Establecer contexto para que Connection.connectionDB
+            # registre la conexión con su SPID
+            set_active_request(self.request_id)
 
-    def abort(self):
-        """ Anula este hilo para que no envíe datos a la UI """
-        self._is_killed = True
-        
+            from controllers.DesplazamientoController import DesplazamientoController
+            datos = DesplazamientoController.ctrlDatosPrismasMarcados(*self.params)
+
+            # Verificar cancelación después de la consulta
+            if query_registry.is_cancel_requested(self.request_id):
+                estado_final = 'CANCELLED'
+                return
+
+            # Emitir datos con el request_id para que la vista
+            # pueda descartar resultados obsoletos
+            self.data_ready.emit(self.request_id, datos if datos else [])
+
+        except Exception as e:
+            if query_registry.is_cancel_requested(self.request_id):
+                estado_final = 'CANCELLED'
+            else:
+                estado_final = 'FAILED'
+        finally:
+            # Siempre limpiar contexto y registrar fin
+            clear_active_request()
+            self.worker_done.emit(self.request_id, estado_final)
+                  
 class DesplazamientoView:
     main = None
     idproyecto = None
@@ -61,6 +78,10 @@ class DesplazamientoView:
     estadoPagina = True
     fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(365)
     datos_memoria = []
+    # ── Variables del sistema de consultas ──
+    worker = None
+    _workers_anteriores = []   # Mantener referencias vivas hasta que terminen
+    timer_consulta = None
     
     def inicializarVistaDesplazamiento(main, proyectoid, proyectoname, fechaini, fechafin):
         DesplazamientoView.main = main
@@ -330,65 +351,78 @@ class DesplazamientoView:
 
     @staticmethod
     def iniciar_hilo_final(tree_actual):
-        """ Mata cualquier hilo viejo y lanza la consulta definitiva """
-        # 1. Cancelación de peticiones anteriores para no saturar
-        if DesplazamientoView.worker is not None and DesplazamientoView.worker.isRunning():
-            try:
-                DesplazamientoView.worker.data_ready.disconnect() # Desconectar eventos
-                DesplazamientoView.worker.abort()                # Marcar como anulado
-                DesplazamientoView.worker.terminate()            # Forzar parada
-                DesplazamientoView.worker.wait()                 # Limpiar memoria
-            except:
-                pass
+        """Genera un request cancelable y lanza la consulta."""
+        # 1. Generar nuevo request_id
+        #    (cancela automáticamente la consulta anterior via SPID)
+        request_id = desplazamiento_query_manager.start_request()
 
         # 2. Obtener lo que quedó marcado al final de los clics
         lista = EquiposDesplazamiento.obtener_todos_elementos_marcados(tree_actual)
         if not lista:
             DesplazamientoView.limpiarGraficaDesplazamiento()
+            desplazamiento_query_manager.finish_request(request_id)
             return
 
         prismasmarcados = DesplazamientoView.obtenerListaEquiposMarcados(lista, "Prismas")
         if len(prismasmarcados) == 0:
             DesplazamientoView.limpiarGraficaDesplazamiento()
+            desplazamiento_query_manager.finish_request(request_id)
             return
 
         # 3. Capturar valores de la interfaz (Hilo Principal)
         combo_promedios = DesplazamientoView.main.findChild(QComboBox, "combo_promedio_desplaza")
         spin_promedio = DesplazamientoView.main.findChild(QSpinBox, "spin_promedio_desplaza")
         tipopromedio = combo_promedios.currentData()
-        
         spin_promedio.setEnabled(tipopromedio != "SPRO")
         numeropromedio = spin_promedio.value()
-        
         tipografico = DesplazamientoView.main.findChild(QComboBox, "combo_tipos_desplazamiento").currentData()
         tipomedida = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza").currentData()
         tipotiempo = DesplazamientoView.main.findChild(QComboBox, "combo_tiempo_desplaza").currentData()
         config = SoftwareConfiguracion.obtenerDataSoftware()
         filtrado = config[16]
+        params = (DesplazamientoView.idproyecto, prismasmarcados, DesplazamientoView.fechainicial,
+                DesplazamientoView.fechafinal, tipografico, tipomedida, filtrado, tipopromedio, numeropromedio)
 
-        params = (DesplazamientoView.idproyecto, prismasmarcados, DesplazamientoView.fechainicial, 
-                  DesplazamientoView.fechafinal, tipografico, tipomedida, filtrado, tipopromedio, numeropromedio)
+        # 4. Preservar referencia del worker anterior si aún está corriendo
+        if DesplazamientoView.worker is not None and DesplazamientoView.worker.isRunning():
+            DesplazamientoView._workers_anteriores.append(DesplazamientoView.worker)
 
-        # 4. Iniciar proceso
+        # 5. Iniciar nuevo worker con request_id
         DesplazamientoView.main.setCursor(Qt.WaitCursor)
-        DesplazamientoView.worker = DataWorker(params)
+        DesplazamientoView.worker = DataWorker(params, request_id)
         DesplazamientoView.worker.data_ready.connect(
-            lambda datos: DesplazamientoView.finalizar_flujo(lista, datos, tipografico, tipomedida, tipotiempo)
+            lambda rid, datos: DesplazamientoView._on_data_ready(rid, lista, datos, tipografico, tipomedida, tipotiempo)
+        )
+        DesplazamientoView.worker.worker_done.connect(
+            lambda rid, estado: DesplazamientoView._on_worker_done(rid, estado)
         )
         DesplazamientoView.worker.start()
-
-    @staticmethod
-    def finalizar_flujo(lista, datos, tipografico, tipomedida, tipotiempo):
-        """ Recibe la data final y manda a graficar """
-        DesplazamientoView.datos_memoria = datos
         
+    @staticmethod
+    def _on_data_ready(request_id, lista, datos, tipografico, tipomedida, tipotiempo):
+        """Recibe datos del worker. Solo grafica si sigue siendo la consulta actual."""
+        # Descartar resultados obsoletos
+        if not desplazamiento_query_manager.is_current(request_id):
+            return
+
+        DesplazamientoView.datos_memoria = datos
         if len(datos) > 0:
             DesplazamientoView.graficarPrismasDesplazamiento(lista, datos, tipografico, tipomedida, tipotiempo)
         else:
             DesplazamientoView.limpiarGraficaDesplazamiento()
-            
         DesplazamientoView.main.unsetCursor()
-        
+
+    @staticmethod
+    def _on_worker_done(request_id, estado):
+        """Registra el fin del request y limpia workers terminados."""
+        desplazamiento_query_manager.finish_request(request_id, estado)
+        # Limpiar referencias de workers que ya terminaron
+        DesplazamientoView._workers_anteriores = [
+            w for w in DesplazamientoView._workers_anteriores if w.isRunning()
+        ]
+        if estado in ('FAILED', 'CANCELLED'):
+            DesplazamientoView.main.unsetCursor()
+            
     def obtenerListaEquiposMarcados(lista, tipolista):
         equiposmarcados = []
         for region, instrumentos in lista.items():

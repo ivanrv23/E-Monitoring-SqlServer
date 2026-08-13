@@ -20,34 +20,47 @@ from utils.shared.graficarUmbrales import GraficarUmbrales
 from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
 from controllers.InterfazController import InterfazController
 
-class DataWorkerVelocidad(QThread):
-    # Señal que enviará los datos cuando termine
-    data_ready = Signal(list)
+from services.queries.graph_query_manager import velocidad_query_manager
+from services.queries.query_context import set_active_request, clear_active_request
+from services.queries.query_registry import query_registry
 
-    def __init__(self, params):
+class DataWorkerVelocidad(QThread):
+    """Worker de consulta con soporte de cancelación real via SPID."""
+    data_ready = Signal(str, list)    # (request_id, datos)
+    worker_done = Signal(str, str)    # (request_id, estado: FINISHED|FAILED|CANCELLED)
+
+    def __init__(self, params, request_id):
         super().__init__()
         self.params = params
-        self._is_killed = False # Bandera para ignorar resultados obsoletos
+        self.request_id = request_id
 
     def run(self):
+        estado_final = 'FINISHED'
         try:
-            if self._is_killed: return
-            
+            if query_registry.is_cancel_requested(self.request_id):
+                estado_final = 'CANCELLED'
+                return
+
+            set_active_request(self.request_id)
+
             from controllers.VelocidadController import VelocidadController
-            # Llamada al controlador original
             datos = VelocidadController.ctrlDatosPrismasMarcados(*self.params)
-            
-            if not self._is_killed:
-                self.data_ready.emit(datos)
+
+            if query_registry.is_cancel_requested(self.request_id):
+                estado_final = 'CANCELLED'
+                return
+
+            self.data_ready.emit(self.request_id, datos if datos else [])
+
         except Exception as e:
-            print(f"Error en hilo de velocidad: {e}")
-            if not self._is_killed:
-                self.data_ready.emit([])
-
-    def abort(self):
-        """ Anula este hilo para que no envíe datos a la UI """
-        self._is_killed = True
-
+            if query_registry.is_cancel_requested(self.request_id):
+                estado_final = 'CANCELLED'
+            else:
+                estado_final = 'FAILED'
+        finally:
+            clear_active_request()
+            self.worker_done.emit(self.request_id, estado_final)
+            
 class VelocidadView:
     main = None
     idproyecto = None
@@ -56,7 +69,11 @@ class VelocidadView:
     estadoPagina = True
     fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(365)
     datos_memoria = []
-    
+    # ── Variables del sistema de consultas ──
+    worker_velocidad = None
+    _workers_anteriores = []
+    timer_consulta = None
+       
     def inicializarVistaVelocidad(main, proyectoid, proyectoname, fechaini, fechafin):
         VelocidadView.main = main
         VelocidadView.idproyecto = proyectoid
@@ -329,42 +346,35 @@ class VelocidadView:
 
     @staticmethod
     def iniciar_peticion_final(tree_actual):
-        """ Motor: Mata procesos viejos y lanza la consulta definitiva """
-        # 1. Cancelar cualquier hilo previo que esté trabajando en una selección vieja
-        if VelocidadView.worker_velocidad is not None and VelocidadView.worker_velocidad.isRunning():
-            try:
-                VelocidadView.worker_velocidad.data_ready.disconnect()
-                VelocidadView.worker_velocidad.abort()
-                VelocidadView.worker_velocidad.terminate()
-                VelocidadView.worker_velocidad.wait()
-            except:
-                pass
+        """Genera un request cancelable y lanza la consulta."""
+        # 1. Generar nuevo request_id
+        #    (cancela automáticamente la consulta anterior via SPID)
+        request_id = velocidad_query_manager.start_request()
 
-        # 2. Captura de la selección final del árbol
+        # 2. Obtener lo que quedó marcado al final de los clics
         lista = EquiposVelocidad.obtener_todos_elementos_marcados(tree_actual)
         if not lista:
             VelocidadView.limpiarGraficaVelocidad()
-            VelocidadView.main.unsetCursor()
+            velocidad_query_manager.finish_request(request_id)
             return
 
         prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
         if len(prismasmarcados) == 0:
             VelocidadView.limpiarGraficaVelocidad()
-            VelocidadView.main.unsetCursor()
+            velocidad_query_manager.finish_request(request_id)
             return
 
-        # 3. Capturar datos de la UI (Sincrónico y rápido)
+        # 3. Capturar valores de la interfaz (Hilo Principal)
         try:
             combo_promedios = VelocidadView.main.findChild(QComboBox, "combo_promedio_velocidad")
             spin_promedio = VelocidadView.main.findChild(QSpinBox, "spin_promedio_velocidad")
             tipopromedio = combo_promedios.currentData()
             spin_promedio.setEnabled(tipopromedio != "SPRO")
             numeropromedio = spin_promedio.value()
-            
+
             tipografico = VelocidadView.main.findChild(QComboBox, "combo_tipos_velocidad").currentData()
             tipomedida = VelocidadView.main.findChild(QComboBox, "combo_medida_velocidad").currentData()
-            
-            # Tu lógica de conversión de unidades
+
             if tipomedida == "MD": unidadmedida = 1
             elif tipomedida == "CMD": unidadmedida = 100
             elif tipomedida == "MMD": unidadmedida = 1000
@@ -373,36 +383,54 @@ class VelocidadView:
             else: unidadmedida = 1000/24
 
             tipotiempo = VelocidadView.main.findChild(QComboBox, "combo_tiempo_velocidad").currentData()
+
             config = SoftwareConfiguracion.obtenerDataSoftware()
             velocprisma, filtrado = config[15], config[16]
 
-            params = (VelocidadView.idproyecto, prismasmarcados, VelocidadView.fechainicial, 
-                      VelocidadView.fechafinal, tipografico, unidadmedida, velocprisma, 
+            params = (VelocidadView.idproyecto, prismasmarcados, VelocidadView.fechainicial,
+                      VelocidadView.fechafinal, tipografico, unidadmedida, velocprisma,
                       filtrado, tipopromedio, numeropromedio)
 
-            # 4. Lanzar el nuevo trabajador
+            # 4. Preservar referencia del worker anterior si aún está corriendo
+            if VelocidadView.worker_velocidad is not None and VelocidadView.worker_velocidad.isRunning():
+                VelocidadView._workers_anteriores.append(VelocidadView.worker_velocidad)
+
+            # 5. Iniciar nuevo worker con request_id
             VelocidadView.main.setCursor(Qt.WaitCursor)
-            VelocidadView.worker_velocidad = DataWorkerVelocidad(params)
+            VelocidadView.worker_velocidad = DataWorkerVelocidad(params, request_id)
             VelocidadView.worker_velocidad.data_ready.connect(
-                lambda datos: VelocidadView.finalizar_flujo_velocidad(lista, datos, tipografico, tipomedida, tipotiempo)
+                lambda rid, datos: VelocidadView._on_data_ready(rid, lista, datos, tipografico, tipomedida, tipotiempo)
+            )
+            VelocidadView.worker_velocidad.worker_done.connect(
+                lambda rid, estado: VelocidadView._on_worker_done(rid, estado)
             )
             VelocidadView.worker_velocidad.start()
 
         except Exception as e:
-            print(f"Error al iniciar hilo: {e}")
             VelocidadView.main.unsetCursor()
 
     @staticmethod
-    def finalizar_flujo_velocidad(lista, datos, tipografico, tipomedida, tipotiempo):
-        """ Cierre: Recibe la data del hilo y manda a dibujar """
+    def _on_data_ready(request_id, lista, datos, tipografico, tipomedida, tipotiempo):
+        """Recibe datos del worker. Solo grafica si sigue siendo la consulta actual."""
+        if not velocidad_query_manager.is_current(request_id):
+            return
+
         VelocidadView.datos_memoria = datos
-        
         if len(datos) > 0:
             VelocidadView.graficarPrismasVelocidad(lista, datos, tipografico, tipomedida, tipotiempo)
         else:
             VelocidadView.limpiarGraficaVelocidad()
-        
         VelocidadView.main.unsetCursor()
+
+    @staticmethod
+    def _on_worker_done(request_id, estado):
+        """Registra el fin del request y limpia workers terminados."""
+        velocidad_query_manager.finish_request(request_id, estado)
+        VelocidadView._workers_anteriores = [
+            w for w in VelocidadView._workers_anteriores if w.isRunning()
+        ]
+        if estado in ('FAILED', 'CANCELLED'):
+            VelocidadView.main.unsetCursor()
         
     def obtenerListaEquiposMarcados(lista, tipolista):
         equiposmarcados = []
