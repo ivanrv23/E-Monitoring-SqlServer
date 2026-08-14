@@ -712,14 +712,258 @@ class InterfazModel:
         conn = None
         try:
             conn = Connection.connectionDB()
-            sql = "SELECT id_componente, id_instrumentacion FROM preferencias_marcado WHERE id_proyecto = ? AND modulo = ?"
+
+            sql = """SELECT d.id_componente, d.id_instrumentacion
+            FROM dbo.preferencias_marcado_detalle AS d
+            INNER JOIN dbo.preferencias_marcado AS p
+            ON p.id_preferencia = d.id_preferencia
+            WHERE p.id_preferencia = (
+                SELECT TOP 1 id_preferencia
+                FROM dbo.preferencias_marcado
+                WHERE id_proyecto = ?
+                AND modulo = ?
+                ORDER BY id_preferencia DESC
+            )
+            """
             cur = conn.cursor()
             cur.execute(sql, (idproyecto, modulo))
             rows = cur.fetchall()
+
             return [tuple(row) for row in rows]
+
         except Exception as e:
             print("Error mdlObtenerPreferenciasMarcado:", e)
             return []
         finally:
-            if conn: conn.close()
-            
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlGuardarPlantillaNombrada(idproyecto, modulo_base, nombre_plantilla, lista_preferencias, cantidad = 0):
+        conn = None
+
+        try:
+            if idproyecto is None:
+                raise ValueError("idproyecto no puede ser None")
+
+            if not modulo_base:
+                raise ValueError("modulo_base es obligatorio")
+
+            if not nombre_plantilla:
+                raise ValueError("nombre_plantilla es obligatorio")
+
+            lista_preferencias = lista_preferencias or []
+
+            # Si no se recibe cantidad, se calcula automáticamente
+            if cantidad is None:
+                cantidad = len(lista_preferencias)
+
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+
+            # Buscar plantilla existente
+            cur.execute(
+                """
+                SELECT id_preferencia
+                FROM dbo.preferencias_marcado
+                WHERE id_proyecto = ?
+                AND modulo = ?
+                AND nombre_plantilla = ?
+                """,
+                (idproyecto, modulo_base, nombre_plantilla)
+            )
+
+            row = cur.fetchone()
+
+            if row:
+                # La plantilla ya existe
+                id_preferencia = row[0]
+
+                cur.execute(
+                    """
+                    UPDATE dbo.preferencias_marcado
+                    SET cantidad_equipos = ?,
+                        fecha_registro = GETDATE()
+                    WHERE id_preferencia = ?
+                    """,
+                    (cantidad, id_preferencia)
+                )
+
+                cur.execute(
+                    """
+                    DELETE FROM dbo.preferencias_marcado_detalle
+                    WHERE id_preferencia = ?
+                    """,
+                    (id_preferencia,)
+                )
+
+            else:
+                # Crear nueva plantilla y obtener el ID generado
+                cur.execute(
+                    """
+                    INSERT INTO dbo.preferencias_marcado
+                        (
+                            id_proyecto,
+                            modulo,
+                            nombre_plantilla,
+                            cantidad_equipos
+                        )
+                    OUTPUT INSERTED.id_preferencia
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        idproyecto,
+                        modulo_base,
+                        nombre_plantilla,
+                        cantidad
+                    )
+                )
+
+                row_id = cur.fetchone()
+
+                if not row_id or row_id[0] is None:
+                    raise RuntimeError(
+                        "No se pudo obtener el id_preferencia generado"
+                    )
+
+                id_preferencia = row_id[0]
+
+            # Insertar detalle
+            sql_detalle = """
+                INSERT INTO dbo.preferencias_marcado_detalle
+                    (
+                        id_preferencia,
+                        id_componente,
+                        id_instrumentacion
+                    )
+                VALUES (?, ?, ?)
+            """
+
+            for id_comp, id_inst in lista_preferencias:
+                cur.execute(
+                    sql_detalle,
+                    (id_preferencia, id_comp, id_inst)
+                )
+
+            conn.commit()
+            return True
+
+        except Exception as e:
+            print("Error mdlGuardarPlantillaNombrada:", e)
+
+            if conn:
+                conn.rollback()
+
+            return False
+
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlListarPlantillas(idproyecto, modulo_base):
+        """
+        Lista las plantillas guardadas para un proyecto/módulo, leyendo directamente
+        del maestro (ya no se necesita parsear el string 'modulo_PLANTILLA_nombre').
+        """
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            sql = """SELECT nombre_plantilla, cantidad_equipos, fecha_registro, id_preferencia
+                    FROM preferencias_marcado
+                    WHERE id_proyecto = ? AND modulo = ?
+                    ORDER BY nombre_plantilla"""
+            cur = conn.cursor()
+            cur.execute(sql, (idproyecto, modulo_base))
+            rows = cur.fetchall()
+            return [tuple(row) for row in rows]
+        except Exception as e:
+            print("Error mdlListarPlantillas:", e)
+            return []
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlObtenerPreferenciasPorNombre(idproyecto, modulo_base, id_plantilla):
+        """
+        Obtiene los equipos marcados de una plantilla específica (para aplicarla al árbol).
+        """
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            sql = """SELECT d.id_componente, d.id_instrumentacion
+                    FROM preferencias_marcado_detalle d
+                    INNER JOIN preferencias_marcado p ON p.id_preferencia = d.id_preferencia
+                    WHERE p.id_proyecto = ? AND p.modulo = ? AND p.id_preferencia = ?"""
+            cur = conn.cursor()
+            cur.execute(sql, (idproyecto, modulo_base, id_plantilla))
+            rows = cur.fetchall()
+            return [tuple(row) for row in rows]
+        except Exception as e:
+            print("Error mdlObtenerPreferenciasPorNombre:", e)
+            return []
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlEliminarPlantilla(idproyecto, modulo_base, id_plantilla):
+        """
+        Elimina una plantilla. Gracias a ON DELETE CASCADE en la FK de
+        preferencias_marcado_detalle, basta con borrar el registro maestro.
+        """
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(
+                "DELETE FROM preferencias_marcado WHERE id_proyecto = ? AND modulo = ? AND id_preferencia = ?",
+                (idproyecto, modulo_base, id_plantilla)
+            )
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error mdlEliminarPlantilla:", e)
+            if conn:
+                conn.rollback()
+            return False
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlRenombrarPlantilla(idproyecto, modulo_base, nombre_actual, nombre_nuevo):
+        """
+        Renombra una plantilla existente, validando que el nuevo nombre
+        no choque con otra plantilla ya guardada en el mismo proyecto/módulo.
+        """
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+
+            # Verificar que no exista ya una plantilla con el nuevo nombre
+            cur.execute(
+                "SELECT COUNT(*) FROM preferencias_marcado WHERE id_proyecto = ? AND modulo = ? AND nombre_plantilla = ?",
+                (idproyecto, modulo_base, nombre_nuevo)
+            )
+            existe = cur.fetchone()[0]
+            if existe > 0:
+                print("Error mdlRenombrarPlantilla: ya existe una plantilla con ese nombre")
+                return False
+
+            cur.execute(
+                "UPDATE preferencias_marcado SET nombre_plantilla = ? WHERE id_proyecto = ? AND modulo = ? AND nombre_plantilla = ?",
+                (nombre_nuevo, idproyecto, modulo_base, nombre_actual)
+            )
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error mdlRenombrarPlantilla:", e)
+            if conn:
+                conn.rollback()
+            return False
+        finally:
+            if conn:
+                conn.close()
