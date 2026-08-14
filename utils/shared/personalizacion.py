@@ -517,6 +517,128 @@ class Personalizacion:
                 index = indice
                 break
         return index
+
+    @staticmethod
+    def aplicarPreferenciasArbol(tree_referencia, preferencias):
+        """
+        Marca (check) en tree_referencia los nodos que coincidan con las
+        tuplas (id_componente, id_instrumentacion) recibidas en 'preferencias'.
+        Si id_instrumentacion es None, se marca el componente completo (todos sus hijos).
+        Desmarca todo lo demás.
+        """
+        def limpiar_id(valor):
+            if valor is None or str(valor).strip() == "" or str(valor).lower() == "none":
+                return None
+            try:
+                return int(float(valor))
+            except Exception:
+                return None
+
+        # Construir set de preferencias válidas
+        set_prefs = set()
+        for p in preferencias:
+            if p and len(p) >= 2:
+                idz, idi = limpiar_id(p[0]), limpiar_id(p[1])
+                if idz is not None:
+                    set_prefs.add((idz, idi))
+
+        tree_referencia.blockSignals(True)
+
+        def marcar_hijos(item, id_zona, marcar_todo):
+            for i in range(item.childCount()):
+                hijo = item.child(i)
+                tipo = hijo.text(1).lower()
+                id_equipo = limpiar_id(hijo.text(2)) if tipo in ["prisma", "pluviometro"] else None
+                if marcar_todo:
+                    hijo.setCheckState(0, Qt.Checked)
+                else:
+                    hijo.setCheckState(0, Qt.Checked if (id_zona, id_equipo) in set_prefs else Qt.Unchecked)
+                marcar_hijos(hijo, id_zona, marcar_todo)
+
+        for i in range(tree_referencia.topLevelItemCount()):
+            root = tree_referencia.topLevelItem(i)
+            id_zona = limpiar_id(root.text(2))
+            marcar_todo_zona = (id_zona, None) in set_prefs
+            marcar_hijos(root, id_zona, marcar_todo_zona)
+
+        # Refrescar estado (Checked / PartiallyChecked / Unchecked) de padres según hijos
+        def refrescar_jerarquia(item):
+            for k in range(item.childCount()):
+                refrescar_jerarquia(item.child(k))
+            if item.childCount() > 0:
+                sts = [item.child(k).checkState(0) for k in range(item.childCount())]
+                item.setCheckState(
+                    0,
+                    Qt.Checked if all(s == Qt.Checked for s in sts)
+                    else Qt.Unchecked if all(s == Qt.Unchecked for s in sts)
+                    else Qt.PartiallyChecked
+                )
+
+        for i in range(tree_referencia.topLevelItemCount()):
+            refrescar_jerarquia(tree_referencia.topLevelItem(i))
+
+        tree_referencia.blockSignals(False)
+
+    @staticmethod
+    def confirmarAccion(titulo, mensaje, parent=None):
+        """
+        Muestra un diálogo de confirmación Sí/No estilizado.
+        Devuelve True si el usuario confirma, False en caso contrario.
+        """
+        dialogo = QDialog(parent)
+        dialogo.setWindowTitle(titulo)
+        dialogo.setFixedSize(360, 170)
+        dialogo.setStyleSheet("background-color: #fcfcfc;")
+
+        layout_principal = QVBoxLayout(dialogo)
+        layout_principal.setContentsMargins(25, 20, 25, 20)
+        layout_principal.setSpacing(15)
+
+        lbl_titulo = QLabel(titulo)
+        lbl_titulo.setStyleSheet("color: #2c3e50; font-size: 14px; font-weight: bold; border:none;")
+        layout_principal.addWidget(lbl_titulo)
+
+        lbl_mensaje = QLabel(mensaje)
+        lbl_mensaje.setWordWrap(True)
+        lbl_mensaje.setStyleSheet("color: #34495e; font-size: 11px; border:none;")
+        layout_principal.addWidget(lbl_mensaje)
+
+        layout_principal.addStretch()
+
+        botones = QHBoxLayout()
+        btn_no = QPushButton("No")
+        btn_si = QPushButton("Sí, eliminar")
+
+        btn_no.setStyleSheet("""
+            QPushButton { 
+                background-color: transparent; color: #7f8c8d; 
+                border: 1px solid #bdc3c7; border-radius: 12px; 
+                padding: 6px 16px; font-size: 11px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #ecf0f1; }
+        """)
+        btn_si.setStyleSheet("""
+            QPushButton { 
+                background-color: #e74c3c; color: white; 
+                border: none; border-radius: 12px; 
+                padding: 6px 16px; font-size: 11px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #c0392b; }
+            QPushButton:pressed { background-color: #a93226; }
+        """)
+
+        btn_no.setCursor(Qt.PointingHandCursor)
+        btn_si.setCursor(Qt.PointingHandCursor)
+
+        btn_no.clicked.connect(dialogo.reject)
+        btn_si.clicked.connect(dialogo.accept)
+
+        botones.addStretch()
+        botones.addWidget(btn_no)
+        botones.addWidget(btn_si)
+        layout_principal.addLayout(botones)
+
+        return dialogo.exec() == QDialog.Accepted   
     
     def dialogoFiltroRegresionPrismas(prismasmarcados):
         Personalizacion.num_checkboxes_marcados = 0
@@ -1174,6 +1296,230 @@ class Personalizacion:
         dialogo.exec()
     
     @staticmethod
+    def dialogoAgregarNuevaPlantilla(tree_referencia, fn_guardar):
+        from PySide6.QtWidgets import QLineEdit 
+
+        def limpiar_id(valor):
+            if valor is None or str(valor).strip() == "" or str(valor).lower() == "none":
+                return None
+            try: return int(float(valor))
+            except: return None
+
+        dialogo = QDialog()
+        dialogo.setWindowTitle("Nueva Plantilla")
+        # Reducimos un poco el tamaño para que no sea tan "exagerado" 
+        dialogo.setFixedSize(460, 650) 
+        dialogo.setStyleSheet("background-color: #fcfcfc;")
+        
+        layout_principal = QVBoxLayout(dialogo)
+        layout_principal.setContentsMargins(25, 25, 25, 25) # Más aire en los bordes
+        layout_principal.setSpacing(12)
+        
+        # --- Cabecera ---
+        lbl_instrucciones = QLabel("Configuración de equipos predeterminados")
+        lbl_instrucciones.setStyleSheet("color: #2c3e50; font-size: 14px; font-weight: bold; border:none;")
+        layout_principal.addWidget(lbl_instrucciones)
+
+        #Agregar input para el nombre de la plantilla
+
+        lbl_nombre = QLabel("Nombre de la plantilla:")
+        lbl_nombre.setStyleSheet("color: #34495e; font-size: 11px; margin-top: 5px;")
+        layout_principal.addWidget(lbl_nombre)
+            
+        input_nombre = QLineEdit()
+        input_nombre.setPlaceholderText("Ej: Plantilla Zona Norte, Configuración Semanal...")
+        input_nombre.setStyleSheet("""
+        QLineEdit {
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            padding: 8px 12px;
+            background-color: white;
+            color: #2c3e50;
+            font-size: 11px;
+            }
+        QLineEdit:focus {
+            border: 2px solid #3498db;
+            }
+        QLineEdit:hover {
+            border: 2px solid #7f8c8d;
+            }
+            """)
+        layout_principal.addWidget(input_nombre)
+
+        # --- Toolbar Estilizada ---
+        toolbar = QHBoxLayout()
+        btn_all = QPushButton("Marcar todo")
+        btn_none = QPushButton("Desmarcar todo")
+        
+        # Botones tipo "Ghost" (más finos)
+        estilo_botones_util = """
+            QPushButton { 
+                background-color: transparent; color: #5dade2; 
+                border: 1px solid #5dade2; border-radius: 12px; 
+                padding: 3px 12px; font-size: 10px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #5dade2; color: white; }
+            QPushButton:pressed { background-color: #3498db; }
+        """
+        btn_all.setStyleSheet(estilo_botones_util)
+        btn_none.setStyleSheet(estilo_botones_util)
+        btn_all.setCursor(Qt.PointingHandCursor)
+        btn_none.setCursor(Qt.PointingHandCursor)
+        
+        toolbar.addStretch()
+        toolbar.addWidget(btn_all)
+        toolbar.addWidget(btn_none)
+        layout_principal.addLayout(toolbar)
+
+        # --- Árbol con Estilo Minimalista ---
+        tree_config = QTreeWidget()
+        tree_config.setHeaderHidden(True)
+        tree_config.setColumnCount(3)
+        tree_config.setColumnHidden(1, True)
+        tree_config.setColumnHidden(2, True)
+        tree_config.setIndentation(18)
+        
+        tree_config.setStyleSheet("""
+            QTreeWidget { 
+                border: 1px solid #e1e8ed; border-radius: 10px; 
+                background-color: white; outline: 0; padding: 5px;
+            }
+            QTreeWidget::item { 
+                padding: 6px; color: #34495e; border-radius: 4px;
+            }
+            QTreeWidget::item:hover { 
+                background-color: #f4f7f6; 
+            }
+            QTreeWidget::item:selected { 
+                background-color: #eaf2f8; color: #2980b9; font-weight: bold;
+            }
+            QCheckBox::indicator { width: 14px; height: 14px; }
+        """)
+
+        # Cargar datos (Lógica original intacta)
+        # set_prefs = set()
+        # for p in preferencias_actuales:
+        #     idz, idi = limpiar_id(p[0]), limpiar_id(p[1])
+        #     if idz is not None: set_prefs.add((idz, idi))
+
+        def copiar_y_sincronizar(item_orig, parent_dest, id_zona):
+            for i in range(item_orig.childCount()):
+                h_orig = item_orig.child(i)
+                h_dest = QTreeWidgetItem(parent_dest)
+                h_dest.setText(0, h_orig.text(0))
+                h_dest.setText(1, h_orig.text(1))
+                h_dest.setText(2, h_orig.text(2))
+                h_dest.setFlags(h_dest.flags() | Qt.ItemIsUserCheckable)
+                tipo = h_orig.text(1).lower()
+                id_equipo = limpiar_id(h_orig.text(2)) if tipo in ["prisma", "pluviometro"] else None
+                h_dest.setCheckState(0, Qt.Unchecked)
+                copiar_y_sincronizar(h_orig, h_dest, id_zona)
+
+        tree_config.blockSignals(True)
+        for i in range(tree_referencia.topLevelItemCount()):
+            root_orig = tree_referencia.topLevelItem(i)
+            id_z = limpiar_id(root_orig.text(2))
+            root_dest = QTreeWidgetItem(tree_config)
+            root_dest.setText(0, root_orig.text(0)); root_dest.setText(1, root_orig.text(1)); root_dest.setText(2, root_orig.text(2))
+            root_dest.setFlags(root_dest.flags() | Qt.ItemIsUserCheckable)
+            root_dest.setCheckState(0, Qt.Unchecked)
+            copiar_y_sincronizar(root_orig, root_dest, id_z)
+        
+        def refrescar_jerarquia(item):
+            for k in range(item.childCount()): refrescar_jerarquia(item.child(k))
+            if item.childCount() > 0:
+                sts = [item.child(k).checkState(0) for k in range(item.childCount())]
+                item.setCheckState(0, Qt.Checked if all(s == Qt.Checked for s in sts) else Qt.Unchecked if all(s == Qt.Unchecked for s in sts) else Qt.PartiallyChecked)
+
+        for i in range(tree_config.topLevelItemCount()): refrescar_jerarquia(tree_config.topLevelItem(i))
+        tree_config.blockSignals(False)
+
+        # --- Lógica de Interacción ---
+        def global_check(state):
+            tree_config.blockSignals(True)
+            for i in range(tree_config.topLevelItemCount()):
+                root = tree_config.topLevelItem(i); root.setCheckState(0, state)
+                def rec(it, st):
+                    for k in range(it.childCount()): it.child(k).setCheckState(0, st); rec(it.child(k), st)
+                rec(root, state)
+            tree_config.blockSignals(False)
+
+        btn_all.clicked.connect(lambda: global_check(Qt.Checked))
+        btn_none.clicked.connect(lambda: global_check(Qt.Unchecked))
+
+        def on_change(item, col):
+            tree_config.blockSignals(True)
+            def set_h(it, st):
+                for k in range(it.childCount()): it.child(k).setCheckState(0, st); set_h(it.child(k), st)
+            set_h(item, item.checkState(0))
+            def set_p(it):
+                p = it.parent()
+                if p:
+                    sts = [p.child(k).checkState(0) for k in range(p.childCount())]
+                    p.setCheckState(0, Qt.Checked if all(s == Qt.Checked for s in sts) else Qt.Unchecked if all(s == Qt.Unchecked for s in sts) else Qt.PartiallyChecked)
+                    set_p(p)
+            set_p(item); tree_config.blockSignals(False)
+
+        tree_config.itemChanged.connect(on_change)
+
+        # --- Botón Guardar Elegante (Azul Profundo) ---
+        btn_save = QPushButton("GUARDAR PLANTILLA")
+        btn_save.setFixedHeight(40)
+        btn_save.setCursor(Qt.PointingHandCursor)
+        btn_save.setStyleSheet("""
+            QPushButton { 
+                background-color: #2c3e50; color: white; 
+                font-size: 12px; font-weight: bold; border-radius: 20px; 
+                margin-top: 10px;
+            }
+            QPushButton:hover { background-color: #34495e; }
+            QPushButton:pressed { background-color: #1a252f; }
+        """)
+        
+        def recolectar_y_enviar():
+            nombre_plantilla = input_nombre.text().strip()
+            if not nombre_plantilla:
+                from utils.common.alertas import mostrar_mensaje
+                mostrar_mensaje("Validación", "Debe ingresar un nombre para la plantilla", "advertencia")
+                input_nombre.setFocus()
+                return
+            
+            res = []
+            for i in range(tree_config.topLevelItemCount()):
+                it = tree_config.topLevelItem(i); idz = limpiar_id(it.text(2))
+                if it.checkState(0) == Qt.Checked: res.append((idz, None))
+                elif it.checkState(0) == Qt.PartiallyChecked:
+                    def buscar(p):
+                        for j in range(p.childCount()):
+                            h = p.child(j)
+                            if h.text(1).lower() in ["prisma", "pluviometro"] and h.checkState(0) == Qt.Checked:
+                                res.append((idz, limpiar_id(h.text(2))))
+                            buscar(h)
+                    buscar(it)
+
+            if len(res) == 0:
+                from utils.common.alertas import mostrar_mensaje
+                mostrar_mensaje("Validación", "Debe marcar al menos un equipo para guardar la plantilla", "advertencia")
+                return
+
+            if fn_guardar(nombre_plantilla, res): 
+                from utils.common.alertas import mostrar_mensaje
+                cantidad = len(res)
+                texto_equipos = "equipo" if cantidad == 1 else "equipos"
+                mostrar_mensaje(
+                    "Éxito",
+                    f"Plantilla '{nombre_plantilla}' guardada correctamente con {cantidad} {texto_equipos}.",
+                    "exito"
+                )
+                dialogo.accept()
+
+        btn_save.clicked.connect(recolectar_y_enviar)
+        layout_principal.addWidget(tree_config)
+        layout_principal.addWidget(btn_save)
+        
+        return dialogo.exec() == QDialog.Accepted
+
+    @staticmethod
     def dialogoConfigurarMarcadoPredeterminado(tree_referencia, preferencias_actuales, fn_guardar):
         def limpiar_id(valor):
             if valor is None or str(valor).strip() == "" or str(valor).lower() == "none":
@@ -1346,7 +1692,8 @@ class Personalizacion:
         layout_principal.addWidget(btn_save)
         
         return dialogo.exec() == QDialog.Accepted
-    
+  
+
     @staticmethod
     def dialogoConfigurarMarcadoAnalisis(lista_original, preferencias_actuales, fn_guardar, reiniciar):
         # Conjunto de claves ya marcadas
@@ -1468,5 +1815,234 @@ class Personalizacion:
         layout_principal.addWidget(tree_config)
         layout_principal.addWidget(btn_save)
 
+    @staticmethod
+    def dialogoListaPlantillas(id_proyecto, tree_referencia, fn_refrescar=None, modulo="DESPLAZAMIENTO"):
+        """
+        Muestra un diálogo con la lista de plantillas guardadas.
+        """
+        dialogo = QDialog()
+        dialogo.setWindowTitle("Plantillas Guardadas")
+        dialogo.setFixedSize(550, 400)
+        dialogo.setStyleSheet("background-color: #fcfcfc;")
+        
+        layout_principal = QVBoxLayout(dialogo)
+        layout_principal.setContentsMargins(25, 25, 25, 25)
+        layout_principal.setSpacing(12)
+        
+        # --- Cabecera ---
+        lbl_titulo = QLabel("Mis Plantillas de Selección")
+        lbl_titulo.setStyleSheet("color: #2c3e50; font-size: 14px; font-weight: bold; border:none;")
+        layout_principal.addWidget(lbl_titulo)
+        
+        lbl_subtitulo = QLabel("Selecciona una plantilla para aplicar o gestionar")
+        lbl_subtitulo.setStyleSheet("color: #7f8c8d; font-size: 11px; border:none; margin-bottom: 5px;")
+        layout_principal.addWidget(lbl_subtitulo)
+        
+        # --- Lista de Plantillas ---
+        tree_plantillas = QTreeWidget()
+        tree_plantillas.setHeaderLabels(["Nombre", "Fecha Creación", "Equipos", "ID"])
+        tree_plantillas.setColumnHidden(3, True)  # Ocultar columna ID
+        tree_plantillas.setAlternatingRowColors(True)
+        tree_plantillas.setSelectionMode(QTreeWidget.SingleSelection)
+        
+        tree_plantillas.setStyleSheet("""
+            QTreeWidget { 
+                border: 1px solid #e1e8ed; border-radius: 8px; 
+                background-color: white; outline: 0; padding: 5px;
+            }
+            QTreeWidget::item { 
+                padding: 8px; color: #34495e; border-radius: 4px; height: 28px;
+            }
+            QTreeWidget::item:hover { 
+                background-color: #ecf0f1; 
+            }
+            QTreeWidget::item:selected { 
+                background-color: #3498db; color: white; font-weight: bold;
+            }
+            QHeaderView::section {
+                background-color: #34495e; color: white; padding: 8px;
+                border: none; font-weight: bold; font-size: 11px;
+            }
+        """)
+        
+        # Ajustar anchos de columnas
+        tree_plantillas.setColumnWidth(0, 200)
+        tree_plantillas.setColumnWidth(1, 150)
+        tree_plantillas.setColumnWidth(2, 100)
+        # --- CARGA DESDE BASE DE DATOS ---
+        from controllers.InterfazController import InterfazController
+
+        plantillas = InterfazController.ctrlListarPlantillas(id_proyecto, modulo)
+
+        tree_plantillas.blockSignals(True)
+        if plantillas:
+            for nombre, cantidad, fecha, id in plantillas:
+                item = QTreeWidgetItem(tree_plantillas)
+                item.setText(0, nombre)
+                item.setText(1, str(fecha))          # Sin fecha disponible por ahora
+                item.setText(2, str(cantidad))          # Sin conteo de equipos por ahora
+                item.setText(3, str(id))       # Usamos el id_preferencia como identificador único
+        tree_plantillas.blockSignals(False)
+
+        if not plantillas:
+            lbl_vacio = QLabel("No hay plantillas guardadas para este proyecto")
+            lbl_vacio.setStyleSheet("color: #7f8c8d; font-style: italic; border:none;")
+            lbl_vacio.setAlignment(Qt.AlignCenter)
+            layout_principal.addWidget(lbl_vacio)
+            
+        layout_principal.addWidget(tree_plantillas)
+        
+        # --- Toolbar de Acciones ---
+        toolbar = QHBoxLayout()
+        
+        btn_aplicar = QPushButton("Aplicar Plantilla")
+        btn_editar = QPushButton("Editar")
+        btn_eliminar = QPushButton("Eliminar")
+        btn_cerrar = QPushButton("Cerrar")
+        
+        estilo_btn_accion = """
+            QPushButton { 
+                background-color: #3498db; color: white; 
+                border: none; border-radius: 12px; 
+                padding: 6px 16px; font-size: 11px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #2980b9; }
+            QPushButton:pressed { background-color: #21618c; }
+            QPushButton:disabled { background-color: #bdc3c7; color: #7f8c8d; }
+        """
+        
+        estilo_btn_eliminar = """
+            QPushButton { 
+                background-color: #e74c3c; color: white; 
+                border: none; border-radius: 12px; 
+                padding: 6px 16px; font-size: 11px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #c0392b; }
+            QPushButton:pressed { background-color: #a93226; }
+            QPushButton:disabled { background-color: #bdc3c7; color: #7f8c8d; }
+        """
+        
+        estilo_btn_cerrar = """
+            QPushButton { 
+                background-color: transparent; color: #7f8c8d; 
+                border: 1px solid #bdc3c7; border-radius: 12px; 
+                padding: 6px 16px; font-size: 11px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #ecf0f1; }
+        """
+        
+        btn_aplicar.setStyleSheet(estilo_btn_accion)
+        btn_editar.setStyleSheet(estilo_btn_accion)
+        btn_eliminar.setStyleSheet(estilo_btn_eliminar)
+        btn_cerrar.setStyleSheet(estilo_btn_cerrar)
+        
+        btn_aplicar.setCursor(Qt.PointingHandCursor)
+        btn_editar.setCursor(Qt.PointingHandCursor)
+        btn_eliminar.setCursor(Qt.PointingHandCursor)
+        btn_cerrar.setCursor(Qt.PointingHandCursor)
+        
+        # Deshabilitar botones hasta selección
+        btn_aplicar.setEnabled(False)
+        btn_editar.setEnabled(False)
+        btn_eliminar.setEnabled(False)
+        
+        toolbar.addWidget(btn_aplicar)
+        toolbar.addWidget(btn_editar)
+        toolbar.addWidget(btn_eliminar)
+        toolbar.addStretch()
+        toolbar.addWidget(btn_cerrar)
+        
+        layout_principal.addLayout(toolbar)
+        
+       # --- Funciones de Interacción ---
+        def on_seleccion_cambio():
+            items = tree_plantillas.selectedItems()
+            hay_seleccion = bool(items)
+            btn_aplicar.setEnabled(hay_seleccion)
+            btn_editar.setEnabled(hay_seleccion)
+            btn_eliminar.setEnabled(hay_seleccion)
+
+        def aplicar_plantilla():
+            items = tree_plantillas.selectedItems()
+            if not items:
+                from utils.common.alertas import mostrar_mensaje
+                mostrar_mensaje("Validación", "Debe seleccionar una plantilla", "advertencia")
+                return
+
+            id_preferencia = int(items[0].text(3))
+            preferencias = InterfazController.ctrlObtenerPreferenciasPorNombre(id_proyecto, modulo, id_preferencia)
+
+            if tree_referencia is not None:
+                Personalizacion.aplicarPreferenciasArbol(tree_referencia, preferencias)
+
+            dialogo.accept()
+
+            # Disparar el refresco de la gráfica DESPUÉS de cerrar el diálogo
+            if fn_refrescar is not None:
+                fn_refrescar()
+
+        def editar_plantilla():
+            items = tree_plantillas.selectedItems()
+            if not items:
+                from utils.common.alertas import mostrar_mensaje
+                mostrar_mensaje("Validación", "Debe seleccionar una plantilla", "advertencia")
+                return
+
+            item = items[0]
+            nombre_actual = item.text(0)
+
+            from PySide6.QtWidgets import QInputDialog
+            nuevo_nombre, ok = QInputDialog.getText(
+                dialogo, "Editar Plantilla", "Nuevo nombre:", text=nombre_actual
+            )
+            nuevo_nombre = nuevo_nombre.strip() if nuevo_nombre else ""
+
+            if not ok or not nuevo_nombre:
+                return
+
+            if nuevo_nombre == nombre_actual:
+                return
+
+            from utils.common.alertas import mostrar_mensaje
+            resultado = InterfazController.ctrlRenombrarPlantilla(
+                id_proyecto, modulo, nombre_actual, nuevo_nombre
+            )
+            if resultado:
+                item.setText(0, nuevo_nombre)
+                mostrar_mensaje("Éxito", "Plantilla renombrada correctamente", "exito")
+            else:
+                mostrar_mensaje("Error", "No se pudo renombrar la plantilla", "advertencia")
+
+        def eliminar_plantilla():
+            items = tree_plantillas.selectedItems()
+            if not items:
+                from utils.common.alertas import mostrar_mensaje
+                mostrar_mensaje("Validación", "Debe seleccionar una plantilla", "advertencia")
+                return
+
+            nombre = items[0].text(0)
+            id_preferencia = int(items[0].text(3))
+            if Personalizacion.confirmarAccion(
+                "Eliminar Plantilla",
+                f"¿Estás seguro de eliminar '{nombre}'? Esta acción no se puede deshacer.",
+                dialogo
+            ):
+                if InterfazController.ctrlEliminarPlantilla(id_proyecto, modulo, id_preferencia):
+                    tree_plantillas.takeTopLevelItem(tree_plantillas.indexOfTopLevelItem(items[0]))
+                    from utils.common.alertas import mostrar_mensaje
+                    mostrar_mensaje("Éxito", "Plantilla eliminada correctamente", "exito")
+                else:
+                    from utils.common.alertas import mostrar_mensaje
+                    mostrar_mensaje("Error", "No se pudo eliminar la plantilla", "advertencia")
+
+        # --- Conectar señales (AHORA sí a nivel de la función principal) ---
+        tree_plantillas.itemSelectionChanged.connect(on_seleccion_cambio)
+        btn_aplicar.clicked.connect(aplicar_plantilla)
+        btn_editar.clicked.connect(editar_plantilla)
+        btn_eliminar.clicked.connect(eliminar_plantilla)
+        btn_cerrar.clicked.connect(dialogo.reject)
+
+        # Doble clic para aplicar directo
+        tree_plantillas.itemDoubleClicked.connect(lambda: aplicar_plantilla())
+
         return dialogo.exec() == QDialog.Accepted
-    

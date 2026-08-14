@@ -204,3 +204,23 @@ class InterfazController:
 
     def ctrlObtenerPreferenciasMarcado(idproyecto, modulo):
         return InterfazModel.mdlObtenerPreferenciasMarcado(idproyecto, modulo)
+
+    @staticmethod
+    def ctrlGuardarPlantillaNombrada(idproyecto, modulo, nombre_plantilla, preferencias, cantidad):
+        return InterfazModel.mdlGuardarPlantillaNombrada(idproyecto, modulo, nombre_plantilla, preferencias, cantidad)
+
+    @staticmethod
+    def ctrlListarPlantillas(idproyecto, modulo):
+        return InterfazModel.mdlListarPlantillas(idproyecto, modulo)
+
+    @staticmethod
+    def ctrlObtenerPreferenciasPorNombre(idproyecto, modulo, id_plantilla):
+        return InterfazModel.mdlObtenerPreferenciasPorNombre(idproyecto, modulo, id_plantilla)
+
+    @staticmethod
+    def ctrlEliminarPlantilla(idproyecto, modulo, id_plantilla):
+        return InterfazModel.mdlEliminarPlantilla(idproyecto, modulo, id_plantilla)
+
+    @staticmethod
+    def ctrlRenombrarPlantilla(idproyecto, modulo, nombre_actual, nombre_nuevo):
+        return InterfazModel.mdlRenombrarPlantilla(idproyecto, modulo, nombre_actual, nombre_nuevo)
