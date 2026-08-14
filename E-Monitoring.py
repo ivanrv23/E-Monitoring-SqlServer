@@ -13,7 +13,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtCore import QTimer, QLockFile
 from views.splashscreen import SplashScreen
 from utils.common.rutasarchivos import resource_path
-from services.exportar.exportarDatos import ExportarDatos
+# from services.exportar.exportarDatos import ExportarDatos
 from services.sync.sync_manager import SyncManager
 # Constantes
 LOG_FILE_PATH = "errores.log"
@@ -135,7 +135,7 @@ class MyApp:
         from views.principal import Principal
         Principal.show_main_view()
         self.splash.close()
-        ExportarDatos.programar_exportacion()
+        # ExportarDatos.programar_exportacion()
         # Iniciar sincronización automática
         SyncManager.iniciar(
             on_datos  = self._procesar_datos_sync,
