@@ -1,5 +1,5 @@
 import threading
-from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox, QMenu)
+from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox, QMenu, QLineEdit)
 from PySide6.QtCore import Qt
 from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica
 from utils.shared.graficaDesplazamientoVelocidad import limpiar_widget
@@ -82,6 +82,7 @@ class DesplazamientoView:
     worker = None
     _workers_anteriores = []   # Mantener referencias vivas hasta que terminen
     timer_consulta = None
+    timer_busqueda_desplaza = None
     
     def inicializarVistaDesplazamiento(main, proyectoid, proyectoname, fechaini, fechafin):
         DesplazamientoView.main = main
@@ -111,6 +112,28 @@ class DesplazamientoView:
             # header = tree_actual_desplaza.header()
             # header.setContextMenuPolicy(Qt.CustomContextMenu)
             # header.customContextMenuRequested.connect(DesplazamientoView.clicderechoEncabezadoProyecto)
+
+            # --- Buscador de equipos en el árbol ---
+            buscador_desplaza = main.findChild(QLineEdit, "input_buscar_desplazamiento")
+            if buscador_desplaza is None:
+                buscador_desplaza = QLineEdit()
+                buscador_desplaza.setObjectName("input_buscar_desplazamiento")
+                buscador_desplaza.setPlaceholderText("Buscar equipo...")
+                layout_padre = tree_actual_desplaza.parentWidget().layout()
+                if layout_padre is not None:
+                    indice_tree = layout_padre.indexOf(tree_actual_desplaza)
+                    layout_padre.insertWidget(indice_tree, buscador_desplaza)
+
+                DesplazamientoView.timer_busqueda_desplaza = QTimer()
+                DesplazamientoView.timer_busqueda_desplaza.setSingleShot(True)
+                DesplazamientoView.timer_busqueda_desplaza.timeout.connect(
+                    lambda: EquiposDesplazamiento.filtrarArbolPorTexto(tree_actual_desplaza, buscador_desplaza.text())
+                )
+                buscador_desplaza.textChanged.connect(
+                    lambda: (DesplazamientoView.timer_busqueda_desplaza.stop(),
+                              DesplazamientoView.timer_busqueda_desplaza.start(250))
+                )
+
             botonRefrescarDesplazamiento = main.findChild(QPushButton, "btn_refrescar_vista_desplazamiento")
             botonRefrescarDesplazamiento.clicked.connect(lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(tree_actual_desplaza))
             # Cargar Unidades de Medida
