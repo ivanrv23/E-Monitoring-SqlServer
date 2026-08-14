@@ -528,7 +528,7 @@ class PiezometroModel:
             cur = conn.cursor()
             cur.execute(sql, datos)
             
-            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?
+            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?, estado_instrumentacion = ?
             WHERE id_instrumentacion = ? AND tipo_equipo = 'PIEZOMETROMANUAL';"""
             cur = conn.cursor()
             cur.execute(query_instrumentacion, data)

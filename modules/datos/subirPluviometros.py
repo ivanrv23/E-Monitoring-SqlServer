@@ -545,7 +545,7 @@ class SubirPluviometros:
             estado = estado_pluviometro.currentData()
             if nombre:
                 datos = (nombre, codigo, norte, este, nivel, comentario, estado, idpluvio)
-                data = (componente, nombre, idinstrumento)
+                data = (componente, nombre, estado, idinstrumento)
                 respuesta = PluviometroController.ctrlActualizarPluviometro(datos, data)
                 if respuesta:
                     dialogopluviometros.close()

@@ -1,5 +1,5 @@
 import threading
-from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox,QMenu)
+from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox,QMenu, QLineEdit)
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica
 from utils.shared.graficaDesplazamientoVelocidad import limpiar_widget
@@ -73,6 +73,7 @@ class VelocidadView:
     worker_velocidad = None
     _workers_anteriores = []
     timer_consulta = None
+    timer_busqueda_veloc = None
        
     def inicializarVistaVelocidad(main, proyectoid, proyectoname, fechaini, fechafin):
         VelocidadView.main = main
@@ -101,6 +102,28 @@ class VelocidadView:
             # header = tree_actual_velocidad.header()
             # header.setContextMenuPolicy(Qt.CustomContextMenu)
             # header.customContextMenuRequested.connect(VelocidadView.clicderechoEncabezadoProyecto)
+
+            # --- Buscador de equipos en el árbol (compartido con Desplazamiento) ---
+            buscador_veloc = main.findChild(QLineEdit, "input_buscar_desplazamiento")
+            if buscador_veloc is None:
+                buscador_veloc = QLineEdit()
+                buscador_veloc.setObjectName("input_buscar_desplazamiento")
+                buscador_veloc.setPlaceholderText("Buscar equipo...")
+                layout_padre = tree_actual_velocidad.parentWidget().layout()
+                if layout_padre is not None:
+                    indice_tree = layout_padre.indexOf(tree_actual_velocidad)
+                    layout_padre.insertWidget(indice_tree, buscador_veloc)
+
+                VelocidadView.timer_busqueda_veloc = QTimer()
+                VelocidadView.timer_busqueda_veloc.setSingleShot(True)
+                VelocidadView.timer_busqueda_veloc.timeout.connect(
+                    lambda: EquiposVelocidad.filtrarArbolPorTexto(tree_actual_velocidad, buscador_veloc.text())
+                )
+                buscador_veloc.textChanged.connect(
+                    lambda: (VelocidadView.timer_busqueda_veloc.stop(),
+                              VelocidadView.timer_busqueda_veloc.start(250))
+                )
+                
             botonRefrescarVelocidad = main.findChild(QPushButton, "btn_refrescar_vista_velocidad")
             botonRefrescarVelocidad.clicked.connect(lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual_velocidad))
             btn_umbral_velocidad = main.findChild(QPushButton, "btn_umbral_velocidad")

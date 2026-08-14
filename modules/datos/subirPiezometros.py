@@ -608,7 +608,7 @@ class SubirPiezometros:
         ui_file_path = resource_path("ui/datapiezometromanual.ui")
         ui_file = loaderLoading.load(ui_file_path, None)
         dialogoPiezomanual = QDialog()
-        dialogoPiezomanual.setWindowTitle("Data Piezómetros Manuales")
+        dialogoPiezomanual.setWindowTitle("Data Piezómetros Casagrande")
         layout_piezomanual = QVBoxLayout()
         layout_piezomanual.addWidget(ui_file)
         dialogoPiezomanual.setLayout(layout_piezomanual)
@@ -1279,7 +1279,7 @@ class SubirPiezometros:
     
     def cambiar_componente_piezomanuales(idcomponente, idproyecto, treewidget, nombregrupo, tipogrupo, subgrupo, reiniciarvistas, vista="DATOS"):
         dialog = QDialog()
-        dialog.setWindowTitle("Componente Piezómetros Manuales")
+        dialog.setWindowTitle("Componente Piezómetros Casagrande")
         layout = QFormLayout(dialog)
         # Campo componente
         label_titulo = QLabel("Componente:")
@@ -1330,7 +1330,7 @@ class SubirPiezometros:
     
     def eliminar_piezomanuales(idproyecto, idzona, grupo, tipo, treewidget, reiniciarvistas):
         dlg = QMessageBox()
-        dlg.setWindowTitle("Eliminar Piezómetros Manuales")
+        dlg.setWindowTitle("Eliminar Piezómetros Casagrande")
         dlg.setText(f"¿Está seguro eliminar todos los Piezómetros?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         dlg.setIcon(QMessageBox.Question)
@@ -1353,7 +1353,7 @@ class SubirPiezometros:
         ui_file = loader.load(ui_file_path, None)
         # Configurar el cuadro de diálogo
         dialog = QDialog()
-        dialog.setWindowTitle("Actualizar Piezómetro Manual")
+        dialog.setWindowTitle("Actualizar Piezómetro Casagrande")
         layout = QVBoxLayout()
         layout.addWidget(ui_file)
         dialog.setLayout(layout)
@@ -1416,7 +1416,7 @@ class SubirPiezometros:
             estado = estado_piezomanual.currentData()
             if nombre != "":
                 datos = (nombre, codigo, norte, este, nivel, fundacion, inclinacion, azimut, stick, comentario, estado, idpiezo)
-                data = (componente, nombre, idinstrumento)
+                data = (componente, nombre, estado, idinstrumento)
                 respuesta = PiezometroController.ctrlActualizarPiezometroManual(datos, data)
                 if respuesta:
                     dialog.close()
@@ -1447,7 +1447,7 @@ class SubirPiezometros:
     
     def eliminar_piezomanual(idproyecto, idinstrumento, nombrepiezo, nombregrupo, tipolista, treewidget, reiniciarvistas):
         dlg = QMessageBox()
-        dlg.setWindowTitle("Eliminar Piezómetro Manual")
+        dlg.setWindowTitle("Eliminar Piezómetro Casagrande")
         dlg.setText(f"¿Está seguro eliminar el Piezómetro '{nombrepiezo}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         dlg.setIcon(QMessageBox.Question)
