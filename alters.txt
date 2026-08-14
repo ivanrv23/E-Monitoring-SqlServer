@@ -22,8 +22,20 @@ CREATE TABLE preferencias_marcado (
     id_preferencia INT IDENTITY(1,1) PRIMARY KEY,
     id_proyecto INT NOT NULL,
     modulo VARCHAR(50) NOT NULL, -- Ejemplo: 'DESPLAZAMIENTO' o 'DATOS'
+    nombre_plantilla VARCHAR(500) NOT NULL,
+    cantidad_equipos INT NOT NULL DEFAULT 0,
+    fecha_registro DATETIME NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT UQ_preferencias_plantilla UNIQUE (id_proyecto, modulo, nombre_plantilla)
+);
+GO
+
+CREATE TABLE preferencias_marcado_detalle (
+    id_detalle INT IDENTITY(1,1) PRIMARY KEY,
+    id_preferencia INT NOT NULL,
     id_componente INT NOT NULL,
-    id_instrumentacion INT NULL  -- Si es NULL, se marca todo el componente
+    id_instrumentacion INT NULL, -- Si es NULL, se marca todo el componente
+    CONSTRAINT FK_detalle_preferencia FOREIGN KEY (id_preferencia)
+        REFERENCES preferencias_marcado(id_preferencia) ON DELETE CASCADE
 );
 GO
 
@@ -54,3 +66,23 @@ ADD estado_detalle INT NOT NULL DEFAULT 1;
 ALTER TABLE pluviometro_detalle2
 ADD estado_detalle INT NOT NULL DEFAULT 1;
 -------------------------------------------
+ALTER TABLE preferencias_marcado
+ADD cantidad_equipos INT NOT NULL DEFAULT 0;
+GO
+
+ALTER TABLE preferencias_marcado
+ADD fecha_registro DATETIME NOT NULL DEFAULT GETDATE();
+GO
+
+ALTER TABLE preferencias_marcado
+ADD nombre_plantilla VARCHAR(500) NOT NULL;
+GO
+----------------------------------------------------------------------------------------
+ALTER TABLE preferencias_marcado DROP COLUMN id_componente;
+GO
+ALTER TABLE preferencias_marcado DROP COLUMN id_instrumentacion;
+GO
+
+ALTER TABLE preferencias_marcado
+ADD CONSTRAINT UQ_preferencias_plantilla UNIQUE (id_proyecto, modulo, nombre_plantilla);
+GO
