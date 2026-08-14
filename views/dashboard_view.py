@@ -20,7 +20,7 @@ class DashboardView():
     _NOMBRES_EQUIPO_DISPLAY = {
         'Prismas': 'Prismas',
         'Inclinometros': 'Inclinómetros',
-        'PiezometrosCuerda': 'Cuerda Vibrante',
+        'PiezometrosCuerda': 'Piezómetros Cuerda Vibrante',
         'PiezometrosManual': 'Piezómetros Casagrande',
         'Celdas': 'Celdas',
         'Pluviometros': 'Pluviómetros',

@@ -401,7 +401,7 @@ class DashboardModel:
                 resultado_final.extend(cur.fetchall())
             else:
                 resultado_final.extend(DashboardModel._resumen_sin_detalle(
-                    cur, proyecto_id, id_componente, "piezometrocuerdas", "nombre_piezometro", "estado_piezometro", "Piezometros Cuerda"
+                    cur, proyecto_id, id_componente, "piezometrocuerdas", "nombre_piezometro", "estado_piezometro", "PiezometrosCuerda"
                 ))
 
             # -----------------------------------------------------------
@@ -458,7 +458,7 @@ class DashboardModel:
                 resultado_final.extend(cur.fetchall())
             else:
                 resultado_final.extend(DashboardModel._resumen_sin_detalle(
-                    cur, proyecto_id, id_componente, "piezometromanuales", "nombre_piezometro", "estado_piezometro", "Piezometros Manuales"
+                    cur, proyecto_id, id_componente, "piezometromanuales", "nombre_piezometro", "estado_piezometro", "PiezometrosManual"
                 ))
 
             # -----------------------------------------------------------
@@ -685,7 +685,7 @@ class DashboardModel:
                 resultado_final.extend(cur.fetchall())
             else:
                 resultado_final.extend(DashboardModel._resumen_sin_detalle(
-                    cur, proyecto_id, id_componente, "sondajestdr", "nombre_sondajetdr", "estado_sondajetdr", "Sondajes TDR"
+                    cur, proyecto_id, id_componente, "sondajestdr", "nombre_sondajetdr", "estado_sondajetdr", "SondajesTDR"
                 ))
 
             return resultado_final if resultado_final else None
