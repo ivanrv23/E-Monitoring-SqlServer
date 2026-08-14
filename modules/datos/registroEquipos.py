@@ -144,7 +144,7 @@ class RegistroEquipos:
         ui_file = loader.load(ui_file_path, None)
         # Configurar el cuadro de diálogo
         dialog = QDialog()
-        dialog.setWindowTitle("Nuevo Piezómetro Manual")
+        dialog.setWindowTitle("Nuevo Piezómetro Casagrande")
         layout = QVBoxLayout()
         layout.addWidget(ui_file)
         dialog.setLayout(layout)

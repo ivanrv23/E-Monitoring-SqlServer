@@ -8,13 +8,11 @@ class DashboardModel:
         try:
             conn = Connection.connectionDB()
             # La sintaxis CASE WHEN y COUNT es estándar, funciona igual en T-SQL
-            sql = """SELECT 'Prismas Activos' AS nameprismas,
+            sql = """SELECT 'Prismas' AS nameprismas,
                 COUNT(CASE WHEN i.tipo_equipo = 'PRISMAS' THEN 1 END) AS canti_prismas,
-                'Prismas de Baja' AS nameprismasbaja,
-                0 AS canti_prisma,
                 'Piezómetros Cuerda Vibrante' AS namecuerda,
                 COUNT(CASE WHEN i.tipo_equipo = 'PIEZOMETROCUERDA' THEN 1 END) AS canti_cuerda,
-                'Piezómetros Manuales' AS namepiezomanual,
+                'Piezómetros Casagrande' AS namepiezomanual,
                 COUNT(CASE WHEN i.tipo_equipo = 'PIEZOMETROMANUAL' THEN 1 END) AS canti_piezomanual,
                 'Inclinómetros' AS nameinclino,
                 COUNT(CASE WHEN i.tipo_equipo = 'INCLINOMETRO' THEN 1 END) AS canti_inclino,
@@ -22,14 +20,14 @@ class DashboardModel:
                 COUNT(CASE WHEN i.tipo_equipo = 'CELDA' THEN 1 END) AS canti_celda,
                 'Acelerógrafos' AS nameacelero,
                 COUNT(CASE WHEN i.tipo_equipo = 'ACELEROGRAFO' THEN 1 END) AS canti_acelero,
-                'Equipos TDR' AS nametdr,
+                'Sondajes TDR' AS nametdr,
                 COUNT(CASE WHEN i.tipo_equipo = 'TDR' THEN 1 END) AS canti_tdr,
                 'Pluviómetros' AS namepluvio,
                 COUNT(CASE WHEN i.tipo_equipo = 'PLUVIOMETRO' THEN 1 END) AS canti_pluvio,
-                'Equipos Adicionales' AS nameadicional,
+                'Otros Equipos' AS nameadicional,
                 COUNT(CASE WHEN i.tipo_equipo = 'ADICIONAL' THEN 1 END) AS canti_adicional
             FROM instrumentacion i INNER JOIN componentes c ON i.id_componente = c.id_componente
-            WHERE c.id_proyecto = ?  AND i.id_componente = ? AND i.estado_instrumentacion = 1;"""
+            WHERE c.id_proyecto = ?  AND i.id_componente = ?;"""
             cur = conn.cursor()
             cur.execute(sql, (proyecto_id, id_componente))
             results = cur.fetchone()
@@ -57,7 +55,6 @@ class DashboardModel:
             GROUP BY i.estado_instrumentacion;"""
             cur = conn.cursor()
             cur.execute(sql, (proyecto_id, id_componete))
-            # Fetchall devuelve lista de Rows, convertir a lista de Tuplas
             rows = cur.fetchall()
             results = [tuple(row) for row in rows]
             
@@ -66,13 +63,18 @@ class DashboardModel:
                 0: 'Inoperativos',
                 1: 'Operativos'
             }
-            # Aplicar el mapeo de estados a los resultados
-            if results:
-                # Nota: item[0] e item[1] funcionan igual en tupla que en Row, pero ya aseguramos que es tupla
-                results = [(estado_mapeo.get(item[0], item[0]), item[1]) for item in results]
-                return results
-            else:
-                return None
+            
+            # Convertir resultados a diccionario {estado: total}
+            resultados_dict = {item[0]: item[1] for item in results}
+            
+            # Estado 1 (Operativos) primero, Estado 0 (Inoperativos) segundo
+            resultado_final = [
+                (estado_mapeo[estado], resultados_dict.get(estado, 0))
+                for estado in [1, 0]  # 👈 Orden: primero 1, luego 0
+            ]
+            
+            return resultado_final
+
         except Exception as e:
             print("Error al obtener instrumentación:", e)
             return None
@@ -224,7 +226,7 @@ class DashboardModel:
                         -- su última fila insertada, sin importar si esa lectura es válida.
                         SELECT
                             p.nombre_prisma,
-                            p.state_prisma,
+                            i.estado_instrumentacion AS state_prisma,
                             ROW_NUMBER() OVER (
                                 PARTITION BY p.nombre_prisma
                                 ORDER BY p.hora_prisma DESC, p.id_prisma DESC

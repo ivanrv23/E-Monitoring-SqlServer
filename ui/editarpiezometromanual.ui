@@ -32,7 +32,7 @@
       </font>
      </property>
      <property name="text">
-      <string>PIEZÓMETRO MANUAL</string>
+      <string>PIEZÓMETRO CASAGRANDE</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>

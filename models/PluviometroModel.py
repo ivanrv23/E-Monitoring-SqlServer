@@ -203,7 +203,7 @@ class PluviometroModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, datos)
-            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?
+            query_instrumentacion = """UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?, estado_instrumentacion = ?
             WHERE id_instrumentacion = ? AND tipo_equipo = 'PLUVIOMETRO';"""
             cur.execute(query_instrumentacion, data)
             conn.commit()

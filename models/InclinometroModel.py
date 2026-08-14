@@ -1126,11 +1126,11 @@ class InclinometroModel:
 
             # Actualizar instrumentacion
             query_instrumentacion = """
-            UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?
+            UPDATE instrumentacion SET id_componente = ?, nombre_equipo = ?, estado_instrumentacion = ?
             WHERE id_instrumentacion = ? AND tipo_equipo = 'INCLINOMETRO';
             """
             cur.execute(query_instrumentacion, (
-                datos['componente'], datos['nombre'], datos['instrumento']
+                datos['componente'], datos['nombre'], datos['estado'], datos['instrumento']
             ))
 
             conn.commit()

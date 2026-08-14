@@ -234,7 +234,7 @@ class DashboardView():
 
     def create_pie_instrumentacion(data):
         chart = QChart()
-        chart.setTitle("Instrumentación")
+        chart.setTitle("Total de Instrumentación")
         chart.setAnimationOptions(QChart.SeriesAnimations)
         chart.legend().setAlignment(Qt.AlignRight)
         if data:
@@ -477,10 +477,13 @@ class DashboardView():
 
     @staticmethod
     def _dibujar_etiquetas_eje_x(chart, categorias, font_axis):
-        """Dibuja manualmente las etiquetas del eje X en dos líneas, ya que
-        QBarCategoryAxis ignora cualquier salto de línea en sus labels nativas.
-        También reposiciona la leyenda debajo de estas etiquetas, ya que por
-        defecto Qt Charts la coloca justo pegada al área de trazado."""
+        """Dibuja manualmente las etiquetas del eje X en diagonal (45°) y en
+        hasta dos líneas, ya que QBarCategoryAxis no permite rotar ni partir
+        sus labels nativas. El pivote de rotación queda en la esquina
+        superior-izquierda del texto: al rotar en sentido horario, el texto
+        'cae' hacia abajo-derecha, quedando debajo del eje X y sin invadir
+        el área de la gráfica. También reposiciona la leyenda debajo de
+        estas etiquetas, calculando el espacio real que ocupan ya rotadas."""
         etiquetas_items = []
         for categoria in categorias:
             linea1, linea2 = DashboardView._dividir_etiqueta_dos_lineas(categoria)
@@ -490,6 +493,10 @@ class DashboardView():
             item.setFont(font_axis)
             item.setDefaultTextColor(QColor("#000000"))
             item.setZValue(20)
+            # Pivote en la esquina superior izquierda: el texto queda fijo
+            # justo debajo del tick y cae en diagonal hacia abajo-derecha.
+            item.setTransformOriginPoint(0, 0)
+            item.setRotation(45)
             etiquetas_items.append(item)
         DashboardView._widgets_referencias.extend(etiquetas_items)
 
@@ -507,17 +514,21 @@ class DashboardView():
             max_bottom = plot_area.bottom()
             for i, item in enumerate(etiquetas_items):
                 centro_x = plot_area.left() + ancho_categoria * (i + 0.5)
+                pos_y = plot_area.bottom() + 6
+                # El pivote (esquina sup-izquierda) queda anclado al centro
+                # de la categoría; con mapRectToParent obtenemos el espacio
+                # real que ocupa el texto ya rotado.
+                item.setPos(centro_x, pos_y)
                 rect = item.boundingRect()
-                pos_y = plot_area.bottom() + 4
-                item.setPos(centro_x - rect.width() / 2, pos_y)
-                max_bottom = max(max_bottom, pos_y + rect.height())
+                rotated_rect = item.mapRectToParent(rect)
+                max_bottom = max(max_bottom, rotated_rect.bottom())
 
             alto_leyenda = max(leyenda.geometry().height(), 24)
-            leyenda.setGeometry(QRectF(plot_area.left(), max_bottom + 6, plot_area.width(), alto_leyenda))
+            leyenda.setGeometry(QRectF(plot_area.left(), max_bottom + 8, plot_area.width(), alto_leyenda))
 
         reposicionar()
         chart.plotAreaChanged.connect(reposicionar)
-        
+    
     @staticmethod
     def create_bar_chart_estados(data):
         """
@@ -572,7 +583,7 @@ class DashboardView():
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         chart.legend().setVisible(True)
         chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
-        chart.setMargins(QMargins(10, 40, 10, 75))
+        chart.setMargins(QMargins(10, 40, 10, 130))
 
         font_axis = QFont()
         font_axis.setPointSize(9)
@@ -602,7 +613,7 @@ class DashboardView():
 
         chart_view = QChartView(chart)
         chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
-        chart_view.setMinimumSize(400, 420)
+        chart_view.setMinimumSize(400, 470)
         return chart_view
 
 
