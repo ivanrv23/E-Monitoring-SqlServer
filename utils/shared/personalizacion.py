@@ -542,6 +542,7 @@ class Personalizacion:
                 if idz is not None:
                     set_prefs.add((idz, idi))
 
+        # ── Bloquear señales para evitar cascada de eventos ──────────
         tree_referencia.blockSignals(True)
 
         def marcar_hijos(item, id_zona, marcar_todo):
@@ -549,10 +550,11 @@ class Personalizacion:
                 hijo = item.child(i)
                 tipo = hijo.text(1).lower()
                 id_equipo = limpiar_id(hijo.text(2)) if tipo in ["prisma", "pluviometro"] else None
-                if marcar_todo:
-                    hijo.setCheckState(0, Qt.Checked)
-                else:
-                    hijo.setCheckState(0, Qt.Checked if (id_zona, id_equipo) in set_prefs else Qt.Unchecked)
+                estado = Qt.Checked if (marcar_todo or (id_zona, id_equipo) in set_prefs) else Qt.Unchecked
+                hijo.setCheckState(0, estado)
+                # ✅ FIX CLAVE: sincronizar UserRole+999 con el estado real
+                #    para que validarMarcadoCheckbox no calcule transición errónea
+                hijo.setData(0, Qt.UserRole + 999, estado)
                 marcar_hijos(hijo, id_zona, marcar_todo)
 
         for i in range(tree_referencia.topLevelItemCount()):
@@ -561,22 +563,26 @@ class Personalizacion:
             marcar_todo_zona = (id_zona, None) in set_prefs
             marcar_hijos(root, id_zona, marcar_todo_zona)
 
-        # Refrescar estado (Checked / PartiallyChecked / Unchecked) de padres según hijos
+        # ── Refrescar estado de padres según hijos (bottom-up) ───────
         def refrescar_jerarquia(item):
             for k in range(item.childCount()):
                 refrescar_jerarquia(item.child(k))
             if item.childCount() > 0:
                 sts = [item.child(k).checkState(0) for k in range(item.childCount())]
-                item.setCheckState(
-                    0,
-                    Qt.Checked if all(s == Qt.Checked for s in sts)
-                    else Qt.Unchecked if all(s == Qt.Unchecked for s in sts)
-                    else Qt.PartiallyChecked
-                )
+                if all(s == Qt.Checked for s in sts):
+                    estado_padre = Qt.Checked
+                elif all(s == Qt.Unchecked for s in sts):
+                    estado_padre = Qt.Unchecked
+                else:
+                    estado_padre = Qt.PartiallyChecked
+                item.setCheckState(0, estado_padre)
+                # ✅ FIX CLAVE: sincronizar también el nodo padre
+                item.setData(0, Qt.UserRole + 999, estado_padre)
 
         for i in range(tree_referencia.topLevelItemCount()):
             refrescar_jerarquia(tree_referencia.topLevelItem(i))
 
+        # ── Desbloquear señales ──────────────────────────────────────
         tree_referencia.blockSignals(False)
 
     @staticmethod
@@ -1839,49 +1845,80 @@ class Personalizacion:
         layout_principal.addWidget(lbl_subtitulo)
         
         # --- Lista de Plantillas ---
+        # ✅ FIX 1: Se elimina "ID" de las cabeceras visibles,
+        #    la columna 3 se mantiene oculta con setColumnHidden
         tree_plantillas = QTreeWidget()
+        tree_plantillas.setColumnCount(4)
         tree_plantillas.setHeaderLabels(["Nombre", "Fecha Creación", "Equipos", "ID"])
-        tree_plantillas.setColumnHidden(3, True)  # Ocultar columna ID
+        tree_plantillas.setColumnHidden(3, True)         # ID oculto
+        tree_plantillas.header().setVisible(True)
+        tree_plantillas.setRootIsDecorated(False)        # ✅ FIX 2: elimina la columna/flecha de árbol vacía
+        tree_plantillas.setItemsExpandable(False)        # no hay nodos expandibles
         tree_plantillas.setAlternatingRowColors(True)
         tree_plantillas.setSelectionMode(QTreeWidget.SingleSelection)
-        
+        tree_plantillas.setIndentation(0)               # ✅ FIX 2: sin sangría (sin árbol)
+
+        # ✅ FIX 3: Selección azul sólida sin bordes redondeados
+        #    Clave: usar "selection-background-color" directo en ::item:selected
+        #    y NO usar border-radius en ese estado
         tree_plantillas.setStyleSheet("""
-            QTreeWidget { 
-                border: 1px solid #e1e8ed; border-radius: 8px; 
-                background-color: white; outline: 0; padding: 5px;
+            QTreeWidget {
+                border: 1px solid #e1e8ed;
+                border-radius: 8px;
+                background-color: white;
+                outline: 0;
+                padding: 3px;
             }
-            QTreeWidget::item { 
-                padding: 8px; color: #34495e; border-radius: 4px; height: 28px;
+            QTreeWidget::item {
+                padding: 6px 8px;
+                color: #34495e;
+                height: 28px;
             }
-            QTreeWidget::item:hover { 
-                background-color: #ecf0f1; 
+            QTreeWidget::item:hover {
+                background-color: #ecf0f1;
             }
-            QTreeWidget::item:selected { 
-                background-color: #3498db; color: white; font-weight: bold;
+            QTreeWidget::item:selected {
+                background-color: #2980b9;
+                color: white;
+                font-weight: bold;
             }
             QHeaderView::section {
-                background-color: #34495e; color: white; padding: 8px;
-                border: none; font-weight: bold; font-size: 11px;
+                background-color: #34495e;
+                color: white;
+                padding: 7px 8px;
+                border: none;
+                font-weight: bold;
+                font-size: 11px;
+            }
+            QHeaderView::section:first {
+                border-top-left-radius: 6px;
+            }
+            QHeaderView::section:last {
+                border-top-right-radius: 6px;
             }
         """)
         
         # Ajustar anchos de columnas
         tree_plantillas.setColumnWidth(0, 200)
         tree_plantillas.setColumnWidth(1, 150)
-        tree_plantillas.setColumnWidth(2, 100)
+        tree_plantillas.setColumnWidth(2, 80)
+
         # --- CARGA DESDE BASE DE DATOS ---
         from controllers.InterfazController import InterfazController
 
         plantillas = InterfazController.ctrlListarPlantillas(id_proyecto, modulo)
 
+        # ✅ FIX 2: blockSignals evita fila "fantasma" al insertar;
+        #    cada item se crea directamente con los 4 valores correctos
         tree_plantillas.blockSignals(True)
         if plantillas:
-            for nombre, cantidad, fecha, id in plantillas:
-                item = QTreeWidgetItem(tree_plantillas)
-                item.setText(0, nombre)
-                item.setText(1, str(fecha))          # Sin fecha disponible por ahora
-                item.setText(2, str(cantidad))          # Sin conteo de equipos por ahora
-                item.setText(3, str(id))       # Usamos el id_preferencia como identificador único
+            for nombre, cantidad, fecha, id_plantilla in plantillas:
+                item = QTreeWidgetItem()
+                item.setText(0, str(nombre))
+                item.setText(1, str(fecha))
+                item.setText(2, str(cantidad))
+                item.setText(3, str(id_plantilla))   # oculto, pero accesible
+                tree_plantillas.addTopLevelItem(item) # ✅ addTopLevelItem en lugar de pasar parent en constructor
         tree_plantillas.blockSignals(False)
 
         if not plantillas:
@@ -1895,10 +1932,10 @@ class Personalizacion:
         # --- Toolbar de Acciones ---
         toolbar = QHBoxLayout()
         
-        btn_aplicar = QPushButton("Aplicar Plantilla")
-        btn_editar = QPushButton("Editar")
+        btn_aplicar  = QPushButton("Aplicar Plantilla")
+        btn_editar   = QPushButton("Editar")
         btn_eliminar = QPushButton("Eliminar")
-        btn_cerrar = QPushButton("Cerrar")
+        btn_cerrar   = QPushButton("Cerrar")
         
         estilo_btn_accion = """
             QPushButton { 
@@ -1906,22 +1943,20 @@ class Personalizacion:
                 border: none; border-radius: 12px; 
                 padding: 6px 16px; font-size: 11px; font-weight: bold;
             }
-            QPushButton:hover { background-color: #2980b9; }
-            QPushButton:pressed { background-color: #21618c; }
+            QPushButton:hover    { background-color: #2980b9; }
+            QPushButton:pressed  { background-color: #21618c; }
             QPushButton:disabled { background-color: #bdc3c7; color: #7f8c8d; }
         """
-        
         estilo_btn_eliminar = """
             QPushButton { 
                 background-color: #e74c3c; color: white; 
                 border: none; border-radius: 12px; 
                 padding: 6px 16px; font-size: 11px; font-weight: bold;
             }
-            QPushButton:hover { background-color: #c0392b; }
-            QPushButton:pressed { background-color: #a93226; }
+            QPushButton:hover    { background-color: #c0392b; }
+            QPushButton:pressed  { background-color: #a93226; }
             QPushButton:disabled { background-color: #bdc3c7; color: #7f8c8d; }
         """
-        
         estilo_btn_cerrar = """
             QPushButton { 
                 background-color: transparent; color: #7f8c8d; 
@@ -1941,7 +1976,7 @@ class Personalizacion:
         btn_eliminar.setCursor(Qt.PointingHandCursor)
         btn_cerrar.setCursor(Qt.PointingHandCursor)
         
-        # Deshabilitar botones hasta selección
+        # Deshabilitar botones hasta que haya selección
         btn_aplicar.setEnabled(False)
         btn_editar.setEnabled(False)
         btn_eliminar.setEnabled(False)
@@ -1953,11 +1988,10 @@ class Personalizacion:
         toolbar.addWidget(btn_cerrar)
         
         layout_principal.addLayout(toolbar)
-        
-       # --- Funciones de Interacción ---
+
+        # --- Funciones de Interacción ---
         def on_seleccion_cambio():
-            items = tree_plantillas.selectedItems()
-            hay_seleccion = bool(items)
+            hay_seleccion = bool(tree_plantillas.selectedItems())
             btn_aplicar.setEnabled(hay_seleccion)
             btn_editar.setEnabled(hay_seleccion)
             btn_eliminar.setEnabled(hay_seleccion)
@@ -1970,14 +2004,15 @@ class Personalizacion:
                 return
 
             id_preferencia = int(items[0].text(3))
-            preferencias = InterfazController.ctrlObtenerPreferenciasPorNombre(id_proyecto, modulo, id_preferencia)
+            preferencias = InterfazController.ctrlObtenerPreferenciasPorNombre(
+                id_proyecto, modulo, id_preferencia
+            )
 
             if tree_referencia is not None:
                 Personalizacion.aplicarPreferenciasArbol(tree_referencia, preferencias)
 
             dialogo.accept()
 
-            # Disparar el refresco de la gráfica DESPUÉS de cerrar el diálogo
             if fn_refrescar is not None:
                 fn_refrescar()
 
@@ -1997,10 +2032,7 @@ class Personalizacion:
             )
             nuevo_nombre = nuevo_nombre.strip() if nuevo_nombre else ""
 
-            if not ok or not nuevo_nombre:
-                return
-
-            if nuevo_nombre == nombre_actual:
+            if not ok or not nuevo_nombre or nuevo_nombre == nombre_actual:
                 return
 
             from utils.common.alertas import mostrar_mensaje
@@ -2020,29 +2052,29 @@ class Personalizacion:
                 mostrar_mensaje("Validación", "Debe seleccionar una plantilla", "advertencia")
                 return
 
-            nombre = items[0].text(0)
+            nombre        = items[0].text(0)
             id_preferencia = int(items[0].text(3))
+
             if Personalizacion.confirmarAccion(
                 "Eliminar Plantilla",
                 f"¿Estás seguro de eliminar '{nombre}'? Esta acción no se puede deshacer.",
                 dialogo
             ):
                 if InterfazController.ctrlEliminarPlantilla(id_proyecto, modulo, id_preferencia):
-                    tree_plantillas.takeTopLevelItem(tree_plantillas.indexOfTopLevelItem(items[0]))
+                    idx = tree_plantillas.indexOfTopLevelItem(items[0])
+                    tree_plantillas.takeTopLevelItem(idx)
                     from utils.common.alertas import mostrar_mensaje
                     mostrar_mensaje("Éxito", "Plantilla eliminada correctamente", "exito")
                 else:
                     from utils.common.alertas import mostrar_mensaje
                     mostrar_mensaje("Error", "No se pudo eliminar la plantilla", "advertencia")
 
-        # --- Conectar señales (AHORA sí a nivel de la función principal) ---
+        # --- Conectar señales ---
         tree_plantillas.itemSelectionChanged.connect(on_seleccion_cambio)
         btn_aplicar.clicked.connect(aplicar_plantilla)
         btn_editar.clicked.connect(editar_plantilla)
         btn_eliminar.clicked.connect(eliminar_plantilla)
         btn_cerrar.clicked.connect(dialogo.reject)
-
-        # Doble clic para aplicar directo
-        tree_plantillas.itemDoubleClicked.connect(lambda: aplicar_plantilla())
+        tree_plantillas.itemDoubleClicked.connect(lambda item, col: aplicar_plantilla())
 
         return dialogo.exec() == QDialog.Accepted

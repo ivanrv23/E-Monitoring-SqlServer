@@ -713,13 +713,17 @@ class InterfazModel:
         try:
             conn = Connection.connectionDB()
 
-            sql = """
-                SELECT d.id_componente, d.id_instrumentacion
-                FROM dbo.preferencias_marcado_detalle AS d
-                INNER JOIN dbo.preferencias_marcado AS p
-                    ON p.id_preferencia = d.id_preferencia
-                WHERE p.id_proyecto = ?
-                AND p.modulo = ?
+            sql = """SELECT d.id_componente, d.id_instrumentacion
+            FROM dbo.preferencias_marcado_detalle AS d
+            INNER JOIN dbo.preferencias_marcado AS p
+            ON p.id_preferencia = d.id_preferencia
+            WHERE p.id_preferencia = (
+                SELECT TOP 1 id_preferencia
+                FROM dbo.preferencias_marcado
+                WHERE id_proyecto = ?
+                AND modulo = ?
+                ORDER BY id_preferencia DESC
+            )
             """
             cur = conn.cursor()
             cur.execute(sql, (idproyecto, modulo))

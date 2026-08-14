@@ -177,47 +177,53 @@ class VelocidadView:
             if btnExportarV:
                 btnExportarV.clicked.connect(VelocidadView.ejecutar_exportacion_grafica)
             VelocidadView.estadoPagina = False
-            
-    # En VelocidadView (dentro de la clase)
+    
     def clicderechoEncabezadoProyecto(point):
-        tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-        # LA CLAVE: El mapeo debe ser desde el header al Global
-        pos_global = tree_actual.header().mapToGlobal(point)
-        
-        menu = QMenu()
-        # 1. Marcar Todo
-        menu.addAction("Marcar Todo").triggered.connect(lambda: EquiposVelocidad.marcar_desmarcar_proyecto_completo(
-            tree_actual, Qt.Checked, lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)))
-        
-        # 2. Desmarcar Todo
-        menu.addAction("Desmarcar Todo").triggered.connect(lambda: EquiposVelocidad.marcar_desmarcar_proyecto_completo(
-            tree_actual, Qt.Unchecked, lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)))
-        
-        menu.addSeparator()
-
-        # 3. Marcar según Plantilla (Lógica de Desplazamiento)
-        def accion_aplicar():
-            preferencias = InterfazController.ctrlObtenerPreferenciasMarcado(VelocidadView.idproyecto, "PRISMAS_GLOBAL")
-            EquiposVelocidad.aplicar_marcado_predeterminado(
-                tree_actual, preferencias, lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)
-            )
-        
-        menu.addAction("Marcar según Plantilla").triggered.connect(accion_aplicar)
-
-        # 4. Configurar Plantilla (Lógica de Desplazamiento)
-        def accion_configurar():
-            prefs_actuales = InterfazController.ctrlObtenerPreferenciasMarcado(VelocidadView.idproyecto, "PRISMAS_GLOBAL")
-            if prefs_actuales is None: prefs_actuales = []
-
-            def callback_guardar(lista_datos):
-                return InterfazController.ctrlGuardarPreferenciasMarcado(VelocidadView.idproyecto, "PRISMAS_GLOBAL", lista_datos)
+            tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+            pos_global = tree_actual.header().mapToGlobal(point)
             
-            Personalizacion.dialogoConfigurarMarcadoPredeterminado(tree_actual, prefs_actuales, callback_guardar)
-
-        menu.addAction("Configurar Plantilla").triggered.connect(accion_configurar)
-
-        menu.exec(pos_global)
-        
+            menu = QMenu()
+            menu.addAction("Marcar Todo").triggered.connect(lambda: EquiposVelocidad.marcar_desmarcar_proyecto_completo(tree_actual, Qt.Checked, lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)))
+            menu.addAction("Desmarcar Todo").triggered.connect(lambda: EquiposVelocidad.marcar_desmarcar_proyecto_completo(tree_actual, Qt.Unchecked, lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)))
+            
+            menu.addSeparator()
+    
+            # Aplicar Última Plantilla
+            def accion_aplicar():
+                preferencias = InterfazController.ctrlObtenerPreferenciasMarcado(VelocidadView.idproyecto, "DESPLAZAMIENTO")
+                EquiposVelocidad.aplicar_marcado_predeterminado(
+                    tree_actual, preferencias, lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)
+                )
+            
+            menu.addAction("Aplicar Última Plantilla").triggered.connect(accion_aplicar)
+    
+            # Agregar Nueva Plantilla
+            def accion_configurar():
+                tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+                prefs_actuales = InterfazController.ctrlObtenerPreferenciasMarcado(
+                    VelocidadView.idproyecto, "DESPLAZAMIENTO"
+                )
+                if prefs_actuales is None: prefs_actuales = []
+                def callback_guardar(nombre_plantilla, lista_datos):
+                    return InterfazController.ctrlGuardarPlantillaNombrada(
+                        VelocidadView.idproyecto, "DESPLAZAMIENTO", nombre_plantilla, lista_datos, len(lista_datos)
+                    )
+                Personalizacion.dialogoAgregarNuevaPlantilla(tree_actual, callback_guardar)
+    
+            menu.addAction("Agregar Nueva Plantilla").triggered.connect(accion_configurar)
+    
+            # Lista de Plantillas
+            def accion_lista_plantillas():
+                Personalizacion.dialogoListaPlantillas(
+                    VelocidadView.idproyecto,
+                    tree_actual,
+                    lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual),
+                    "DESPLAZAMIENTO"
+                )
+    
+            menu.addAction("Lista de Plantillas").triggered.connect(accion_lista_plantillas)
+            menu.exec(pos_global)
+    
     def graficarUmbralesPersonalizado():
         if VelocidadView.idproyecto:
             widget_grafico = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")
