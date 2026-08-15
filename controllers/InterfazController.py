@@ -205,6 +205,9 @@ class InterfazController:
     def ctrlObtenerPreferenciasMarcado(idproyecto, modulo):
         return InterfazModel.mdlObtenerPreferenciasMarcado(idproyecto, modulo)
 
+    def ctrlObtenerPreferenciasMarcadoAnalisis(idproyecto, modulo):
+        return InterfazModel.mdlObtenerPreferenciasMarcadoAnalisis(idproyecto, modulo)
+
     @staticmethod
     def ctrlGuardarPlantillaNombrada(idproyecto, modulo, nombre_plantilla, preferencias, cantidad):
         return InterfazModel.mdlGuardarPlantillaNombrada(idproyecto, modulo, nombre_plantilla, preferencias, cantidad)

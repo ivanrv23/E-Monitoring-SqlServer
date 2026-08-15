@@ -201,9 +201,9 @@ class GraficaComportamiento:
         
         # ── 4. Obtener lista de preferencia marcado ───────────────
         if tipografica == "velocidad":
-            tipo = "VELOCIDAD"
+            tipo = "VELOCIDADANALISIS"
         else:
-            tipo = "DESPLAZAMIENTO"
+            tipo = "DESPLAZAMIENTOANALISIS"
         prefs_actuales = InterfazController.ctrlObtenerPreferenciasMarcado(idproyecto, tipo)
         if prefs_actuales is None:
             prefs_actuales = []
@@ -239,12 +239,12 @@ class GraficaComportamiento:
     @staticmethod
     def configurarMarcadoDesmarcado(idproyecto, idcomponente, tipografica, reiniciar):
         if tipografica == "velocidad":
-            tipo = "VELOCIDAD"
+            tipo = "VELOCIDADANALISIS"
             cols_map = _VELOCIDAD_COLS
         else:
-            tipo = "DESPLAZAMIENTO"
+            tipo = "DESPLAZAMIENTOANALISIS"
             cols_map = _DESPLAZAMIENTO_COLS
-        prefs_actuales = InterfazController.ctrlObtenerPreferenciasMarcado(idproyecto, tipo)
+        prefs_actuales = InterfazController.ctrlObtenerPreferenciasMarcadoAnalisis(idproyecto, tipo)
         if prefs_actuales is None: prefs_actuales = []
         def callback_guardar(lista_datos):
             lista_preferencias = [(idcomponente, clave) for clave in lista_datos]

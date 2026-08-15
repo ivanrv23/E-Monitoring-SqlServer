@@ -1820,6 +1820,7 @@ class Personalizacion:
         btn_save.clicked.connect(recolectar_y_enviar)
         layout_principal.addWidget(tree_config)
         layout_principal.addWidget(btn_save)
+        dialogo.exec()
 
     @staticmethod
     def dialogoListaPlantillas(id_proyecto, tree_referencia, fn_refrescar=None, modulo="DESPLAZAMIENTO"):
