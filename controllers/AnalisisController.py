@@ -321,12 +321,18 @@ class AnalisisController:
         respuesta = AnalisisModel.mdlOmitirLecturasRuido(tabla,ids)
         return respuesta
     
-    def ctrlObtenerDataComportamiento(idproyecto, idinstrumento, tipografica, unidad, fechainicial, fechafinal):
+    def ctrlObtenerDataComportamiento(idproyecto, idinstrumento, tipografica, unidad, fechainicial, fechafinal, filtrado):
         tabla=f'prismas{idproyecto}'
         if tipografica == "desplazamiento":
-            respuesta = AnalisisModel.mdlPrismaDesplazamientosAnalisis(tabla, idinstrumento, unidad, fechainicial, fechafinal)
+            if filtrado == 0: # sin fechas
+                respuesta = AnalisisModel.mdlPrismaDesplazamientosAnalisis(tabla, idinstrumento, unidad)
+            else: # con fechas
+                respuesta = AnalisisModel.mdlPrismaDesplazamientosAnalisisFechas(tabla, idinstrumento, unidad, fechainicial, fechafinal)
         else:
-            respuesta = AnalisisModel.mdlPrismaVelocidadesAnalisis(tabla, idinstrumento, unidad, fechainicial, fechafinal)
+            if filtrado == 0: # sin fechas
+                respuesta = AnalisisModel.mdlPrismaVelocidadesAnalisis(tabla, idinstrumento, unidad)
+            else: # con fechas
+                respuesta = AnalisisModel.mdlPrismaVelocidadesAnalisisFechas(tabla, idinstrumento, unidad, fechainicial, fechafinal)
         return respuesta
     
     def ctrlObtenerDataTiempoReal(idproyecto, idcomponente, equipo, tipografico, unidad):

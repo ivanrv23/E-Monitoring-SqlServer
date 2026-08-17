@@ -308,7 +308,12 @@ class DashboardView():
     def create_donut_chart(operativos_inoperativos):
         series = QPieSeries()
         series.setHoleSize(0.5)
-        if operativos_inoperativos:
+
+        total = sum(value for _, value in operativos_inoperativos) if operativos_inoperativos else 0
+
+        chart = QChart()
+
+        if operativos_inoperativos and total > 0:
             colors = {
                 'Operativos': QColor(0x00CED1),  # Dark Turquoise
                 'Inoperativos': QColor(0xFF6347)  # Tomato
@@ -329,14 +334,15 @@ class DashboardView():
             for slice_ in slices:
                 slice_.hovered.connect(lambda hovered, slice_=slice_: slice_.setExploded(hovered))
                 slice_.setExplodeDistanceFactor(0.05)
+            chart.legend().setVisible(True)
         else:
-            # Crear un segmento vacío para mostrar solo el anillo
+            # Sin datos (lista vacía o todos los valores en 0): dona gris completa + texto centrado
             empty_slice = series.append("Sin datos", 1)
             empty_slice.setLabelVisible(False)  # Ocultar la etiqueta
-            empty_slice.setBrush(QColor(220, 220, 220))  # Completamente transparente
+            empty_slice.setBrush(QColor(220, 220, 220))  # Gris claro
             empty_slice.setPen(QPen(QColor(220, 220, 220)))  # Sin borde
-        # Configurar el gráfico
-        chart = QChart()
+            chart.legend().setVisible(False)
+        # Dibujar
         chart.addSeries(series)
         chart.setTitle("Estado de Instrumentación")
         chart.setAnimationOptions(QChart.SeriesAnimations)
@@ -344,9 +350,12 @@ class DashboardView():
         chart.legend().setFont(QFont("Arial", 10))
         chart.setBackgroundBrush(QBrush(Qt.white))  # Fondo blanco
         chart.setTitleBrush(QBrush(Qt.black))  # Color del título negro
-        # Ocultar la leyenda si no hay datos
-        if not operativos_inoperativos:
-            chart.legend().setVisible(False)
+        # Texto centrado cuando no hay datos, igual que en create_pie_instrumentacion
+        if total <= 0:
+            text_item = QGraphicsSimpleTextItem(chart)
+            text_item.setText("Sin Datos")
+            text_item.setPos(chart.plotArea().center())
+            text_item.setZValue(11)
         # Configurar la vista del gráfico
         chart_view = QChartView(chart)
         chart_view.setRenderHint(QPainter.Antialiasing)

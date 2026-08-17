@@ -1,6 +1,6 @@
 import threading
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QWidget, QLabel, QSpinBox, QComboBox, QTreeWidget, QPushButton)
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (QWidget, QLabel, QSpinBox, QComboBox, QTreeWidget, QPushButton, QLineEdit)
 from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica_piezometros
 from utils.shared.graficaDesplazamientoVelocidad import limpiar_widget
 from utils.common.alertas import mostrar_mensaje
@@ -24,6 +24,7 @@ class CeldasView:
     nameproyecto = "SIN PROYECTO"
     estadochecklist = True
     estadoPagina = True
+    timer_busqueda = None
     fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(365)
     
     def inicializarVistaCeldas(main, proyectoid, proyectoname, fechaini, fechafin):
@@ -39,6 +40,27 @@ class CeldasView:
         if CeldasView.estadoPagina:
             tree_actual_celdas =  CeldasView.main.findChild(QTreeWidget, "tree_actual_celdas")
             tree_actual_celdas.itemClicked.connect(CeldasView.checkProyectoActualCeldas)
+            # --- Buscador de equipos en el árbol ---
+            buscador_arbol = CeldasView.main.findChild(QLineEdit, "input_buscar_celdas")
+            if buscador_arbol is None:
+                buscador_arbol = QLineEdit()
+                buscador_arbol.setObjectName("input_buscar_celdas")
+                buscador_arbol.setPlaceholderText("Buscar equipo...")
+                layout_padre = tree_actual_celdas.parentWidget().layout()
+                if layout_padre is not None:
+                    indice_tree = layout_padre.indexOf(tree_actual_celdas)
+                    layout_padre.insertWidget(indice_tree, buscador_arbol)
+
+                CeldasView.timer_busqueda = QTimer()
+                CeldasView.timer_busqueda.setSingleShot(True)
+                CeldasView.timer_busqueda.timeout.connect(
+                    lambda: EquiposCeldas.filtrarArbolPorTexto(tree_actual_celdas, buscador_arbol.text())
+                )
+                buscador_arbol.textChanged.connect(
+                    lambda: (CeldasView.timer_busqueda.stop(),
+                                CeldasView.timer_busqueda.start(250))
+                )
+                
             tree_actual_celdas.setContextMenuPolicy(Qt.CustomContextMenu)
             tree_actual_celdas.customContextMenuRequested.connect(CeldasView.clicderechoProyectoActualCeldas)
             #-----Imagen a Reporte-----#
@@ -564,6 +586,12 @@ class CeldasView:
         CeldasView.nameproyecto = proyecto_name
         CeldasView.estadochecklist = True
         CeldasView.limpiarGraficaCeldas()
+        # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
+        buscador_arbol = main.findChild(QLineEdit, "input_buscar_celdas")
+        if buscador_arbol is not None:
+            buscador_arbol.blockSignals(True)
+            buscador_arbol.clear()
+            buscador_arbol.blockSignals(False)
     
     def iniciarAsistenteVozCeldas(treeWidget, botonvoz):
         lista = EquiposCeldas.obtener_todos_elementos_marcados(treeWidget)

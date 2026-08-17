@@ -1,6 +1,6 @@
 import threading
-from PySide6.QtWidgets import (QWidget, QSpinBox, QComboBox, QTreeWidget, QPushButton,QDialog, QVBoxLayout, QDoubleSpinBox)
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (QWidget, QSpinBox, QComboBox, QTreeWidget, QPushButton,QDialog, QVBoxLayout, QDoubleSpinBox, QLineEdit)
+from PySide6.QtCore import Qt, QTimer
 from modules.inclinometros.grafico3d import plot_3d_in_widget
 from modules.inclinometros.grafico2d import plot_2d_in_widget
 from modules.inclinometros.grafico2d import limpiar_layout
@@ -26,6 +26,7 @@ class InclinometrosView:
     nameproyecto = "SIN PROYECTO"
     estadochecklist = True
     estadoPagina = True
+    timer_busqueda = None
     
     def inicializarVistaInclinometros(main, proyectoid, proyectoname):
         InclinometrosView.main = main
@@ -39,6 +40,27 @@ class InclinometrosView:
         if InclinometrosView.estadoPagina:
             tree_actual_inclinometros =  main.findChild(QTreeWidget, "tree_actual_inclinometros")
             tree_actual_inclinometros.itemClicked.connect(InclinometrosView.checkProyectoActualInclinometros)
+            # --- Buscador de equipos en el árbol ---
+            buscador_arbol = InclinometrosView.main.findChild(QLineEdit, "input_buscar_inclinometros")
+            if buscador_arbol is None:
+                buscador_arbol = QLineEdit()
+                buscador_arbol.setObjectName("input_buscar_inclinometros")
+                buscador_arbol.setPlaceholderText("Buscar equipo...")
+                layout_padre = tree_actual_inclinometros.parentWidget().layout()
+                if layout_padre is not None:
+                    indice_tree = layout_padre.indexOf(tree_actual_inclinometros)
+                    layout_padre.insertWidget(indice_tree, buscador_arbol)
+
+                InclinometrosView.timer_busqueda = QTimer()
+                InclinometrosView.timer_busqueda.setSingleShot(True)
+                InclinometrosView.timer_busqueda.timeout.connect(
+                    lambda: EquiposInclinometros.filtrarArbolPorTexto(tree_actual_inclinometros, buscador_arbol.text())
+                )
+                buscador_arbol.textChanged.connect(
+                    lambda: (InclinometrosView.timer_busqueda.stop(),
+                              InclinometrosView.timer_busqueda.start(250))
+                )
+            
             tree_actual_inclinometros.setContextMenuPolicy(Qt.CustomContextMenu)
             tree_actual_inclinometros.customContextMenuRequested.connect(InclinometrosView.clicderechoProyectoActualInclinometros)
             botonRefrescarInclinometros = main.findChild(QPushButton, "btn_refrescar_vista_inclinometros")
@@ -397,6 +419,12 @@ class InclinometrosView:
         InclinometrosView.nameproyecto = proyecto_name
         InclinometrosView.estadochecklist = True
         InclinometrosView.limpiarGraficaInclinometros()
+        # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
+        buscador_arbol = main.findChild(QLineEdit, "input_buscar_inclinometros")
+        if buscador_arbol is not None:
+            buscador_arbol.blockSignals(True)
+            buscador_arbol.clear()
+            buscador_arbol.blockSignals(False)
     
     def iniciarAsistenteVozInclinometros(treeWidget, botonvoz):
         lista = EquiposInclinometros.obtener_todos_elementos_marcados(treeWidget)

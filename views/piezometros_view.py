@@ -1,6 +1,6 @@
 import threading
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton)
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QLineEdit)
 from utils.common.metodosGenerales import MetodosGenerales
 from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica_piezometros
 from utils.shared.graficaDesplazamientoVelocidad import limpiar_widget
@@ -25,6 +25,7 @@ class PiezometrosView:
     nameproyecto = "SIN PROYECTO"
     estadochecklist = True
     estadoPagina = True
+    timer_busqueda = None
     cuerdafechainicial, cuerdafechafinal = MetodosGenerales.obtenerRangoFechas(365)
     manualfechainicial, manualfechafinal = MetodosGenerales.obtenerRangoFechas(365)
     
@@ -42,6 +43,27 @@ class PiezometrosView:
         if PiezometrosView.estadoPagina:
             tree_actual_piezometros =  PiezometrosView.main.findChild(QTreeWidget, "tree_actual_piezometros")
             tree_actual_piezometros.itemClicked.connect(PiezometrosView.checkProyectoActualPiezometros)
+            # --- Buscador de equipos en el árbol ---
+            buscador_arbol = PiezometrosView.main.findChild(QLineEdit, "input_buscar_piezometros")
+            if buscador_arbol is None:
+                buscador_arbol = QLineEdit()
+                buscador_arbol.setObjectName("input_buscar_piezometros")
+                buscador_arbol.setPlaceholderText("Buscar equipo...")
+                layout_padre = tree_actual_piezometros.parentWidget().layout()
+                if layout_padre is not None:
+                    indice_tree = layout_padre.indexOf(tree_actual_piezometros)
+                    layout_padre.insertWidget(indice_tree, buscador_arbol)
+
+                PiezometrosView.timer_busqueda = QTimer()
+                PiezometrosView.timer_busqueda.setSingleShot(True)
+                PiezometrosView.timer_busqueda.timeout.connect(
+                    lambda: EquiposPiezometros.filtrarArbolPorTexto(tree_actual_piezometros, buscador_arbol.text())
+                )
+                buscador_arbol.textChanged.connect(
+                    lambda: (PiezometrosView.timer_busqueda.stop(),
+                                PiezometrosView.timer_busqueda.start(250))
+                )
+
             tree_actual_piezometros.setContextMenuPolicy(Qt.CustomContextMenu)
             tree_actual_piezometros.customContextMenuRequested.connect(PiezometrosView.clicderechoProyectoActualPiezometros)
             # inicializar tools
@@ -677,6 +699,12 @@ class PiezometrosView:
         PiezometrosView.nameproyecto = proyecto_name
         PiezometrosView.estadochecklist = True
         PiezometrosView.limpiarGraficaPiezometros()
+        # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
+        buscador_arbol = main.findChild(QLineEdit, "input_buscar_piezometros")
+        if buscador_arbol is not None:
+            buscador_arbol.blockSignals(True)
+            buscador_arbol.clear()
+            buscador_arbol.blockSignals(False)
     
     def actualizarVistaPiezometros(fechainicuerda, fechafincuerda, fechainimanual, fechafinmanual):
         PiezometrosView.cuerdafechainicial, PiezometrosView.cuerdafechafinal = fechainicuerda, fechafincuerda

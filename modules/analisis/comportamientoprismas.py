@@ -145,7 +145,7 @@ class GraficaComportamiento:
     # ─────────────────────────────────────────────────────────────
     #  Método principal
     # ─────────────────────────────────────────────────────────────
-    def graficarComportamientoPrismas(main, idproyecto, fechainicial, fechafinal):
+    def graficarComportamientoPrismas(main, idproyecto, fechainicial, fechafinal, filtrado):
         widget           = main.findChild(QWidget,   "widget_graficas_comportamiento")
         comboComponentes = main.findChild(QComboBox, "combo_componentes_comportamiento")
         comboPrismas     = main.findChild(QComboBox, "combo_prismas_comportamiento")
@@ -165,7 +165,7 @@ class GraficaComportamiento:
         # ── 1. Datos crudos ───────────────────────────────────────
         datos = AnalisisController.ctrlObtenerDataComportamiento(
             idproyecto, idinstrumento, tipografica,
-            unidadmedida, fechainicial, fechafinal
+            unidadmedida, fechainicial, fechafinal, filtrado
         )
         if not datos:
             return
