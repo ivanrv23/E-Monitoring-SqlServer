@@ -1,0 +1,19 @@
+--Índice 1: Para las consultas de prismas (el más importante)
+CREATE NONCLUSTERED INDEX IX_prismasx_nombre_hora_estado 
+ON prismasx (nombre_prisma, hora_prisma)
+INCLUDE (state_prisma, estado_prisma, este_target, norte_target, elevacion_target, grupo_puntos);
+
+--Índice 2: Para los JOINs con instrumentacion
+CREATE NONCLUSTERED INDEX IX_instrumentacion_nombre_componente
+ON instrumentacion (nombre_equipo, id_componente)
+INCLUDE (id_instrumentacion, tipo_equipo);
+
+--Índice 3: Para los JOINs con componentes
+CREATE NONCLUSTERED INDEX IX_componentes_id
+ON componentes (id_componente)
+INCLUDE (nombre_componente);
+
+--
+CREATE INDEX idx_prisma_datos_perf 
+ON prismasx (nombre_prisma, hora_prisma) 
+INCLUDE (este_target, norte_target, elevacion_target, state_prisma, estado_prisma);
