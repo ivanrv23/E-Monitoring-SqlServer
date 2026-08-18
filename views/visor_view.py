@@ -10,7 +10,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from datetime import datetime
 import datetime as dt_module 
-from PySide6.QtCore import Qt, QThread, Signal, QTimer, QObject, QEvent
+from PySide6.QtCore import Qt, QThread, Signal, QTimer, QObject, QEvent, QMutex
 from services.queries.graph_query_manager import visor_query_manager
 from services.queries.query_context import set_active_request, clear_active_request
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QComboBox, QTreeWidget, QPushButton, QSlider, QStackedWidget,
@@ -81,8 +81,12 @@ class VisorView:
     prismasvirtualesgraficados = []
     prismas_cache = {}
     timer_consulta_visor = None
+    _timer_visor_conectado = False
     worker_visor = None
     _workers_anteriores_visor = []
+    _cache_listaPrismas = {}
+    _cache_listaPrismas_lock = QMutex()
+    _request_proyecto_map = {}
     label_carga_visor = None
     respuesta = ConfiguracionVisor.obtenerDataConfiguracionVisor()
     colorfondo = respuesta[0]
@@ -376,18 +380,24 @@ class VisorView:
                 VisorView.timer_consulta_visor.setSingleShot(True)
             else:
                 VisorView.timer_consulta_visor.stop()
-                # 🚀 DESCONECTAR para evitar que se acumulen llamadas al hacer clic rápido
-                try:
+                # 🚀 Sólo desconectamos si sabemos que hay algo conectado (evita el RuntimeWarning)
+                if VisorView._timer_visor_conectado:
                     VisorView.timer_consulta_visor.timeout.disconnect()
-                except RuntimeError:
-                    pass
+                    VisorView._timer_visor_conectado = False
                 
+            # 🚀 Congelamos el proyecto activo AL MOMENTO DEL CLIC. Si el usuario
+            # cambia de proyecto antes de que pasen los 300ms, el refresco se descarta.
+            proyecto_en_click = VisorView.idproyecto
+
             def ejecutar_refresco():
+                if VisorView.idproyecto != proyecto_en_click:
+                    return
                 treeWidget = VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
                 paginacion = VisorView.main.findChild(QStackedWidget, "stacked_visor")
                 VisorView.obtenerMostrarEquiposMarcados(treeWidget, paginacion)
                 
             VisorView.timer_consulta_visor.timeout.connect(ejecutar_refresco)
+            VisorView._timer_visor_conectado = True
             VisorView.timer_consulta_visor.start(300)
 
         EquiposVisor.validarMarcadoCheckbox(parent_item, column, callback_refresco)
@@ -681,10 +691,21 @@ class VisorView:
         if lista:
             prismasmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Prismas")
             
+        # 🚀 Purgar de la lista los workers viejos que ya terminaron (evita fuga de memoria)
+        VisorView._workers_anteriores_visor = [
+            w for w in VisorView._workers_anteriores_visor if w.isRunning()
+        ]
+
         if VisorView.worker_visor and VisorView.worker_visor.isRunning():
             visor_query_manager.cancel_previous()
-            VisorView._workers_anteriores_visor.append(VisorView.worker_visor)
-            
+            worker_cancelado = VisorView.worker_visor
+            VisorView._workers_anteriores_visor.append(worker_cancelado)
+            # 🚀 Cuando el worker cancelado termine de verdad, se auto-elimina de la lista
+            worker_cancelado.finished.connect(
+                lambda w=worker_cancelado: VisorView._workers_anteriores_visor.remove(w)
+                if w in VisorView._workers_anteriores_visor else None
+            )
+
         if not prismasmarcados:
             VisorView._ocultar_prismas_sin_destruir_cache()
             VisorView._limpiar_vectores_completamente()
@@ -693,6 +714,9 @@ class VisorView:
             return
         
         request_id = visor_query_manager.start_request()
+        # 🚀 Guardamos para qué proyecto se lanzó este request, para poder descartar
+        # respuestas tardías si el usuario ya cambió de proyecto cuando lleguen.
+        VisorView._request_proyecto_map[request_id] = VisorView.idproyecto
         
         worker = VisorDataWorker(
             request_id=request_id,
@@ -713,16 +737,29 @@ class VisorView:
     def _on_data_ready_visor(request_id, datos):
         if not visor_query_manager.is_current(request_id):
             return
+        # 🚀 Defensa extra: aunque el request_id sea "current" para el query manager,
+        # verificamos que siga siendo del proyecto que está activo AHORA en pantalla.
+        proyecto_solicitud = VisorView._request_proyecto_map.get(request_id)
+        if proyecto_solicitud is not None and proyecto_solicitud != VisorView.idproyecto:
+            return
         VisorView._actualizar_cache_prismas(datos)
 
     def _on_worker_done_visor(request_id, estado):
+        # 🚀 Limpiamos el mapeo siempre, incluso si el request ya no es "current"
+        proyecto_solicitud = VisorView._request_proyecto_map.pop(request_id, None)
+
         if not visor_query_manager.is_current(request_id):
             return
         visor_query_manager.finish_request(request_id, estado)
         
         if VisorView.label_carga_visor:
             VisorView.label_carga_visor.hide()
-            
+
+        # 🚀 Si el proyecto activo cambió mientras el worker corría, no dibujamos nada:
+        # esos datos ya no le pertenecen al proyecto que el usuario está viendo.
+        if proyecto_solicitud is not None and proyecto_solicitud != VisorView.idproyecto:
+            return
+
         if estado == 'FINISHED':
             tree_actual = VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
             lista = EquiposVisor.obtener_todos_elementos_marcados(tree_actual)
@@ -3327,6 +3364,28 @@ class VisorView:
     def reiniciarVistaVisor(main, proyecto_id, proyecto_name):
         paginavisor = main.findChild(QStackedWidget, "stacked_visor")
         paginavisor.setCurrentIndex(0)
+
+        # 🚀 CANCELAR cualquier consulta en vuelo del proyecto anterior ANTES de
+        # cambiar VisorView.idproyecto. Sin esto, una respuesta tardía del proyecto
+        # viejo puede llegar y pintarse como si fuera del proyecto nuevo.
+        if VisorView.worker_visor and VisorView.worker_visor.isRunning():
+            visor_query_manager.cancel_previous()
+            worker_cancelado = VisorView.worker_visor
+            VisorView._workers_anteriores_visor.append(worker_cancelado)
+            worker_cancelado.finished.connect(
+                lambda w=worker_cancelado: VisorView._workers_anteriores_visor.remove(w)
+                if w in VisorView._workers_anteriores_visor else None
+            )
+            VisorView.worker_visor = None
+
+        if VisorView.timer_consulta_visor is not None:
+            VisorView.timer_consulta_visor.stop()
+            if VisorView._timer_visor_conectado:
+                VisorView.timer_consulta_visor.timeout.disconnect()
+                VisorView._timer_visor_conectado = False
+
+        VisorView._request_proyecto_map.clear()
+
         # reiniciar variables
         VisorView.idproyecto = proyecto_id
         VisorView.nameproyecto = proyecto_name
@@ -3340,15 +3399,36 @@ class VisorView:
         VisorView.vectoresDXF = []
         VisorView.listatopograficados = []
         VisorView.piezometrostuboscuerda = []
+        VisorView.piezometrostubosmanual = []
         VisorView.dibujarTuboPiezo = 0   
         VisorView.cablescoaxiales = []
         VisorView.equiposgenerales = []
+        VisorView.colorvectores = []
+        VisorView.limites_corte = []
         VisorView.estadovector, VisorView.tipovector, VisorView.escalavector = False, 'D3D', 0
         VisorView.toposDTM = []
+        VisorView.listaDTMactivos = []
         VisorView.prismas_cache.clear()
-        # 🚀 Limpiar caché de listaPrismas
-        if hasattr(VisorView, '_cache_listaPrismas'):
+        # 🚀 Limpiar caché de listaPrismas (mutex porque un worker cancelado podría
+        # estar terminando de escribirla justo ahora)
+        VisorView._cache_listaPrismas_lock.lock()
+        try:
             VisorView._cache_listaPrismas.clear()
+        finally:
+            VisorView._cache_listaPrismas_lock.unlock()
+
+        # 🚀 Datos "pesados" del proyecto anterior que antes quedaban huérfanos en memoria
+        VisorView.polydatos_LAS = []
+        VisorView.prismasvirtualesgraficados = []
+        VisorView.listaactorespluvio = []
+        VisorView.listaactoresceldas = []
+        VisorView.listaactoresacelero = []
+        VisorView.clipFunction, VisorView.planes = None, None
+        VisorView.escalainclinometro = 0
+        VisorView.boxVisible = False
+        VisorView.estadoInicialCubo = None
+        VisorView.cambioproyecto = False
+
         ConfigurarDTM.limpiarElementosDTM()
         if VisorView.boxWidget is not None:
             if VisorView.boxWidget.GetEnabled():
@@ -3447,21 +3527,37 @@ class VisorDataWorker(QThread):
     def run(self):
         set_active_request(self.request_id)
         try:
+            # 🚀 Cancelación temprana: si ya nos cancelaron antes de arrancar, no tocamos BD ni caché
+            if visor_query_manager.is_cancelled(self.request_id):
+                self.worker_done.emit(self.request_id, 'CANCELLED')
+                return
+
             from controllers.PrismaController import PrismaController
             from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
             
             cache_key = f"{self.idproyecto}_{self.fechainicial}_{self.fechafinal}"
-            if hasattr(VisorView, '_cache_listaPrismas') and VisorView._cache_listaPrismas.get('key') == cache_key:
-                listaPrismas = VisorView._cache_listaPrismas['data']
-            else:
+
+            # 🚀 Lectura de caché protegida con mutex (varios workers pueden coexistir)
+            VisorView._cache_listaPrismas_lock.lock()
+            try:
+                cache_valida = VisorView._cache_listaPrismas.get('key') == cache_key
+                listaPrismas = VisorView._cache_listaPrismas.get('data') if cache_valida else None
+            finally:
+                VisorView._cache_listaPrismas_lock.unlock()
+
+            if listaPrismas is None:
                 listaPrismas = PrismaController.ctrlObtenerPrismasFechaUnicos(
                     self.idproyecto, self.fechainicial, self.fechafinal
                 )
-                # Guardar en caché
-                if not hasattr(VisorView, '_cache_listaPrismas'):
-                    VisorView._cache_listaPrismas = {}
-                VisorView._cache_listaPrismas['key'] = cache_key
-                VisorView._cache_listaPrismas['data'] = listaPrismas
+                # 🚀 Si nos cancelaron MIENTRAS consultábamos, no contaminamos la caché compartida
+                if visor_query_manager.is_cancelled(self.request_id):
+                    self.worker_done.emit(self.request_id, 'CANCELLED')
+                    return
+                VisorView._cache_listaPrismas_lock.lock()
+                try:
+                    VisorView._cache_listaPrismas = {'key': cache_key, 'data': listaPrismas}
+                finally:
+                    VisorView._cache_listaPrismas_lock.unlock()
             
             if visor_query_manager.is_cancelled(self.request_id):
                 self.worker_done.emit(self.request_id, 'CANCELLED')
