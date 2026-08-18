@@ -169,11 +169,26 @@ class GraphQueryManager:
         """
         with self._lock:
             return self.current_request_id == request_id
-
-
-# ─────────────────────────────────────────────
-# INSTANCIAS GLOBALES POR VISTA
-# ─────────────────────────────────────────────
+class VisorGraphQueryManager(GraphQueryManager):
+    def cancel_previous(self):
+        """
+        Cancelación específica para el Visor 3D (Soft Cancel).
+        NO usa cursor.cancel() ni conn.close() porque PrismaController
+        hace múltiples consultas en bucle y cerrar la conexión corrompe
+        el pool de pyodbc, causando errores HY008 y bloqueos.
+        Solo marca el flag para que el Worker y el Controlador aborten limpiamente.
+        """
+        prev_id = self.current_request_id
+        if not prev_id:
+            return
+        
+        session = query_registry.get_session(prev_id)
+        if session:
+            session.cancel_requested = True
+            session.cancel_requested_at = time.monotonic()
+            session.state = 'CANCEL_REQUESTED'
+            log_query(f"[{self.view_name}] Cancelación solo por flag (sin ODBC kill): {prev_id}")
 
 desplazamiento_query_manager = GraphQueryManager("Desplazamiento")
 velocidad_query_manager = GraphQueryManager("Velocidad")
+visor_query_manager = VisorGraphQueryManager("Visor3D")
