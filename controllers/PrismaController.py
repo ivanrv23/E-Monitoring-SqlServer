@@ -263,4 +263,8 @@ class PrismaController:
     def ctrlActualizarNombrePrisma(nameprisma, nuevoprisma, idinstrumento, idproyecto):
         respuesta = PrismaModel.mdlActualizarNombrePrisma(nameprisma, nuevoprisma, idinstrumento, idproyecto)
         return respuesta
-    
+
+    @staticmethod
+    def ctrlObtenerDatosCompletosPrismasFecha(proyecto, idcomponente, fechaini, fechafin):
+        tabla = f"prismas{proyecto}"
+        return PrismaModel.mdlObtenerDatosCompletosPrismasFecha(tabla, idcomponente, fechaini, fechafin)

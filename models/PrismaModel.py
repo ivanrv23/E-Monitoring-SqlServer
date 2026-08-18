@@ -1634,3 +1634,67 @@ class PrismaModel:
             return False
         finally:
             if conn: conn.close()
+
+    @staticmethod
+    def mdlObtenerDatosCompletosPrismasFecha(tabla, idcomponente, fechaini, fechafin):
+        # Esta consulta usa CTEs para obtener el primer y último registro de cada prisma en una sola pasada
+        sql = f"""
+        WITH RankedPrismas AS (
+            SELECT 
+                i.id_instrumentacion, 
+                p.nombre_prisma, 
+                p.este_target, 
+                p.norte_target, 
+                p.elevacion_target, 
+                p.hora_prisma,
+                i.id_componente,
+                ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma ASC) as rn_asc,
+                ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma DESC) as rn_desc
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            INNER JOIN componentes co ON i.id_componente = co.id_componente
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+              AND i.id_componente = ? 
+              AND p.hora_prisma BETWEEN ? AND ?
+              AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        ),
+        CalculoDistancia AS (
+            SELECT 
+                id_instrumentacion,
+                nombre_prisma,
+                id_componente,
+                MAX(CASE WHEN rn_asc = 1 THEN hora_prisma END) as hora_inicial,
+                MAX(CASE WHEN rn_asc = 1 THEN este_target END) as este_inicial,
+                MAX(CASE WHEN rn_asc = 1 THEN norte_target END) as norte_inicial,
+                MAX(CASE WHEN rn_asc = 1 THEN elevacion_target END) as nivel_inicial,
+                MAX(CASE WHEN rn_desc = 1 THEN hora_prisma END) as hora_final,
+                MAX(CASE WHEN rn_desc = 1 THEN este_target END) as este_final,
+                MAX(CASE WHEN rn_desc = 1 THEN norte_target END) as norte_final,
+                MAX(CASE WHEN rn_desc = 1 THEN elevacion_target END) as nivel_final,
+                SQRT(
+                    POWER(MAX(CASE WHEN rn_desc = 1 THEN este_target END) - MAX(CASE WHEN rn_asc = 1 THEN este_target END), 2) +
+                    POWER(MAX(CASE WHEN rn_desc = 1 THEN norte_target END) - MAX(CASE WHEN rn_asc = 1 THEN norte_target END), 2) +
+                    POWER(MAX(CASE WHEN rn_desc = 1 THEN elevacion_target END) - MAX(CASE WHEN rn_asc = 1 THEN elevacion_target END), 2)
+                ) as distancia_3d
+            FROM RankedPrismas
+            WHERE rn_asc = 1 OR rn_desc = 1
+            GROUP BY id_instrumentacion, nombre_prisma, id_componente
+        )
+        SELECT id_instrumentacion, nombre_prisma, id_componente, 
+               este_inicial, norte_inicial, nivel_inicial, hora_inicial,
+               este_final, norte_final, nivel_final, hora_final, distancia_3d
+        FROM CalculoDistancia
+        ORDER BY nombre_prisma;
+        """
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (idcomponente, fechaini, fechafin))
+            rows = cur.fetchall()
+            return [tuple(row) for row in rows]
+        except Exception as e:
+            print("Error al obtener datos completos de prismas: " + str(e))
+            return None
+        finally:
+            if conn: conn.close()
