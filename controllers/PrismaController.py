@@ -265,6 +265,15 @@ class PrismaController:
         return respuesta
 
     @staticmethod
-    def ctrlObtenerDatosCompletosPrismasFecha(proyecto, idcomponente, fechaini, fechafin):
-        tabla = f"prismas{proyecto}"
-        return PrismaModel.mdlObtenerDatosCompletosPrismasFecha(tabla, idcomponente, fechaini, fechafin)
+    def ctrlObtenerDatosCompletosPrismasVisor(proyecto, prismasmarcados, fechaini, fechafin, filtrado):
+        datos_maestros = []
+        # Recorremos las tablas y componentes marcados
+        for componente, listaprismas in prismasmarcados:
+            marcados = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
+            idcomponente = componente[1]
+            for tabla, prismas in marcados.items():
+                # Llamamos a la nueva SQL maestra
+                data = PrismaModel.mdlObtenerDatosCompletosPrismasFecha(tabla, idcomponente, fechaini, fechafin, filtrado)
+                if data is not None:
+                    datos_maestros.extend(data)
+        return datos_maestros

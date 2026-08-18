@@ -1636,18 +1636,14 @@ class PrismaModel:
             if conn: conn.close()
 
     @staticmethod
-    def mdlObtenerDatosCompletosPrismasFecha(tabla, idcomponente, fechaini, fechafin):
-        # Esta consulta usa CTEs para obtener el primer y último registro de cada prisma en una sola pasada
+    def mdlObtenerDatosCompletosPrismasFecha(tabla, idcomponente, fechaini, fechafin, filtrado):
+        # Filtro dinámico para fechas
+        fecha_filter = "AND p.hora_prisma BETWEEN ? AND ?" if filtrado == 1 else ""
+        
         sql = f"""
         WITH RankedPrismas AS (
             SELECT 
-                i.id_instrumentacion, 
-                p.nombre_prisma, 
-                p.este_target, 
-                p.norte_target, 
-                p.elevacion_target, 
-                p.hora_prisma,
-                i.id_componente,
+                i.id_instrumentacion, p.nombre_prisma, p.este_target, p.norte_target, p.elevacion_target, p.hora_prisma, i.id_componente,
                 ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma ASC) as rn_asc,
                 ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma DESC) as rn_desc
             FROM {tabla} p 
@@ -1655,14 +1651,12 @@ class PrismaModel:
             INNER JOIN componentes co ON i.id_componente = co.id_componente
             WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
               AND i.id_componente = ? 
-              AND p.hora_prisma BETWEEN ? AND ?
+              {fecha_filter}
               AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
-        CalculoDistancia AS (
+        CalculoBase AS (
             SELECT 
-                id_instrumentacion,
-                nombre_prisma,
-                id_componente,
+                id_instrumentacion, nombre_prisma, id_componente,
                 MAX(CASE WHEN rn_asc = 1 THEN hora_prisma END) as hora_inicial,
                 MAX(CASE WHEN rn_asc = 1 THEN este_target END) as este_inicial,
                 MAX(CASE WHEN rn_asc = 1 THEN norte_target END) as norte_inicial,
@@ -1670,27 +1664,35 @@ class PrismaModel:
                 MAX(CASE WHEN rn_desc = 1 THEN hora_prisma END) as hora_final,
                 MAX(CASE WHEN rn_desc = 1 THEN este_target END) as este_final,
                 MAX(CASE WHEN rn_desc = 1 THEN norte_target END) as norte_final,
-                MAX(CASE WHEN rn_desc = 1 THEN elevacion_target END) as nivel_final,
-                SQRT(
-                    POWER(MAX(CASE WHEN rn_desc = 1 THEN este_target END) - MAX(CASE WHEN rn_asc = 1 THEN este_target END), 2) +
-                    POWER(MAX(CASE WHEN rn_desc = 1 THEN norte_target END) - MAX(CASE WHEN rn_asc = 1 THEN norte_target END), 2) +
-                    POWER(MAX(CASE WHEN rn_desc = 1 THEN elevacion_target END) - MAX(CASE WHEN rn_asc = 1 THEN elevacion_target END), 2)
-                ) as distancia_3d
+                MAX(CASE WHEN rn_desc = 1 THEN elevacion_target END) as nivel_final
             FROM RankedPrismas
             WHERE rn_asc = 1 OR rn_desc = 1
             GROUP BY id_instrumentacion, nombre_prisma, id_componente
         )
         SELECT id_instrumentacion, nombre_prisma, id_componente, 
                este_inicial, norte_inicial, nivel_inicial, hora_inicial,
-               este_final, norte_final, nivel_final, hora_final, distancia_3d
-        FROM CalculoDistancia
+               este_final, norte_final, nivel_final, hora_final,
+               -- 1. Distancia Geométrica 3D (Para modo D3D)
+               SQRT(POWER(este_final - este_inicial, 2) + POWER(norte_final - norte_inicial, 2) + POWER(nivel_final - nivel_inicial, 2)) as distancia_3d,
+               -- 2. Velocidad VI3D (Distancia / Días transcurridos)
+               CASE 
+                   WHEN hora_inicial IS NULL OR hora_final IS NULL OR hora_inicial = hora_final THEN 0
+                   ELSE SQRT(POWER(este_final - este_inicial, 2) + POWER(norte_final - norte_inicial, 2) + POWER(nivel_final - nivel_inicial, 2)) /
+                        (CAST(DATEDIFF(SECOND, hora_inicial, hora_final) AS FLOAT) / 86400.0)
+               END as velocidad_vi3d
+        FROM CalculoBase
         ORDER BY nombre_prisma;
         """
         conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, (idcomponente, fechaini, fechafin))
+            # Armamos los parámetros dinámicamente
+            params = [idcomponente]
+            if filtrado == 1:
+                params.extend([fechaini, fechafin])
+                
+            cur.execute(sql, params)
             rows = cur.fetchall()
             return [tuple(row) for row in rows]
         except Exception as e:
