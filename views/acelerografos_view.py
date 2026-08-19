@@ -1,7 +1,7 @@
 import threading
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from datetime import datetime
-from PySide6.QtWidgets import (QWidget, QTreeWidget, QPushButton, QComboBox)
+from PySide6.QtWidgets import (QWidget, QTreeWidget, QPushButton, QComboBox, QLineEdit)
 from modules.acelerografos.graficarAcelerografos import procesar_grafica_acelerografos
 from modules.acelerografos.graficarAcelerografos import limpiar_widget
 from controllers.AcelerografoController import AcelerografoController
@@ -30,6 +30,7 @@ class AcelerografosView:
     acelerografofecha = solofechaacelero
     horainicial = "00:00:00"
     horafinal = "23:59:59"
+    timer_busqueda = None
     
     def inicializarVistaAcelerografos(main, proyectoid, proyectoname, fechaini, fechafin):
         AcelerografosView.main = main
@@ -44,6 +45,27 @@ class AcelerografosView:
         if AcelerografosView.estadoPagina:
             tree_actual =  AcelerografosView.main.findChild(QTreeWidget, "tree_actual_acelerografos")
             tree_actual.itemClicked.connect(AcelerografosView.checkProyectoActualAcelerografos)
+            # --- Buscador de equipos en el árbol ---
+            buscador_arbol = AcelerografosView.main.findChild(QLineEdit, "input_buscar_acelerografos")
+            if buscador_arbol is None:
+                buscador_arbol = QLineEdit()
+                buscador_arbol.setObjectName("input_buscar_acelerografos")
+                buscador_arbol.setPlaceholderText("Buscar equipo...")
+                layout_padre = tree_actual.parentWidget().layout()
+                if layout_padre is not None:
+                    indice_tree = layout_padre.indexOf(tree_actual)
+                    layout_padre.insertWidget(indice_tree, buscador_arbol)
+
+                AcelerografosView.timer_busqueda = QTimer()
+                AcelerografosView.timer_busqueda.setSingleShot(True)
+                AcelerografosView.timer_busqueda.timeout.connect(
+                    lambda: EquiposAcelerografos.filtrarArbolPorTexto(tree_actual, buscador_arbol.text())
+                )
+                buscador_arbol.textChanged.connect(
+                    lambda: (AcelerografosView.timer_busqueda.stop(),
+                                AcelerografosView.timer_busqueda.start(250))
+                )
+            
             tree_actual.setContextMenuPolicy(Qt.CustomContextMenu)
             tree_actual.customContextMenuRequested.connect(AcelerografosView.clicderechoProyectoActualAcelerografos)
             # CARGAR COMBO TIPO DE GRÁFICAS
@@ -241,6 +263,12 @@ class AcelerografosView:
         AcelerografosView.nameproyecto = proyecto_name
         AcelerografosView.estadochecklist = True
         AcelerografosView.limpiarGraficaAcelerografos()
+        # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
+        buscador_arbol = main.findChild(QLineEdit, "input_buscar_acelerografos")
+        if buscador_arbol is not None:
+            buscador_arbol.blockSignals(True)
+            buscador_arbol.clear()
+            buscador_arbol.blockSignals(False)
     
     def mostrarModalConfiguracionEjes(treeWidget):
         lista = EquiposAcelerografos.obtener_todos_elementos_marcados(treeWidget)

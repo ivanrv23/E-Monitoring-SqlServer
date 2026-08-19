@@ -1,6 +1,6 @@
 import threading
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QWidget, QComboBox, QTreeWidget, QPushButton)
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (QWidget, QComboBox, QTreeWidget, QPushButton, QLineEdit)
 from modules.tdr.graficarImpedancia import GraficarImpedancia
 from controllers.TDRController import TDRController
 from modules.datos.equiposSondajestdr import EquiposSondajestdr
@@ -16,6 +16,7 @@ class SondajetdrView:
     nameproyecto = "SIN PROYECTO"
     estadochecklist = True
     estadoPagina = True
+    timer_busqueda = None
     
     def inicializarVistaSondajesTdr(main, proyectoid, proyectoname):
         SondajetdrView.main = main
@@ -29,6 +30,27 @@ class SondajetdrView:
         if SondajetdrView.estadoPagina:
             tree_actual =  SondajetdrView.main.findChild(QTreeWidget, "tree_actual_tdr")
             tree_actual.itemClicked.connect(SondajetdrView.checkProyectoActualSondajestdr)
+            # --- Buscador de equipos en el árbol ---
+            buscador_arbol = SondajetdrView.main.findChild(QLineEdit, "input_buscar_tdr")
+            if buscador_arbol is None:
+                buscador_arbol = QLineEdit()
+                buscador_arbol.setObjectName("input_buscar_tdr")
+                buscador_arbol.setPlaceholderText("Buscar equipo...")
+                layout_padre = tree_actual.parentWidget().layout()
+                if layout_padre is not None:
+                    indice_tree = layout_padre.indexOf(tree_actual)
+                    layout_padre.insertWidget(indice_tree, buscador_arbol)
+
+                SondajetdrView.timer_busqueda = QTimer()
+                SondajetdrView.timer_busqueda.setSingleShot(True)
+                SondajetdrView.timer_busqueda.timeout.connect(
+                    lambda: EquiposSondajestdr.filtrarArbolPorTexto(tree_actual, buscador_arbol.text())
+                )
+                buscador_arbol.textChanged.connect(
+                    lambda: (SondajetdrView.timer_busqueda.stop(),
+                                SondajetdrView.timer_busqueda.start(250))
+                )
+
             tree_actual.setContextMenuPolicy(Qt.CustomContextMenu)
             tree_actual.customContextMenuRequested.connect(SondajetdrView.clicderechoProyectoActualSondajestdr)
             btn_refrescar_sondajestdr = main.findChild(QPushButton, "btn_refrescar_vista_tdr")
@@ -138,6 +160,12 @@ class SondajetdrView:
         SondajetdrView.nameproyecto = proyecto_name
         SondajetdrView.estadochecklist = True
         SondajetdrView.limpiarGraficaSondajestdr()
+        # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
+        buscador_arbol = main.findChild(QLineEdit, "input_buscar_tdr")
+        if buscador_arbol is not None:
+            buscador_arbol.blockSignals(True)
+            buscador_arbol.clear()
+            buscador_arbol.blockSignals(False)
     
     def mostrarModalConfiguracionEjes(treeWidget):
         lista = EquiposSondajestdr.obtener_todos_elementos_marcados(treeWidget)

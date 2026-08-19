@@ -1,7 +1,6 @@
 from PySide6.QtWidgets import (QMenu, QTreeWidget, QPushButton, QTableView, QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QMessageBox, QLabel, QComboBox)
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from PySide6.QtGui import QAction, QDoubleValidator
-from PySide6.QtCore import QThread, Signal
 from utils.shared.loading import LoadingView
 from utils.common.alertas import mostrar_mensaje
 from utils.common.metodosGenerales import MetodosGenerales
@@ -26,6 +25,7 @@ class DatosView:
     estadoPagina = True
     _current_thread_datos = None
     loading_dialog = None
+    timer_busqueda_datos = None
 
     def inicializarVistaDatos(main, proyectoid, proyectoname):
         DatosView.main = main
@@ -39,6 +39,28 @@ class DatosView:
         if DatosView.estadoPagina:
             tree_actual_datos =  DatosView.main.findChild(QTreeWidget, "tree_actual_datos")
             tree_actual_datos.itemClicked.connect(DatosView.checkProyectoActualDatos)
+
+            # --- Buscador de equipos en el árbol ---
+            buscador_datos = DatosView.main.findChild(QLineEdit, "input_buscar_datos")
+            if buscador_datos is None:
+                buscador_datos = QLineEdit()
+                buscador_datos.setObjectName("input_buscar_datos")
+                buscador_datos.setPlaceholderText("Buscar equipo...")
+                layout_padre = tree_actual_datos.parentWidget().layout()
+                if layout_padre is not None:
+                    indice_tree = layout_padre.indexOf(tree_actual_datos)
+                    layout_padre.insertWidget(indice_tree, buscador_datos)
+
+                DatosView.timer_busqueda_datos = QTimer()
+                DatosView.timer_busqueda_datos.setSingleShot(True)
+                DatosView.timer_busqueda_datos.timeout.connect(
+                    lambda: EquiposDatos.filtrarArbolPorTexto(tree_actual_datos, buscador_datos.text())
+                )
+                buscador_datos.textChanged.connect(
+                    lambda: (DatosView.timer_busqueda_datos.stop(),
+                              DatosView.timer_busqueda_datos.start(250))
+                )
+            
             btn_refrescar_tabla = DatosView.main.findChild(QPushButton, "btn_refrescar_tabla_datos")
             btn_refrescar_tabla.clicked.connect(lambda: DatosView.obtenerEquiposMarcados(True))
             tree_actual_datos.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -247,6 +269,12 @@ class DatosView:
         DatosView.estadochecklist = True
         tabla =  DatosView.main.findChild(QTableView, "table_datos")
         VistaDatos.limpiarTablaDatos(tabla)
+        # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
+        buscador_arbol = main.findChild(QLineEdit, "input_buscar_datos")
+        if buscador_arbol is not None:
+            buscador_arbol.blockSignals(True)
+            buscador_arbol.clear()
+            buscador_arbol.blockSignals(False)
     
     # Función para manejar el menú contextual
     def mostrarMenuTabla(table, position):

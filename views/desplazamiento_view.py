@@ -723,6 +723,12 @@ class DesplazamientoView:
         treeWidget =  main.findChild(QTreeWidget, "tree_actual_desplazamiento")
         EquiposDesplazamiento.inicializar_lista_equipos(treeWidget, proyecto_id, proyecto_name)
         DesplazamientoView.limpiarGraficaDesplazamiento()
+        # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
+        buscador_arbol = main.findChild(QLineEdit, "input_buscar_desplazamiento")
+        if buscador_arbol is not None:
+            buscador_arbol.blockSignals(True)
+            buscador_arbol.clear()
+            buscador_arbol.blockSignals(False)
     
     def iniciarAsistenteVozDesplazamiento(treeWidget, botonvoz):
         lista = EquiposDesplazamiento.obtener_todos_elementos_marcados(treeWidget)

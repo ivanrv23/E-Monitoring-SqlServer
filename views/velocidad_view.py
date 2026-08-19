@@ -702,8 +702,6 @@ class VelocidadView:
         VelocidadView.idproyecto = proyecto_id
         VelocidadView.nameproyecto = proyecto_name
         VelocidadView.estadochecklist = True
-        treeWidget =  main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-        EquiposVelocidad.inicializar_lista_equipos(treeWidget, proyecto_id, proyecto_name)
         VelocidadView.limpiarGraficaVelocidad()
     
     def iniciarAsistenteVozVelocidad(treeWidget, botonvoz):

@@ -1078,7 +1078,6 @@ class VelocidadModel:
 
     @staticmethod
     def mdlCalcularVelocidadVI3D(tabla, unidad, prismas, idcomponente, fechaini, fechafin):
-        print("ve vi3d", tabla, unidad, prismas, idcomponente, fechaini, fechafin)
         if not prismas: return None
         conn = None
         try:

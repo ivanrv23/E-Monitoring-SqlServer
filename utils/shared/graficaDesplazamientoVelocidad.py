@@ -454,16 +454,25 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
             intervalo_dias = dataeje[8] * 24
         else:
             intervalo_dias = dataeje[8]
+    # =========================================================
+    # CORRECCIÓN: Validar fecha_inicio y fecha_fin antes de operar
+    # =========================================================
+    if fecha_inicio is None or fecha_fin is None:
+        if tiempo == "FECHA":
+            fecha_inicio = datetime.now()
+            fecha_fin = datetime.now()
+        else:
+            fecha_inicio = 0.0
+            fecha_fin = 0.0
+    # =========================================================
     if tiempo == "FECHA":
         total_dias = (fecha_fin - fecha_inicio).days
     else:
-        # Aquí total_dias ya está en Horas o Días según la conversión anterior
         total_dias = (fecha_fin - fecha_inicio)
 
     # --- CORRECCIÓN APLICADA AQUÍ ---
     if intervalo_dias == 0:
         if tiempo == "HORA":
-            # Eliminado el (* 24) redundante porque total_dias ya está en horas
             intervalo_dias = total_dias / 10 
         else:
             intervalo_dias = total_dias / 10
@@ -1276,6 +1285,17 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
             intervalo_dias = dataeje[8] * 24
         else:
             intervalo_dias = dataeje[8]
+    # =========================================================
+    # CORRECCIÓN: Validar fecha_inicio y fecha_fin antes de operar
+    # =========================================================
+    if fecha_inicio is None or fecha_fin is None:
+        if tiempo == "FECHA":
+            fecha_inicio = datetime.now()
+            fecha_fin = datetime.now()
+        else:
+            fecha_inicio = 0.0
+            fecha_fin = 0.0
+    # =========================================================
     if tiempo == "FECHA":
         total_dias = (fecha_fin - fecha_inicio).days
     else:
@@ -2096,6 +2116,17 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
     if dataeje:
         ejeymin, ejeymax, ejeyprin, ejeysecu = dataeje[4], dataeje[5], dataeje[6], dataeje[7]
         intervalo_dias = dataeje[8]
+    # =========================================================
+    # CORRECCIÓN: Validar fecha_inicio y fecha_fin antes de operar
+    # =========================================================
+    if fecha_inicio is None or fecha_fin is None:
+        if tiempo == "FECHA":
+            fecha_inicio = datetime.now()
+            fecha_fin = datetime.now()
+        else:
+            fecha_inicio = 0.0
+            fecha_fin = 0.0
+    # =========================================================
     if tiempo == "FECHA":
         total_dias = (fecha_fin - fecha_inicio).days
     else:

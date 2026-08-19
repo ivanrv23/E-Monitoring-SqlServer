@@ -195,16 +195,29 @@ class GraficarEstereografiaTrayectoria:
     
     def graficar_trayectoria(widget, datos, combovistas, tipo):
         df = pd.DataFrame(datos, columns=['col_' + str(i) for i in range(len(datos[0]))])
-        df = df[[df.columns[0], df.columns[1], df.columns[2], df.columns[3], df.columns[4], df.columns[5]]]
+        df = df[[df.columns[0], df.columns[1], df.columns[2], 
+                df.columns[3], df.columns[4], df.columns[5]]]
         df.columns = ['Instrumento', 'Nombre', 'Fecha', 'Este', 'Norte', 'Nivel']
+
         # Detener y limpiar timer previo si existe
-        if hasattr(widget, "timer"):
-            if widget.timer:
-                if widget.timer.isActive():
-                    widget.timer.stop()
-                    widget.timer.deleteLater()
-                    widget.timer = None
-        # Limpiar el layout del widget para eliminar gráficos previos
+        if hasattr(widget, "timer") and widget.timer:
+            if widget.timer.isActive():
+                widget.timer.stop()
+            widget.timer.deleteLater()
+            widget.timer = None
+
+        # =========================================================
+        # CORRECCIÓN 1: Desconectar señal anterior antes de limpiar
+        # =========================================================
+        if hasattr(widget, '_cambiar_vistas_slot') and widget._cambiar_vistas_slot:
+            try:
+                combovistas.activated.disconnect(widget._cambiar_vistas_slot)
+            except RuntimeError:
+                pass  # Ya estaba desconectada
+            widget._cambiar_vistas_slot = None
+        # =========================================================
+
+        # Limpiar el layout del widget
         if widget.layout() is None:
             layout = QVBoxLayout(widget)
             widget.setLayout(layout)
@@ -218,159 +231,192 @@ class GraficarEstereografiaTrayectoria:
                     widget_to_remove.deleteLater()
                 else:
                     layout.removeItem(item)
+
         # Crear figura y ejes
         fig = plt.figure(dpi=100)
         fig.set_tight_layout(True)
         gs = GridSpec(2, 1, height_ratios=[4, 1])
-        # Configuración del gráfico 3D en la primera fila de GridSpec
         ax = fig.add_subplot(gs[0], projection='3d')
         ax.set_box_aspect([1, 1, 1])
-        # Obtener datos y configurar límites
+
         datax = df['Este']
         datay = df['Norte']
         dataz = df['Nivel']
+
         def agregar_margen(valores, porcentaje=0.1):
             minimo = np.min(valores)
             maximo = np.max(valores)
             rango = maximo - minimo
             margen = rango * porcentaje if rango > 0 else 1
             return minimo - margen, maximo + margen
+
         xlim = agregar_margen(datax)
         ylim = agregar_margen(datay)
         zlim = agregar_margen(dataz)
         ax.set_xlim(*xlim)
         ax.set_ylim(*ylim)
         ax.set_zlim(*zlim)
-        # Crear puntos de referencia para la leyenda
+
         ax.scatter([], [], color='black', s=25, label='Punto inicial')
         ax.scatter([], [], color='red', s=25, label='Punto final')
-        # Variable para almacenar flechas que necesitarán ser eliminadas
+
         arrows = []
-        # Procesar cada grupo de instrumentos
+
         for idinstrumento, datos_equipo in df.groupby('Instrumento'):
             nombreprisma = str(datos_equipo['Nombre'].iloc[0])
             x = datos_equipo['Este']
             y = datos_equipo['Norte']
             z = datos_equipo['Nivel']
-            # Puntos inicial y final con formato
+
             punto_inicial = f'({round(x.iloc[0],3)}, {round(y.iloc[0],3)}, {round(z.iloc[0],3)})'
             punto_final = f'({round(x.iloc[-1],3)}, {round(y.iloc[-1],3)}, {round(z.iloc[-1],3)})'
-            # Graficar trayectoria
-            trajectory, = ax.plot([], [], [], linewidth=2, label=f'{nombreprisma}: [{punto_inicial}, {punto_final}]')
+
+            trajectory, = ax.plot([], [], [], linewidth=2, 
+                                label=f'{nombreprisma}: [{punto_inicial}, {punto_final}]')
             ax.scatter(x.iloc[0], y.iloc[0], z.iloc[0], color='black', s=25)
             ax.scatter(x.iloc[-1], y.iloc[-1], z.iloc[-1], color='red', s=25)
+
             if tipo == "estatico":
-                # Graficar trayectoria estática completa
                 trajectory.set_data(x, y)
                 trajectory.set_3d_properties(z)
-                # Agregar flecha en la última posición
-                if len(x) > 1:  # Verificar que hay al menos dos puntos
-                    arrow = ax.quiver(
-                        x.iloc[-2], y.iloc[-2], z.iloc[-2], 
-                        x.iloc[-1] - x.iloc[-2], y.iloc[-1] - y.iloc[-2], z.iloc[-1] - z.iloc[-2], 
-                        color='r', linewidth=2, arrow_length_ratio=0.5
-                    )
-                    arrows.append(arrow)
-            elif tipo == "animado":
-                # Preparar animación
                 if len(x) > 1:
-                    # Inicializar flecha en el primer punto
                     arrow = ax.quiver(
-                        x.iloc[0], y.iloc[0], z.iloc[0], 
-                        x.iloc[1] - x.iloc[0], y.iloc[1] - y.iloc[0], z.iloc[1] - z.iloc[0],
+                        x.iloc[-2], y.iloc[-2], z.iloc[-2],
+                        x.iloc[-1] - x.iloc[-2], 
+                        y.iloc[-1] - y.iloc[-2], 
+                        z.iloc[-1] - z.iloc[-2],
                         color='r', linewidth=2, arrow_length_ratio=0.5
                     )
                     arrows.append(arrow)
-                    # Función de actualización para la animación
+
+            elif tipo == "animado":
+                if len(x) > 1:
+                    arrow = ax.quiver(
+                        x.iloc[0], y.iloc[0], z.iloc[0],
+                        x.iloc[1] - x.iloc[0], 
+                        y.iloc[1] - y.iloc[0], 
+                        z.iloc[1] - z.iloc[0],
+                        color='r', linewidth=2, arrow_length_ratio=0.5
+                    )
+                    arrows.append(arrow)
+
                     def update(num, x, y, z, trajectory, arrow_list):
-                        # Actualizar trayectoria
                         if num > 0:
                             trajectory.set_data(x[:num+1], y[:num+1])
                             trajectory.set_3d_properties(z[:num+1])
-                        # Actualizar flecha
                         if num < len(x) - 1:
-                            # Eliminar flecha anterior si existe
                             if arrow_list and arrow_list[0]:
                                 arrow_list[0].remove()
                                 arrow_list[0] = None
-                            # Crear nueva flecha
                             arrow_list[0] = ax.quiver(
                                 x.iloc[num], y.iloc[num], z.iloc[num],
-                                x.iloc[num+1] - x.iloc[num], y.iloc[num+1] - y.iloc[num], z.iloc[num+1] - z.iloc[num],
+                                x.iloc[num+1] - x.iloc[num], 
+                                y.iloc[num+1] - y.iloc[num], 
+                                z.iloc[num+1] - z.iloc[num],
                                 color='r', linewidth=2, arrow_length_ratio=0.5
                             )
-                    # Crear y configurar timer para la animación
-                    arrow_ref = [arrow]  # Lista mutable para actualizar referencia
+
+                    arrow_ref = [arrow]
                     timer = QTimer()
                     widget.timer = timer
                     current_frame = 0
+
                     def advance_frame():
                         nonlocal current_frame
-                        if current_frame < len(x) - 1:
-                            update(current_frame, x, y, z, trajectory, arrow_ref)
-                            current_frame += 1
-                            canvas.draw_idle()
-                        else:
+                        # =====================================================
+                        # CORRECCIÓN 2: Validar canvas antes de dibujar
+                        # =====================================================
+                        if not hasattr(widget, 'canvas') or widget.canvas is None:
                             timer.stop()
+                            return
+                        try:
+                            if current_frame < len(x) - 1:
+                                update(current_frame, x, y, z, trajectory, arrow_ref)
+                                current_frame += 1
+                                widget.canvas.draw_idle()
+                            else:
+                                timer.stop()
+                        except RuntimeError:
+                            # Canvas destruido, detener timer
+                            timer.stop()
+                        # =====================================================
+
                     timer.timeout.connect(advance_frame)
                     timer.setInterval(50)
-        # Agregar líneas de referencia
-        ax.plot([0, 0], [0, 0], [np.min(dataz), np.max(dataz)], 'gray', linestyle='--', linewidth=1)
-        ax.plot([0, 0], [np.min(datay), np.max(datay)], [0, 0], 'gray', linestyle='--', linewidth=1)
-        ax.plot([np.min(datax), np.max(datax)], [0, 0], [0, 0], 'gray', linestyle='--', linewidth=1)
-        # Configurar títulos y etiquetas
+
+        ax.plot([0, 0], [0, 0], [np.min(dataz), np.max(dataz)], 
+                'gray', linestyle='--', linewidth=1)
+        ax.plot([0, 0], [np.min(datay), np.max(datay)], [0, 0], 
+                'gray', linestyle='--', linewidth=1)
+        ax.plot([np.min(datax), np.max(datax)], [0, 0], [0, 0], 
+                'gray', linestyle='--', linewidth=1)
+
         ax.set_title('Trayectoria de los prismas', fontsize=10)
         ax.set_xlabel('Este (m)', labelpad=9)
         ax.set_ylabel('Norte (m)', labelpad=9)
         ax.set_zlabel('Elevación (m)', labelpad=9)
+
         config = SoftwareConfiguracion.obtenerDataSoftware()
         decimales = config[14]
-        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
-        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
-        ax.zaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
-        # Crear área para la leyenda
+        ax.xaxis.set_major_formatter(
+            plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
+        ax.yaxis.set_major_formatter(
+            plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
+        ax.zaxis.set_major_formatter(
+            plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
+
         legend_ax = fig.add_subplot(gs[1])
         legend_ax.axis('off')
         legend_ax.legend(*ax.get_legend_handles_labels(), loc="upper center", prop={'size': 7})
-        # Crear canvas y agregarlo al widget
+
         canvas = FigureCanvas(fig)
         layout.addWidget(canvas)
         canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        # Guardar referencias importantes
-        # Asegúrate de que estas variables existen en la clase GraficarEstereografiaTrayectoria
-        if not hasattr(GraficarEstereografiaTrayectoria, 'trayectoriagraficada'):
-            GraficarEstereografiaTrayectoria.trayectoriagraficada = False
-        # Guardar referencias al canvas y ejes para uso posterior
+
         widget.canvas = canvas
         widget.ax = ax
         widget.fig = fig
-        # Configurar cambio de vistas
+
+        # =========================================================
+        # CORRECCIÓN 3: Siempre crear nueva función y reconectar
+        # =========================================================
         def cambiarVistas():
-            if hasattr(widget, 'canvas') and widget.canvas:
+            # Validar que canvas y ax siguen vivos
+            if not hasattr(widget, 'canvas') or widget.canvas is None:
+                return
+            if not hasattr(widget, 'ax') or widget.ax is None:
+                return
+            try:
                 selected_option = combovistas.currentData()
-                # Configuraciones de vistas
                 vista_config = {
-                    "Frontal": (0, 0, 0),
-                    "Isometrica": (30, 45, 0),
-                    "Planta": (90, -90, 0),
-                    "Bottom": (180, 0, 0),
-                    "Left": (0, 270, 0),
-                    "Right": (0, 90, 0),
-                    "Posterior": (0, 180, 0),
-                    "Inclinada": (45, 45, 0),
-                    "Perfil": (0, -90, 0)
+                    "Frontal":    (0,   0,    0),
+                    "Isometrica": (30,  45,   0),
+                    "Planta":     (90,  -90,  0),
+                    "Bottom":     (180, 0,    0),
+                    "Left":       (0,   270,  0),
+                    "Right":      (0,   90,   0),
+                    "Posterior":  (0,   180,  0),
+                    "Inclinada":  (45,  45,   0),
+                    "Perfil":     (0,   -90,  0)
                 }
                 if selected_option in vista_config:
                     elev, azim, roll = vista_config[selected_option]
                     widget.ax.view_init(elev=elev, azim=azim, roll=roll)
                     widget.canvas.draw()
-        # Conectar el selector de vistas solo una vez
-        if not GraficarEstereografiaTrayectoria.trayectoriagraficada:
-            combovistas.activated.connect(cambiarVistas)
-            GraficarEstereografiaTrayectoria.trayectoriagraficada = True
-        # Establecer vista inicial
+            except RuntimeError:
+                # Canvas ya destruido, ignorar
+                pass
+
+        # Guardar referencia y conectar
+        widget._cambiar_vistas_slot = cambiarVistas
+        combovistas.activated.connect(cambiarVistas)
+        # =========================================================
+
+        # Vista inicial
         cambiarVistas()
-        # Iniciar animación si es el modo elegido
+
+        # Iniciar animación
         if tipo == "animado" and hasattr(widget, "timer") and widget.timer:
             widget.timer.start()
-    
+        
+        plt.close(fig)

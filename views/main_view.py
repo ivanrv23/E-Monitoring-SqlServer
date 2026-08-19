@@ -57,7 +57,7 @@ class MenuEventFilter(QObject):
     def eventFilter(self, obj, event):
         if event.type() == QEvent.MouseButtonPress and event.button() == Qt.RightButton:
             action = self.menu.actionAt(event.pos())
-            if action:
+            if action and action.data():
                 proyecto_id, proyecto_nombre = action.data()
                 MainView.dialogo_acciones_proyecto(proyecto_id, proyecto_nombre, self.menu, self.main_window)
             return True

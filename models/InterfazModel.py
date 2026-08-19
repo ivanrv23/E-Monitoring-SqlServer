@@ -693,19 +693,55 @@ class InterfazModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # Limpiar configuracion previa
-            cur.execute("DELETE FROM preferencias_marcado WHERE id_proyecto = ? AND modulo = ?", (idproyecto, modulo))
-            # Insertar nuevos registros
-            sql = "INSERT INTO preferencias_marcado (id_proyecto, modulo, id_componente, id_instrumentacion) VALUES (?, ?, ?, ?)"
+            nombre_plantilla = "DEFAULT_analisis"
+            cantidad = len(lista_preferencias)
+
+            # Buscar si ya existe la preferencia por defecto de este proyecto/modulo
+            cur.execute(
+                """SELECT id_preferencia FROM preferencias_marcado
+                   WHERE id_proyecto = ? AND modulo = ? AND nombre_plantilla = ?""",
+                (idproyecto, modulo, nombre_plantilla)
+            )
+            row = cur.fetchone()
+
+            if row:
+                id_preferencia = row[0]
+                cur.execute(
+                    """UPDATE preferencias_marcado
+                       SET cantidad_equipos = ?, fecha_registro = GETDATE()
+                       WHERE id_preferencia = ?""",
+                    (cantidad, id_preferencia)
+                )
+                cur.execute(
+                    "DELETE FROM preferencias_marcado_detalle WHERE id_preferencia = ?",
+                    (id_preferencia,)
+                )
+            else:
+                cur.execute(
+                    """INSERT INTO preferencias_marcado (id_proyecto, modulo, nombre_plantilla, cantidad_equipos)
+                       OUTPUT INSERTED.id_preferencia
+                       VALUES (?, ?, ?, ?)""",
+                    (idproyecto, modulo, nombre_plantilla, cantidad)
+                )
+                id_preferencia = cur.fetchone()[0]
+
+            # Insertar el detalle
+            sql_detalle = """INSERT INTO preferencias_marcado_detalle
+                        (id_preferencia, id_componente, id_instrumentacion)
+                        VALUES (?, ?, ?)"""
             for id_comp, id_inst in lista_preferencias:
-                cur.execute(sql, (idproyecto, modulo, id_comp, id_inst))
+                cur.execute(sql_detalle, (id_preferencia, id_comp, id_inst))
+
             conn.commit()
             return True
         except Exception as e:
             print("Error mdlGuardarPreferenciasMarcado:", e)
+            if conn:
+                conn.rollback()
             return False
         finally:
-            if conn: conn.close()
+            if conn:
+                conn.close()
 
     @staticmethod
     def mdlObtenerPreferenciasMarcado(idproyecto, modulo):
@@ -733,6 +769,31 @@ class InterfazModel:
 
         except Exception as e:
             print("Error mdlObtenerPreferenciasMarcado:", e)
+            return []
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlObtenerPreferenciasMarcadoAnalisis(idproyecto, modulo):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+
+            sql = """SELECT d.id_componente, d.id_instrumentacion
+            FROM dbo.preferencias_marcado_detalle AS d
+            INNER JOIN dbo.preferencias_marcado AS p
+            ON p.id_preferencia = d.id_preferencia
+            WHERE p.id_proyecto = ? AND p. modulo = ?
+            """
+            cur = conn.cursor()
+            cur.execute(sql, (idproyecto, modulo))
+            rows = cur.fetchall()
+
+            return [tuple(row) for row in rows]
+
+        except Exception as e:
+            print("Error mdlObtenerPreferenciasMarcadoAnalisis:", e)
             return []
         finally:
             if conn:

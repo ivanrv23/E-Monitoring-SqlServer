@@ -29,8 +29,6 @@ from modules.analisis.graficarCoordenadas import GraficarCoordenadasPrismas
 from utils.shared.resumenprismas import ResumenPrismas
 from utils.generic.calculardesviaciones import CalcularDesviaciones
 from modules.analisis.comportamientoprismas import GraficaComportamiento
-from controllers.UmbralController import UmbralController
-from utils.shared.graficarUmbrales import GraficarUmbrales
 from services.security.session import Session
 
 # Subclase de AxisItem para forzar 3 decimales
@@ -254,6 +252,7 @@ class AnalisisView:
     ejeymax = 0
     intervalo_principal_y = 0
     intervalo_secundario_y = 0
+    timer_busqueda_analisis = None
 
     def inicializarVistaAnalisis(main, proyectoid, proyectoname, fechaini, fechafin):
         AnalisisView.main = main
@@ -277,6 +276,27 @@ class AnalisisView:
         if AnalisisView.estadoPagina:
             tree_actual =  main.findChild(QTreeWidget, "tree_actual_analisis")
             tree_actual.itemClicked.connect(AnalisisView.checkProyectoActualAnalisis)
+            # --- Buscador de equipos en el árbol ---
+            buscador_analisis = main.findChild(QLineEdit, "input_buscar_analisis")
+            if buscador_analisis is None:
+                buscador_analisis = QLineEdit()
+                buscador_analisis.setObjectName("input_buscar_analisis")
+                buscador_analisis.setPlaceholderText("Buscar equipo...")
+                layout_padre = tree_actual.parentWidget().layout()
+                if layout_padre is not None:
+                    indice_tree = layout_padre.indexOf(tree_actual)
+                    layout_padre.insertWidget(indice_tree, buscador_analisis)
+
+                AnalisisView.timer_busqueda_analisis = QTimer()
+                AnalisisView.timer_busqueda_analisis.setSingleShot(True)
+                AnalisisView.timer_busqueda_analisis.timeout.connect(
+                    lambda: EquiposAnalisis.filtrarArbolPorTexto(tree_actual, buscador_analisis.text())
+                )
+                buscador_analisis.textChanged.connect(
+                    lambda: (AnalisisView.timer_busqueda_analisis.stop(),
+                              AnalisisView.timer_busqueda_analisis.start(250))
+                )
+            
             tree_actual.setContextMenuPolicy(Qt.CustomContextMenu)
             tree_actual.customContextMenuRequested.connect(AnalisisView.clicderechoProyectoActualAnalisis)
             # VISTA GENERAL ANÁLISIS
@@ -957,7 +977,9 @@ class AnalisisView:
         if comboComponentes.count() > 0:
             comboPrismas = AnalisisView.main.findChild(QComboBox, "combo_prismas_comportamiento")
             if comboPrismas.count() > 0:
-                GraficaComportamiento.graficarComportamientoPrismas(AnalisisView.main, AnalisisView.idproyecto, AnalisisView.fechainicial, AnalisisView.fechafinal)
+                config = SoftwareConfiguracion.obtenerDataSoftware()
+                filtrado = config[16]
+                GraficaComportamiento.graficarComportamientoPrismas(AnalisisView.main, AnalisisView.idproyecto, AnalisisView.fechainicial, AnalisisView.fechafinal, filtrado)
     
     def cargarPrismasComportamientoComponente():
         comboComponentes = AnalisisView.main.findChild(QComboBox, "combo_componentes_comportamiento")
@@ -2073,6 +2095,12 @@ class AnalisisView:
         AnalisisView.nameproyecto = proyecto_name
         AnalisisView.estadochecklist = True
         AnalisisView.limpiarGraficasAnalisis()
+        # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
+        buscador_arbol = main.findChild(QLineEdit, "input_buscar_analisis")
+        if buscador_arbol is not None:
+            buscador_arbol.blockSignals(True)
+            buscador_arbol.clear()
+            buscador_arbol.blockSignals(False)
     
     def iniciarAsistenteVozAnalisis(treeWidget, botonvoz):
         prismasmarcados, trayectoriagraficado, histogramagraficado = [], False, False

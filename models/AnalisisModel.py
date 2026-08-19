@@ -1424,7 +1424,78 @@ class AnalisisModel:
                 conn.close()
     
     @staticmethod
-    def mdlPrismaDesplazamientosAnalisis(tabla, idinstrumento, unidad, fechainicial, fechafinal):
+    def mdlPrismaDesplazamientosAnalisis(tabla, idinstrumento, unidad):
+        conn = None
+        sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma, i.tipo_equipo,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+            (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) * 24.0 AS horas,
+            (SQRT(
+                POWER(p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                POWER(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+            )) * {unidad} AS DA3D,
+            CASE 
+                WHEN LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (SQRT(
+                    POWER(p.este_target - LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                    POWER(p.norte_target - LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                    POWER(p.elevacion_target - LAG(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+                )) * {unidad}
+            END AS DI3D,
+            (SQRT(
+                POWER(p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+            )) * {unidad} AS DA2D,
+            CASE 
+                WHEN LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (SQRT(
+                    POWER(p.este_target - LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                    POWER(p.norte_target - LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+                )) * {unidad}
+            END AS DI3D,
+            (p.distancia_prisma - FIRST_VALUE(p.distancia_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * {unidad} AS DASD,
+            CASE 
+                WHEN LAG(p.distancia_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (p.distancia_prisma - LAG(p.distancia_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * {unidad}
+            END AS DISD,
+            (p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * {unidad} AS DAES,
+            CASE 
+                WHEN LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (p.este_target - LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * {unidad}
+            END AS DIES,
+            (p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * {unidad} AS DANO,
+            CASE 
+                WHEN LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (p.norte_target - LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * {unidad}
+            END AS DINO,
+            (p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * {unidad} AS DANI,
+            CASE 
+                WHEN LAG(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                ELSE (p.elevacion_target - LAG(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)) * {unidad}
+            END AS DINI
+        FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+        INNER JOIN componentes co ON i.id_componente = co.id_componente
+        WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_instrumentacion = ?
+        AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        ORDER BY p.hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (idinstrumento))
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlPrismaDesplazamientosAnalisis: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlPrismaDesplazamientosAnalisisFechas(tabla, idinstrumento, unidad, fechainicial, fechafinal):
         conn = None
         sql = f"""SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma, i.tipo_equipo,
             (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
@@ -1488,13 +1559,105 @@ class AnalisisModel:
             else:
                 return None
         except Error as e:
-            print("Error en mdlPrismaDesplazamientosAnalisis: " + str(e))
+            print("Error en mdlPrismaDesplazamientosAnalisisFechas: " + str(e))
             return None
         finally:
             if conn:
                 conn.close()
     
-    def mdlPrismaVelocidadesAnalisis(tabla, idinstrumento, unidad, fechainicial, fechafinal):
+    def mdlPrismaVelocidadesAnalisis(tabla, idinstrumento, unidad):
+        conn = None
+        sql = f"""WITH PrismasCTE AS (
+            SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma, i.tipo_equipo,
+                (CAST(DATEDIFF(SECOND, FIRST_VALUE(p.hora_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), p.hora_prisma) AS FLOAT) / 86400.0) AS dias,
+                SQRT(
+                    POWER(p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                    POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                    POWER(p.elevacion_target - FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+                ) AS DA3D,
+                CASE 
+                    WHEN LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                    ELSE SQRT(
+                        POWER(p.este_target - LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                        POWER(p.norte_target - LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                        POWER(p.elevacion_target - LAG(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+                    )
+                END AS DI3D,
+                SQRT(
+                    POWER(p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                    POWER(p.norte_target - FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+                ) AS DA2D,
+                CASE 
+                    WHEN LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                    ELSE SQRT(
+                        POWER(p.este_target - LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2) +
+                        POWER(p.norte_target - LAG(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma), 2)
+                    )
+                END AS DI2D,
+                p.distancia_prisma - FIRST_VALUE(p.distancia_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS DASD,
+                CASE 
+                    WHEN LAG(p.distancia_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                    ELSE p.distancia_prisma - LAG(p.distancia_prisma) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)
+                END AS DISD,
+                p.este_target - FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS DAES,
+                CASE 
+                    WHEN LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) IS NULL THEN 0
+                    ELSE p.este_target - LAG(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma)
+                END AS DIES
+            FROM {tabla} p INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            INNER JOIN componentes co ON i.id_componente = co.id_componente
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 AND i.id_instrumentacion = ?
+            AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        )
+        SELECT id_instrumentacion, nombre_prisma, hora_prisma, tipo_equipo, dias, dias * 24.0 AS horas,
+            CASE
+                WHEN ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) = 1 THEN 0
+                ELSE
+                    (DI3D - LAG(DI3D) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma))
+                    / (CAST(DATEDIFF(SECOND, LAG(hora_prisma, 1, hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), hora_prisma) AS FLOAT) / 86400.0)
+            END * {unidad} AS VI3D,
+            CASE
+                WHEN dias = 0 THEN 0
+                ELSE DA3D / dias
+            END * {unidad} AS VA3D,
+            CASE
+                WHEN ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) = 1 THEN 0
+                ELSE
+                    (DI2D - LAG(DI2D) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma))
+                    / (CAST(DATEDIFF(SECOND, LAG(hora_prisma, 1, hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), hora_prisma) AS FLOAT) / 86400.0)
+            END * {unidad} AS VI2D,
+            CASE
+                WHEN dias = 0 THEN 0
+                ELSE DA2D / dias
+            END * {unidad} AS VA2D,
+            CASE
+                WHEN ROW_NUMBER() OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma) = 1 THEN 0
+                ELSE
+                    DISD
+                    / (CAST(DATEDIFF(SECOND, LAG(hora_prisma, 1, hora_prisma) OVER (PARTITION BY nombre_prisma ORDER BY hora_prisma), hora_prisma) AS FLOAT) / 86400.0)
+            END * {unidad} AS VISD,
+            CASE
+                WHEN dias = 0 THEN 0
+                ELSE DASD / dias
+            END * {unidad} AS VASD
+        FROM PrismasCTE ORDER BY hora_prisma;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (idinstrumento,))
+            row = [tuple(r) for r in cur.fetchall()]
+            if row:
+                return row
+            else:
+                return None
+        except Error as e:
+            print("Error en mdlPrismaVelocidadesAnalisis: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    def mdlPrismaVelocidadesAnalisisFechas(tabla, idinstrumento, unidad, fechainicial, fechafinal):
         conn = None
         sql = f"""WITH PrismasCTE AS (
             SELECT i.id_instrumentacion, p.nombre_prisma, p.hora_prisma, i.tipo_equipo,
@@ -1580,7 +1743,7 @@ class AnalisisModel:
             else:
                 return None
         except Error as e:
-            print("Error en mdlPrismaVelocidadesAnalisis: " + str(e))
+            print("Error en mdlPrismaVelocidadesAnalisisFechas: " + str(e))
             return None
         finally:
             if conn:

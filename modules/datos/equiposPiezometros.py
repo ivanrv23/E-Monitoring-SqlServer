@@ -560,4 +560,30 @@ class EquiposPiezometros:
                     terrenos = InterfazController.ctrlListarCotasTerrenoComponente(proyecto_id, idzona)
                     if terrenos:
                         TreeCheckbox.crearNuevoGrupoCheckboxesDoble(tree_widget, namezona, idzona, proyecto_id, "Cotas de Terreno", "4", terrenos, "terreno")
+
+    @staticmethod
+    def filtrarArbolPorTexto(treeWidget, texto):
+        """Oculta/muestra items del árbol según coincidencia de texto (recursivo)."""
+        texto = texto.strip().lower()
+
+        def procesar_nodo(nodo):
+            coincide_aqui = texto in nodo.text(0).lower()
+            coincide_hijo = False
+            for i in range(nodo.childCount()):
+                if procesar_nodo(nodo.child(i)):
+                    coincide_hijo = True
+            visible = texto == "" or coincide_aqui or coincide_hijo
+            nodo.setHidden(not visible)
+            if texto != "" and coincide_hijo:
+                nodo.setExpanded(True)
+            elif texto == "":
+                nodo.setExpanded(False)
+            return visible
+
+        treeWidget.blockSignals(True)
+        try:
+            for i in range(treeWidget.topLevelItemCount()):
+                procesar_nodo(treeWidget.topLevelItem(i))
+        finally:
+            treeWidget.blockSignals(False)
     

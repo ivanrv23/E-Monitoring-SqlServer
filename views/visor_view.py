@@ -79,6 +79,7 @@ class VisorView:
     fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(365)
     estilo_personalizado, polydatos_LAS = None, []
     prismasvirtualesgraficados = []
+    timer_busqueda_visor = None
     prismas_cache = {}
     timer_consulta_visor = None
     _timer_visor_conectado = False
@@ -103,7 +104,26 @@ class VisorView:
                 tree_actual_visor.itemClicked.connect(VisorView.checkProyectoActualVisor)
                 tree_actual_visor.setContextMenuPolicy(Qt.CustomContextMenu)
                 tree_actual_visor.customContextMenuRequested.connect(VisorView.clicderechoProyectoActualVisor)
+                # --- Buscador de equipos en el árbol ---
+                buscador_visor = VisorView.main.findChild(QLineEdit, "input_buscar_visor")
+                if buscador_visor is None:
+                    buscador_visor = QLineEdit()
+                    buscador_visor.setObjectName("input_buscar_visor")
+                    buscador_visor.setPlaceholderText("Buscar equipo...")
+                    layout_padre = tree_actual_visor.parentWidget().layout()
+                    if layout_padre is not None:
+                        indice_tree = layout_padre.indexOf(tree_actual_visor)
+                        layout_padre.insertWidget(indice_tree, buscador_visor)
 
+                    VisorView.timer_busqueda_visor = QTimer()
+                    VisorView.timer_busqueda_visor.setSingleShot(True)
+                    VisorView.timer_busqueda_visor.timeout.connect(
+                        lambda: EquiposVisor.filtrarArbolPorTexto(tree_actual_visor, buscador_visor.text())
+                    )
+                    buscador_visor.textChanged.connect(
+                        lambda: (VisorView.timer_busqueda_visor.stop(),
+                                  VisorView.timer_busqueda_visor.start(250))
+                    )
                 # INICIALIZAR VISOR 3D VTK
                 widgetVisor3d = VisorView.main.findChild(QWidget, "widget_visor3d")
                 VisorView.vtkWidgetVisor = QVTKRenderWindowInteractor(widgetVisor3d)
@@ -3407,6 +3427,12 @@ class VisorView:
         VisorView.limites_corte = []
         VisorView.estadovector, VisorView.tipovector, VisorView.escalavector = False, 'D3D', 0
         VisorView.toposDTM = []
+        # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
+        buscador_arbol = main.findChild(QLineEdit, "input_buscar_visor")
+        if buscador_arbol is not None:
+            buscador_arbol.blockSignals(True)
+            buscador_arbol.clear()
+            buscador_arbol.blockSignals(False)
         VisorView.listaDTMactivos = []
         VisorView.prismas_cache.clear()
         # 🚀 Limpiar caché de listaPrismas (mutex porque un worker cancelado podría
