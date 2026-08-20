@@ -396,6 +396,7 @@ class SubirCeldas:
                         "cota_instalacion_celda": instalacion,
                         "temperatura_inicial_celda": 0,
                         "tk_celda": tk,
+                        "estado_celda": 1,
                     }
                     respues = CeldaController.ctrlRegistrarCeldaFormato(idcomponente, datoscelda)
                     if respues:
@@ -441,6 +442,7 @@ class SubirCeldas:
                         data.append((idcelda, fecha, hora, frecuen, frecu, tempe, desplaza, observa))
                     if data:
                         respon = CeldaController.ctrlRegistrarDataCelda(proyectoid, data)
+                        print("respon", respon)
                         if respon:
                             equipos.append(idcelda)
                             respuesta = True
