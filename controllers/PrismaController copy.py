@@ -1,8 +1,17 @@
 from models.PrismaModel import PrismaModel
 from utils.common.metodosGenerales import MetodosGenerales
+from services.queries.query_context import get_active_request
+from services.queries.query_registry import query_registry
 
 class PrismaController:
-    
+    @staticmethod
+    def _esta_cancelado():
+        """Verifica si el hilo actual ha recibido una orden de cancelación."""
+        request_id = get_active_request()
+        if request_id is None:
+            return False
+        return query_registry.is_cancel_requested(request_id)
+
     def ctrlObtenerFechasRango(proyectoid):
         tabla = f"prismas{proyectoid}"
         fechasa = PrismaModel.mdlObtenerFechasMaximasPrismas(tabla)
@@ -17,7 +26,7 @@ class PrismaController:
         else:
             fechamin, fechamax = MetodosGenerales.obtenerRangoFechas(365)
             return fechamin, fechamax
-    
+
     def ctrlObtenerPrismasFechaUnicos(proyecto, fechaini, fechafin):
         prismasmin = []
         tabla = f"prismas{proyecto}"
@@ -31,70 +40,84 @@ class PrismaController:
         prismasmin = []
         if filtrado == 0: # sin fechas
             for componente, listaprismas in prismasmarcados:
+                if PrismaController._esta_cancelado(): return []
                 marcados = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
                 idcomponente = componente[1]
                 for tabla, prismas in marcados.items():
+                    if PrismaController._esta_cancelado(): return []
                     datosa = PrismaModel.mdlListarPrismasUnicosMinima(tabla, prismas, idcomponente)
                     if datosa is not None:
                         prismasmin.extend(datosa)
         else: # con fechas
             for componente, listaprismas in prismasmarcados:
+                if PrismaController._esta_cancelado(): return []
                 marcados = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
                 idcomponente = componente[1]
                 for tabla, prismas in marcados.items():
+                    if PrismaController._esta_cancelado(): return []
                     datosa = PrismaModel.mdlListarPrismasUnicosFechaMinima(tabla, prismas, idcomponente, fechaini, fechafin)
                     if datosa is not None:
                         prismasmin.extend(datosa)
         return prismasmin
-    
+
     # Obtener prismas finales automatizados por fecha    
     def ctrlObtenerPrismasFinalesFecha(prismasmarcados, fechaini, fechafin, filtrado):
         prismasmax = []
         if filtrado == 0: # sin fechas
             for componente, listaprismas in prismasmarcados:
+                if PrismaController._esta_cancelado(): return []
                 marcados = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
                 idcomponente = componente[1]
                 for tabla, prismas in marcados.items():
+                    if PrismaController._esta_cancelado(): return []
                     datosa = PrismaModel.mdlListarPrismasUnicosMaxima(tabla, prismas, idcomponente)
                     if datosa is not None:
                         prismasmax.extend(datosa)
         else: # con fechas
             for componente, listaprismas in prismasmarcados:
+                if PrismaController._esta_cancelado(): return []
                 marcados = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
                 idcomponente = componente[1]
                 for tabla, prismas in marcados.items():
+                    if PrismaController._esta_cancelado(): return []
                     datosa = PrismaModel.mdlListarPrismasUnicosFechaMaxima(tabla, prismas, idcomponente, fechaini, fechafin)
                     if datosa is not None:
                         prismasmax.extend(datosa)
         return prismasmax
-    
+
     def ctrlObtenerDistanciaVectores3DPrisma(proyecto, prismasmarcados, fechaini, fechafin, filtrado):
         datosprisma = []
         if filtrado == 0: # sin fechas
             for componente, listaprismas in prismasmarcados:
+                if PrismaController._esta_cancelado(): return []
                 marcados = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
                 idcomponente = componente[1]
                 for tabla, prismas in marcados.items():
+                    if PrismaController._esta_cancelado(): return []
                     datosa = PrismaModel.mdlCalcularVectoresDesplazamiento3DA(tabla, prismas, idcomponente)
                     if datosa is not None:
                         datosprisma.extend(datosa)
         else: # con fechas
             for componente, listaprismas in prismasmarcados:
+                if PrismaController._esta_cancelado(): return []
                 marcados = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
                 idcomponente = componente[1]
                 for tabla, prismas in marcados.items():
+                    if PrismaController._esta_cancelado(): return []
                     datosa = PrismaModel.mdlCalcularVectoresDesplazamientoFechas3DA(tabla, prismas, idcomponente, fechaini, fechafin)
                     if datosa is not None:
                         datosprisma.extend(datosa)
         return datosprisma
-        
+
     def ctrlObtenerDistanciaVectoresVI3DPrisma(proyecto, prismasmarcados, fechaini, fechafin, filtrado, tipovelocidad):
         datosprisma = []
         if filtrado == 0: # sin fechas
             for componente, listaprismas in prismasmarcados:
+                if PrismaController._esta_cancelado(): return []
                 marcados = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
                 idcomponente = componente[1]
                 for tabla, prismas in marcados.items():
+                    if PrismaController._esta_cancelado(): return []
                     if tipovelocidad == 0:
                         datosa = PrismaModel.mdlCalcularVectoresVelocidadPositivaVI3D(tabla, prismas, idcomponente)
                     else:
@@ -103,9 +126,11 @@ class PrismaController:
                         datosprisma.extend(datosa)
         else: # con fechas
             for componente, listaprismas in prismasmarcados:
+                if PrismaController._esta_cancelado(): return []
                 marcados = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
                 idcomponente = componente[1]
                 for tabla, prismas in marcados.items():
+                    if PrismaController._esta_cancelado(): return []
                     if tipovelocidad == 0:
                         datosa = PrismaModel.mdlCalcularVectoresVelocidadPositivaFechasVI3D(tabla, prismas, idcomponente, fechaini, fechafin)
                     else:
@@ -113,35 +138,35 @@ class PrismaController:
                     if datosa is not None:
                         datosprisma.extend(datosa)
         return datosprisma
-    
+
     def ctrlCambiarEstadoLecturaPrisma(tabla, iddetalle):
         respuesta = PrismaModel.mdlCambiarEstadoLecturaPrisma(tabla, iddetalle)
         return respuesta
-    
+
     def ctrlOmitirLecturasPrismaDesviacion(tabla, prisma, desviacioneste, desviacionnorte):
         respuesta = PrismaModel.mdlOmitirLecturasPrismaDesviacion(tabla, prisma, desviacioneste, desviacionnorte)
         return respuesta
-    
+
     def ctrlActivarLecturasPrisma(tabla, prisma):
         respuesta = PrismaModel.mdlActivarLecturasPrisma(tabla, prisma)
         return respuesta
-    
+
     def ctrlCambiarEstadoLecturaPrismaBloque(tabla, listaids):
         respuesta = PrismaModel.mdlCambiarEstadoLecturaPrismaBloque(tabla, listaids)
         return respuesta
-    
+
     def ctrlEliminarLecturaPrisma(tabla, iddetalle, idproyecto, username, nombres):
         respuesta = PrismaModel.mdlEliminarLecturaPrisma(tabla, iddetalle, idproyecto, username, nombres)
         return respuesta
-    
+
     def ctrlActualizarLecturaPrisma(tabla, datanueva, idproyecto, username, nombres):
         respuesta = PrismaModel.mdlActualizarLecturaPrisma(tabla, datanueva, idproyecto, username, nombres)
         return respuesta
-    
+
     def ctrlEliminarLecturasBloquePrisma(tabla, iddetalles, idproyecto, username, nombres):
         respuesta = PrismaModel.mdlEliminarLecturasBloquePrisma(tabla, iddetalles, idproyecto, username, nombres)
         return respuesta
-    
+
     def ctrlGuardarPrismasManualesTabla(proyecto, data):
         # Extraer nombres únicos de la columna 1
         nombres_unicos = set(item[0] for item in data)
@@ -159,15 +184,15 @@ class PrismaController:
         respuesta = PrismaModel.mdlGuardarPrismasManualesTabla(proyecto, datos_limpios)
         # Devolver la respuesta y los nombres únicos
         return respuesta, list(nombres_unicos)
-    
+
     def ctrlCambiarEstadoPrismas(estado, idcomponente):
         respuesta = PrismaModel.mdlCambiarEstadoPrismas(estado, idcomponente)
         return respuesta
-    
+
     def ctrlEliminarPrismas(idcomponente):
         respuesta = PrismaModel.mdlEliminarPrismas(idcomponente)
         return respuesta
-    
+
     def ctrlEliminarDataPrismas(datos):
         result = False
         grupos = {}
@@ -182,27 +207,27 @@ class PrismaController:
             if respuesta:
                 result = True
         return result
-    
+
     def ctrlCambiarPrismaEstado(estado, idcomponente, idinstrumento):
         respuesta = PrismaModel.mdlCambiarPrismaEstado(estado, idcomponente, idinstrumento)
         return respuesta
-    
+
     def ctrlEliminarPrismaUnico(idinstrumento):
         respuesta = PrismaModel.mdlEliminarPrismaUnico(idinstrumento)
         return respuesta
-    
+
     def ctrlEliminarPrismaData(dato):
         respuesta = PrismaModel.mdlEliminarPrismaData(dato[5], dato[3])
         return respuesta
-    
+
     def ctrlCambiarComponentePrismas(idcomponente, nuevocomponente):
         respuesta = PrismaModel.mdlCambiarComponentePrismas(idcomponente, nuevocomponente)
         return respuesta
-    
+
     def ctrlCambiarPrismaComponente(idinstrumento, nuevocomponente):
         respuesta = PrismaModel.mdlCambiarPrismaComponente(idinstrumento, nuevocomponente)
         return respuesta
-    
+
     def ctrlResumenDesplazamiento(proyectoid, fechaini, fechafin):
         resumen = []
         tabla = f"prismas{proyectoid}"
@@ -210,7 +235,7 @@ class PrismaController:
         if dataauto:
             resumen.extend(dataauto)
         return resumen
-    
+
     def ctrlResumenVelocidadBuzamiento(proyectoid, fechaini, fechafin):
         velocidad = PrismaController.ctrlResumenVelocidad(proyectoid, fechaini, fechafin)
         trendplunge = PrismaController.ctrlResumenTrendPlunge(proyectoid, fechaini, fechafin)
@@ -219,7 +244,7 @@ class PrismaController:
             return resumen
         else:
             return []
-    
+
     def ctrlResumenVelocidad(proyectoid, fechaini, fechafin):
         resumen = []
         tabla = f"prismas{proyectoid}"
@@ -227,7 +252,7 @@ class PrismaController:
         if dataauto:
             resumen.extend(dataauto)
         return resumen
-    
+
     def ctrlResumenTrendPlunge(proyectoid, fechaini, fechafin):
         resumen = []
         tabla = f"prismas{proyectoid}"
@@ -235,7 +260,7 @@ class PrismaController:
         if dataauto:
             resumen.extend(dataauto)
         return resumen
-    
+
     def ctrlDatosPrismasDesviaciones(proyectoid, tipoprisma, prisma):
         if tipoprisma == "PRISMAS":
             tabla = f"prismas{proyectoid}"
@@ -243,11 +268,11 @@ class PrismaController:
             tabla = f"prismas{proyectoid}"
         respuesta = PrismaModel.mdlDatosPrismasDesviaciones(tabla, tipoprisma, prisma)
         return respuesta
-    
+
     def ctrlObtenerDesviacionStandar(idproyecto, nombreprisma):
         respuesta = PrismaModel.mdlObtenerDesviacionStandar(idproyecto, nombreprisma)
         return respuesta
-    
+
     def ctrlOmitirLecturaPrisma(proyecto,prisma,fecha,tipo):
         if tipo == 'PRISMAS':
             tabla = f'prismas{proyecto}'
@@ -255,25 +280,11 @@ class PrismaController:
             tabla = f'prismas{proyecto}'
         respuesta = PrismaModel.mdlOmitirLecturaPrisma(tabla, prisma, fecha)
         return respuesta
-    
+
     def ctrlVerificarPrismaUnico(nameprisma, idinstrumento, idproyecto):
         respuesta = PrismaModel.mdlVerificarPrismaUnico(nameprisma, idinstrumento, idproyecto)
         return respuesta
-    
+
     def ctrlActualizarNombrePrisma(nameprisma, nuevoprisma, idinstrumento, idproyecto):
         respuesta = PrismaModel.mdlActualizarNombrePrisma(nameprisma, nuevoprisma, idinstrumento, idproyecto)
         return respuesta
-
-    @staticmethod
-    def ctrlObtenerDatosCompletosPrismasVisor(proyecto, prismasmarcados, fechaini, fechafin, filtrado):
-        datos_maestros = []
-        # Recorremos las tablas y componentes marcados
-        for componente, listaprismas in prismasmarcados:
-            marcados = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
-            idcomponente = componente[1]
-            for tabla, prismas in marcados.items():
-                # Llamamos a la nueva SQL maestra
-                data = PrismaModel.mdlObtenerDatosCompletosPrismasFecha(tabla, idcomponente, fechaini, fechafin, filtrado)
-                if data is not None:
-                    datos_maestros.extend(data)
-        return datos_maestros

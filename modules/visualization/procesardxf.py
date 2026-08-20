@@ -5,7 +5,7 @@ import functools
 import os
 import time
 import math
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from vtkmodules.util.numpy_support import numpy_to_vtk
 from utils.common.rutasarchivos import resource_path
 
@@ -215,127 +215,210 @@ class ProcesarDXF:
         return entidades_adicionales
 
     @staticmethod
+    def _extraer_coordenadas(tipo_entidad, entity):
+        coordenadas = []
+        if tipo_entidad == 'LWPOLYLINE':
+            elevation = entity.dxf.elevation
+            for vertex in entity:
+                vertex_elevation = elevation if elevation is not None else vertex[2]
+                coordenadas.append((vertex[0], vertex[1], vertex_elevation))
+            if entity.is_closed:
+                coordenadas.append(coordenadas[0])
+        elif tipo_entidad == 'POLYLINE':
+            for vertex in entity.vertices:
+                coordenadas.append((vertex.dxf.location.x, vertex.dxf.location.y, vertex.dxf.location.z))
+            if entity.is_closed:
+                coordenadas.append(coordenadas[0])
+        elif tipo_entidad == 'LINE':
+            coordenadas = [
+                (entity.dxf.start.x, entity.dxf.start.y, entity.dxf.start.z),
+                (entity.dxf.end.x, entity.dxf.end.y, entity.dxf.end.z),
+            ]
+        elif tipo_entidad == '3DFACE':
+            coordenadas = [(v.x, v.y, v.z) for v in entity.wcs_vertices()]
+        return coordenadas
+
+    @staticmethod
+    def clasificar_todas_entidades(entidades, doc):
+        resultados = {}  # tipo_entidad -> [colores_puntos, colores_otros, entidades_circle]
+
+        def bucket(tipo_entidad):
+            if tipo_entidad not in resultados:
+                resultados[tipo_entidad] = [{}, {}, []]
+            return resultados[tipo_entidad]
+
+        def agregar(tipo_entidad, entity, color):
+            colores_puntos, colores_otros, entidades_circle = bucket(tipo_entidad)
+            if tipo_entidad == 'POINT':
+                colores_puntos.setdefault(color, []).append(
+                    (entity.dxf.location.x, entity.dxf.location.y, entity.dxf.location.z)
+                )
+            elif tipo_entidad in ('LWPOLYLINE', 'POLYLINE', 'LINE', '3DFACE'):
+                colores_otros.setdefault(color, []).append(
+                    ProcesarDXF._extraer_coordenadas(tipo_entidad, entity)
+                )
+            elif tipo_entidad == 'CIRCLE':
+                center = (entity.dxf.center.x, entity.dxf.center.y, entity.dxf.center.z)
+                entidades_circle.append((center, entity.dxf.radius, color))
+
+        tipos_soportados = ('POINT', 'LWPOLYLINE', 'POLYLINE', 'LINE', '3DFACE', 'CIRCLE')
+
+        for entity in entidades:
+            tipo_entidad = entity.dxftype()
+            if tipo_entidad == 'INSERT':
+                block = doc.blocks.get(entity.dxf.name)
+                if block:
+                    for tipo_sub, entidad_sub, color_sub in ProcesarDXF.procesar_bloque(block, doc):
+                        if tipo_sub in tipos_soportados:
+                            agregar(tipo_sub, entidad_sub, color_sub)
+            elif tipo_entidad in tipos_soportados:
+                color = ProcesarDXF.obtener_color_entidad(entity, doc)
+                agregar(tipo_entidad, entity, color)
+            # otros tipos (TEXT, DIMENSION, HATCH, etc.) se ignoran, igual que antes
+
+        return resultados
+
+    @staticmethod
+    def _construir_polydatas(tipo_entidad, colores_puntos, colores_otros, entidades_circle):
+        entidades_por_color = {}
+
+        # --- POINT ---
+        for color, coordenadas in colores_puntos.items():
+            polydata = vtk.vtkPolyData()
+            puntos_np = np.asarray(coordenadas, dtype=np.float64)
+            puntos_vtk = vtk.vtkPoints()
+            puntos_vtk.SetData(numpy_to_vtk(puntos_np, deep=True))
+            polydata.SetPoints(puntos_vtk)
+
+            vertex_filter = vtk.vtkVertexGlyphFilter()
+            vertex_filter.SetInputData(polydata)
+            vertex_filter.Update()
+            polydata = vertex_filter.GetOutput()
+
+            n = polydata.GetNumberOfPoints()
+            color_rgb = np.array([int(c * 255) for c in color], dtype=np.uint8)
+            colores_np = np.tile(color_rgb, (n, 1))
+            colores_vtk = numpy_to_vtk(colores_np, deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
+            colores_vtk.SetName("Colors")
+            polydata.GetPointData().SetScalars(colores_vtk)
+            entidades_por_color[color] = polydata
+
+        # --- LWPOLYLINE / POLYLINE / LINE / 3DFACE ---
+        for color, coordenadas_list in colores_otros.items():
+            polydata = entidades_por_color.get(color, vtk.vtkPolyData())
+            puntos = vtk.vtkPoints()
+
+            todos_los_puntos = []
+            for coordenadas in coordenadas_list:
+                todos_los_puntos.extend(coordenadas)
+            if not todos_los_puntos:
+                entidades_por_color[color] = polydata
+                continue
+
+            puntos_np = np.asarray(todos_los_puntos, dtype=np.float64)
+            puntos.SetData(numpy_to_vtk(puntos_np, deep=True))
+
+            if tipo_entidad == '3DFACE':
+                poligonos = vtk.vtkCellArray()
+                punto_id = 0
+                n_celdas = 0
+                for coordenadas in coordenadas_list:
+                    poligono = vtk.vtkPolygon()
+                    n_pts = len(coordenadas)
+                    poligono.GetPointIds().SetNumberOfIds(n_pts)
+                    for i in range(n_pts):
+                        poligono.GetPointIds().SetId(i, punto_id)
+                        punto_id += 1
+                    poligonos.InsertNextCell(poligono)
+                    n_celdas += 1
+                polydata.SetPoints(puntos)
+                polydata.SetPolys(poligonos)
+                destino_data = polydata.GetCellData()
+            else:
+                lineas = vtk.vtkCellArray()
+                punto_id = 0
+                n_celdas = 0
+                for coordenadas in coordenadas_list:
+                    n_pts = len(coordenadas)
+                    if n_pts >= 2:
+                        polilinea = vtk.vtkPolyLine()
+                        polilinea.GetPointIds().SetNumberOfIds(n_pts)
+                        for i in range(n_pts):
+                            polilinea.GetPointIds().SetId(i, punto_id + i)
+                        lineas.InsertNextCell(polilinea)
+                        n_celdas += 1
+                    punto_id += n_pts
+                polydata.SetPoints(puntos)
+                polydata.SetLines(lineas)
+                destino_data = polydata.GetCellData()
+
+            color_rgb = np.array([int(c * 255) for c in color], dtype=np.uint8)
+            colores_np = np.tile(color_rgb, (max(n_celdas, 0), 1))
+            colores_vtk = numpy_to_vtk(colores_np, deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
+            colores_vtk.SetName("Colors")
+            destino_data.SetScalars(colores_vtk)
+            entidades_por_color[color] = polydata
+
+        # --- CIRCLE ---
+        for center, radius, color in entidades_circle:
+            circle_source = vtk.vtkRegularPolygonSource()
+            circle_source.SetCenter(center[0], center[1], center[2])
+            circle_source.SetRadius(radius)
+            circle_source.SetNumberOfSides(100)
+            circle_source.Update()
+            polydata = circle_source.GetOutput()
+
+            n = polydata.GetNumberOfPoints()
+            color_rgb = np.array([int(c * 255) for c in color], dtype=np.uint8)
+            colores_np = np.tile(color_rgb, (n, 1))
+            colores_vtk = numpy_to_vtk(colores_np, deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
+            colores_vtk.SetName("Colors")
+            polydata.GetPointData().SetScalars(colores_vtk)
+
+            color_key = tuple(int(c * 255) for c in color)
+            destino = vtk.vtkPolyData()
+            destino.ShallowCopy(polydata)
+            entidades_por_color[color_key] = destino
+
+        return entidades_por_color
+
+    @staticmethod
+    def _escribir_vtp(args):
+        ruta_salida, polydata = args
+        writer = vtk.vtkXMLPolyDataWriter()
+        writer.SetFileName(ruta_salida)
+        writer.SetInputData(polydata)
+        writer.SetDataModeToBinary()
+        writer.Write()
+
+    @staticmethod
     def convertir_dxf_a_vtp(ruta_archivo, ruta):
-        ruta_salida_base=resource_path(ruta)
+        ruta_salida_base = resource_path(ruta)
         start_time = time.time()
         doc = ezdxf.readfile(ruta_archivo)
         msp = doc.modelspace()
         entidades = list(msp)
-        tipos_entidades = set(entity.dxftype() for entity in entidades)
-        results = {}
-        def worker(tipo_entidad):
-            return tipo_entidad, ProcesarDXF.procesar_entidades(entidades, doc, tipo_entidad)
-        with ThreadPoolExecutor() as executor:
-            futures = {executor.submit(worker, tipo_entidad): tipo_entidad for tipo_entidad in tipos_entidades}
-            for future in as_completed(futures):
-                tipo_entidad, result = future.result()
-                results[tipo_entidad] = result
+        
+        resultados = ProcesarDXF.clasificar_todas_entidades(entidades, doc)
+
         os.makedirs(ruta_salida_base, exist_ok=True)
-        for tipo_entidad, (colores_puntos, colores_otros, entidades_circle) in results.items():
-            entidades_por_color = {}
-            for color, coordenadas in colores_puntos.items():
-                if color not in entidades_por_color:
-                    entidades_por_color[color] = vtk.vtkPolyData()
-                punto_np = np.array(coordenadas, dtype=np.float64)
-                puntos_vtk = numpy_to_vtk(punto_np)
-                puntos_vtk_obj = vtk.vtkPoints()
-                puntos_vtk_obj.SetData(puntos_vtk)
-                polydata = entidades_por_color[color]
-                polydata.SetPoints(puntos_vtk_obj)
 
-                vertex_filter = vtk.vtkVertexGlyphFilter()
-                vertex_filter.SetInputData(polydata)
-                vertex_filter.Update()
-                polydata = vertex_filter.GetOutput()
-
-                colores = vtk.vtkUnsignedCharArray()
-                colores.SetNumberOfComponents(3)
-                colores.SetName("Colors")
-                for i in range(polydata.GetNumberOfPoints()):
-                    colores.InsertNextTuple3(*[int(c * 255) for c in color])
-                polydata.GetPointData().SetScalars(colores)
-                entidades_por_color[color] = polydata
-
-            for color, coordenadas_list in colores_otros.items():
-                if color not in entidades_por_color:
-                    entidades_por_color[color] = vtk.vtkPolyData()
-                polydata = entidades_por_color[color]
-                puntos = vtk.vtkPoints()
-                if tipo_entidad == '3DFACE':
-                    poligonos = vtk.vtkCellArray()
-                    colores = vtk.vtkUnsignedCharArray()
-                    colores.SetNumberOfComponents(3)
-                    colores.SetName("Colors")
-                    punto_id = 0
-                    for coordenadas in coordenadas_list:
-                        poligono = vtk.vtkPolygon()
-                        poligono.GetPointIds().SetNumberOfIds(len(coordenadas))
-                        for i, punto in enumerate(coordenadas):
-                            puntos.InsertNextPoint(punto)
-                            poligono.GetPointIds().SetId(i, punto_id)
-                            punto_id += 1
-                        poligonos.InsertNextCell(poligono)
-                        colores.InsertNextTuple3(*[int(c * 255) for c in color])
-
-                    polydata.SetPoints(puntos)
-                    polydata.SetPolys(poligonos)
-                    polydata.GetCellData().SetScalars(colores)
-                else:
-                    lineas = vtk.vtkCellArray()
-                    colores = vtk.vtkUnsignedCharArray()
-                    colores.SetNumberOfComponents(3)
-                    colores.SetName("Colors")
-                    punto_id = 0
-                    for coordenadas in coordenadas_list:
-                        for punto in coordenadas:
-                            puntos.InsertNextPoint(punto)
-                        for i in range(len(coordenadas) - 1):
-                            linea = vtk.vtkLine()
-                            linea.GetPointIds().SetId(0, punto_id)
-                            linea.GetPointIds().SetId(1, punto_id + 1)
-                            lineas.InsertNextCell(linea)
-                            colores.InsertNextTuple3(*[int(c * 255) for c in color])
-                            punto_id += 1
-                        punto_id += 1
-                    polydata.SetPoints(puntos)
-                    polydata.SetLines(lineas)
-                    polydata.GetCellData().SetScalars(colores)
-                entidades_por_color[color] = polydata
-
-            for tipo_entidad, info, color in entidades_circle:
-                if tipo_entidad == 'CIRCLE':
-                    center = info[0]
-                    radius = info[1]
-                    circle_source = vtk.vtkRegularPolygonSource()
-                    circle_source.SetCenter(center[0], center[1], center[2])
-                    circle_source.SetRadius(radius)
-                    circle_source.SetNumberOfSides(100)
-                    circle_source.Update()
-
-                    polydata = circle_source.GetOutput()
-
-                    colores = vtk.vtkUnsignedCharArray()
-                    colores.SetNumberOfComponents(3)
-                    colores.SetName("Colors")
-
-                    color_rgb = [int(c * 255) for c in color]
-                    for _ in range(polydata.GetNumberOfPoints()):
-                        colores.InsertNextTuple3(*color_rgb)
-
-                    polydata.GetPointData().SetScalars(colores)
-
-                    if tuple(color_rgb) not in entidades_por_color:
-                        entidades_por_color[tuple(color_rgb)] = vtk.vtkPolyData()
-                    entidades_por_color[tuple(color_rgb)].ShallowCopy(polydata)
-
+        tareas_escritura = []
+        for tipo_entidad, (colores_puntos, colores_otros, entidades_circle) in resultados.items():
+            entidades_por_color = ProcesarDXF._construir_polydatas(
+                tipo_entidad, colores_puntos, colores_otros, entidades_circle
+            )
             for color, polydata in entidades_por_color.items():
                 ruta_salida = os.path.join(ruta_salida_base, f"{tipo_entidad}_{color}.vtp")
-                writer = vtk.vtkXMLPolyDataWriter()
-                writer.SetFileName(ruta_salida)
-                writer.SetInputData(polydata)
-                writer.SetDataModeToBinary()
-                writer.Write()
+                tareas_escritura.append((ruta_salida, polydata))
+
+        if tareas_escritura:
+            with ThreadPoolExecutor() as executor:
+                list(executor.map(ProcesarDXF._escribir_vtp, tareas_escritura))
+
         end_time = time.time()
+        print(f"[ProcesarDXF] convertir_dxf_a_vtp: {end_time - start_time:.2f}s "
+              f"({len(entidades)} entidades, {len(tareas_escritura)} archivos .vtp)")
     
     def graficar_vtp_antigua(ruta_carpeta):
         ruta_archivos = resource_path(ruta_carpeta)
@@ -399,4 +482,31 @@ class ProcesarDXF:
             colorcad = ProcesarDXF.encontrarColorCercano(color)
             colores.append((idinst, idcompon, colorcad))
         return colores
-    
+
+    @staticmethod
+    def _convertir_un_archivo_worker(tarea):
+        """Función objetivo para cada proceso hijo. Debe recibir un único argumento
+        simple (tupla) para que sea trivialmente 'picklable' al enviarla al subproceso."""
+        ruta_archivo, ruta_salida = tarea
+        try:
+            ProcesarDXF.convertir_dxf_a_vtp(ruta_archivo, ruta_salida)
+            return (ruta_archivo, True, None)
+        except Exception as e:
+            return (ruta_archivo, False, str(e))
+
+    @staticmethod
+    def convertir_multiples_dxf_a_vtp(tareas, max_workers=None):
+        if not tareas:
+            return []
+
+        resultados = []
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            for resultado in executor.map(ProcesarDXF._convertir_un_archivo_worker, tareas):
+                resultados.append(resultado)
+
+        fallidos = [r for r in resultados if not r[1]]
+        if fallidos:
+            for ruta, _, error in fallidos:
+                print(f"[ProcesarDXF] ERROR convirtiendo {ruta}: {error}")
+
+        return resultados

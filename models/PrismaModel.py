@@ -9,7 +9,8 @@ class PrismaModel:
 
     def asegurar_tabla_prismas(conn, cursor, nombretabla):
         """Crea la tabla de prismas (si no existe), incluyendo el índice único
-        de deduplicación (nombre_prisma, hora_prisma, grupo_puntos)."""
+        de deduplicación (nombre_prisma, hora_prisma, grupo_puntos) y los
+        índices de rendimiento para consultas y JOINs."""
         cursor.execute(f"""
             IF OBJECT_ID('{nombretabla}', 'U') IS NULL
             CREATE TABLE {nombretabla} (
@@ -31,6 +32,16 @@ class PrismaModel:
             IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = '{idx_name}' AND object_id = OBJECT_ID('{nombretabla}'))
             CREATE UNIQUE INDEX {idx_name} ON {nombretabla} (nombre_prisma, hora_prisma, grupo_puntos);
         """)
+
+        # 🚀 Índice 1: para las consultas de prismas (el más importante) - específico por tabla
+        idx_perf = f"IX_{nombretabla}_nombre_hora_estado"
+        cursor.execute(f"""
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = '{idx_perf}' AND object_id = OBJECT_ID('{nombretabla}'))
+            CREATE NONCLUSTERED INDEX {idx_perf}
+            ON {nombretabla} (nombre_prisma, hora_prisma)
+            INCLUDE (state_prisma, estado_prisma, este_target, norte_target, elevacion_target, grupo_puntos);
+        """)
+
         conn.commit()
     
     @staticmethod
@@ -1632,5 +1643,71 @@ class PrismaModel:
             if conn: conn.rollback()
             print(f"Error al actualizar nombre del prisma: {e}")
             return False
+        finally:
+            if conn: conn.close()
+
+    @staticmethod
+    def mdlObtenerDatosCompletosPrismasFecha(tabla, idcomponente, fechaini, fechafin, filtrado):
+        # Filtro dinámico para fechas
+        fecha_filter = "AND p.hora_prisma BETWEEN ? AND ?" if filtrado == 1 else ""
+        
+        sql = f"""
+        WITH RankedPrismas AS (
+            SELECT 
+                i.id_instrumentacion, p.nombre_prisma, p.este_target, p.norte_target, p.elevacion_target, p.hora_prisma, i.id_componente,
+                ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma ASC) as rn_asc,
+                ROW_NUMBER() OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma DESC) as rn_desc
+            FROM {tabla} p 
+            INNER JOIN instrumentacion i ON p.nombre_prisma = i.nombre_equipo
+            INNER JOIN componentes co ON i.id_componente = co.id_componente
+            WHERE p.state_prisma = 1 AND p.estado_prisma = 1 
+              AND i.id_componente = ? 
+              {fecha_filter}
+              AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
+        ),
+        CalculoBase AS (
+            SELECT 
+                id_instrumentacion, nombre_prisma, id_componente,
+                MAX(CASE WHEN rn_asc = 1 THEN hora_prisma END) as hora_inicial,
+                MAX(CASE WHEN rn_asc = 1 THEN este_target END) as este_inicial,
+                MAX(CASE WHEN rn_asc = 1 THEN norte_target END) as norte_inicial,
+                MAX(CASE WHEN rn_asc = 1 THEN elevacion_target END) as nivel_inicial,
+                MAX(CASE WHEN rn_desc = 1 THEN hora_prisma END) as hora_final,
+                MAX(CASE WHEN rn_desc = 1 THEN este_target END) as este_final,
+                MAX(CASE WHEN rn_desc = 1 THEN norte_target END) as norte_final,
+                MAX(CASE WHEN rn_desc = 1 THEN elevacion_target END) as nivel_final
+            FROM RankedPrismas
+            WHERE rn_asc = 1 OR rn_desc = 1
+            GROUP BY id_instrumentacion, nombre_prisma, id_componente
+        )
+        SELECT id_instrumentacion, nombre_prisma, id_componente, 
+               este_inicial, norte_inicial, nivel_inicial, hora_inicial,
+               este_final, norte_final, nivel_final, hora_final,
+               -- 1. Distancia Geométrica 3D (Para modo D3D)
+               SQRT(POWER(este_final - este_inicial, 2) + POWER(norte_final - norte_inicial, 2) + POWER(nivel_final - nivel_inicial, 2)) as distancia_3d,
+               -- 2. Velocidad VI3D (Distancia / Días transcurridos)
+               CASE 
+                   WHEN hora_inicial IS NULL OR hora_final IS NULL OR hora_inicial = hora_final THEN 0
+                   ELSE SQRT(POWER(este_final - este_inicial, 2) + POWER(norte_final - norte_inicial, 2) + POWER(nivel_final - nivel_inicial, 2)) /
+                        (CAST(DATEDIFF(SECOND, hora_inicial, hora_final) AS FLOAT) / 86400.0)
+               END as velocidad_vi3d
+        FROM CalculoBase
+        ORDER BY nombre_prisma;
+        """
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            # Armamos los parámetros dinámicamente
+            params = [idcomponente]
+            if filtrado == 1:
+                params.extend([fechaini, fechafin])
+                
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+            return [tuple(row) for row in rows]
+        except Exception as e:
+            print("Error al obtener datos completos de prismas: " + str(e))
+            return None
         finally:
             if conn: conn.close()

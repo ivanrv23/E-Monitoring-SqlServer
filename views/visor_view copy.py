@@ -10,9 +10,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from datetime import datetime
 import datetime as dt_module 
-from PySide6.QtCore import Qt, QThread, Signal, QTimer, QObject, QEvent, QMutex
-from services.queries.graph_query_manager import visor_query_manager
-from services.queries.query_context import set_active_request, clear_active_request
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QComboBox, QTreeWidget, QPushButton, QSlider, QStackedWidget,
                                QDialog, QGridLayout, QLineEdit, QLabel, QColorDialog, QHBoxLayout, QApplication)
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -49,7 +47,7 @@ from utils.shared.arbolmarcado import TreeCheckbox
 from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 # desactivando alertas de vtk
 vtk.vtkObject.GlobalWarningDisplayOff()
-import time
+
 class MplCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
@@ -68,7 +66,6 @@ class VisorView:
     listatopograficados, vectoresDXF, piezometrostuboscuerda, piezometrostubosmanual, cablescoaxiales = [], [], [], [], []
     vtkWidgetCorte, rendererCorte, lista_actoresDXF_corte, solidoDXF_corte = None, None, [], None
     prismasGrafico, inclinometrolineas, inclinometroPuntos, toposDTM, listaDTMactivos = [], [], [], [], []
-    _forzar_reconstruccion_prismas = True
     dibujarLineaIncli, dibujarPuntoIncli, estadorenderizado, estadorenderizado_corte = 0, 0, 0, 0
     estadovector, tipovector, escalavector = False, 'D3D', 0
     polyDataCorte, boxWidget, estado_box, boxVisible = None, None, True, False
@@ -80,18 +77,6 @@ class VisorView:
     fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(365)
     estilo_personalizado, polydatos_LAS = None, []
     prismasvirtualesgraficados = []
-    timer_busqueda_visor = None
-    prismas_cache = {}
-    timer_consulta_visor = None
-    _timer_visor_conectado = False
-    worker_visor = None
-    _workers_anteriores_visor = []
-    _cache_listaPrismas = {}
-    _cache_listaPrismas_lock = QMutex()
-    _cache_datos_maestros = {}
-    _cache_datos_maestros_lock = QMutex()
-    _request_proyecto_map = {}
-    label_carga_visor = None
     respuesta = ConfiguracionVisor.obtenerDataConfiguracionVisor()
     colorfondo = respuesta[0]
     
@@ -107,26 +92,7 @@ class VisorView:
                 tree_actual_visor.itemClicked.connect(VisorView.checkProyectoActualVisor)
                 tree_actual_visor.setContextMenuPolicy(Qt.CustomContextMenu)
                 tree_actual_visor.customContextMenuRequested.connect(VisorView.clicderechoProyectoActualVisor)
-                # --- Buscador de equipos en el árbol ---
-                buscador_visor = VisorView.main.findChild(QLineEdit, "input_buscar_visor")
-                if buscador_visor is None:
-                    buscador_visor = QLineEdit()
-                    buscador_visor.setObjectName("input_buscar_visor")
-                    buscador_visor.setPlaceholderText("Buscar equipo...")
-                    layout_padre = tree_actual_visor.parentWidget().layout()
-                    if layout_padre is not None:
-                        indice_tree = layout_padre.indexOf(tree_actual_visor)
-                        layout_padre.insertWidget(indice_tree, buscador_visor)
 
-                    VisorView.timer_busqueda_visor = QTimer()
-                    VisorView.timer_busqueda_visor.setSingleShot(True)
-                    VisorView.timer_busqueda_visor.timeout.connect(
-                        lambda: EquiposVisor.filtrarArbolPorTexto(tree_actual_visor, buscador_visor.text())
-                    )
-                    buscador_visor.textChanged.connect(
-                        lambda: (VisorView.timer_busqueda_visor.stop(),
-                                  VisorView.timer_busqueda_visor.start(250))
-                    )
                 # INICIALIZAR VISOR 3D VTK
                 widgetVisor3d = VisorView.main.findChild(QWidget, "widget_visor3d")
                 VisorView.vtkWidgetVisor = QVTKRenderWindowInteractor(widgetVisor3d)
@@ -138,43 +104,6 @@ class VisorView:
                 layout = QVBoxLayout(widgetVisor3d)
                 layout.setContentsMargins(0, 0, 0, 0)
                 layout.addWidget(VisorView.vtkWidgetVisor)
-
-                VisorView.label_carga_visor = QLabel("Cargando ...", widgetVisor3d)
-                VisorView.label_carga_visor.setStyleSheet("""
-                    background-color: rgba(0, 0, 0, 180);
-                    color: white;
-                    padding: 8px 12px;
-                    border-radius: 4px;
-                    font-size: 11px;
-                    font-weight: bold;
-                """)
-                VisorView.label_carga_visor.setAlignment(Qt.AlignCenter)
-                VisorView.label_carga_visor.adjustSize()
-                VisorView.label_carga_visor.hide()
-                VisorView.label_carga_visor.raise_()
-
-                def _actualizar_pos_label():
-                    if VisorView.label_carga_visor and widgetVisor3d:
-                        w = widgetVisor3d.width()
-                        lw = VisorView.label_carga_visor.width()
-                        VisorView.label_carga_visor.move(w - lw - 15, 15)
-
-                class _ResizeFilter(QObject):
-                    def eventFilter(self, obj, event):
-                        try:
-                            if event.type() == QEvent.Resize:
-                                _actualizar_pos_label()
-                            return super().eventFilter(obj, event)
-                        except KeyboardInterrupt:
-                            # Si la app se está cerrando, ignoramos el error y retornamos False
-                            return False 
-                        except Exception:
-                            # Captura cualquier otro error inesperado al cerrar
-                            return False
-
-                VisorView._resize_filter = _ResizeFilter()
-                widgetVisor3d.installEventFilter(VisorView._resize_filter)
-                _actualizar_pos_label()
                 
                 VisorView.actorVisor = vtk.vtkActor()
                 VisorView.rendererVisor.AddActor(VisorView.actorVisor)
@@ -392,36 +321,13 @@ class VisorView:
             ProcesarLidar.listarLidar(VisorView.idproyecto, VisorView.rendererLidar, VisorView.vtkWidgetLidar, cambiarpagina)
         
     def checkProyectoActualVisor(parent_item, column):
+        # FILTRO: Si el estado en memoria es igual al actual, fue clic en el texto y no en el checkbox
         if not TreeCheckbox.validarCambioReal(parent_item):
             return
-        def callback_refresco():
-            if VisorView.label_carga_visor:
-                VisorView.label_carga_visor.hide()
-                
-            if VisorView.timer_consulta_visor is None:
-                VisorView.timer_consulta_visor = QTimer()
-                VisorView.timer_consulta_visor.setSingleShot(True)
-            else:
-                VisorView.timer_consulta_visor.stop()
-                if VisorView._timer_visor_conectado:
-                    VisorView.timer_consulta_visor.timeout.disconnect()
-                    VisorView._timer_visor_conectado = False
-                
-            # cambia de proyecto antes de que pasen los 300ms, el refresco se descarta.
-            proyecto_en_click = VisorView.idproyecto
-
-            def ejecutar_refresco():
-                if VisorView.idproyecto != proyecto_en_click:
-                    return
-                treeWidget = VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
-                paginacion = VisorView.main.findChild(QStackedWidget, "stacked_visor")
-                VisorView.obtenerMostrarEquiposMarcados(treeWidget, paginacion)
-                
-            VisorView.timer_consulta_visor.timeout.connect(ejecutar_refresco)
-            VisorView._timer_visor_conectado = True
-            VisorView.timer_consulta_visor.start(300)
-
-        EquiposVisor.validarMarcadoCheckbox(parent_item, column, callback_refresco)
+            
+        treeWidget =  VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
+        paginacion = VisorView.main.findChild(QStackedWidget, "stacked_visor")
+        EquiposVisor.validarMarcadoCheckbox(parent_item, column, lambda: VisorView.obtenerMostrarEquiposMarcados(treeWidget, paginacion))
         
     def clicderechoProyectoActualVisor(point):
         treeWidget =  VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
@@ -510,7 +416,6 @@ class VisorView:
     def obtenerMostrarEquiposMarcados(tree_actual, paginacion):
         VisorView.resetvisor = False
         lista = EquiposVisor.obtener_todos_elementos_marcados(tree_actual)
-        
         if lista:
             topografiasmarcadas = VisorView.obtenerListaEquiposMarcados(lista, "Topografías")
             if len(topografiasmarcadas) > 0:
@@ -518,30 +423,59 @@ class VisorView:
                 VisorView.mostrarTopografiasVisor(topografiasmarcadas)
             else:
                 VisorView.limpiarTopografiasVisor()
-                
             prismasmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Prismas")
             if len(prismasmarcados) > 0:
-                VisorView.iniciar_hilo_final_visor(tree_actual)
+                VisorView.mostrarPrismasVisor(prismasmarcados)
             else:
-                #  LIMPIAR TODO: prismas Y vectores completamente
-                VisorView._ocultar_prismas_sin_destruir_cache()
-                VisorView._limpiar_vectores_completamente()
-                
+                VisorView.limpiarPrismasVisor()
             inclinometrosmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Inclinómetros")
             if len(inclinometrosmarcados) > 0:
                 VisorView.mostrarInclinometrosVisor(paginacion, VisorView.escalainclinometro, inclinometrosmarcados)
             else:
                 VisorView.limpiarInclinometrosVisor()
-                
             piezocuerdasmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Piezómetros Cuerda Vibrante")
             if len(piezocuerdasmarcados) > 0:
                 VisorView.mostrarPiezometrosCuerdaVisor(paginacion, piezocuerdasmarcados)
             else:
                 VisorView.limpiarPiezometrosCuerdaVisor()
-                
+            piezomanualesmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Piezómetros Casagrande")
+            if len(piezomanualesmarcados) > 0:
+                VisorView.mostrarPiezometrosManualVisor(paginacion, piezomanualesmarcados)
+            else:
+                VisorView.limpiarPiezometrosManualVisor()
+            pluviometrosmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Pluviómetros")
+            if len(pluviometrosmarcados) > 0:
+                VisorView.mostrarPluviometrosVisor(paginacion, pluviometrosmarcados)
+            else:
+                VisorView.limpiarPluviometrosVisor()
+            celdasmarcadas = VisorView.obtenerListaEquiposMarcados(lista, "Celdas de Asentamiento")
+            if len(celdasmarcadas) > 0:
+                VisorView.mostrarCeldasAsentamientoVisor(paginacion, celdasmarcadas)
+            else:
+                VisorView.limpiarCeldasAsentamientoVisor()
+            acelerografosmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Acelerógrafos")
+            if len(acelerografosmarcados) > 0:
+                VisorView.mostrarAcelerografosVisor(paginacion, acelerografosmarcados)
+            else:
+                VisorView.limpiarAcelerografosVisor()
+            sondajestdrmarcados = VisorView.obtenerListaEquiposMarcados(lista, "TDR")
+            if len(sondajestdrmarcados) > 0:
+                VisorView.mostrarSondajestdrVisor(paginacion, sondajestdrmarcados)
+            else:
+                VisorView.limpiarSondajestdrVisor()
+            adicionalesmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Equipos Adicionales")
+            if len(adicionalesmarcados) > 0:
+                VisorView.mostrarEquiposAdicionalesVisor(paginacion, adicionalesmarcados)
+            else:
+                VisorView.limpiarEquiposAdicionalesVisor()
+            prismasvirtuales = VisorView.obtenerListaEquiposMarcados(lista, "Prismas Virtuales")
+            if len(prismasvirtuales) > 0:
+                VisorView.mostrarPrismasVirtualesVisor(paginacion, prismasvirtuales)
+            else:
+                VisorView.limpiarPrismasVirtualesVisor()
         else:
             VisorView.limpiarTodosElementosVisor()
-                
+    
     def limpiarTodosElementosVisor():
         VisorView.limpiarTopografiasVisor()
         VisorView.limpiarPrismasVisor()
@@ -562,237 +496,6 @@ class VisorView:
                 if tipo[0] == tipolista:
                     equiposmarcados.append((region, lista_equipos))
         return equiposmarcados
-
-    def _actualizar_cache_prismas(datos):
-        VisorView.prismas_cache = datos
-
-    def _construir_vectores_vtk(prismasmarcados):
-        if not VisorView.estadovector:
-            VisorView._limpiar_vectores_completamente()
-            return
-        
-        if len(VisorView.vectoresDXF) > 0:
-            for vector in VisorView.vectoresDXF:
-                VisorView.rendererVisor.RemoveActor(vector[3])
-            VisorView.vectoresDXF.clear()
-
-        datos = VisorView.prismas_cache
-        if not datos or 'datos_maestros' not in datos:
-            return
-
-        datos_maestros = datos.get('datos_maestros', [])
-        if not datos_maestros:
-            VisorView.vtkWidgetVisor.GetRenderWindow().Render()
-            return
-
-        config = SoftwareConfiguracion.obtenerDataSoftware()
-        info = ConfiguracionVisor.obtenerDataConfiguracionVisor()
-        grosor = info[17]
-        radioprisma = info[3]
-        
-        idcomponente = prismasmarcados[0][0][1] if prismasmarcados else None
-        tipo_umbral = "3DA" if VisorView.tipovector == "D3D" else "VI3D"
-        umbrales = UmbralController.ctrObtenerUmbralPrismas(VisorView.idproyecto, idcomponente, tipo_umbral)
-        
-        umbrales_color = []
-        if umbrales:
-            for fila in umbrales:
-                umbrales_color.append((fila[3], fila[4], fila[6])) # nombre, color, valor
-                
-        if not umbrales_color:
-            mostrar_mensaje("Mostrar Vectores", "No hay umbrales configurados.", "advertencia")
-            VisorView.vtkWidgetVisor.GetRenderWindow().Render()
-            return
-            
-        umbrales_color.sort(key=lambda x: x[2])
-        VisorView.colorvectores.clear()
-        vectores = []
-        
-        # Iteramos directamente sobre la fila maestra unificada
-        for fila in datos_maestros:
-            id_inst, nombre_prisma, id_comp = fila[0], fila[1], fila[2]
-            este_ini, norte_ini, nivel_ini = fila[3], fila[4], fila[5]
-            este_fin, norte_fin, nivel_fin = fila[7], fila[8], fila[9]
-            
-            punto_inicio = (este_ini, norte_ini, nivel_ini)
-            punto_fin_real = (este_fin, norte_fin, nivel_fin)
-            
-            if punto_inicio == punto_fin_real:
-                continue
-                
-            direccion = [punto_fin_real[i] - punto_inicio[i] for i in range(3)]
-            longitud_real = vtk.vtkMath.Norm(direccion)
-            if longitud_real == 0:
-                continue
-                
-            direccion_normalizada = [direccion[i] / longitud_real for i in range(3)]
-            longitud_escalada = longitud_real * VisorView.escalavector
-            longitud_total_visual = longitud_escalada + radioprisma
-            
-            punto_fin_fijo = [punto_inicio[i] + direccion_normalizada[i] * longitud_total_visual for i in range(3)]
-            punto_punta_cono = [punto_inicio[i] + direccion_normalizada[i] * (longitud_total_visual + 5.0) for i in range(3)]
-            
-            # Obtenemos la magnitud directa de la SQL
-            magnitud = abs(float(fila[11])) if VisorView.tipovector == "D3D" else abs(float(fila[12]))
-            
-            colorcito = umbrales_color[-1][1]
-            for nombre, color, valor in umbrales_color:
-                if magnitud <= float(valor):
-                    colorcito = color
-                    break
-                    
-            color_rgb = MetodosGenerales.convertirHexadecimalRGB(colorcito)
-            VisorView.colorvectores.append((id_inst, id_comp, color_rgb))
-                
-            puntos = vtk.vtkPoints()
-            puntos.InsertNextPoint(punto_inicio)
-            puntos.InsertNextPoint(punto_fin_fijo)
-            
-            linea = vtk.vtkLine()
-            linea.GetPointIds().SetId(0, 0)
-            linea.GetPointIds().SetId(1, 1)
-            
-            lineas = vtk.vtkCellArray()
-            lineas.InsertNextCell(linea)
-            
-            polydata = vtk.vtkPolyData()
-            polydata.SetPoints(puntos)
-            polydata.SetLines(lineas)
-            
-            tubo = vtk.vtkTubeFilter()
-            tubo.SetInputData(polydata)
-            tubo.SetRadius(grosor)
-            tubo.SetNumberOfSides(12)
-            
-            punta_cono = vtk.vtkConeSource()
-            punta_cono.SetCenter(punto_punta_cono)
-            punta_cono.SetDirection(direccion_normalizada)
-            punta_cono.SetRadius(grosor * 2)
-            punta_cono.SetHeight(grosor * 3)
-            punta_cono.SetResolution(12)
-            
-            appendFilter = vtk.vtkAppendPolyData()
-            appendFilter.AddInputConnection(tubo.GetOutputPort())
-            appendFilter.AddInputConnection(punta_cono.GetOutputPort())
-            appendFilter.Update()
-            
-            mapper = vtk.vtkPolyDataMapper()
-            mapper.SetInputConnection(appendFilter.GetOutputPort())
-            
-            flecha = vtk.vtkActor()
-            flecha.SetMapper(mapper)
-            flecha.GetProperty().SetColor(color_rgb)
-            VisorView.rendererVisor.AddActor(flecha)
-            
-            is_visible = any(
-                str(id_inst) == str(prismarcado[1]) and str(id_comp) == str(componente[1])
-                for componente, listaprismas in prismasmarcados
-                for prismarcado in listaprismas
-            )
-            
-            flecha.SetVisibility(is_visible)
-            
-            vectores.append((id_inst, id_comp, punto_inicio, flecha))
-                
-        VisorView.vectoresDXF = vectores
-        VisorView.vtkWidgetVisor.GetRenderWindow().Render()
-        
-    def iniciar_hilo_final_visor(tree_actual):
-        lista = EquiposVisor.obtener_todos_elementos_marcados(tree_actual)
-        prismasmarcados = []
-        if lista:
-            prismasmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Prismas")
-            
-        VisorView._workers_anteriores_visor = [
-            w for w in VisorView._workers_anteriores_visor if w.isRunning()
-        ]
-
-        if VisorView.worker_visor and VisorView.worker_visor.isRunning():
-            visor_query_manager.cancel_previous()
-            worker_cancelado = VisorView.worker_visor
-            VisorView._workers_anteriores_visor.append(worker_cancelado)
-            worker_cancelado.finished.connect(
-                lambda w=worker_cancelado: VisorView._workers_anteriores_visor.remove(w)
-                if w in VisorView._workers_anteriores_visor else None
-            )
-
-        if not prismasmarcados:
-            VisorView._ocultar_prismas_sin_destruir_cache()
-            VisorView._limpiar_vectores_completamente()
-            if VisorView.label_carga_visor:
-                VisorView.label_carga_visor.hide()
-            return
-        
-        request_id = visor_query_manager.start_request()
-        VisorView._request_proyecto_map[request_id] = VisorView.idproyecto
-        
-        worker = VisorDataWorker(
-            request_id=request_id,
-            idproyecto=VisorView.idproyecto,
-            fechainicial=VisorView.fechainicial,
-            fechafinal=VisorView.fechafinal,
-            prismasmarcados=prismasmarcados,
-            tipovector=VisorView.tipovector
-        )
-        worker.data_ready.connect(VisorView._on_data_ready_visor)
-        worker.worker_done.connect(VisorView._on_worker_done_visor)
-        VisorView.worker_visor = worker
-        if VisorView.label_carga_visor:
-            VisorView.label_carga_visor.show()
-            QApplication.processEvents()
-        worker.start()
-
-    def _on_data_ready_visor(request_id, datos):
-        if not visor_query_manager.is_current(request_id):
-            return
-        # verificamos que siga siendo del proyecto que está activo AHORA en pantalla.
-        proyecto_solicitud = VisorView._request_proyecto_map.get(request_id)
-        if proyecto_solicitud is not None and proyecto_solicitud != VisorView.idproyecto:
-            return
-        VisorView._actualizar_cache_prismas(datos)
-
-    def _on_worker_done_visor(request_id, estado):
-        proyecto_solicitud = VisorView._request_proyecto_map.pop(request_id, None)
-
-        if not visor_query_manager.is_current(request_id):
-            return
-        visor_query_manager.finish_request(request_id, estado)
-        
-        if VisorView.label_carga_visor:
-            VisorView.label_carga_visor.hide()
-        # esos datos ya no le pertenecen al proyecto que el usuario está viendo.
-        if proyecto_solicitud is not None and proyecto_solicitud != VisorView.idproyecto:
-            return
-
-        if estado == 'FINISHED':
-            tree_actual = VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
-            lista = EquiposVisor.obtener_todos_elementos_marcados(tree_actual)
-            prismasmarcados = []
-            if lista:
-                prismasmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Prismas")
-            VisorView.mostrarPrismasVisor(prismasmarcados)
-            
-            if VisorView.estadovector:
-                if len(prismasmarcados) > 0:
-                    VisorView._construir_vectores_vtk(prismasmarcados)
-                else:
-                    VisorView._limpiar_vectores_completamente()
-        elif estado == 'ERROR':
-            mostrar_mensaje("Error Visor", "Ocurrió un error al cargar los datos del visor.", "error")
-
-    def _ocultar_prismas_sin_destruir_cache():
-        if len(VisorView.prismasGrafico) > 0:
-            for prisma in VisorView.prismasGrafico:
-                prisma[0].SetVisibility(False)
-                prisma[1].SetVisibility(False)
-            VisorView.vtkWidgetVisor.GetRenderWindow().Render()
-            
-    def _limpiar_vectores_completamente():
-        if len(VisorView.vectoresDXF) > 0:
-            for vector in VisorView.vectoresDXF:
-                VisorView.rendererVisor.RemoveActor(vector[3])
-            VisorView.vectoresDXF.clear()
-            VisorView.vtkWidgetVisor.GetRenderWindow().Render()
     
     def cambiarVistaVisor(tipo, lbltipovisor, paginacionvisor):
         if tipo == "3D":
@@ -1209,32 +912,30 @@ class VisorView:
             VisorView.vtkWidgetVisor.GetRenderWindow().Render()
     
     def mostrarPrismasVisor(prismasmarcados):
+        VisorView.limpiarPrismasVisor()
+
+        # Precalcular claves válidas una sola vez: O(N*M) pero UNA vez, no por cada actor
         claves_visibles = {
             (str(componente[1]), str(prismarcado[0]), str(prismarcado[1]))
             for componente, listaprismas in prismasmarcados
             for prismarcado in listaprismas
         }
-        
-        if len(VisorView.prismasGrafico) > 0 and not VisorView._forzar_reconstruccion_prismas:
-            for prisma in VisorView.prismasGrafico:
+
+        listaPrismas = PrismaController.ctrlObtenerPrismasFechaUnicos(VisorView.idproyecto, VisorView.fechainicial, VisorView.fechafinal)
+
+        if len(listaPrismas) > 0:
+            prismasactor = VisorView.createPointsActorPrismas(listaPrismas)
+
+            for prisma in prismasactor:
+                VisorView.rendererVisor.AddActor(prisma[0])
+                VisorView.rendererVisor.AddActor(prisma[1])
                 visible = (str(prisma[4]), str(prisma[2]), str(prisma[3])) in claves_visibles
                 prisma[0].SetVisibility(visible)
                 prisma[1].SetVisibility(visible)
-        else:
-            # Limpiar TODO: esferas y vectores
-            VisorView.limpiarPrismasVisor()
-            VisorView._limpiar_vectores_completamente()
-            listaPrismas = VisorView.prismas_cache.get('listaPrismas', [])
-            if len(listaPrismas) > 0:
-                prismasactor = VisorView.createPointsActorPrismas(listaPrismas)
-                for prisma in prismasactor:
-                    VisorView.rendererVisor.AddActor(prisma[0])
-                    VisorView.rendererVisor.AddActor(prisma[1])
-                    visible = (str(prisma[4]), str(prisma[2]), str(prisma[3])) in claves_visibles
-                    prisma[0].SetVisibility(visible)
-                    prisma[1].SetVisibility(visible)
-            VisorView._forzar_reconstruccion_prismas = False
-        
+
+            if VisorView.estadovector:
+                VisorView.escalarVectores(prismasmarcados)
+
         if VisorView.resetvisor is False:
             camera = VisorView.rendererVisor.GetActiveCamera()
             VisorView.rendererVisor.ResetCamera()
@@ -1532,11 +1233,7 @@ class VisorView:
                 respuesta, estadvect, tipvect, escavect = UmbralView.dialogoConfiguracionVectores(VisorView.estadovector, VisorView.tipovector, VisorView.escalavector)
                 if respuesta:
                     VisorView.estadovector, VisorView.tipovector, VisorView.escalavector = estadvect, tipvect, escavect
-                    datos_cache = VisorView.prismas_cache.get('datos_maestros') if VisorView.prismas_cache else None
-                    if datos_cache:
-                        VisorView._construir_vectores_vtk(prismasmarcados)
-                    else:
-                        VisorView.iniciar_hilo_final_visor(tree_actual)
+                    VisorView.escalarVectores(prismasmarcados)
     
     def escalarVectores(prismasmarcados):
         if len(VisorView.vectoresDXF) > 0:
@@ -1596,6 +1293,7 @@ class VisorView:
                 if puntos_iniciales and puntos_finales:
                     umbrales_color.sort(key=lambda x: x[2]) # ordenar por valor
                     
+                    # 🚀 OPTIMIZACIÓN 1: Diccionario para búsqueda instantánea
                     distancias_dict = {}
                     for dato in distancias:
                         key = (dato[0], dato[1])
@@ -1608,6 +1306,7 @@ class VisorView:
                             continue
                         direccion = [punto_fin[i] - punto_inicio[i] for i in range(3)]
                         
+                        # 🚀 OPTIMIZACIÓN 2: Escalado proporcional a la magnitud real
                         longitud_real = vtk.vtkMath.Norm(direccion)
                         if longitud_real == 0:
                             continue
@@ -1615,10 +1314,15 @@ class VisorView:
                         direccion_normalizada = [direccion[i] / longitud_real for i in range(3)]
                         longitud_escalada = longitud_real * VisorView.escalavector
                         
+                        # 🚀 2. SUMAMOS EL RADIO A LA MAGNITUD TOTAL VISUAL
+                        # La flecha nace en el centro, pero su largo total es el desplazamiento + el radio
                         longitud_total_visual = longitud_escalada + radioprisma 
+                        
+                        # 🚀 3. CALCULAMOS LOS PUNTOS FINALES CON ESA NUEVA LONGITUD
                         punto_fin_fijo = [punto_inicio[i] + direccion_normalizada[i] * longitud_total_visual for i in range(3)]
                         punto_punta_cono = [punto_inicio[i] + direccion_normalizada[i] * (longitud_total_visual + 5.0) for i in range(3)]
-
+                        
+                        # 🚀 OPTIMIZACIÓN 3: Búsqueda O(1) en lugar de bucle lento
                         key = (prisma[0], prisma[1])
                         if key in distancias_dict:
                             dato = distancias_dict[key]
@@ -1634,8 +1338,8 @@ class VisorView:
                             
                             # Crear un objeto vtkPoints para almacenar los puntos de inicio y fin
                             puntos = vtk.vtkPoints()
-                            puntos.InsertNextPoint(punto_inicio)
-                            puntos.InsertNextPoint(punto_fin_fijo)
+                            puntos.InsertNextPoint(punto_inicio) # 🚀 SE MANTIENE EN EL CENTRO DE LA ESFERA
+                            puntos.InsertNextPoint(punto_fin_fijo) # 🚀 LLEGA HASTA EL BORDE + EL DESPLAZAMIENTO
                             
                             # Crear una línea conectando los puntos de inicio y fin
                             linea = vtk.vtkLine()
@@ -1655,7 +1359,7 @@ class VisorView:
                             tubo = vtk.vtkTubeFilter()
                             tubo.SetInputData(polydata)
                             tubo.SetRadius(grosor)
-                            tubo.SetNumberOfSides(12)
+                            tubo.SetNumberOfSides(12) # 🚀 Menos lados = 40% más rápido
                             
                             # Crear un objeto vtkConeSource para la punta de la flecha
                             punta_cono = vtk.vtkConeSource()
@@ -1666,7 +1370,7 @@ class VisorView:
                             largocono = grosor * 3
                             punta_cono.SetRadius(anchocono)
                             punta_cono.SetHeight(largocono)
-                            punta_cono.SetResolution(12)
+                            punta_cono.SetResolution(12) # 🚀 Cono más ligero
                             
                             # Combinar el cuerpo del cilindro y la punta del cono
                             appendFilter = vtk.vtkAppendPolyData()
@@ -3210,12 +2914,13 @@ class VisorView:
                             sphereSource.SetRadius(radioPrisma)                        
                             prisma[0].GetProperty().SetColor(colorprisma)
                         # validar los vectores
-                        tree_actual = VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
-                        lista = EquiposVisor.obtener_todos_elementos_marcados(tree_actual)
-                        if lista:
-                            prismasmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Prismas")
-                            if len(prismasmarcados) > 0:
-                                VisorView.iniciar_hilo_final_visor(tree_actual)
+                        if len(VisorView.vectoresDXF) > 0:
+                            tree_actual = VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
+                            lista = EquiposVisor.obtener_todos_elementos_marcados(tree_actual)
+                            if lista:
+                                prismasmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Prismas")
+                                if len(prismasmarcados) > 0:
+                                    VisorView.escalarVectores(prismasmarcados)
                     if len(VisorView.inclinometroPuntos) > 0:
                         colorincli = MetodosGenerales.convertirHexadecimalRGB(info[6])
                         radioIncli = info[5]
@@ -3365,32 +3070,12 @@ class VisorView:
     def reiniciarVistaVisor(main, proyecto_id, proyecto_name):
         paginavisor = main.findChild(QStackedWidget, "stacked_visor")
         paginavisor.setCurrentIndex(0)
-
-        if VisorView.worker_visor and VisorView.worker_visor.isRunning():
-            visor_query_manager.cancel_previous()
-            worker_cancelado = VisorView.worker_visor
-            VisorView._workers_anteriores_visor.append(worker_cancelado)
-            worker_cancelado.finished.connect(
-                lambda w=worker_cancelado: VisorView._workers_anteriores_visor.remove(w)
-                if w in VisorView._workers_anteriores_visor else None
-            )
-            VisorView.worker_visor = None
-
-        if VisorView.timer_consulta_visor is not None:
-            VisorView.timer_consulta_visor.stop()
-            if VisorView._timer_visor_conectado:
-                VisorView.timer_consulta_visor.timeout.disconnect()
-                VisorView._timer_visor_conectado = False
-
-        VisorView._request_proyecto_map.clear()
-
         # reiniciar variables
         VisorView.idproyecto = proyecto_id
         VisorView.nameproyecto = proyecto_name
         VisorView.estadochecklist = True
         VisorView.inclinometrolineas = []
         VisorView.prismasGrafico = []
-        VisorView._forzar_reconstruccion_prismas = True
         VisorView.inclinometroPuntos = []
         VisorView.dibujarLineaIncli = 0
         VisorView.dibujarPuntoIncli = 0
@@ -3398,45 +3083,11 @@ class VisorView:
         VisorView.vectoresDXF = []
         VisorView.listatopograficados = []
         VisorView.piezometrostuboscuerda = []
-        VisorView.piezometrostubosmanual = []
         VisorView.dibujarTuboPiezo = 0   
         VisorView.cablescoaxiales = []
         VisorView.equiposgenerales = []
-        VisorView.colorvectores = []
-        VisorView.limites_corte = []
         VisorView.estadovector, VisorView.tipovector, VisorView.escalavector = False, 'D3D', 0
         VisorView.toposDTM = []
-        # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
-        buscador_arbol = main.findChild(QLineEdit, "input_buscar_visor")
-        if buscador_arbol is not None:
-            buscador_arbol.blockSignals(True)
-            buscador_arbol.clear()
-            buscador_arbol.blockSignals(False)
-        VisorView.listaDTMactivos = []
-        VisorView.prismas_cache.clear()
-        # estar terminando de escribirla justo ahora)
-        VisorView._cache_listaPrismas_lock.lock()
-        try:
-            VisorView._cache_listaPrismas.clear()
-        finally:
-            VisorView._cache_listaPrismas_lock.unlock()
-
-        VisorView._cache_datos_maestros_lock.lock()
-        try:
-            VisorView._cache_datos_maestros.clear()
-        finally:
-            VisorView._cache_datos_maestros_lock.unlock()
-        VisorView.polydatos_LAS = []
-        VisorView.prismasvirtualesgraficados = []
-        VisorView.listaactorespluvio = []
-        VisorView.listaactoresceldas = []
-        VisorView.listaactoresacelero = []
-        VisorView.clipFunction, VisorView.planes = None, None
-        VisorView.escalainclinometro = 0
-        VisorView.boxVisible = False
-        VisorView.estadoInicialCubo = None
-        VisorView.cambioproyecto = False
-
         ConfigurarDTM.limpiarElementosDTM()
         if VisorView.boxWidget is not None:
             if VisorView.boxWidget.GetEnabled():
@@ -3479,15 +3130,12 @@ class VisorView:
         
     def actualizarVistaVisor(fechaini, fechafin, filtro=False):
         VisorView.fechainicial = fechaini
-        VisorView.fechafinal = fechafin
-        if hasattr(VisorView, '_cache_listaPrismas'):
-            VisorView._cache_listaPrismas.clear()
-        if hasattr(VisorView, '_cache_datos_maestros'):
-            VisorView._cache_datos_maestros.clear()
-        VisorView._forzar_reconstruccion_prismas = True
+        VisorView.fechafinal = fechafin       
         if VisorView.idproyecto:
             tree_actual_visor =  VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
-            VisorView.iniciar_hilo_final_visor(tree_actual_visor)
+            paginacionvisor = VisorView.main.findChild(QStackedWidget, "stacked_visor")
+            VisorView.obtenerMostrarEquiposMarcados(tree_actual_visor, paginacionvisor)
+            VisorView.validarVectores(tree_actual_visor)
     
     def validarVectores(tree_actual):
         if VisorView.estadovector:
@@ -3520,116 +3168,6 @@ class VisorView:
                 piezomanualmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Piezómetros Casagrande")
                 if len(piezomanualmarcados) > 0:
                     VisorView.mostrarPiezometrosManualVisor(paginacion, piezomanualmarcados)
-
-class VisorDataWorker(QThread):
-    data_ready = Signal(str, dict)
-    worker_done = Signal(str, str)
-
-    def __init__(self, request_id, idproyecto, fechainicial, fechafinal, prismasmarcados, tipovector):
-        super().__init__()
-        self.request_id = request_id
-        self.idproyecto = idproyecto
-        self.fechainicial = fechainicial
-        self.fechafinal = fechafinal
-        self.prismasmarcados = prismasmarcados
-        self.tipovector = tipovector
-
-    def run(self):
-        set_active_request(self.request_id)
-        try:
-            if visor_query_manager.is_cancelled(self.request_id):
-                self.worker_done.emit(self.request_id, 'CANCELLED')
-                return
-
-            from controllers.PrismaController import PrismaController
-            from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
-            
-            cache_key = f"{self.idproyecto}_{self.fechainicial}_{self.fechafinal}"
-
-            VisorView._cache_listaPrismas_lock.lock()
-            try:
-                cache_valida = VisorView._cache_listaPrismas.get('key') == cache_key
-                listaPrismas = VisorView._cache_listaPrismas.get('data') if cache_valida else None
-            finally:
-                VisorView._cache_listaPrismas_lock.unlock()
-
-            if listaPrismas is None:
-                listaPrismas = PrismaController.ctrlObtenerPrismasFechaUnicos(
-                    self.idproyecto, self.fechainicial, self.fechafinal
-                )
-                if visor_query_manager.is_cancelled(self.request_id):
-                    self.worker_done.emit(self.request_id, 'CANCELLED')
-                    return
-                VisorView._cache_listaPrismas_lock.lock()
-                try:
-                    VisorView._cache_listaPrismas = {'key': cache_key, 'data': listaPrismas}
-                finally:
-                    VisorView._cache_listaPrismas_lock.unlock()
-            
-            if visor_query_manager.is_cancelled(self.request_id):
-                self.worker_done.emit(self.request_id, 'CANCELLED')
-                return
-            
-            config = SoftwareConfiguracion.obtenerDataSoftware()
-            filtrado = config[16]
-            
-            datos_maestros = []
-            pendientes = []  # (componente, listaprismas) que sí hay que consultar
-            
-            for componente, listaprismas in self.prismasmarcados:
-                idcomponente = componente[1]
-                # firma única del set de prismas marcados dentro de este componente
-                firma_prismas = tuple(sorted((str(p[0]), str(p[1])) for p in listaprismas))
-                key = f"{self.idproyecto}_{idcomponente}_{hash(firma_prismas)}_{self.fechainicial}_{self.fechafinal}_{filtrado}"
-                
-                VisorView._cache_datos_maestros_lock.lock()
-                try:
-                    filas_cache = VisorView._cache_datos_maestros.get(key)
-                finally:
-                    VisorView._cache_datos_maestros_lock.unlock()
-                
-                if filas_cache is not None:
-                    datos_maestros.extend(filas_cache)
-                else:
-                    pendientes.append((key, componente, listaprismas))
-            
-            if visor_query_manager.is_cancelled(self.request_id):
-                self.worker_done.emit(self.request_id, 'CANCELLED')
-                return
-            
-            # Solo consultamos los componentes pendientes, uno por uno, para poder
-            # cachear cada uno de forma independiente
-            for key, componente, listaprismas in pendientes:
-                filas = PrismaController.ctrlObtenerDatosCompletosPrismasVisor(
-                    self.idproyecto, [(componente, listaprismas)], self.fechainicial, self.fechafinal, filtrado
-                )
-                filas = filas or []
-                VisorView._cache_datos_maestros_lock.lock()
-                try:
-                    VisorView._cache_datos_maestros[key] = filas
-                finally:
-                    VisorView._cache_datos_maestros_lock.unlock()
-                datos_maestros.extend(filas)
-                
-                if visor_query_manager.is_cancelled(self.request_id):
-                    self.worker_done.emit(self.request_id, 'CANCELLED')
-                    return
-                
-            datos = {
-                'listaPrismas': listaPrismas,
-                'datos_maestros': datos_maestros
-            }
-            self.data_ready.emit(self.request_id, datos)
-            self.worker_done.emit(self.request_id, 'FINISHED')
-        except Exception as e:
-            # Si ocurre un error de BD (como HY008), verificamos si fue por cancelación
-            if visor_query_manager.is_cancelled(self.request_id):
-                self.worker_done.emit(self.request_id, 'CANCELLED')
-            else:
-                print(f"Error real en VisorDataWorker: {e}")
-                self.worker_done.emit(self.request_id, 'ERROR')
-        finally:
-            clear_active_request()
 
 class EstiloInteraccionPersonalizado(vtk.vtkInteractorStyleTrackballCamera):
     def __init__(self, picker=None):
