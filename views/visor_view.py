@@ -68,6 +68,7 @@ class VisorView:
     listatopograficados, vectoresDXF, piezometrostuboscuerda, piezometrostubosmanual, cablescoaxiales = [], [], [], [], []
     vtkWidgetCorte, rendererCorte, lista_actoresDXF_corte, solidoDXF_corte = None, None, [], None
     prismasGrafico, inclinometrolineas, inclinometroPuntos, toposDTM, listaDTMactivos = [], [], [], [], []
+    _forzar_reconstruccion_prismas = True
     dibujarLineaIncli, dibujarPuntoIncli, estadorenderizado, estadorenderizado_corte = 0, 0, 0, 0
     estadovector, tipovector, escalavector = False, 'D3D', 0
     polyDataCorte, boxWidget, estado_box, boxVisible = None, None, True, False
@@ -87,6 +88,8 @@ class VisorView:
     _workers_anteriores_visor = []
     _cache_listaPrismas = {}
     _cache_listaPrismas_lock = QMutex()
+    _cache_datos_maestros = {}
+    _cache_datos_maestros_lock = QMutex()
     _request_proyecto_map = {}
     label_carga_visor = None
     respuesta = ConfiguracionVisor.obtenerDataConfiguracionVisor()
@@ -1232,15 +1235,19 @@ class VisorView:
             for prismarcado in listaprismas
         }
         
-        # 🚀 OPTIMIZACIÓN: Si ya existen actores, solo actualizar visibilidad
-        if len(VisorView.prismasGrafico) > 0:
+        # 🚀 Solo reutilizamos los actores existentes (y solo tocamos visibilidad)
+        # si NO hubo un cambio de fechas/proyecto. Si _forzar_reconstruccion_prismas
+        # está en True, SIEMPRE destruimos y recreamos las esferas Y los vectores
+        # desde cero, así nunca queda un prisma "fantasma" ni un vector huérfano.
+        if len(VisorView.prismasGrafico) > 0 and not VisorView._forzar_reconstruccion_prismas:
             for prisma in VisorView.prismasGrafico:
                 visible = (str(prisma[4]), str(prisma[2]), str(prisma[3])) in claves_visibles
                 prisma[0].SetVisibility(visible)
                 prisma[1].SetVisibility(visible)
         else:
-            # Primera vez: crear actores
+            # Limpiar TODO: esferas y vectores
             VisorView.limpiarPrismasVisor()
+            VisorView._limpiar_vectores_completamente()
             listaPrismas = VisorView.prismas_cache.get('listaPrismas', [])
             if len(listaPrismas) > 0:
                 prismasactor = VisorView.createPointsActorPrismas(listaPrismas)
@@ -1250,6 +1257,7 @@ class VisorView:
                     visible = (str(prisma[4]), str(prisma[2]), str(prisma[3])) in claves_visibles
                     prisma[0].SetVisibility(visible)
                     prisma[1].SetVisibility(visible)
+            VisorView._forzar_reconstruccion_prismas = False
         
         if VisorView.resetvisor is False:
             camera = VisorView.rendererVisor.GetActiveCamera()
@@ -1548,7 +1556,17 @@ class VisorView:
                 respuesta, estadvect, tipvect, escavect = UmbralView.dialogoConfiguracionVectores(VisorView.estadovector, VisorView.tipovector, VisorView.escalavector)
                 if respuesta:
                     VisorView.estadovector, VisorView.tipovector, VisorView.escalavector = estadvect, tipvect, escavect
-                    VisorView.iniciar_hilo_final_visor(tree_actual)
+                    # 🚀 Solo cambiamos escala/tipo/on-off de los vectores: es pura
+                    # geometría VTK, los datos (datos_maestros) ya están en cache
+                    # desde el último render. Si vamos a BD de nuevo, no hace falta.
+                    datos_cache = VisorView.prismas_cache.get('datos_maestros') if VisorView.prismas_cache else None
+                    if datos_cache:
+                        VisorView._construir_vectores_vtk(prismasmarcados)
+                    else:
+                        # Defensa: si el usuario alcanzó a abrir el diálogo antes de
+                        # que terminara la primera carga y la cache está vacía,
+                        # ahí sí vamos a buscar los datos.
+                        VisorView.iniciar_hilo_final_visor(tree_actual)
     
     def escalarVectores(prismasmarcados):
         if len(VisorView.vectoresDXF) > 0:
@@ -3412,6 +3430,7 @@ class VisorView:
         VisorView.estadochecklist = True
         VisorView.inclinometrolineas = []
         VisorView.prismasGrafico = []
+        VisorView._forzar_reconstruccion_prismas = True
         VisorView.inclinometroPuntos = []
         VisorView.dibujarLineaIncli = 0
         VisorView.dibujarPuntoIncli = 0
@@ -3442,6 +3461,12 @@ class VisorView:
             VisorView._cache_listaPrismas.clear()
         finally:
             VisorView._cache_listaPrismas_lock.unlock()
+
+        VisorView._cache_datos_maestros_lock.lock()
+        try:
+            VisorView._cache_datos_maestros.clear()
+        finally:
+            VisorView._cache_datos_maestros_lock.unlock()
 
         # 🚀 Datos "pesados" del proyecto anterior que antes quedaban huérfanos en memoria
         VisorView.polydatos_LAS = []
@@ -3498,9 +3523,15 @@ class VisorView:
     def actualizarVistaVisor(fechaini, fechafin, filtro=False):
         VisorView.fechainicial = fechaini
         VisorView.fechafinal = fechafin
-        # 🚀 Limpiar caché de listaPrismas cuando cambien las fechas
+        # 🚀 Limpiar caché de listaPrismas y de datos_maestros cuando cambien las fechas
         if hasattr(VisorView, '_cache_listaPrismas'):
             VisorView._cache_listaPrismas.clear()
+        if hasattr(VisorView, '_cache_datos_maestros'):
+            VisorView._cache_datos_maestros.clear()
+        # 🚀 Forzar que mostrarPrismasVisor destruya y reconstruya TODAS las
+        # esferas (no solo actualice visibilidad). El set de prismas con datos
+        # válidos puede cambiar con el nuevo rango de fechas.
+        VisorView._forzar_reconstruccion_prismas = True
         if VisorView.idproyecto:
             tree_actual_visor =  VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
             VisorView.iniciar_hilo_final_visor(tree_actual_visor)
@@ -3592,13 +3623,51 @@ class VisorDataWorker(QThread):
             config = SoftwareConfiguracion.obtenerDataSoftware()
             filtrado = config[16]
             
-            datos_maestros = PrismaController.ctrlObtenerDatosCompletosPrismasVisor(
-                self.idproyecto, self.prismasmarcados, self.fechainicial, self.fechafinal, filtrado
-            )
+            # 🚀 CACHÉ POR COMPONENTE: en vez de re-consultar TODOS los componentes
+            # marcados cada vez, solo consultamos los que cambiaron (nuevo componente
+            # marcado, o cambió el set de prismas marcados dentro de él). Los que ya
+            # se consultaron antes con la misma fecha/filtrado se reutilizan de cache.
+            datos_maestros = []
+            pendientes = []  # (componente, listaprismas) que sí hay que consultar
+            
+            for componente, listaprismas in self.prismasmarcados:
+                idcomponente = componente[1]
+                # firma única del set de prismas marcados dentro de este componente
+                firma_prismas = tuple(sorted((str(p[0]), str(p[1])) for p in listaprismas))
+                key = f"{self.idproyecto}_{idcomponente}_{hash(firma_prismas)}_{self.fechainicial}_{self.fechafinal}_{filtrado}"
+                
+                VisorView._cache_datos_maestros_lock.lock()
+                try:
+                    filas_cache = VisorView._cache_datos_maestros.get(key)
+                finally:
+                    VisorView._cache_datos_maestros_lock.unlock()
+                
+                if filas_cache is not None:
+                    datos_maestros.extend(filas_cache)
+                else:
+                    pendientes.append((key, componente, listaprismas))
             
             if visor_query_manager.is_cancelled(self.request_id):
                 self.worker_done.emit(self.request_id, 'CANCELLED')
                 return
+            
+            # Solo consultamos los componentes pendientes, uno por uno, para poder
+            # cachear cada uno de forma independiente
+            for key, componente, listaprismas in pendientes:
+                filas = PrismaController.ctrlObtenerDatosCompletosPrismasVisor(
+                    self.idproyecto, [(componente, listaprismas)], self.fechainicial, self.fechafinal, filtrado
+                )
+                filas = filas or []
+                VisorView._cache_datos_maestros_lock.lock()
+                try:
+                    VisorView._cache_datos_maestros[key] = filas
+                finally:
+                    VisorView._cache_datos_maestros_lock.unlock()
+                datos_maestros.extend(filas)
+                
+                if visor_query_manager.is_cancelled(self.request_id):
+                    self.worker_done.emit(self.request_id, 'CANCELLED')
+                    return
                 
             datos = {
                 'listaPrismas': listaPrismas,
