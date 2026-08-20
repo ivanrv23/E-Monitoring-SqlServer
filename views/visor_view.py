@@ -403,12 +403,10 @@ class VisorView:
                 VisorView.timer_consulta_visor.setSingleShot(True)
             else:
                 VisorView.timer_consulta_visor.stop()
-                # 🚀 Sólo desconectamos si sabemos que hay algo conectado (evita el RuntimeWarning)
                 if VisorView._timer_visor_conectado:
                     VisorView.timer_consulta_visor.timeout.disconnect()
                     VisorView._timer_visor_conectado = False
                 
-            # 🚀 Congelamos el proyecto activo AL MOMENTO DEL CLIC. Si el usuario
             # cambia de proyecto antes de que pasen los 300ms, el refresco se descarta.
             proyecto_en_click = VisorView.idproyecto
 
@@ -570,20 +568,15 @@ class VisorView:
 
     def _construir_vectores_vtk(prismasmarcados):
         if not VisorView.estadovector:
-            # 🚀 LIMPIAR COMPLETAMENTE en lugar de solo ocultar
             VisorView._limpiar_vectores_completamente()
             return
         
-        # 🚀 CORRECCIÓN 1: Eliminamos el bloque que hacía `return` si ya existían vectores.
-        # Ahora siempre los destruimos y recreamos para que la ESCALA y el TIPO se actualicen.
         if len(VisorView.vectoresDXF) > 0:
             for vector in VisorView.vectoresDXF:
                 VisorView.rendererVisor.RemoveActor(vector[3])
             VisorView.vectoresDXF.clear()
 
         datos = VisorView.prismas_cache
-        
-        # 🚀 CORRECCIÓN 2: Cambiamos 'piniciales' por 'datos_maestros'
         if not datos or 'datos_maestros' not in datos:
             return
 
@@ -619,7 +612,6 @@ class VisorView:
         for fila in datos_maestros:
             id_inst, nombre_prisma, id_comp = fila[0], fila[1], fila[2]
             este_ini, norte_ini, nivel_ini = fila[3], fila[4], fila[5]
-            # 🚀 CORRECCIÓN: fila[7], fila[8], fila[9] son este_final, norte_final, nivel_final
             este_fin, norte_fin, nivel_fin = fila[7], fila[8], fila[9]
             
             punto_inicio = (este_ini, norte_ini, nivel_ini)
@@ -652,7 +644,6 @@ class VisorView:
             color_rgb = MetodosGenerales.convertirHexadecimalRGB(colorcito)
             VisorView.colorvectores.append((id_inst, id_comp, color_rgb))
                 
-            # 🚀 CORRECCIÓN 3: Indentación corregida (este bloque estaba metido de más)
             puntos = vtk.vtkPoints()
             puntos.InsertNextPoint(punto_inicio)
             puntos.InsertNextPoint(punto_fin_fijo)
@@ -693,7 +684,6 @@ class VisorView:
             flecha.GetProperty().SetColor(color_rgb)
             VisorView.rendererVisor.AddActor(flecha)
             
-            # 🚀 CORRECCIÓN 4: Usamos id_inst e id_comp en lugar de prisma[0]
             is_visible = any(
                 str(id_inst) == str(prismarcado[1]) and str(id_comp) == str(componente[1])
                 for componente, listaprismas in prismasmarcados
@@ -702,7 +692,6 @@ class VisorView:
             
             flecha.SetVisibility(is_visible)
             
-            # 🚀 CORRECCIÓN 5: Guardamos id_inst e id_comp en la tupla
             vectores.append((id_inst, id_comp, punto_inicio, flecha))
                 
         VisorView.vectoresDXF = vectores
@@ -714,7 +703,6 @@ class VisorView:
         if lista:
             prismasmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Prismas")
             
-        # 🚀 Purgar de la lista los workers viejos que ya terminaron (evita fuga de memoria)
         VisorView._workers_anteriores_visor = [
             w for w in VisorView._workers_anteriores_visor if w.isRunning()
         ]
@@ -723,7 +711,6 @@ class VisorView:
             visor_query_manager.cancel_previous()
             worker_cancelado = VisorView.worker_visor
             VisorView._workers_anteriores_visor.append(worker_cancelado)
-            # 🚀 Cuando el worker cancelado termine de verdad, se auto-elimina de la lista
             worker_cancelado.finished.connect(
                 lambda w=worker_cancelado: VisorView._workers_anteriores_visor.remove(w)
                 if w in VisorView._workers_anteriores_visor else None
@@ -737,8 +724,6 @@ class VisorView:
             return
         
         request_id = visor_query_manager.start_request()
-        # 🚀 Guardamos para qué proyecto se lanzó este request, para poder descartar
-        # respuestas tardías si el usuario ya cambió de proyecto cuando lleguen.
         VisorView._request_proyecto_map[request_id] = VisorView.idproyecto
         
         worker = VisorDataWorker(
@@ -760,7 +745,6 @@ class VisorView:
     def _on_data_ready_visor(request_id, datos):
         if not visor_query_manager.is_current(request_id):
             return
-        # 🚀 Defensa extra: aunque el request_id sea "current" para el query manager,
         # verificamos que siga siendo del proyecto que está activo AHORA en pantalla.
         proyecto_solicitud = VisorView._request_proyecto_map.get(request_id)
         if proyecto_solicitud is not None and proyecto_solicitud != VisorView.idproyecto:
@@ -768,7 +752,6 @@ class VisorView:
         VisorView._actualizar_cache_prismas(datos)
 
     def _on_worker_done_visor(request_id, estado):
-        # 🚀 Limpiamos el mapeo siempre, incluso si el request ya no es "current"
         proyecto_solicitud = VisorView._request_proyecto_map.pop(request_id, None)
 
         if not visor_query_manager.is_current(request_id):
@@ -777,8 +760,6 @@ class VisorView:
         
         if VisorView.label_carga_visor:
             VisorView.label_carga_visor.hide()
-
-        # 🚀 Si el proyecto activo cambió mientras el worker corría, no dibujamos nada:
         # esos datos ya no le pertenecen al proyecto que el usuario está viendo.
         if proyecto_solicitud is not None and proyecto_solicitud != VisorView.idproyecto:
             return
@@ -795,7 +776,6 @@ class VisorView:
                 if len(prismasmarcados) > 0:
                     VisorView._construir_vectores_vtk(prismasmarcados)
                 else:
-                    # 🚀 LIMPIAR COMPLETAMENTE en lugar de solo ocultar
                     VisorView._limpiar_vectores_completamente()
         elif estado == 'ERROR':
             mostrar_mensaje("Error Visor", "Ocurrió un error al cargar los datos del visor.", "error")
@@ -1235,10 +1215,6 @@ class VisorView:
             for prismarcado in listaprismas
         }
         
-        # 🚀 Solo reutilizamos los actores existentes (y solo tocamos visibilidad)
-        # si NO hubo un cambio de fechas/proyecto. Si _forzar_reconstruccion_prismas
-        # está en True, SIEMPRE destruimos y recreamos las esferas Y los vectores
-        # desde cero, así nunca queda un prisma "fantasma" ni un vector huérfano.
         if len(VisorView.prismasGrafico) > 0 and not VisorView._forzar_reconstruccion_prismas:
             for prisma in VisorView.prismasGrafico:
                 visible = (str(prisma[4]), str(prisma[2]), str(prisma[3])) in claves_visibles
@@ -1556,16 +1532,10 @@ class VisorView:
                 respuesta, estadvect, tipvect, escavect = UmbralView.dialogoConfiguracionVectores(VisorView.estadovector, VisorView.tipovector, VisorView.escalavector)
                 if respuesta:
                     VisorView.estadovector, VisorView.tipovector, VisorView.escalavector = estadvect, tipvect, escavect
-                    # 🚀 Solo cambiamos escala/tipo/on-off de los vectores: es pura
-                    # geometría VTK, los datos (datos_maestros) ya están en cache
-                    # desde el último render. Si vamos a BD de nuevo, no hace falta.
                     datos_cache = VisorView.prismas_cache.get('datos_maestros') if VisorView.prismas_cache else None
                     if datos_cache:
                         VisorView._construir_vectores_vtk(prismasmarcados)
                     else:
-                        # Defensa: si el usuario alcanzó a abrir el diálogo antes de
-                        # que terminara la primera carga y la cache está vacía,
-                        # ahí sí vamos a buscar los datos.
                         VisorView.iniciar_hilo_final_visor(tree_actual)
     
     def escalarVectores(prismasmarcados):
@@ -1626,7 +1596,6 @@ class VisorView:
                 if puntos_iniciales and puntos_finales:
                     umbrales_color.sort(key=lambda x: x[2]) # ordenar por valor
                     
-                    # 🚀 OPTIMIZACIÓN 1: Diccionario para búsqueda instantánea
                     distancias_dict = {}
                     for dato in distancias:
                         key = (dato[0], dato[1])
@@ -1639,7 +1608,6 @@ class VisorView:
                             continue
                         direccion = [punto_fin[i] - punto_inicio[i] for i in range(3)]
                         
-                        # 🚀 OPTIMIZACIÓN 2: Escalado proporcional a la magnitud real
                         longitud_real = vtk.vtkMath.Norm(direccion)
                         if longitud_real == 0:
                             continue
@@ -1647,15 +1615,10 @@ class VisorView:
                         direccion_normalizada = [direccion[i] / longitud_real for i in range(3)]
                         longitud_escalada = longitud_real * VisorView.escalavector
                         
-                        # 🚀 2. SUMAMOS EL RADIO A LA MAGNITUD TOTAL VISUAL
-                        # La flecha nace en el centro, pero su largo total es el desplazamiento + el radio
                         longitud_total_visual = longitud_escalada + radioprisma 
-                        
-                        # 🚀 3. CALCULAMOS LOS PUNTOS FINALES CON ESA NUEVA LONGITUD
                         punto_fin_fijo = [punto_inicio[i] + direccion_normalizada[i] * longitud_total_visual for i in range(3)]
                         punto_punta_cono = [punto_inicio[i] + direccion_normalizada[i] * (longitud_total_visual + 5.0) for i in range(3)]
-                        
-                        # 🚀 OPTIMIZACIÓN 3: Búsqueda O(1) en lugar de bucle lento
+
                         key = (prisma[0], prisma[1])
                         if key in distancias_dict:
                             dato = distancias_dict[key]
@@ -1671,8 +1634,8 @@ class VisorView:
                             
                             # Crear un objeto vtkPoints para almacenar los puntos de inicio y fin
                             puntos = vtk.vtkPoints()
-                            puntos.InsertNextPoint(punto_inicio) # 🚀 SE MANTIENE EN EL CENTRO DE LA ESFERA
-                            puntos.InsertNextPoint(punto_fin_fijo) # 🚀 LLEGA HASTA EL BORDE + EL DESPLAZAMIENTO
+                            puntos.InsertNextPoint(punto_inicio)
+                            puntos.InsertNextPoint(punto_fin_fijo)
                             
                             # Crear una línea conectando los puntos de inicio y fin
                             linea = vtk.vtkLine()
@@ -1692,7 +1655,7 @@ class VisorView:
                             tubo = vtk.vtkTubeFilter()
                             tubo.SetInputData(polydata)
                             tubo.SetRadius(grosor)
-                            tubo.SetNumberOfSides(12) # 🚀 Menos lados = 40% más rápido
+                            tubo.SetNumberOfSides(12)
                             
                             # Crear un objeto vtkConeSource para la punta de la flecha
                             punta_cono = vtk.vtkConeSource()
@@ -1703,7 +1666,7 @@ class VisorView:
                             largocono = grosor * 3
                             punta_cono.SetRadius(anchocono)
                             punta_cono.SetHeight(largocono)
-                            punta_cono.SetResolution(12) # 🚀 Cono más ligero
+                            punta_cono.SetResolution(12)
                             
                             # Combinar el cuerpo del cilindro y la punta del cono
                             appendFilter = vtk.vtkAppendPolyData()
@@ -3403,9 +3366,6 @@ class VisorView:
         paginavisor = main.findChild(QStackedWidget, "stacked_visor")
         paginavisor.setCurrentIndex(0)
 
-        # 🚀 CANCELAR cualquier consulta en vuelo del proyecto anterior ANTES de
-        # cambiar VisorView.idproyecto. Sin esto, una respuesta tardía del proyecto
-        # viejo puede llegar y pintarse como si fuera del proyecto nuevo.
         if VisorView.worker_visor and VisorView.worker_visor.isRunning():
             visor_query_manager.cancel_previous()
             worker_cancelado = VisorView.worker_visor
@@ -3454,7 +3414,6 @@ class VisorView:
             buscador_arbol.blockSignals(False)
         VisorView.listaDTMactivos = []
         VisorView.prismas_cache.clear()
-        # 🚀 Limpiar caché de listaPrismas (mutex porque un worker cancelado podría
         # estar terminando de escribirla justo ahora)
         VisorView._cache_listaPrismas_lock.lock()
         try:
@@ -3467,8 +3426,6 @@ class VisorView:
             VisorView._cache_datos_maestros.clear()
         finally:
             VisorView._cache_datos_maestros_lock.unlock()
-
-        # 🚀 Datos "pesados" del proyecto anterior que antes quedaban huérfanos en memoria
         VisorView.polydatos_LAS = []
         VisorView.prismasvirtualesgraficados = []
         VisorView.listaactorespluvio = []
@@ -3523,14 +3480,10 @@ class VisorView:
     def actualizarVistaVisor(fechaini, fechafin, filtro=False):
         VisorView.fechainicial = fechaini
         VisorView.fechafinal = fechafin
-        # 🚀 Limpiar caché de listaPrismas y de datos_maestros cuando cambien las fechas
         if hasattr(VisorView, '_cache_listaPrismas'):
             VisorView._cache_listaPrismas.clear()
         if hasattr(VisorView, '_cache_datos_maestros'):
             VisorView._cache_datos_maestros.clear()
-        # 🚀 Forzar que mostrarPrismasVisor destruya y reconstruya TODAS las
-        # esferas (no solo actualice visibilidad). El set de prismas con datos
-        # válidos puede cambiar con el nuevo rango de fechas.
         VisorView._forzar_reconstruccion_prismas = True
         if VisorView.idproyecto:
             tree_actual_visor =  VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
@@ -3584,7 +3537,6 @@ class VisorDataWorker(QThread):
     def run(self):
         set_active_request(self.request_id)
         try:
-            # 🚀 Cancelación temprana: si ya nos cancelaron antes de arrancar, no tocamos BD ni caché
             if visor_query_manager.is_cancelled(self.request_id):
                 self.worker_done.emit(self.request_id, 'CANCELLED')
                 return
@@ -3594,7 +3546,6 @@ class VisorDataWorker(QThread):
             
             cache_key = f"{self.idproyecto}_{self.fechainicial}_{self.fechafinal}"
 
-            # 🚀 Lectura de caché protegida con mutex (varios workers pueden coexistir)
             VisorView._cache_listaPrismas_lock.lock()
             try:
                 cache_valida = VisorView._cache_listaPrismas.get('key') == cache_key
@@ -3606,7 +3557,6 @@ class VisorDataWorker(QThread):
                 listaPrismas = PrismaController.ctrlObtenerPrismasFechaUnicos(
                     self.idproyecto, self.fechainicial, self.fechafinal
                 )
-                # 🚀 Si nos cancelaron MIENTRAS consultábamos, no contaminamos la caché compartida
                 if visor_query_manager.is_cancelled(self.request_id):
                     self.worker_done.emit(self.request_id, 'CANCELLED')
                     return
@@ -3623,10 +3573,6 @@ class VisorDataWorker(QThread):
             config = SoftwareConfiguracion.obtenerDataSoftware()
             filtrado = config[16]
             
-            # 🚀 CACHÉ POR COMPONENTE: en vez de re-consultar TODOS los componentes
-            # marcados cada vez, solo consultamos los que cambiaron (nuevo componente
-            # marcado, o cambió el set de prismas marcados dentro de él). Los que ya
-            # se consultaron antes con la misma fecha/filtrado se reutilizan de cache.
             datos_maestros = []
             pendientes = []  # (componente, listaprismas) que sí hay que consultar
             
@@ -3683,7 +3629,6 @@ class VisorDataWorker(QThread):
                 print(f"Error real en VisorDataWorker: {e}")
                 self.worker_done.emit(self.request_id, 'ERROR')
         finally:
-            # 🚀 clear_active_request() NO lleva argumentos
             clear_active_request()
 
 class EstiloInteraccionPersonalizado(vtk.vtkInteractorStyleTrackballCamera):
