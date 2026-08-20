@@ -5,7 +5,7 @@ from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QHeaderView, QPushButton, QMenu, QTableWidget, QFormLayout,
                             QDialogButtonBox, QFileDialog, QMessageBox, QLabel, QDoubleSpinBox, QLineEdit, QTreeWidget, QTableView)
 from PySide6.QtGui import QPen, QColor
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 from datetime import datetime,time
 from utils.common.rutasarchivos import resource_path
 from utils.generic.cargariconos import cargarIcono
@@ -17,6 +17,7 @@ from utils.common.metodosGenerales import MetodosGenerales
 from controllers.ProyectoController import ProyectoController
 from controllers.CeldaController import CeldaController
 from controllers.InterfazController import InterfazController
+from utils.shared.loading import LoadingView
 
 # Pintar columna oculta de tabla
 class CustomHeaderView(QHeaderView):
@@ -41,7 +42,7 @@ class CustomHeaderView(QHeaderView):
             painter.restore()
             
 class SubirCeldas:
-    
+    _current_thread_celdas = None
     def registrarDataCeldas(main, proyectoid):
         loader = QUiLoader()
         ui_file_path = resource_path("ui/cargardataceldas.ui")
@@ -232,46 +233,51 @@ class SubirCeldas:
                 labelRespuesta.setText("No se cargó ningún archivo.")
                 labelRespuesta.setStyleSheet("color: red;")
                 return
-            else:
-                try:
-                    idcompo = comboComponentes.currentData()
-                    if tipo == "FORMATO":
-                        respuesta, equipos, erroneos = SubirCeldas.registrarFormatoDataCeldas(proyectoid, ubicacion_archivo.text(), idcompo)
-                    else:
-                        respuesta, equipos, erroneos = SubirCeldas.registrarDataExcelCeldas(proyectoid, ubicacion_archivo.text(), idcompo)
-                    if respuesta:
-                        ubicacion_archivo.clear()
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Archivos erróneos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("Guardado correctamente.")
-                        labelRespuesta.setStyleSheet("color: green;")
-                        # actualizar árbol checkbox
-                        for idcelda in equipos:
-                            data = CeldaController.ctrlTraerDataCeldaAsentamiento(idcelda)
-                            if data:
-                                idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
-                                treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
-                                treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
-                                treewidgetceldas = main.findChild(QTreeWidget, "tree_actual_celdas")
-                                TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Celdas de Asentamiento", idinstrumento, "celda")
-                                TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Celdas de Asentamiento", idinstrumento, "celda")
-                                TreeCheckbox.eliminarCheckbox(treewidgetceldas, "Celdas de Asentamiento", idinstrumento, "celda")
-                                # Crear piezometro cuerda en nuevo componente
-                                celda = InterfazController.ctrlListarComponenteCelda(idinstrumento)
-                                if celda:
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "Celdas de Asentamiento", "7", celda, "celda")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, proyectoid, "Celdas de Asentamiento", "7", celda, "celda")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesDoble(treewidgetceldas, nombrezona, idcomponente, proyectoid, "Celdas de Asentamiento", "1", celda, "celda")
-                    else:
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Error en los archivos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("No se guardó la data.")
-                        labelRespuesta.setStyleSheet("color: red;")
-                except ValueError as e:
-                    labelRespuesta.setText(str(e))
-                    labelRespuesta.setStyleSheet("color: red;")
+            idcompo = comboComponentes.currentData()
+
+            labelRespuesta.setText("")
+            botonAceptar.setEnabled(False)
+
+            loading = LoadingView.mostrarLoading()
+
+            thread = CargarCeldasThread(proyectoid, ubicacion_archivo.text(), idcompo, tipo)
+            SubirCeldas._current_thread_celdas = thread
+
+            def on_finish(resultado):
+                loading.close()
+                botonAceptar.setEnabled(True)
+
+                labelRespuesta.setText(resultado.get("mensaje", ""))
+                labelRespuesta.setStyleSheet(f"color: {resultado.get('color', 'red')};")
+
+                if resultado.get("ok"):
+                    ubicacion_archivo.clear()
+
+                    for item in resultado.get("equipos_data", []):
+                        idinstrumento = item["idinstrumento"]
+                        idcomponente = item["idcomponente"]
+                        nombrezona = item["nombrezona"]
+                        celda = item["celda"]
+
+                        treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
+                        treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
+                        treewidgetceldas = main.findChild(QTreeWidget, "tree_actual_celdas")
+                        TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Celdas de Asentamiento", idinstrumento, "celda")
+                        TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Celdas de Asentamiento", idinstrumento, "celda")
+                        TreeCheckbox.eliminarCheckbox(treewidgetceldas, "Celdas de Asentamiento", idinstrumento, "celda")
+
+                        if celda:
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "Celdas de Asentamiento", "7", celda, "celda")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, proyectoid, "Celdas de Asentamiento", "7", celda, "celda")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesDoble(treewidgetceldas, nombrezona, idcomponente, proyectoid, "Celdas de Asentamiento", "1", celda, "celda")
+
+                SubirCeldas._current_thread_celdas = None
+
+            thread.task_finishCeldas.connect(on_finish, Qt.ConnectionType.QueuedConnection)
+            thread.finished.connect(thread.deleteLater)
+            thread.start()
+            loading.exec()
+
         botonSubir.clicked.connect(cargar_archivo)
         botonAceptar.clicked.connect(procesar_archivo)
         dialogo.exec()
@@ -920,4 +926,59 @@ class SubirCeldas:
         # Mostrar el diálogo
         dialog.setLayout(layout)
         dialog.exec()
-    
+
+class CargarCeldasThread(QThread):
+    task_finishCeldas = Signal(dict)
+
+    def __init__(self, proyectoid, ubicacion_texto, idcompo, tipo):
+        super().__init__()
+        self.proyectoid = proyectoid
+        self.ubicacion_texto = ubicacion_texto
+        self.idcompo = idcompo
+        self.tipo = tipo
+
+    def run(self):
+        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        try:
+            if self.tipo == "FORMATO":
+                respuesta, equipos, erroneos = SubirCeldas.registrarFormatoDataCeldas(
+                    self.proyectoid, self.ubicacion_texto, self.idcompo
+                )
+            else:
+                respuesta, equipos, erroneos = SubirCeldas.registrarDataExcelCeldas(
+                    self.proyectoid, self.ubicacion_texto, self.idcompo
+                )
+
+            if respuesta:
+                resultado["ok"] = True
+                if erroneos:
+                    resultado["mensaje"] = f"Archivos erróneos: {erroneos}"
+                    resultado["color"] = "orange"
+                else:
+                    resultado["mensaje"] = "Guardado correctamente."
+                    resultado["color"] = "green"
+
+                equipos_data = []
+                for idcelda in equipos:
+                    data = CeldaController.ctrlTraerDataCeldaAsentamiento(idcelda)
+                    if not data:
+                        continue
+                    idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
+                    celda = InterfazController.ctrlListarComponenteCelda(idinstrumento)
+                    equipos_data.append({
+                        "idinstrumento": idinstrumento,
+                        "idcomponente": idcomponente,
+                        "nombrezona": nombrezona,
+                        "celda": celda,
+                    })
+                resultado["equipos_data"] = equipos_data
+            else:
+                if erroneos:
+                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+
+        except ValueError as e:
+            resultado["mensaje"] = str(e)
+        except Exception:
+            resultado["mensaje"] = "Error al procesar los archivos."
+
+        self.task_finishCeldas.emit(resultado)

@@ -3,7 +3,7 @@ import ast
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QMenu, QComboBox, QLineEdit, QPushButton, QFileDialog, QDoubleSpinBox, QSpinBox,
                     QTreeWidgetItem, QFormLayout, QDialogButtonBox, QMessageBox, QLabel, QTextEdit, QTreeWidget, QTableView)
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QBrush, QColor
 from utils.common.rutasarchivos import resource_path
 from utils.generic.cargariconos import cargarIcono
@@ -15,9 +15,10 @@ from controllers.DatosController import DatosController
 from controllers.InclinometroController import InclinometroController
 from controllers.InterfazController import InterfazController
 from services.security.session import Session
+from utils.shared.loading import LoadingView
 
 class SubirInclinometros:
-    
+    _current_thread_inclinometros = None
     def registrarInclinometro(idproyecto):
         loaderLoading = QUiLoader()
         ui_file_path = resource_path("ui/nuevoinclinometro.ui")
@@ -151,43 +152,51 @@ class SubirInclinometros:
                 lblrespuesta.setText("No se cargó ningún archivo.")
                 lblrespuesta.setStyleSheet("color: red;")
                 return
-            else:
-                tipo_inclinometro = SubirInclinometros.obtener_tipo_seleccionado_combo(combo_inclinometro)
-                try:
-                    idinclinometro = combo_inclinometro.currentData()
-                    respuesta, erroneos = SubirInclinometros.registrarDataInclinometro(tipo_inclinometro, ubicacion_archivo.text(), proyectoid, idinclinometro)
-                    if respuesta:
-                        if len(erroneos) > 0:
-                            lblrespuesta.setText(f"Se guardó, excepto los archivos: {erroneos}")
-                        else:
-                            lblrespuesta.setText("Se registró correctamente.")
-                        lblrespuesta.setStyleSheet("color: green;")
-                        ubicacion_archivo.clear()
-                        data = InclinometroController.ctrlTraerDataInclinometro(idinclinometro)
-                        if data:
-                            idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
-                            # Eliminar Inclinómetro si existe en arbol
-                            treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
-                            treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
-                            treewidgetincli = main.findChild(QTreeWidget, "tree_actual_inclinometros")
-                            TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Inclinómetros", idinstrumento, "inclinometro")
-                            TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Inclinómetros", idinstrumento, "inclinometro")
-                            TreeCheckbox.eliminarCheckbox(treewidgetincli, "Inclinómetros", idinstrumento, "inclinometro")
-                            # Crear inclinometro en nuevo componente
-                            inclino = InterfazController.ctrlListarComponenteInclinometro(proyectoid, idinstrumento)
-                            if inclino:
-                                TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "Inclinómetros", "2", inclino, "inclinometro")
-                                TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, proyectoid, "Inclinómetros", "3", inclino, "inclinometro", "SI")
-                                TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetincli, nombrezona, idcomponente, proyectoid, "Inclinómetros", "1", inclino, "inclinometro", "SI")
-                    else:
-                        if len(erroneos) > 0:
-                            lblrespuesta.setText(f"Error en los archivos: {erroneos}")
-                        else:
-                            lblrespuesta.setText("No se guardó la data.")
-                        lblrespuesta.setStyleSheet("color: red;")
-                except ValueError as e:
-                    lblrespuesta.setText(str(e))
-                    lblrespuesta.setStyleSheet("color: red;")
+            tipo_inclinometro = SubirInclinometros.obtener_tipo_seleccionado_combo(combo_inclinometro)
+            idinclinometro = combo_inclinometro.currentData()
+
+            lblrespuesta.setText("")
+            boton_procesar_data.setEnabled(False)
+
+            loading = LoadingView.mostrarLoading()
+
+            thread = CargarInclinometrosThread(tipo_inclinometro, ubicacion_archivo.text(), proyectoid, idinclinometro)
+            SubirInclinometros._current_thread_inclinometros = thread
+
+            def on_finish(resultado):
+                loading.close()
+                boton_procesar_data.setEnabled(True)
+
+                lblrespuesta.setText(resultado.get("mensaje", ""))
+                lblrespuesta.setStyleSheet(f"color: {resultado.get('color', 'red')};")
+
+                if resultado.get("ok"):
+                    ubicacion_archivo.clear()
+
+                    data = resultado.get("data")
+                    if data:
+                        idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
+                        # Eliminar Inclinómetro si existe en arbol
+                        treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
+                        treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
+                        treewidgetincli = main.findChild(QTreeWidget, "tree_actual_inclinometros")
+                        TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Inclinómetros", idinstrumento, "inclinometro")
+                        TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Inclinómetros", idinstrumento, "inclinometro")
+                        TreeCheckbox.eliminarCheckbox(treewidgetincli, "Inclinómetros", idinstrumento, "inclinometro")
+                        # Crear inclinometro en nuevo componente
+                        inclino = InterfazController.ctrlListarComponenteInclinometro(proyectoid, idinstrumento)
+                        if inclino:
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "Inclinómetros", "2", inclino, "inclinometro")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, proyectoid, "Inclinómetros", "3", inclino, "inclinometro", "SI")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetincli, nombrezona, idcomponente, proyectoid, "Inclinómetros", "1", inclino, "inclinometro", "SI")
+
+                SubirInclinometros._current_thread_inclinometros = None
+
+            thread.task_finishCargarInclinometros.connect(on_finish, Qt.ConnectionType.QueuedConnection)
+            thread.finished.connect(thread.deleteLater)
+            thread.start()
+            loading.exec()
+
         boton_subir_archivo.clicked.connect(cargar_archivo)
         boton_procesar_data.clicked.connect(procesar_archivo)
         dialogoInclinometros.exec()
@@ -739,3 +748,40 @@ class SubirInclinometros:
         # Mostrar el diálogo
         dialog.setLayout(layout)
         dialog.exec()
+
+class CargarInclinometrosThread(QThread):
+    task_finishCargarInclinometros = Signal(dict)
+
+    def __init__(self, tipo_inclinometro, ubicacion_texto, proyectoid, idinclinometro):
+        super().__init__()
+        self.tipo_inclinometro = tipo_inclinometro
+        self.ubicacion_texto = ubicacion_texto
+        self.proyectoid = proyectoid
+        self.idinclinometro = idinclinometro
+
+    def run(self):
+        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        try:
+            respuesta, erroneos = SubirInclinometros.registrarDataInclinometro(
+                self.tipo_inclinometro, self.ubicacion_texto, self.proyectoid, self.idinclinometro
+            )
+            if respuesta:
+                resultado["ok"] = True
+                if erroneos:
+                    resultado["mensaje"] = f"Se guardó, excepto los archivos: {erroneos}"
+                    resultado["color"] = "orange"
+                else:
+                    resultado["mensaje"] = "Se registró correctamente."
+                    resultado["color"] = "green"
+
+                data = InclinometroController.ctrlTraerDataInclinometro(self.idinclinometro)
+                resultado["data"] = data
+            else:
+                if erroneos:
+                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+        except ValueError as e:
+            resultado["mensaje"] = str(e)
+        except Exception:
+            resultado["mensaje"] = "Error al procesar los archivos."
+
+        self.task_finishCargarInclinometros.emit(resultado)

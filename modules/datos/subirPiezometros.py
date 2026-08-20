@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QFileDialog, QCh
                         QSpinBox, QTreeWidgetItem, QTreeWidget, QFormLayout, QDialogButtonBox, QMessageBox, QLabel, QTextEdit,
                         QLineEdit, QTableView)
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 from datetime import datetime, time
 from utils.common.rutasarchivos import resource_path
 from utils.generic.cargariconos import cargarIcono
@@ -16,9 +16,11 @@ from utils.common.metodosGenerales import MetodosGenerales
 from controllers.PiezometroController import PiezometroController
 from controllers.ProyectoController import ProyectoController
 from controllers.InterfazController import InterfazController
+from utils.shared.loading import LoadingView
 
 class SubirPiezometros:
-    
+    _current_thread_cuerda = None       
+    _current_thread_casagrande = None
     def cargarPiezometrosCuerda(main, proyectoid):
         loaderLoading = QUiLoader()        
         ui_file_path = resource_path("ui/datapiezometrocuerda.ui")
@@ -181,51 +183,53 @@ class SubirPiezometros:
                 labelRespuesta.setText("No se cargó ningún archivo.")
                 labelRespuesta.setStyleSheet("color: red;")
                 return
-            else:
-                try:
-                    idcompo = comboComponentes.currentData()
-                    if tipo == "FORMATO":
-                        respuesta, equipos, erroneos = SubirPiezometros.registrarDataPiezometrosCuerda(idproyecto, ubicacion_archivo.text(), idcompo)
-                    else:
-                        respuesta, equipos, erroneos = SubirPiezometros.registrarDataExcelPiezometrosCuerda(idproyecto, ubicacion_archivo.text(), idcompo)
-                    if respuesta:
-                        ubicacion_archivo.clear()
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Archivos erróneos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("Guardado correctamente.")
-                        labelRespuesta.setStyleSheet("color: green;")
-                        # actualizar árbol checkbox
-                        for idpiezometro in equipos:
-                            data = PiezometroController.ctrlTraerDataPiezometro(idpiezometro, "PIEZOMETROCUERDA")
-                            if data:
-                                idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
-                                treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
-                                treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
-                                treewidgetpiezo = main.findChild(QTreeWidget, "tree_actual_piezometros")
-                                TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Piezómetros Cuerda Vibrante", idinstrumento, "piezometrocuerda")
-                                TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Piezómetros Cuerda Vibrante", idinstrumento, "piezometrocuerda")
-                                TreeCheckbox.eliminarCheckbox(treewidgetpiezo, "Piezómetros Cuerda Vibrante", idinstrumento, "piezometrocuerda")
-                                # Crear piezometro cuerda en nuevo componente
-                                piezocu = InterfazController.ctrlListarComponentePiezometroCuerda(idinstrumento)
-                                if piezocu:
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, idproyecto, "Piezómetros Cuerda Vibrante", "3", piezocu, "piezometrocuerda")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesDoble(treewidgetpiezo, nombrezona, idcomponente, idproyecto, "Piezómetros Cuerda Vibrante", "1", piezocu, "piezometrocuerda")
-                                    fechas = InterfazController.ctrlListarFechasPiezometroCodigo("Automatizado", idcomponente, idinstrumento, idproyecto)
-                                    if fechas:
-                                        ultima_fecha = fechas[-1][0]
-                                        piezo = piezocu[0]
-                                        piezometros = [(piezo[0], piezo[1], piezo[2], piezo[3], piezo[4], piezo[5], piezo[6], ultima_fecha)]
-                                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, idproyecto, "Piezómetros Cuerda Vibrante", "4", piezometros, "piezometrocuerda", "SI")
-                    else:
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Error en los archivos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("No se guardó la data.")
-                        labelRespuesta.setStyleSheet("color: red;")
-                except ValueError as e:
-                    labelRespuesta.setText(str(e))
-                    labelRespuesta.setStyleSheet("color: red;")
+            idcompo = comboComponentes.currentData()
+
+            labelRespuesta.setText("")
+            botonAceptar.setEnabled(False)
+
+            loading = LoadingView.mostrarLoading()
+
+            thread = CargarPiezometrosCuerdaThread(idproyecto, ubicacion_archivo.text(), idcompo, tipo)
+            SubirPiezometros._current_thread_cuerda = thread
+
+            def on_finish(resultado):
+                loading.close()
+                botonAceptar.setEnabled(True)
+
+                labelRespuesta.setText(resultado.get("mensaje", ""))
+                labelRespuesta.setStyleSheet(f"color: {resultado.get('color', 'red')};")
+
+                if resultado.get("ok"):
+                    ubicacion_archivo.clear()
+
+                    for item in resultado.get("equipos_data", []):
+                        idinstrumento = item["idinstrumento"]
+                        idcomponente = item["idcomponente"]
+                        nombrezona = item["nombrezona"]
+                        piezocu = item["piezocu"]
+                        piezometros_visor = item["piezometros_visor"]
+
+                        treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
+                        treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
+                        treewidgetpiezo = main.findChild(QTreeWidget, "tree_actual_piezometros")
+                        TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Piezómetros Cuerda Vibrante", idinstrumento, "piezometrocuerda")
+                        TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Piezómetros Cuerda Vibrante", idinstrumento, "piezometrocuerda")
+                        TreeCheckbox.eliminarCheckbox(treewidgetpiezo, "Piezómetros Cuerda Vibrante", idinstrumento, "piezometrocuerda")
+
+                        if piezocu:
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, idproyecto, "Piezómetros Cuerda Vibrante", "3", piezocu, "piezometrocuerda")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesDoble(treewidgetpiezo, nombrezona, idcomponente, idproyecto, "Piezómetros Cuerda Vibrante", "1", piezocu, "piezometrocuerda")
+                            if piezometros_visor:
+                                TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, idproyecto, "Piezómetros Cuerda Vibrante", "4", piezometros_visor, "piezometrocuerda", "SI")
+
+                SubirPiezometros._current_thread_cuerda = None
+
+            thread.task_finishCuerda.connect(on_finish, Qt.ConnectionType.QueuedConnection)
+            thread.finished.connect(thread.deleteLater)
+            thread.start()
+            loading.exec()
+
         botonSubir.clicked.connect(cargar_archivo)
         botonAceptar.clicked.connect(procesar_archivo)
         dialogo.exec()
@@ -760,48 +764,53 @@ class SubirPiezometros:
                 labelRespuesta.setText("No se cargó ningún archivo.")
                 labelRespuesta.setStyleSheet("color: red;")
                 return
-            else:
-                try:
-                    idcompo = comboComponentes.currentData()
-                    respuesta, equipos, erroneos = SubirPiezometros.registrarDataPiezometrosManuales(idproyecto, ubicacion_archivo.text(), idcompo)
-                    if respuesta:
-                        ubicacion_archivo.clear()
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Archivos erróneos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("Guardado correctamente.")
-                        labelRespuesta.setStyleSheet("color: green;")
-                        # actualizar árbol checkbox
-                        for idpiezometro in equipos:
-                            data = PiezometroController.ctrlTraerDataPiezometro(idpiezometro, "PIEZOMETROMANUAL")
-                            if data:
-                                idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
-                                treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
-                                treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
-                                treewidgetpiezo = main.findChild(QTreeWidget, "tree_actual_piezometros")
-                                TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Piezómetros Casagrande", idinstrumento, "piezometromanual")
-                                TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Piezómetros Casagrande", idinstrumento, "piezometromanual")
-                                TreeCheckbox.eliminarCheckbox(treewidgetpiezo, "Piezómetros Casagrande", idinstrumento, "piezometromanual")
-                                # Crear piezometro manual en nuevo componente
-                                piezocu = InterfazController.ctrlListarComponentePiezometroManual(idinstrumento)
-                                if piezocu:
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, idproyecto, "Piezómetros Casagrande", "4", piezocu, "piezometromanual")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesDoble(treewidgetpiezo, nombrezona, idcomponente, idproyecto, "Piezómetros Casagrande", "2", piezocu, "piezometromanual")
-                                    fechas = InterfazController.ctrlListarFechasPiezometroCodigo("Manual", idcomponente, idinstrumento, idproyecto)
-                                    if fechas:
-                                        ultima_fecha = fechas[-1][0]
-                                        piezo = piezocu[0]
-                                        piezometros = [(piezo[0], piezo[1], piezo[2], piezo[3], piezo[4], piezo[5], piezo[6], ultima_fecha)]
-                                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, idproyecto, "Piezómetros Casagrande", "5", piezometros, "piezometromanual", "SI")
-                    else:
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Error en los archivos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("No se guardó la data.")
-                        labelRespuesta.setStyleSheet("color: red;")
-                except ValueError as e:
-                    labelRespuesta.setText(str(e))
-                    labelRespuesta.setStyleSheet("color: red;")
+            idcompo = comboComponentes.currentData()
+
+            labelRespuesta.setText("")
+            botonAceptar.setEnabled(False)
+
+            loading = LoadingView.mostrarLoading()
+
+            thread = CargarPiezometrosCasagrandeThread(idproyecto, ubicacion_archivo.text(), idcompo)
+            SubirPiezometros._current_thread_casagrande = thread
+
+            def on_finish(resultado):
+                loading.close()
+                botonAceptar.setEnabled(True)
+
+                labelRespuesta.setText(resultado.get("mensaje", ""))
+                labelRespuesta.setStyleSheet(f"color: {resultado.get('color', 'red')};")
+
+                if resultado.get("ok"):
+                    ubicacion_archivo.clear()
+
+                    for item in resultado.get("equipos_data", []):
+                        idinstrumento = item["idinstrumento"]
+                        idcomponente = item["idcomponente"]
+                        nombrezona = item["nombrezona"]
+                        piezocu = item["piezocu"]
+                        piezometros_visor = item["piezometros_visor"]
+
+                        treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
+                        treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
+                        treewidgetpiezo = main.findChild(QTreeWidget, "tree_actual_piezometros")
+                        TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Piezómetros Casagrande", idinstrumento, "piezometromanual")
+                        TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Piezómetros Casagrande", idinstrumento, "piezometromanual")
+                        TreeCheckbox.eliminarCheckbox(treewidgetpiezo, "Piezómetros Casagrande", idinstrumento, "piezometromanual")
+
+                        if piezocu:
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, idproyecto, "Piezómetros Casagrande", "4", piezocu, "piezometromanual")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesDoble(treewidgetpiezo, nombrezona, idcomponente, idproyecto, "Piezómetros Casagrande", "2", piezocu, "piezometromanual")
+                            if piezometros_visor:
+                                TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, idproyecto, "Piezómetros Casagrande", "5", piezometros_visor, "piezometromanual", "SI")
+
+                SubirPiezometros._current_thread_casagrande = None
+
+            thread.task_finishCasagrande.connect(on_finish, Qt.ConnectionType.QueuedConnection)
+            thread.finished.connect(thread.deleteLater)
+            thread.start()
+            loading.exec()
+
         botonSubir.clicked.connect(cargar_archivo)
         botonAceptar.clicked.connect(procesar_archivo)
         dialogo.exec()
@@ -1650,4 +1659,126 @@ class SubirPiezometros:
         # Mostrar el diálogo
         dialog.setLayout(layout)
         dialog.exec()
-    
+
+class CargarPiezometrosCuerdaThread(QThread):
+    task_finishCuerda = Signal(dict)
+
+    def __init__(self, idproyecto, ubicacion_texto, idcompo, tipo):
+        super().__init__()
+        self.idproyecto = idproyecto
+        self.ubicacion_texto = ubicacion_texto
+        self.idcompo = idcompo
+        self.tipo = tipo
+
+    def run(self):
+        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        try:
+            if self.tipo == "FORMATO":
+                respuesta, equipos, erroneos = SubirPiezometros.registrarDataPiezometrosCuerda(
+                    self.idproyecto, self.ubicacion_texto, self.idcompo
+                )
+            else:
+                respuesta, equipos, erroneos = SubirPiezometros.registrarDataExcelPiezometrosCuerda(
+                    self.idproyecto, self.ubicacion_texto, self.idcompo
+                )
+
+            if respuesta:
+                resultado["ok"] = True
+                if erroneos:
+                    resultado["mensaje"] = f"Archivos erróneos: {erroneos}"
+                    resultado["color"] = "orange"
+                else:
+                    resultado["mensaje"] = "Guardado correctamente."
+                    resultado["color"] = "green"
+
+                equipos_data = []
+                for idpiezometro in equipos:
+                    data = PiezometroController.ctrlTraerDataPiezometro(idpiezometro, "PIEZOMETROCUERDA")
+                    if not data:
+                        continue
+                    idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
+                    piezocu = InterfazController.ctrlListarComponentePiezometroCuerda(idinstrumento)
+                    piezometros_visor = None
+                    if piezocu:
+                        fechas = InterfazController.ctrlListarFechasPiezometroCodigo("Automatizado", idcomponente, idinstrumento, self.idproyecto)
+                        if fechas:
+                            ultima_fecha = fechas[-1][0]
+                            piezo = piezocu[0]
+                            piezometros_visor = [(piezo[0], piezo[1], piezo[2], piezo[3], piezo[4], piezo[5], piezo[6], ultima_fecha)]
+                    equipos_data.append({
+                        "idinstrumento": idinstrumento,
+                        "idcomponente": idcomponente,
+                        "nombrezona": nombrezona,
+                        "piezocu": piezocu,
+                        "piezometros_visor": piezometros_visor,
+                    })
+                resultado["equipos_data"] = equipos_data
+            else:
+                if erroneos:
+                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+
+        except ValueError as e:
+            resultado["mensaje"] = str(e)
+        except Exception:
+            resultado["mensaje"] = "Error al procesar los archivos."
+
+        self.task_finishCuerda.emit(resultado)
+
+
+class CargarPiezometrosCasagrandeThread(QThread):
+    task_finishCasagrande = Signal(dict)
+
+    def __init__(self, idproyecto, ubicacion_texto, idcompo):
+        super().__init__()
+        self.idproyecto = idproyecto
+        self.ubicacion_texto = ubicacion_texto
+        self.idcompo = idcompo
+
+    def run(self):
+        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        try:
+            respuesta, equipos, erroneos = SubirPiezometros.registrarDataPiezometrosManuales(
+                self.idproyecto, self.ubicacion_texto, self.idcompo
+            )
+
+            if respuesta:
+                resultado["ok"] = True
+                if erroneos:
+                    resultado["mensaje"] = f"Archivos erróneos: {erroneos}"
+                    resultado["color"] = "orange"
+                else:
+                    resultado["mensaje"] = "Guardado correctamente."
+                    resultado["color"] = "green"
+
+                equipos_data = []
+                for idpiezometro in equipos:
+                    data = PiezometroController.ctrlTraerDataPiezometro(idpiezometro, "PIEZOMETROMANUAL")
+                    if not data:
+                        continue
+                    idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
+                    piezocu = InterfazController.ctrlListarComponentePiezometroManual(idinstrumento)
+                    piezometros_visor = None
+                    if piezocu:
+                        fechas = InterfazController.ctrlListarFechasPiezometroCodigo("Manual", idcomponente, idinstrumento, self.idproyecto)
+                        if fechas:
+                            ultima_fecha = fechas[-1][0]
+                            piezo = piezocu[0]
+                            piezometros_visor = [(piezo[0], piezo[1], piezo[2], piezo[3], piezo[4], piezo[5], piezo[6], ultima_fecha)]
+                    equipos_data.append({
+                        "idinstrumento": idinstrumento,
+                        "idcomponente": idcomponente,
+                        "nombrezona": nombrezona,
+                        "piezocu": piezocu,
+                        "piezometros_visor": piezometros_visor,
+                    })
+                resultado["equipos_data"] = equipos_data
+            else:
+                if erroneos:
+                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+
+        except ValueError as e:
+            resultado["mensaje"] = str(e)
+        except Exception:
+            resultado["mensaje"] = "Error al procesar los archivos."
+
+        self.task_finishCasagrande.emit(resultado)

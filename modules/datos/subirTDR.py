@@ -6,7 +6,7 @@ from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QHeaderView, QPushButton, QMenu, QTableWidget, QFormLayout,
                         QDoubleSpinBox, QDialogButtonBox, QMessageBox, QLabel, QLineEdit, QGridLayout, QHBoxLayout, QScrollArea,
                         QWidget, QSpacerItem, QSizePolicy, QFileDialog, QSpinBox, QTreeWidget, QTreeWidgetItem, QTableView)
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 from datetime import datetime, time
 import datetime as dt_module
 from functools import partial
@@ -20,6 +20,7 @@ from utils.common.metodosGenerales import MetodosGenerales
 from controllers.ProyectoController import ProyectoController
 from controllers.TDRController import TDRController
 from controllers.InterfazController import InterfazController
+from utils.shared.loading import LoadingView
 
 class CustomHeaderView(QHeaderView):
     def __init__(self, orientation, parent=None):
@@ -44,7 +45,7 @@ class CustomHeaderView(QHeaderView):
             painter.restore()
 
 class SubirTDR:
-    
+    _current_thread_tdr = None
     def registrarDataTDR(main, proyectoid):
         loader = QUiLoader()
         ui_file_path = resource_path("ui/cargardatatdr.ui")
@@ -326,48 +327,53 @@ class SubirTDR:
                 labelRespuesta.setText("No se cargó ningún archivo.")
                 labelRespuesta.setStyleSheet("color: red;")
                 return
-            else:
-                try:
-                    idcompo = comboComponentes.currentData()
-                    respuesta, equipos, erroneos = SubirTDR.registrarFormatoDataTDR(proyectoid, ubicacion_archivo.text(), idcompo)
-                    if respuesta:
-                        ubicacion_archivo.clear()
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Archivos erróneos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("Guardado correctamente.")
-                        labelRespuesta.setStyleSheet("color: green;")
-                        # actualizar árbol checkbox
-                        for idtdr in equipos:
-                            data = TDRController.ctrlTraerDataSondajetdr(idtdr)
-                            if data:
-                                idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
-                                treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
-                                treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
-                                treewidgettdr = main.findChild(QTreeWidget, "tree_actual_tdr")
-                                TreeCheckbox.eliminarCheckbox(treewidgetdatos, "TDR", idinstrumento, "sondajetdr")
-                                TreeCheckbox.eliminarCheckbox(treewidgetvisor, "TDR", idinstrumento, "sondajetdr")
-                                TreeCheckbox.eliminarCheckbox(treewidgettdr, "TDR", idinstrumento, "sondajetdr")
-                                # Crear piezometro cuerda en nuevo componente
-                                sondaje = InterfazController.ctrlListarComponenteSondajeTDR(idinstrumento)
-                                if sondaje:
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "TDR", "9", sondaje, "sondajetdr")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, proyectoid, "TDR", "9", sondaje, "sondajetdr")
-                                    fechas = InterfazController.ctrlListarFechasSondajetdrCodigo(proyectoid, idcomponente, idinstrumento)
-                                    if fechas:
-                                        sonda = sondaje[0]
-                                        fechitas = [fecha[0] for fecha in fechas]
-                                        sondajestdr = [(sonda[0], sonda[1], sonda[2], sonda[3], sonda[4], sonda[5], sonda[6], fechitas)]
-                                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgettdr, nombrezona, idcomponente, proyectoid, "TDR", "1", sondajestdr, "sondajetdr", "SI")
-                    else:
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Error en los archivos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("No se guardó la data.")
-                        labelRespuesta.setStyleSheet("color: red;")
-                except ValueError as e:
-                    labelRespuesta.setText(str(e))
-                    labelRespuesta.setStyleSheet("color: red;")
+            idcompo = comboComponentes.currentData()
+
+            labelRespuesta.setText("")
+            botonAceptar.setEnabled(False)
+
+            loading = LoadingView.mostrarLoading()
+
+            thread = CargarTDRThread(proyectoid, ubicacion_archivo.text(), idcompo)
+            SubirTDR._current_thread_tdr = thread
+
+            def on_finish(resultado):
+                loading.close()
+                botonAceptar.setEnabled(True)
+
+                labelRespuesta.setText(resultado.get("mensaje", ""))
+                labelRespuesta.setStyleSheet(f"color: {resultado.get('color', 'red')};")
+
+                if resultado.get("ok"):
+                    ubicacion_archivo.clear()
+
+                    for item in resultado.get("equipos_data", []):
+                        idinstrumento = item["idinstrumento"]
+                        idcomponente = item["idcomponente"]
+                        nombrezona = item["nombrezona"]
+                        sondaje = item["sondaje"]
+                        sondajestdr = item["sondajestdr"]
+
+                        treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
+                        treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
+                        treewidgettdr = main.findChild(QTreeWidget, "tree_actual_tdr")
+                        TreeCheckbox.eliminarCheckbox(treewidgetdatos, "TDR", idinstrumento, "sondajetdr")
+                        TreeCheckbox.eliminarCheckbox(treewidgetvisor, "TDR", idinstrumento, "sondajetdr")
+                        TreeCheckbox.eliminarCheckbox(treewidgettdr, "TDR", idinstrumento, "sondajetdr")
+
+                        if sondaje:
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "TDR", "9", sondaje, "sondajetdr")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, proyectoid, "TDR", "9", sondaje, "sondajetdr")
+                            if sondajestdr:
+                                TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgettdr, nombrezona, idcomponente, proyectoid, "TDR", "1", sondajestdr, "sondajetdr", "SI")
+
+                SubirTDR._current_thread_tdr = None
+
+            thread.task_finishTDR.connect(on_finish, Qt.ConnectionType.QueuedConnection)
+            thread.finished.connect(thread.deleteLater)
+            thread.start()
+            loading.exec()
+
         botonSubir.clicked.connect(cargar_archivo)
         botonAceptar.clicked.connect(procesar_archivo)
         dialogo.exec()
@@ -902,4 +908,61 @@ class SubirTDR:
         # Mostrar el diálogo
         dialog.setLayout(layout)
         dialog.exec()
-    
+
+class CargarTDRThread(QThread):
+    task_finishTDR = Signal(dict)
+
+    def __init__(self, proyectoid, ubicacion_texto, idcompo):
+        super().__init__()
+        self.proyectoid = proyectoid
+        self.ubicacion_texto = ubicacion_texto
+        self.idcompo = idcompo
+
+    def run(self):
+        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        try:
+            respuesta, equipos, erroneos = SubirTDR.registrarFormatoDataTDR(
+                self.proyectoid, self.ubicacion_texto, self.idcompo
+            )
+
+            if respuesta:
+                resultado["ok"] = True
+                if erroneos:
+                    resultado["mensaje"] = f"Archivos erróneos: {erroneos}"
+                    resultado["color"] = "orange"
+                else:
+                    resultado["mensaje"] = "Guardado correctamente."
+                    resultado["color"] = "green"
+
+                equipos_data = []
+                for idtdr in equipos:
+                    data = TDRController.ctrlTraerDataSondajetdr(idtdr)
+                    if not data:
+                        continue
+                    idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
+                    sondaje = InterfazController.ctrlListarComponenteSondajeTDR(idinstrumento)
+                    sondajestdr = None
+                    if sondaje:
+                        fechas = InterfazController.ctrlListarFechasSondajetdrCodigo(self.proyectoid, idcomponente, idinstrumento)
+                        if fechas:
+                            sonda = sondaje[0]
+                            fechitas = [fecha[0] for fecha in fechas]
+                            sondajestdr = [(sonda[0], sonda[1], sonda[2], sonda[3], sonda[4], sonda[5], sonda[6], fechitas)]
+                    equipos_data.append({
+                        "idinstrumento": idinstrumento,
+                        "idcomponente": idcomponente,
+                        "nombrezona": nombrezona,
+                        "sondaje": sondaje,
+                        "sondajestdr": sondajestdr,
+                    })
+                resultado["equipos_data"] = equipos_data
+            else:
+                if erroneos:
+                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+
+        except ValueError as e:
+            resultado["mensaje"] = str(e)
+        except Exception:
+            resultado["mensaje"] = "Error al procesar los archivos."
+
+        self.task_finishTDR.emit(resultado)
