@@ -4,7 +4,7 @@ from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QHeaderView, QPushButton, QMenu, QTableView, QDoubleSpinBox,
                         QFormLayout, QDialogButtonBox, QFileDialog, QMessageBox, QLabel, QTextEdit, QLineEdit, QTreeWidget)
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 from datetime import datetime, time 
 from PySide6.QtGui import QPen, QColor
 from utils.common.rutasarchivos import resource_path
@@ -17,6 +17,7 @@ from utils.common.metodosGenerales import MetodosGenerales
 from controllers.ProyectoController import ProyectoController
 from controllers.PluviometroController import PluviometroController
 from controllers.InterfazController import InterfazController
+from utils.shared.loading import LoadingView
 
 # Pintar columna oculta de tabla
 class CustomHeaderView(QHeaderView):
@@ -42,7 +43,7 @@ class CustomHeaderView(QHeaderView):
             painter.restore()
             
 class SubirPluviometros:
-    
+    _current_thread_pluvio = None
     # REGISTRO DE MEDIDAS DE COTAS DE TERRENO
     def registroNuevaDataPluviometros(main, proyectoid):
         loader = QUiLoader()
@@ -240,50 +241,58 @@ class SubirPluviometros:
                 labelRespuesta.setText("No se cargó ningún archivo.")
                 labelRespuesta.setStyleSheet("color: red;")
                 return
-            else:
-                try:
-                    idcompo = comboComponentes.currentData()
-                    respuesta, equipos, erroneos = SubirPluviometros.registrarFormatoDataPluviometros(proyectoid, ubicacion_archivo.text(), idcompo)
-                    if respuesta:
-                        ubicacion_archivo.clear()
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Archivos erróneos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("Guardado correctamente.")
-                        labelRespuesta.setStyleSheet("color: green;")
-                        # actualizar árbol checkbox
-                        for idpluviometro in equipos:
-                            data = PluviometroController.ctrlTraerDataPluviometro(idpluviometro)
-                            if data:
-                                idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
-                                treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
-                                treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
-                                treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-                                treewidgetpiezo = main.findChild(QTreeWidget, "tree_actual_piezometros")
-                                TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Pluviómetros", idinstrumento, "pluviometro")
-                                TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Pluviómetros", idinstrumento, "pluviometro")
-                                TreeCheckbox.eliminarCheckbox(treewidgetveloci, "Pluviómetros", idinstrumento, "pluviometro")
-                                TreeCheckbox.eliminarCheckbox(treewidgetpiezo, "Pluviómetros", idinstrumento, "pluviometro")
-                                # Crear piezometro cuerda en nuevo componente
-                                pluvio = InterfazController.ctrlListarComponentePluviometro(idinstrumento)
-                                if pluvio:
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "Pluviómetros", "5", pluvio, "pluviometro")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, proyectoid, "Pluviómetros", "6", pluvio, "pluviometro")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetveloci, nombrezona, idcomponente, proyectoid, "Pluviómetros", "2", pluvio, "pluviometro")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetpiezo, nombrezona, idcomponente, proyectoid, "Pluviómetros", "3", pluvio, "pluviometro")
-                    else:
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Error en los archivos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("No se guardó la data.")
-                        labelRespuesta.setStyleSheet("color: red;")
-                except ValueError as e:
-                    labelRespuesta.setText(str(e))
-                    labelRespuesta.setStyleSheet("color: red;")
+            idcompo = comboComponentes.currentData()
+
+            labelRespuesta.setText("")
+            botonAceptar.setEnabled(False)
+
+            loading = LoadingView.mostrarLoading()
+
+            thread = CargarPluviometrosThread(proyectoid, ubicacion_archivo.text(), idcompo)
+            SubirPluviometros._current_thread_pluvio = thread
+
+            def on_finish(resultado):
+                loading.close()
+                botonAceptar.setEnabled(True)
+
+                labelRespuesta.setText(resultado.get("mensaje", ""))
+                labelRespuesta.setStyleSheet(f"color: {resultado.get('color', 'red')};")
+
+                if resultado.get("ok"):
+                    ubicacion_archivo.clear()
+
+                    for item in resultado.get("equipos_data", []):
+                        idinstrumento = item["idinstrumento"]
+                        idcomponente = item["idcomponente"]
+                        nombrezona = item["nombrezona"]
+                        pluvio = item["pluvio"]
+
+                        treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
+                        treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
+                        treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+                        treewidgetpiezo = main.findChild(QTreeWidget, "tree_actual_piezometros")
+                        TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Pluviómetros", idinstrumento, "pluviometro")
+                        TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Pluviómetros", idinstrumento, "pluviometro")
+                        TreeCheckbox.eliminarCheckbox(treewidgetveloci, "Pluviómetros", idinstrumento, "pluviometro")
+                        TreeCheckbox.eliminarCheckbox(treewidgetpiezo, "Pluviómetros", idinstrumento, "pluviometro")
+
+                        if pluvio:
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "Pluviómetros", "5", pluvio, "pluviometro")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, proyectoid, "Pluviómetros", "6", pluvio, "pluviometro")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetveloci, nombrezona, idcomponente, proyectoid, "Pluviómetros", "2", pluvio, "pluviometro")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetpiezo, nombrezona, idcomponente, proyectoid, "Pluviómetros", "3", pluvio, "pluviometro")
+
+                SubirPluviometros._current_thread_pluvio = None
+
+            thread.task_finishPluvio.connect(on_finish, Qt.ConnectionType.QueuedConnection)
+            thread.finished.connect(thread.deleteLater)
+            thread.start()
+            loading.exec()
+
         botonSubir.clicked.connect(cargar_archivo)
         botonAceptar.clicked.connect(procesar_archivo)
         dialogo.exec()
-    
+
     def registrarFormatoDataPluviometros(proyectoid, ubicacion, idcomponente):
         erroneos = []
         equipos = []
@@ -648,4 +657,53 @@ class SubirPluviometros:
         # Mostrar el diálogo
         dialog.setLayout(layout)
         dialog.exec()
-    
+
+class CargarPluviometrosThread(QThread):
+    task_finishPluvio = Signal(dict)
+
+    def __init__(self, proyectoid, ubicacion_texto, idcompo):
+        super().__init__()
+        self.proyectoid = proyectoid
+        self.ubicacion_texto = ubicacion_texto
+        self.idcompo = idcompo
+
+    def run(self):
+        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        try:
+            respuesta, equipos, erroneos = SubirPluviometros.registrarFormatoDataPluviometros(
+                self.proyectoid, self.ubicacion_texto, self.idcompo
+            )
+
+            if respuesta:
+                resultado["ok"] = True
+                if erroneos:
+                    resultado["mensaje"] = f"Archivos erróneos: {erroneos}"
+                    resultado["color"] = "orange"
+                else:
+                    resultado["mensaje"] = "Guardado correctamente."
+                    resultado["color"] = "green"
+
+                equipos_data = []
+                for idpluviometro in equipos:
+                    data = PluviometroController.ctrlTraerDataPluviometro(idpluviometro)
+                    if not data:
+                        continue
+                    idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
+                    pluvio = InterfazController.ctrlListarComponentePluviometro(idinstrumento)
+                    equipos_data.append({
+                        "idinstrumento": idinstrumento,
+                        "idcomponente": idcomponente,
+                        "nombrezona": nombrezona,
+                        "pluvio": pluvio,
+                    })
+                resultado["equipos_data"] = equipos_data
+            else:
+                if erroneos:
+                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+
+        except ValueError as e:
+            resultado["mensaje"] = str(e)
+        except Exception:
+            resultado["mensaje"] = "Error al procesar los archivos."
+
+        self.task_finishPluvio.emit(resultado)
