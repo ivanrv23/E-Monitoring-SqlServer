@@ -6,7 +6,8 @@ class DatosModel:
 
     def asegurar_tabla_prismas(conn, cursor, nombretabla):
         """Crea la tabla de prismas (si no existe), incluyendo el índice único
-        de deduplicación (nombre_prisma, hora_prisma, grupo_puntos)."""
+        de deduplicación (nombre_prisma, hora_prisma, grupo_puntos) y los
+        índices de rendimiento para consultas y JOINs."""
         cursor.execute(f"""
             IF OBJECT_ID('{nombretabla}', 'U') IS NULL
             CREATE TABLE {nombretabla} (
@@ -28,6 +29,16 @@ class DatosModel:
             IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = '{idx_name}' AND object_id = OBJECT_ID('{nombretabla}'))
             CREATE UNIQUE INDEX {idx_name} ON {nombretabla} (nombre_prisma, hora_prisma, grupo_puntos);
         """)
+
+        # 🚀 Índice de rendimiento (por tabla) para las consultas de prismas
+        idx_perf = f"IX_{nombretabla}_nombre_hora_estado"
+        cursor.execute(f"""
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = '{idx_perf}' AND object_id = OBJECT_ID('{nombretabla}'))
+            CREATE NONCLUSTERED INDEX {idx_perf}
+            ON {nombretabla} (nombre_prisma, hora_prisma)
+            INCLUDE (state_prisma, estado_prisma, este_target, norte_target, elevacion_target, grupo_puntos);
+        """)
+
         conn.commit()
 
     @staticmethod

@@ -678,6 +678,16 @@ class ConexionWorker(QThread):
             IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = '{idx_name}' AND object_id = OBJECT_ID('{nombretabla}'))
             CREATE UNIQUE INDEX {idx_name} ON {nombretabla} (nombre_prisma, hora_prisma, grupo_puntos);
         """)
+
+        # 🚀 Índice de rendimiento (por tabla) para las consultas de prismas
+        idx_perf = f"IX_{nombretabla}_nombre_hora_estado"
+        cur.execute(f"""
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = '{idx_perf}' AND object_id = OBJECT_ID('{nombretabla}'))
+            CREATE NONCLUSTERED INDEX {idx_perf}
+            ON {nombretabla} (nombre_prisma, hora_prisma)
+            INCLUDE (state_prisma, estado_prisma, este_target, norte_target, elevacion_target, grupo_puntos);
+        """)
+        
         conn.commit()
 
     def _nombre_staging(self, nombretabla):

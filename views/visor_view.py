@@ -1548,7 +1548,10 @@ class VisorView:
                 respuesta, estadvect, tipvect, escavect = UmbralView.dialogoConfiguracionVectores(VisorView.estadovector, VisorView.tipovector, VisorView.escalavector)
                 if respuesta:
                     VisorView.estadovector, VisorView.tipovector, VisorView.escalavector = estadvect, tipvect, escavect
-                    VisorView.iniciar_hilo_final_visor(tree_actual)
+                    if not VisorView.estadovector:
+                        VisorView._limpiar_vectores_completamente()
+                    else:
+                        VisorView.iniciar_hilo_final_visor(tree_actual)
     
     def escalarVectores(prismasmarcados):
         if len(VisorView.vectoresDXF) > 0:

@@ -43,14 +43,11 @@ GO
 CREATE INDEX idx_preferencias_proy_mod ON preferencias_marcado (id_proyecto, modulo);
 GO
 
-------------------------------------------------------------------
 
 UPDATE instrumentacion SET tipo_equipo = 'PRISMAS'
 WHERE tipo_equipo = 'Prismas';
 
 
-
----------------------------------------------------------------------------------------------------
 ALTER TABLE celdas
 ADD estado_celda INT NOT NULL DEFAULT 1;
 
@@ -65,7 +62,8 @@ ADD estado_detalle INT NOT NULL DEFAULT 1;
 
 ALTER TABLE pluviometro_detalle2
 ADD estado_detalle INT NOT NULL DEFAULT 1;
--------------------------------------------
+
+
 ALTER TABLE preferencias_marcado
 ADD cantidad_equipos INT NOT NULL DEFAULT 0;
 GO
@@ -77,7 +75,8 @@ GO
 ALTER TABLE preferencias_marcado
 ADD nombre_plantilla VARCHAR(500) NOT NULL;
 GO
-----------------------------------------------------------------------------------------
+
+
 ALTER TABLE preferencias_marcado DROP COLUMN id_componente;
 GO
 ALTER TABLE preferencias_marcado DROP COLUMN id_instrumentacion;
@@ -86,3 +85,5 @@ GO
 ALTER TABLE preferencias_marcado
 ADD CONSTRAINT UQ_preferencias_plantilla UNIQUE (id_proyecto, modulo, nombre_plantilla);
 GO
+
+----------------------------------------------------------------------------------------
