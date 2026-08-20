@@ -6,7 +6,8 @@ import pandas as pd
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QFileDialog, QHeaderView, QPushButton, QMenu, QTableWidget,
                         QFormLayout, QRadioButton, QDialogButtonBox, QMessageBox, QLabel, QLineEdit, QTreeWidget, QTableView)
 from PySide6.QtGui import QIcon, QPen, QColor, QIcon
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
+from utils.shared.loading import LoadingView
 from PySide6.QtUiTools import QUiLoader
 from datetime import datetime,time
 from utils.shared.arbolmarcado import TreeCheckbox
@@ -44,7 +45,8 @@ class CustomHeaderView(QHeaderView):
             painter.restore()
 
 class SubirPrismas:
-    
+    _current_thread = None   
+    _current_thread_formatos = None 
     HEADERS = {
         "UNO": {
             'columns': [
@@ -143,8 +145,62 @@ class SubirPrismas:
                 tipodata = 1
             elif radioremplazar.isChecked():
                 tipodata = 2
-            SubirPrismas.cargar_archivo(main, idproyecto, idcompo, namecompo, tipodata, lblrespuesta, archivo_ruta_completa)
-        # Inicializar botones
+            else:
+                lblrespuesta.setText("Seleccione un tipo de carga.")
+                lblrespuesta.setStyleSheet("color: orange;")
+                return
+
+            lblrespuesta.setText("")
+            botonguardar.setEnabled(False)
+
+            loading = LoadingView.mostrarLoading()
+
+            thread = CargarPrismasThread(idproyecto, idcompo, tipodata, list(archivo_ruta_completa))
+            SubirPrismas._current_thread = thread
+
+            def on_finish(resultado):
+                loading.close()
+                botonguardar.setEnabled(True)
+
+                lblrespuesta.setText(resultado.get("mensaje", ""))
+                lblrespuesta.setStyleSheet(f"color: {resultado.get('color', 'red')};")
+
+                if resultado.get("ok"):
+                    inputarchivos.clear()
+                    archivo_ruta_completa.clear()
+
+                if resultado.get("ok") and resultado.get("prismasnuevos"):
+                    prismas = InterfazController.ctrlListarPrismasAutoNuevosComponente(
+                        idcompo, 'PRISMAS', resultado["prismasnuevos"]
+                    )
+                    if prismas:
+                        treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
+                        treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
+                        treewidgetdespla = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+                        treewidgetanalisis = main.findChild(QTreeWidget, "tree_actual_analisis")
+
+                        if resultado.get("tipodata") == 2:  # reemplazar
+                            for nombre in prismas:
+                                TreeCheckbox.eliminarCheckboxPrisma(treewidgetdatos, "Prismas", idcompo, "prisma", nombre[3], f"prismas{idproyecto}")
+                                TreeCheckbox.eliminarCheckboxPrisma(treewidgetvisor, "Prismas", idcompo, "prisma", nombre[3], f"prismas{idproyecto}")
+                                TreeCheckbox.eliminarCheckboxPrisma(treewidgetdespla, "Prismas", idcompo, "prisma", nombre[3], f"prismas{idproyecto}")
+                                TreeCheckbox.eliminarCheckboxPrisma(treewidgetanalisis, "Prismas", idcompo, "prisma", nombre[3], f"prismas{idproyecto}")
+
+                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
+                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, namecompo, idcompo, idproyecto, "Prismas", "2", prismas, "prisma")
+                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdespla, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
+                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetanalisis, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
+
+                        from views.analisis_view import AnalisisView
+                        AnalisisView.cargarPrismasCombosAnalisis(main, idproyecto)
+
+                SubirPrismas._current_thread = None
+
+            thread.task_finishCargarPrismas.connect(on_finish, Qt.ConnectionType.QueuedConnection)
+            thread.finished.connect(thread.deleteLater)
+            thread.start()
+            loading.exec()
+
         lblrespuesta.setText("")
         btnsubirdata.clicked.connect(seleccionar_archivo)
         botonguardar.clicked.connect(guardarDataPrismas)
@@ -537,49 +593,54 @@ class SubirPrismas:
                 labelRespuesta.setText("No se cargó ningún archivo.")
                 labelRespuesta.setStyleSheet("color: red;")
                 return
-            else:
-                try:
-                    idcompo = comboComponentes.currentData()
-                    namecompo = comboComponentes.currentText()
-                    respuesta, equipos, erroneos = SubirPrismas.registrarDataPrismas(idproyecto, ubicacion_archivo.text())
-                    if respuesta:
-                        registro, prismasnuevos = DatosController.ctrlRegistrarEquipoZona(idproyecto, idcompo, equipos, f'prismas{idproyecto}', 'PRISMAS')
-                        if registro:
-                            ubicacion_archivo.clear()
-                            if len(erroneos) > 0:
-                                labelRespuesta.setText(f"Algunos archivos no se guardaron: {erroneos}")
-                            else:
-                                labelRespuesta.setText("Los prismas se guardaron correctamente.")
-                            labelRespuesta.setStyleSheet("color: green;")
-                            if prismasnuevos:
-                                prismas = InterfazController.ctrlListarPrismasAutoNuevosComponente(idcompo, 'PRISMAS', prismasnuevos)
-                                if prismas:
-                                    treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
-                                    treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
-                                    treewidgetdespla = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-                                    # treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_velocidad")
-                                    treewidgetanalisis = main.findChild(QTreeWidget, "tree_actual_analisis")
-                                    # añadir a checkbox
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, namecompo, idcompo, idproyecto, "Prismas", "2", prismas, "prisma")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdespla, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
-                                    # TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetveloci, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetanalisis, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
-                                    # actualizar combos analisis
-                                    from views.analisis_view import AnalisisView
-                                    AnalisisView.cargarPrismasCombosAnalisis(main, idproyecto)
-                    else:
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Error en los archivos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("No se guardó la data.")
-                        labelRespuesta.setStyleSheet("color: red;")
-                except ValueError as e:
-                    labelRespuesta.setText(str(e))
-                    labelRespuesta.setStyleSheet("color: red;")
+            idcompo = comboComponentes.currentData()
+            namecompo = comboComponentes.currentText()
+
+            labelRespuesta.setText("")
+            botonAceptar.setEnabled(False)
+
+            loading = LoadingView.mostrarLoading()
+
+            thread = CargarDataFormatosPrismasThread(idproyecto, idcompo, ubicacion_archivo.text())
+            SubirPrismas._current_thread_formatos = thread
+
+            def on_finish(resultado):
+                loading.close()
+                botonAceptar.setEnabled(True)
+
+                labelRespuesta.setText(resultado.get("mensaje", ""))
+                labelRespuesta.setStyleSheet(f"color: {resultado.get('color', 'red')};")
+
+                if resultado.get("ok"):
+                    ubicacion_archivo.clear()
+
+                    prismasnuevos = resultado.get("prismasnuevos")
+                    if prismasnuevos:
+                        prismas = InterfazController.ctrlListarPrismasAutoNuevosComponente(idcompo, 'PRISMAS', prismasnuevos)
+                        if prismas:
+                            treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
+                            treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
+                            treewidgetdespla = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+                            treewidgetanalisis = main.findChild(QTreeWidget, "tree_actual_analisis")
+                            # añadir a checkbox
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, namecompo, idcompo, idproyecto, "Prismas", "2", prismas, "prisma")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdespla, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetanalisis, namecompo, idcompo, idproyecto, "Prismas", "1", prismas, "prisma")
+                            # actualizar combos analisis
+                            from views.analisis_view import AnalisisView
+                            AnalisisView.cargarPrismasCombosAnalisis(main, idproyecto)
+
+                SubirPrismas._current_thread_formatos = None
+
+            thread.task_finishCargarFormatos.connect(on_finish, Qt.ConnectionType.QueuedConnection)
+            thread.finished.connect(thread.deleteLater)
+            thread.start()
+            loading.exec()
+
         botonSubir.clicked.connect(cargar_archivo)
         botonAceptar.clicked.connect(procesar_archivo)
-        dialogo.exec()
+        dialogo.exec()   
     
     def registrarDataPrismas(proyectoid, ubicacion):
         erroneos = []
@@ -990,4 +1051,120 @@ class SubirPrismas:
         # Mostrar el diálogo
         dialog.setLayout(layout)
         dialog.exec()
-    
+
+class CargarPrismasThread(QThread):
+    task_finishCargarPrismas = Signal(dict)
+
+    def __init__(self, idproyecto, idcompo, tipodata, archivo_ruta_completa):
+        super().__init__()
+        self.idproyecto = idproyecto
+        self.idcompo = idcompo
+        self.tipodata = tipodata
+        self.archivo_ruta_completa = archivo_ruta_completa
+
+    def run(self):
+        resultado = {"ok": False, "mensaje": "Se generó un error al guardar prismas.", "color": "red"}
+        try:
+            encoding = SubirPrismas.validar_formato(self.archivo_ruta_completa)
+            if not encoding:
+                resultado["mensaje"] = "Archivo con formato/codificación no válida."
+                self.task_finishCargarPrismas.emit(resultado)
+                return
+
+            delimitador = SubirPrismas.detectar_delimitador(self.archivo_ruta_completa[0], encoding)
+            if not delimitador:
+                resultado["mensaje"] = "El archivo tiene delimitador incorrecto."
+                resultado["color"] = "orange"
+                self.task_finishCargarPrismas.emit(resultado)
+                return
+
+            tipoencabezado = None
+            encabezado_valido = False
+            chunksize = 10**6
+            for chunk in pd.read_csv(self.archivo_ruta_completa[0], encoding=encoding, sep=delimitador, chunksize=chunksize):
+                encabezado_csv = chunk.columns.tolist()
+                encabezado_valido, tipoencabezado = SubirPrismas.validarEncabezadoArchivo(encabezado_csv)
+                break
+
+            if not encabezado_valido:
+                resultado["mensaje"] = "Archivo incorrecto."
+                resultado["color"] = "orange"
+                self.task_finishCargarPrismas.emit(resultado)
+                return
+
+            respuesta, equipos = False, []
+            args = (self.idproyecto, self.tipodata, self.archivo_ruta_completa[0], encoding, self.idcompo, delimitador)
+            if tipoencabezado == "UNO":
+                respuesta, equipos = DatosController.ctrlRegistrarPrismasAutomatizadosUno(*args)
+            elif tipoencabezado == "DOS":
+                respuesta, equipos = DatosController.ctrlRegistrarPrismasAutomatizadosDos(*args)
+            elif tipoencabezado == "TRES":
+                respuesta, equipos = DatosController.ctrlRegistrarPrismasAutomatizadosTres(*args)
+            elif tipoencabezado == "CUATRO":
+                respuesta, equipos = DatosController.ctrlRegistrarPrismasAutomatizadosCuatro(*args)
+            elif tipoencabezado == "CINCO":
+                respuesta, equipos = DatosController.ctrlRegistrarPrismasAutomatizadosCinco(*args)
+
+            if not respuesta:
+                resultado["mensaje"] = "Se generó un error al guardar prismas."
+                self.task_finishCargarPrismas.emit(resultado)
+                return
+
+            registro, prismasnuevos = DatosController.ctrlRegistrarEquipoZona(
+                self.idproyecto, self.idcompo, equipos, f'prismas{self.idproyecto}', 'PRISMAS'
+            )
+            if registro:
+                resultado["ok"] = True
+                resultado["mensaje"] = "Guardado correctamente."
+                resultado["color"] = "green"
+                resultado["prismasnuevos"] = prismasnuevos
+                resultado["tipodata"] = self.tipodata
+            else:
+                resultado["mensaje"] = "Se generó un error al actualizar instrumentación."
+
+        except FileNotFoundError:
+            resultado["mensaje"] = "Archivo no encontrado."
+        except pd.errors.ParserError:
+            resultado["mensaje"] = "Error al analizar el archivo."
+        except Exception:
+            resultado["mensaje"] = "Error al cargar archivo."
+
+        self.task_finishCargarPrismas.emit(resultado)    
+
+class CargarDataFormatosPrismasThread(QThread):
+    task_finishCargarFormatos = Signal(dict)
+
+    def __init__(self, idproyecto, idcompo, ubicacion_texto):
+        super().__init__()
+        self.idproyecto = idproyecto
+        self.idcompo = idcompo
+        self.ubicacion_texto = ubicacion_texto
+
+    def run(self):
+        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        try:
+            respuesta, equipos, erroneos = SubirPrismas.registrarDataPrismas(self.idproyecto, self.ubicacion_texto)
+            if respuesta:
+                registro, prismasnuevos = DatosController.ctrlRegistrarEquipoZona(
+                    self.idproyecto, self.idcompo, equipos, f'prismas{self.idproyecto}', 'PRISMAS'
+                )
+                if registro:
+                    resultado["ok"] = True
+                    resultado["prismasnuevos"] = prismasnuevos
+                    if erroneos:
+                        resultado["mensaje"] = f"Algunos archivos no se guardaron: {erroneos}"
+                        resultado["color"] = "orange"
+                    else:
+                        resultado["mensaje"] = "Los prismas se guardaron correctamente."
+                        resultado["color"] = "green"
+                else:
+                    resultado["mensaje"] = "Error al registrar el equipo en la zona."
+            else:
+                if erroneos:
+                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+        except ValueError as e:
+            resultado["mensaje"] = str(e)
+        except Exception:
+            resultado["mensaje"] = "Error al procesar los archivos."
+
+        self.task_finishCargarFormatos.emit(resultado)

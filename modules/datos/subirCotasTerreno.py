@@ -4,7 +4,7 @@ from openpyxl import load_workbook
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QHeaderView, QPushButton, QMenu, QTableWidget, QFormLayout,
                             QDialogButtonBox, QMessageBox, QLabel, QTextEdit, QLineEdit, QTreeWidget, QTableView, QFileDialog)
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
+from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex, QThread, Signal
 from PySide6.QtGui import QPen, QColor
 from datetime import datetime,time
 from utils.common.rutasarchivos import resource_path
@@ -17,6 +17,7 @@ from utils.common.metodosGenerales import MetodosGenerales
 from controllers.ProyectoController import ProyectoController
 from controllers.TerrenoController import TerrenoController
 from controllers.InterfazController import InterfazController
+from utils.shared.loading import LoadingView
 
 class CustomTableModel(QAbstractTableModel):
     def __init__(self, data, headers, parent=None):
@@ -86,7 +87,7 @@ class CustomHeaderView(QHeaderView):
             painter.restore()
             
 class SubirCotasTerreno:
-    
+    _current_thread_pluvio = None
     # REGISTRO DE MEDIDAS DE COTAS DE TERRENO
     def registroDataCotaTerreno(main, proyectoid):
         loader = QUiLoader()
@@ -274,43 +275,52 @@ class SubirCotasTerreno:
                 labelRespuesta.setText("No se cargó ningún archivo.")
                 labelRespuesta.setStyleSheet("color: red;")
                 return
-            else:
-                try:
-                    idcompo = comboComponentes.currentData()
-                    respuesta, equipos, erroneos = SubirCotasTerreno.registrarFormatoDataCotasTerreno(proyectoid, ubicacion_archivo.text(), idcompo)
-                    if respuesta:
-                        ubicacion_archivo.clear()
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Archivos erróneos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("Guardado correctamente.")
-                        labelRespuesta.setStyleSheet("color: green;")
-                        # actualizar árbol checkbox
-                        for idcota in equipos:
-                            data = TerrenoController.ctrlTraerDataCotaTerreno(idcota)
-                            if data:
-                                idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
-                                treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
-                                treewidgetpiezo = main.findChild(QTreeWidget, "tree_actual_piezometros")
-                                TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Cotas de Terreno", idinstrumento, "terreno")
-                                TreeCheckbox.eliminarCheckbox(treewidgetpiezo, "Cotas de Terreno", idinstrumento, "terreno")
-                                # Crear piezometro cuerda en nuevo componente
-                                terreno = InterfazController.ctrlListarComponenteCotaTerreno(idinstrumento)
-                                if terreno:
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "Cotas de Terreno", "6", terreno, "terreno")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetpiezo, nombrezona, idcomponente, proyectoid, "Cotas de Terreno", "4", terreno, "terreno")
-                    else:
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Error en los archivos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("No se guardó la data.")
-                        labelRespuesta.setStyleSheet("color: red;")
-                except ValueError as e:
-                    labelRespuesta.setText(str(e))
-                    labelRespuesta.setStyleSheet("color: red;")
+            idcompo = comboComponentes.currentData()
+
+            labelRespuesta.setText("")
+            botonAceptar.setEnabled(False)
+
+            loading = LoadingView.mostrarLoading()
+
+            thread = CargarCotasTerrenoThread(proyectoid, ubicacion_archivo.text(), idcompo)
+            SubirCotasTerreno._current_thread_terreno = thread
+
+            def on_finish(resultado):
+                loading.close()
+                botonAceptar.setEnabled(True)
+
+                labelRespuesta.setText(resultado.get("mensaje", ""))
+                labelRespuesta.setStyleSheet(f"color: {resultado.get('color', 'red')};")
+
+                if resultado.get("ok"):
+                    ubicacion_archivo.clear()
+
+                    for item in resultado.get("equipos_data", []):
+                        idinstrumento = item["idinstrumento"]
+                        idcomponente = item["idcomponente"]
+                        nombrezona = item["nombrezona"]
+                        terreno = item["terreno"]
+
+                        treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
+                        treewidgetpiezo = main.findChild(QTreeWidget, "tree_actual_piezometros")
+                        TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Cotas de Terreno", idinstrumento, "terreno")
+                        TreeCheckbox.eliminarCheckbox(treewidgetpiezo, "Cotas de Terreno", idinstrumento, "terreno")
+
+                        if terreno:
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "Cotas de Terreno", "6", terreno, "terreno")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetpiezo, nombrezona, idcomponente, proyectoid, "Cotas de Terreno", "4", terreno, "terreno")
+
+                SubirCotasTerreno._current_thread_terreno = None
+
+            thread.task_finishTerreno.connect(on_finish, Qt.ConnectionType.QueuedConnection)
+            thread.finished.connect(thread.deleteLater)
+            thread.start()
+            loading.exec()
+
         botonSubir.clicked.connect(cargar_archivo)
         botonAceptar.clicked.connect(procesar_archivo)
         dialogo.exec()
+    
     
     def registrarFormatoDataCotasTerreno(proyectoid, ubicacion, idcomponente):
         erroneos = []
@@ -606,4 +616,53 @@ class SubirCotasTerreno:
         # Mostrar el diálogo
         dialog.setLayout(layout)
         dialog.exec()
-    
+
+class CargarCotasTerrenoThread(QThread):
+    task_finishTerreno = Signal(dict)
+
+    def __init__(self, proyectoid, ubicacion_texto, idcompo):
+        super().__init__()
+        self.proyectoid = proyectoid
+        self.ubicacion_texto = ubicacion_texto
+        self.idcompo = idcompo
+
+    def run(self):
+        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        try:
+            respuesta, equipos, erroneos = SubirCotasTerreno.registrarFormatoDataCotasTerreno(
+                self.proyectoid, self.ubicacion_texto, self.idcompo
+            )
+
+            if respuesta:
+                resultado["ok"] = True
+                if erroneos:
+                    resultado["mensaje"] = f"Archivos erróneos: {erroneos}"
+                    resultado["color"] = "orange"
+                else:
+                    resultado["mensaje"] = "Guardado correctamente."
+                    resultado["color"] = "green"
+
+                equipos_data = []
+                for idcota in equipos:
+                    data = TerrenoController.ctrlTraerDataCotaTerreno(idcota)
+                    if not data:
+                        continue
+                    idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
+                    terreno = InterfazController.ctrlListarComponenteCotaTerreno(idinstrumento)
+                    equipos_data.append({
+                        "idinstrumento": idinstrumento,
+                        "idcomponente": idcomponente,
+                        "nombrezona": nombrezona,
+                        "terreno": terreno,
+                    })
+                resultado["equipos_data"] = equipos_data
+            else:
+                if erroneos:
+                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+
+        except ValueError as e:
+            resultado["mensaje"] = str(e)
+        except Exception:
+            resultado["mensaje"] = "Error al procesar los archivos."
+
+        self.task_finishTerreno.emit(resultado)

@@ -4,7 +4,7 @@ from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QHeaderView, QPushButton, QMenu, QTableWidget, QFormLayout,
                             QDialogButtonBox, QMessageBox, QLabel, QLineEdit, QTreeWidget, QFileDialog, QTableView,QHBoxLayout)
 from PySide6.QtGui import QPen, QColor, QDoubleValidator
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 from datetime import datetime, time
 import os
 import shutil
@@ -18,6 +18,7 @@ from utils.common.metodosGenerales import MetodosGenerales
 from controllers.ProyectoController import ProyectoController
 from controllers.AcelerografoController import AcelerografoController
 from controllers.InterfazController import InterfazController
+from utils.shared.loading import LoadingView
 
 # Pintar columna oculta de tabla
 class CustomHeaderView(QHeaderView):
@@ -43,7 +44,7 @@ class CustomHeaderView(QHeaderView):
             painter.restore()
             
 class SubirAcelerografos:
-    
+    _current_thread_acelero = None 
     def registrarDataAcelerografos(main, proyectoid):
         loader = QUiLoader()
         ui_file_path = resource_path("ui/registroacelerografos.ui")
@@ -233,43 +234,51 @@ class SubirAcelerografos:
                 labelRespuesta.setText("No se cargó ningún archivo.")
                 labelRespuesta.setStyleSheet("color: red;")
                 return
-            else:
-                try:
-                    idcompo = comboComponentes.currentData()
-                    respuesta, equipos, erroneos = SubirAcelerografos.registrarFormatoDataAcelerografo(proyectoid, ubicacion_archivo.text(), idcompo)
-                    if respuesta:
-                        ubicacion_archivo.clear()
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Archivos erróneos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("Guardado correctamente.")
-                        labelRespuesta.setStyleSheet("color: green;")
-                        # actualizar árbol checkbox
-                        for idacelero in equipos:
-                            data = AcelerografoController.ctrlTraerDataAcelerografo(idacelero)
-                            if data:
-                                idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
-                                treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
-                                treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
-                                treewidgetacelero = main.findChild(QTreeWidget, "tree_actual_acelerografos")
-                                TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Acelerógrafos", idinstrumento, "acelerografo")
-                                TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Acelerógrafos", idinstrumento, "acelerografo")
-                                TreeCheckbox.eliminarCheckbox(treewidgetacelero, "Acelerógrafos", idinstrumento, "acelerografo")
-                                # Crear piezometro cuerda en nuevo componente
-                                acelero = InterfazController.ctrlListarComponenteAcelerografo(idinstrumento)
-                                if acelero:
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "Acelerógrafos", "8", acelero, "acelerografo")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, proyectoid, "Acelerógrafos", "8", acelero, "acelerografo")
-                                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetacelero, nombrezona, idcomponente, proyectoid, "Acelerógrafos", "1", acelero, "acelerografo")
-                    else:
-                        if len(erroneos) > 0:
-                            labelRespuesta.setText(f"Error en los archivos: {erroneos}")
-                        else:
-                            labelRespuesta.setText("No se guardó la data.")
-                        labelRespuesta.setStyleSheet("color: red;")
-                except ValueError as e:
-                    labelRespuesta.setText(str(e))
-                    labelRespuesta.setStyleSheet("color: red;")
+            idcompo = comboComponentes.currentData()
+
+            labelRespuesta.setText("")
+            botonAceptar.setEnabled(False)
+
+            loading = LoadingView.mostrarLoading()
+
+            thread = CargarAcelerografosThread(proyectoid, ubicacion_archivo.text(), idcompo)
+            SubirAcelerografos._current_thread_acelero = thread
+
+            def on_finish(resultado):
+                loading.close()
+                botonAceptar.setEnabled(True)
+
+                labelRespuesta.setText(resultado.get("mensaje", ""))
+                labelRespuesta.setStyleSheet(f"color: {resultado.get('color', 'red')};")
+
+                if resultado.get("ok"):
+                    ubicacion_archivo.clear()
+
+                    for item in resultado.get("equipos_data", []):
+                        idinstrumento = item["idinstrumento"]
+                        idcomponente = item["idcomponente"]
+                        nombrezona = item["nombrezona"]
+                        acelero = item["acelero"]
+
+                        treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
+                        treewidgetvisor = main.findChild(QTreeWidget, "tree_actual_visor")
+                        treewidgetacelero = main.findChild(QTreeWidget, "tree_actual_acelerografos")
+                        TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Acelerógrafos", idinstrumento, "acelerografo")
+                        TreeCheckbox.eliminarCheckbox(treewidgetvisor, "Acelerógrafos", idinstrumento, "acelerografo")
+                        TreeCheckbox.eliminarCheckbox(treewidgetacelero, "Acelerógrafos", idinstrumento, "acelerografo")
+
+                        if acelero:
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "Acelerógrafos", "8", acelero, "acelerografo")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetvisor, nombrezona, idcomponente, proyectoid, "Acelerógrafos", "8", acelero, "acelerografo")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetacelero, nombrezona, idcomponente, proyectoid, "Acelerógrafos", "1", acelero, "acelerografo")
+
+                SubirAcelerografos._current_thread_acelero = None
+
+            thread.task_finishAcelero.connect(on_finish, Qt.ConnectionType.QueuedConnection)
+            thread.finished.connect(thread.deleteLater)
+            thread.start()
+            loading.exec()
+
         botonSubir.clicked.connect(cargar_archivo)
         botonAceptar.clicked.connect(procesar_archivo)
         dialogo.exec()
@@ -726,4 +735,53 @@ class SubirAcelerografos:
                 return
         QMessageBox.information(dialog, "Éxito", "Archivos movidos con éxito")
         dialog.accept()
-    
+
+class CargarAcelerografosThread(QThread):
+    task_finishAcelero = Signal(dict)
+
+    def __init__(self, proyectoid, ubicacion_texto, idcompo):
+        super().__init__()
+        self.proyectoid = proyectoid
+        self.ubicacion_texto = ubicacion_texto
+        self.idcompo = idcompo
+
+    def run(self):
+        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        try:
+            respuesta, equipos, erroneos = SubirAcelerografos.registrarFormatoDataAcelerografo(
+                self.proyectoid, self.ubicacion_texto, self.idcompo
+            )
+
+            if respuesta:
+                resultado["ok"] = True
+                if erroneos:
+                    resultado["mensaje"] = f"Archivos erróneos: {erroneos}"
+                    resultado["color"] = "orange"
+                else:
+                    resultado["mensaje"] = "Guardado correctamente."
+                    resultado["color"] = "green"
+
+                equipos_data = []
+                for idacelero in equipos:
+                    data = AcelerografoController.ctrlTraerDataAcelerografo(idacelero)
+                    if not data:
+                        continue
+                    idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
+                    acelero = InterfazController.ctrlListarComponenteAcelerografo(idinstrumento)
+                    equipos_data.append({
+                        "idinstrumento": idinstrumento,
+                        "idcomponente": idcomponente,
+                        "nombrezona": nombrezona,
+                        "acelero": acelero,
+                    })
+                resultado["equipos_data"] = equipos_data
+            else:
+                if erroneos:
+                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+
+        except ValueError as e:
+            resultado["mensaje"] = str(e)
+        except Exception:
+            resultado["mensaje"] = "Error al procesar los archivos."
+
+        self.task_finishAcelero.emit(resultado)
