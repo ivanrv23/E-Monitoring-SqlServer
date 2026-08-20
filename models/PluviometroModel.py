@@ -136,7 +136,11 @@ class PluviometroModel:
             # Crear un conjunto de tuplas con los valores de fecha y hora para comparar los registros existentes
             idpluvio = data[0][0]
             cursor.execute(f"SELECT fecha_pluviometro FROM {tabla} WHERE id_pluviometro = ?;", (idpluvio,))
-            existen_pluviometros = set([tuple(row)[0] for row in cursor.fetchall()])
+            existen_pluviometros = set()
+            for row in cursor.fetchall():
+                valor_fecha = tuple(row)[0]
+                # Convertir a string con el mismo formato que fecha_hora_nueva, para que la comparación funcione
+                existen_pluviometros.add(valor_fecha.strftime('%Y-%m-%d %H:%M:%S'))
             lote_registros = []
             contador = 0
             for fila in data:
@@ -218,7 +222,10 @@ class PluviometroModel:
     # LISTAR LOS PLUVIÓMETROS POR PROYECTO    
     def mdlListarPluviometrosCombo(proyecto):
         conn = None
-        sql = """SELECT * FROM pluviometros WHERE id_proyecto = ? AND estado_detalle = 1;"""
+        sql = """SELECT p.id_pluviometro, p.nombre_pluviometro, i.id_componente, p.codigo_pluviometro
+        FROM pluviometros p
+        INNER JOIN instrumentacion i ON p.id_pluviometro = i.id_equipo AND i.tipo_equipo = 'PLUVIOMETRO'
+        WHERE p.id_proyecto = ? AND p.estado_pluviometro = 1;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()

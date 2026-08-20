@@ -5,6 +5,7 @@ from modules.proyecto.crearProyecto import CrearProyecto
 from modules.datos.subirCeldas import SubirCeldas
 from controllers.InterfazController import InterfazController
 from utils.shared.personalizacion import Personalizacion
+from controllers.PluviometroController import PluviometroController
 
 class EquiposCeldas:
 
@@ -16,6 +17,11 @@ class EquiposCeldas:
             if codigo.isdigit():
                 if codigo == "0": # COMPONENTE
                     EquiposCeldas.marcardesmarcar_todos_hijos(parent_item, estado, 2)
+
+                elif codigo == "2": # PLUVIÓMETROS
+                    EquiposCeldas.marcardesmarcar_todos_hijos(parent_item, estado, 1)
+                    EquiposCeldas.actualizar_estado_padre_hijos(parent_item)
+
                 else:
                     EquiposCeldas.marcardesmarcar_todos_hijos(parent_item, estado, 1)
                     EquiposCeldas.actualizar_estado_padre_hijos(parent_item)
@@ -56,6 +62,8 @@ class EquiposCeldas:
                     delete_celdas = menu.addAction("Eliminar Celdas")
                     edit_celdas.triggered.connect(lambda: SubirCeldas.cambiar_componente_celdas(idzona, idproyecto, treeWidget, "Celdas de Asentamiento", "1", "celda", reiniciarvistas, vista))
                     delete_celdas.triggered.connect(lambda: SubirCeldas.eliminar_celdas(idproyecto, idzona, "Celdas de Asentamiento", "1", treeWidget, reiniciarvistas))
+                elif tipo == "2": # Pluviómetros
+                    pass             
             else:    
                 if tipo == "celda":
                     nombrecelda = item.text(0)
@@ -82,6 +90,13 @@ class EquiposCeldas:
                     idproyecto = item.parent().parent().parent().text(3)
                     custom_cota = menu.addAction("Personalizar Cota")
                     custom_cota.triggered.connect(lambda: Personalizacion.personalizarEquipoGrafica(idproyecto, idinstrumento, nombrecota, f"COTA DE CELDA {nombrecelda}", tipoinstru))
+
+                elif tipo == "pluviometro":
+                    nombrepluvio = item.text(0)
+                    idinstrumento = item.text(2)
+                    idproyecto = item.parent().parent().text(3)
+                    custom_pluvio = menu.addAction("Personalizar Pluviómetro")
+                    custom_pluvio.triggered.connect(lambda: Personalizacion.personalizarEquipoGrafica(idproyecto, idinstrumento, nombrepluvio, "PLUVIOMETRO"))
             menu.exec(treeWidget.mapToGlobal(point))
     
     def validarMarcadoUnEquipoZona(datos, zona):
@@ -246,6 +261,11 @@ class EquiposCeldas:
                     celdas = InterfazController.ctrlListarCeldasComponente(proyecto_id, idzona)
                     if celdas:
                         TreeCheckbox.crearNuevoGrupoCheckboxesDoble(tree_widget, namezona, idzona, proyecto_id, "Celdas de Asentamiento", "1", celdas, "celda")
+
+                    # LISTAR PLUVIOMETROS
+                    pluviometros = InterfazController.ctrlListarPluviometrosComponente(proyecto_id, idzona)
+                    if pluviometros:
+                        TreeCheckbox.crearNuevoGrupoCheckboxesDoble(tree_widget, namezona, idzona, proyecto_id, "Pluviómetros", "2", pluviometros, "pluviometro")
 
     @staticmethod
     def filtrarArbolPorTexto(treeWidget, texto):

@@ -17,6 +17,7 @@ from controllers.CeldaController import CeldaController
 from controllers.UmbralController import UmbralController
 from utils.shared.graficarUmbrales import GraficarUmbrales
 from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
+from controllers.PluviometroController import PluviometroController
 
 class CeldasView:
     main = None
@@ -157,7 +158,7 @@ class CeldasView:
             if lista:
                 umbrales = None
                 tipo = combograficoceldas.currentData()
-                celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaEquiposMarcados(lista, "Celdas de Asentamiento")
+                celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
                 if len(celdasmarcadas) > 0:
                     if len(celdasmarcadas) == 1:
                         for grupo in celdasmarcadas:
@@ -260,7 +261,7 @@ class CeldasView:
         unidadtiempo = combo_tiempos.currentData()
         lista = EquiposCeldas.obtener_todos_elementos_marcados(tree_actual)
         if lista:
-            celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaEquiposMarcados(lista, "Celdas de Asentamiento")
+            celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
             if len(celdasmarcadas) > 0:
                 config = SoftwareConfiguracion.obtenerDataSoftware()
                 filtrado = config[16]
@@ -289,11 +290,15 @@ class CeldasView:
                 else:
                     CeldasView.limpiarGraficaCeldas()
             else:
-                CeldasView.limpiarGraficaCeldas()
+                pluviometrosmarcados = CeldasView.obtenerListaAuxiliaresMarcados(lista, "Pluviómetros")
+                if len(pluviometrosmarcados) == 1:
+                    CeldasView.graficarSoloPluviometro(lista, tipografica, unidadmedida, unidadtiempo)
+                else:
+                    CeldasView.limpiarGraficaCeldas()
         else:
             CeldasView.limpiarGraficaCeldas()
     
-    def obtenerListaEquiposMarcados(lista, tipolista):
+    def obtenerListaCeldasMarcadas(lista, tipolista):
         equiposmarcados = []
         cotasmarcadas = []
         for region, instrumentos in lista.items():
@@ -303,6 +308,14 @@ class CeldasView:
                         equiposmarcados.append((region, celda))
                         cotasmarcadas.append((celda, cotas))
         return equiposmarcados, cotasmarcadas
+        
+    def obtenerListaEquiposMarcados(lista, tipolista):
+        equiposmarcados = []
+        for region, instrumentos in lista.items():
+            for tipo, lista_equipos in instrumentos.items():
+                if tipo[0] == tipolista:
+                    equiposmarcados.append((region, lista_equipos))
+        return equiposmarcados
     
     def graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografico, unidadmedida, unidadtiempo, tendencias=None):
         widget_celdas = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
@@ -380,6 +393,12 @@ class CeldasView:
                 labelx = "Horas"
             pluviometros = None
             modulo = "CELDAS"
+            pluviometrosmarcados = CeldasView.obtenerListaEquiposMarcados(lista, "Pluviómetros")
+            if len(pluviometrosmarcados) == 1:
+                datapluvio = PluviometroController.ctrlObtenerPluviometros(CeldasView.idproyecto, pluviometrosmarcados, CeldasView.fechainicial, CeldasView.fechafinal)
+                if datapluvio:
+                    pluviometros = datapluvio
+
             # validar tipo de filtrado
             if filtrado == 0:
                 procesar_grafica_piezometros(widget_celdas, labeltendencia, datos, cotasmarcadas, 1, indextiempo, ubicacion, idx_funda, idx_super, labelx, labely, tipografico, unidadmedida, unidadtiempo, titulo, CeldasView.idproyecto, modulo, pluviometros, tendencias, None, CeldasView.fechainicial, CeldasView.fechafinal)
@@ -389,6 +408,47 @@ class CeldasView:
     def limpiarGraficaCeldas():
         widget_celdas = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
         limpiar_widget(widget_celdas)
+
+    def graficarSoloPluviometro(lista, tipografico, unidadmedida, unidadtiempo, tendencias=None):
+        widget_celdas = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
+        labeltendencia = CeldasView.main.findChild(QLabel, "label_tendencia_celdas")
+
+        pluviometrosmarcados = CeldasView.obtenerListaAuxiliaresMarcados(lista, "Pluviómetros")
+        datapluvio = PluviometroController.ctrlObtenerPluviometros(
+            CeldasView.idproyecto, pluviometrosmarcados,
+            CeldasView.fechainicial, CeldasView.fechafinal
+        )
+        if not datapluvio:
+            CeldasView.limpiarGraficaCeldas()
+            return
+
+        # tipo de tiempo
+        if unidadtiempo == "FECHA":
+            indextiempo, labelx = 2, "Fechas"
+        elif unidadtiempo == "DIA":
+            indextiempo, labelx = 3, "Días"
+        else:
+            indextiempo, labelx = 4, "Horas"
+
+        titulo = "Precipitación"
+        labely = ""
+        ubicacion, idx_funda, idx_super = 5, 6, 7
+        modulo = "CELDAS"
+
+        config = SoftwareConfiguracion.obtenerDataSoftware()
+        filtrado = config[16]
+
+        if filtrado == 0:
+            procesar_grafica_piezometros(widget_celdas, labeltendencia, None, None, 1, indextiempo,
+                                         ubicacion, idx_funda, idx_super, labelx, labely, tipografico,
+                                         unidadmedida, unidadtiempo, titulo, CeldasView.idproyecto,
+                                         modulo, datapluvio, tendencias, None,
+                                         CeldasView.fechainicial, CeldasView.fechafinal)
+        else:
+            procesar_grafica_piezometros(widget_celdas, labeltendencia, None, None, 1, indextiempo,
+                                         ubicacion, idx_funda, idx_super, labelx, labely, tipografico,
+                                         unidadmedida, unidadtiempo, titulo, CeldasView.idproyecto,
+                                         modulo, datapluvio, tendencias)
        
     def on_tipo_velocidad_seleccionado(combo_tiempo_velocidad):
         tipo = combo_tiempo_velocidad.currentText()
@@ -413,7 +473,7 @@ class CeldasView:
     def mostrarModalLimpiezaRuido(treeWidget):
         lista = EquiposCeldas.obtener_todos_elementos_marcados(treeWidget)
         if lista:
-            celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaEquiposMarcados(lista, "Celdas de Asentamiento")
+            celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
             if len(celdasmarcadas) > 0:
                 estado, metodoLimpieza, equiposLimpieza = Personalizacion.dialogoLimpiezaRuidoEquipos(celdasmarcadas)
                 if estado:
@@ -481,7 +541,7 @@ class CeldasView:
     def mostrarModalTendencia(treeWidget):
         lista = EquiposCeldas.obtener_todos_elementos_marcados(treeWidget)
         if lista:
-            celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaEquiposMarcados(lista, "Celdas de Asentamiento")
+            celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
             if len(celdasmarcadas) > 0:
                 regresion = Personalizacion.dialogoFiltroRegresionPiezometrosCeldas(celdasmarcadas, "CELDAS")
                 if len(regresion) > 0:
@@ -522,7 +582,7 @@ class CeldasView:
     def mostrarModalConfiguracionEjes(treeWidget):
         lista = EquiposCeldas.obtener_todos_elementos_marcados(treeWidget)
         if lista:
-            celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaEquiposMarcados(lista, "Celdas de Asentamiento")
+            celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
             if len(celdasmarcadas) > 0:
                 combo_medidas = CeldasView.main.findChild(QComboBox, "combo_medida_celdas")
                 unidadmedida = combo_medidas.currentData()
@@ -596,7 +656,7 @@ class CeldasView:
     def iniciarAsistenteVozCeldas(treeWidget, botonvoz):
         lista = EquiposCeldas.obtener_todos_elementos_marcados(treeWidget)
         if lista:
-            celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaEquiposMarcados(lista, "Celdas de Asentamiento")
+            celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
             if len(celdasmarcadas) > 0:
                 combotipografico = CeldasView.main.findChild(QComboBox, "cb_tipo_graficas_celdas")
                 tipografica = combotipografico.currentData()

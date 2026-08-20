@@ -352,21 +352,23 @@ class AcelerografoModel:
                 fecha_hora_nueva = fecha_original + " " + hora_original
                 
                 if fecha_hora_nueva not in existen_acelero:
+
+                    observacion = fila[5] if len(fila) > 5 else None
                     # En T-SQL no insertamos el ID autoincremental
-                    datito = (fila[0], fecha_hora_nueva, fila[3], fila[4])
+                    datito = (fila[0], fecha_hora_nueva, fila[3], fila[4], observacion)
                     lote_registros.append(datito)
                     contador += 1
                 
                 if contador % 1000 == 0 and lote_registros:
                     # SQL Server soporta inserts múltiples, pyodbc executemany es eficiente
-                    sql_batch = f"""INSERT INTO {tabla} (id_acelerografo, fecha_detalle, magnitud_detalle, distancia_detalle)
-                                       VALUES (?, ?, ?, ?);"""
+                    sql_batch = f"""INSERT INTO {tabla} (id_acelerografo, fecha_detalle, magnitud_detalle, distancia_detalle, observacion_detalle)
+                                       VALUES (?, ?, ?, ?, ?);"""
                     cursor.executemany(sql_batch, lote_registros)
                     lote_registros = []
             
             if lote_registros:
-                sql_batch = f"""INSERT INTO {tabla} (id_acelerografo, fecha_detalle, magnitud_detalle, distancia_detalle)
-                                   VALUES (?, ?, ?, ?);"""
+                sql_batch = f"""INSERT INTO {tabla} (id_acelerografo, fecha_detalle, magnitud_detalle, distancia_detalle, observacion_detalle)
+                                   VALUES (?, ?, ?, ?, ?);"""
                 cursor.executemany(sql_batch, lote_registros)
             
             conn.commit()
