@@ -5,10 +5,10 @@ from services.security.apis.conexiones.connection import Connection
 class ConfiguracionModel:
     
     @staticmethod
-    def mdlActualizarConfiguracionEjes(idproyecto, modulo, tipo, valejemin, valejemax, valinterpri, valintersecu, valinterdias):
-        sqlinsert = """INSERT INTO ejes (id_proyecto, modulo_ejes, tipo_ejes, yinferior_ejes, ysuperior_ejes, yprincipal_ejes, ysecundario_ejes, xintervalo_ejes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
-        sqlupdate = """UPDATE ejes SET yinferior_ejes = ?, ysuperior_ejes = ?, yprincipal_ejes = ?, ysecundario_ejes = ?, xintervalo_ejes = ?
+    def mdlActualizarConfiguracionEjes(idproyecto, modulo, tipo, valejemin, valejemax, valinterpri, valintersecu, valinterdias, valrangolluvia, valintervalolluvia):
+        sqlinsert = """INSERT INTO ejes (id_proyecto, modulo_ejes, tipo_ejes, yinferior_ejes, ysuperior_ejes, yprincipal_ejes, ysecundario_ejes, xintervalo_ejes, rango_precipitacion, intervalo_precipitacion)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+        sqlupdate = """UPDATE ejes SET yinferior_ejes = ?, ysuperior_ejes = ?, yprincipal_ejes = ?, ysecundario_ejes = ?, xintervalo_ejes = ?, rango_precipitacion = ?, intervalo_precipitacion = ?
             WHERE id_proyecto = ? AND modulo_ejes = ? AND tipo_ejes = ?;"""
         conn = None
         try:
@@ -20,9 +20,9 @@ class ConfiguracionModel:
             exists = row[0] if row else 0
             
             if exists > 0:
-                cur.execute(sqlupdate, (valejemin, valejemax, valinterpri, valintersecu, valinterdias, idproyecto, modulo, tipo))
+                cur.execute(sqlupdate, (valejemin, valejemax, valinterpri, valintersecu, valinterdias,  valrangolluvia, valintervalolluvia, idproyecto, modulo, tipo))
             else:
-                cur.execute(sqlinsert, (idproyecto, modulo, tipo, valejemin, valejemax, valinterpri, valintersecu, valinterdias))
+                cur.execute(sqlinsert, (idproyecto, modulo, tipo, valejemin, valejemax, valinterpri, valintersecu, valinterdias, valrangolluvia, valintervalolluvia))
             conn.commit()
             return True
         except Exception as e:

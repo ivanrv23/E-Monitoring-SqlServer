@@ -674,12 +674,15 @@ class PiezometrosView:
                 infoeje = ConfiguracionController.ctrlObtenerConfiguracionEje(PiezometrosView.idproyecto, "PIEZOMETROS", tipografico)
                 if infoeje:
                     ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8]
+                    rango_precipitacion = infoeje[9] if infoeje[9] else 100
+                    intervalo_precipitacion = infoeje[10] if infoeje[10] else 20
                 else:
                     ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = 0, 0, 0, 0, 0
-                estadoeje, minejey, maxejey, primario, secundario, dias = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, tipomedida, unidadtiempo)
+                    rango_precipitacion, intervalo_precipitacion = 100, 20
+                estadoeje, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, tipomedida, rango_precipitacion, intervalo_precipitacion, unidadtiempo)
                 if estadoeje:
                     # guardar configuracion
-                    respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(PiezometrosView.idproyecto, "PIEZOMETROS", tipografico, minejey, maxejey, primario, secundario, dias)
+                    respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(PiezometrosView.idproyecto, "PIEZOMETROS", tipografico, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion)
                     if respuesta:
                         config = SoftwareConfiguracion.obtenerDataSoftware()
                         filtrado = config[16]

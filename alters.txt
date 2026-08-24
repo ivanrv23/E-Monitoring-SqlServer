@@ -87,3 +87,8 @@ ADD CONSTRAINT UQ_preferencias_plantilla UNIQUE (id_proyecto, modulo, nombre_pla
 GO
 
 ----------------------------------------------------------------------------------------
+ALTER TABLE [ejes]
+ADD 
+  [rango_precipitacion] FLOAT DEFAULT ((0)),
+  [intervalo_precipitacion] FLOAT DEFAULT ((0));
+  

@@ -77,7 +77,10 @@ class TerrenoModel:
             # Crear un conjunto de tuplas con los valores de fecha y hora para comparar los registros existentes
             idcota = data[0][0]
             cursor.execute(f"SELECT fecha_detalle FROM {table_name} WHERE id_terreno = ?;", (idcota,))
-            existen_cotas = set([tuple(row)[0] for row in cursor.fetchall()])
+            existen_cotas = set()
+            for row in cursor.fetchall():
+                valor_fecha = tuple(row)[0]
+                existen_cotas.add(valor_fecha.strftime('%Y-%m-%d %H:%M:%S'))
             lote_registros = []
             contador = 0
             for fila in data:

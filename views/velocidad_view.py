@@ -651,13 +651,13 @@ class VelocidadView:
                 tipografico = tipo_grafico_desplazamiento.currentData()
                 infoeje = ConfiguracionController.ctrlObtenerConfiguracionEje(VelocidadView.idproyecto, "VELOCIDAD", tipografico)
                 if infoeje:
-                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8]
+                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rango_precipitacion, intervalo_precipitacion = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8], infoeje[9], infoeje[10]
                 else:
-                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = 0, 0, 0, 0, 0
-                estadoeje, minejey, maxejey, primario, secundario, dias = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, unidadmedida, unidadtiempo)
+                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rango_precipitacion, intervalo_precipitacion = 0, 0, 0, 0, 0, 0, 0
+                estadoeje, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, unidadmedida, rango_precipitacion, intervalo_precipitacion, unidadtiempo)
                 if estadoeje:
                     # guardar configuracion
-                    respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(VelocidadView.idproyecto, "VELOCIDAD", tipografico, minejey, maxejey, primario, secundario, dias)
+                    respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(VelocidadView.idproyecto, "VELOCIDAD", tipografico, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion)
                     if respuesta:
                         combo_promedios = VelocidadView.main.findChild(QComboBox, "combo_promedio_velocidad")
                         spin_promedio = VelocidadView.main.findChild(QSpinBox, "spin_promedio_velocidad")

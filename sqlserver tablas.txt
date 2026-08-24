@@ -295,7 +295,9 @@ CREATE TABLE [ejes] (
   [ysuperior_ejes] FLOAT DEFAULT ((0)),
   [yprincipal_ejes] FLOAT DEFAULT ((0)),
   [ysecundario_ejes] FLOAT DEFAULT ((0)),
-  [xintervalo_ejes] FLOAT DEFAULT ((0)),
+  [xintervalo_ejes] FLOAT DEFAULT ((0)),  
+  [rango_precipitacion] FLOAT DEFAULT ((0)),
+  [intervalo_precipitacion] FLOAT DEFAULT ((0)),
   CONSTRAINT [PK_ejes] PRIMARY KEY CLUSTERED ([id_ejes])
 );
 

@@ -194,7 +194,7 @@ class Personalizacion:
     limpioEstado, limpiezaMetodo, marcadosCombos = False, "", []
     num_checkboxes_marcados, combospincreados, prismaselegidos = 0, [], []
     checkboxes_marcados, spincomboscreados, equiposelegidos = 0, [], []
-    ejemin, ejemax, interpri, intersecu, interdias, estadoejey = 0, 0, 0, 0, 0, False
+    ejemin, ejemax, interpri, intersecu, interdias, rangopreci, interpreci, estadoejey = 0, 0, 0, 0, 0, 0, 0, False
     estaeje, rangoxmin, rangoxmax, interxprim, interxsecu, interyprofu = False, 0, 0, 0, 0, 0
     ejexmintdr, ejexmaxtdr, xpritdr, xsecutdr = 0, 0, 0, 0
     ejeymintdr, ejeymaxtdr, ypritdr, ysecutdr, estadotdrejey = 0, 0, 0, 0, False
@@ -952,9 +952,9 @@ class Personalizacion:
         combobox.currentIndexChanged.connect(validarSpinBox)
         return label, combobox, spinbox
     
-    def dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, ejexinter, unidad, hora=1):
+    def dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, ejexinter, unidad, rangolluvia, intervalolluvia, hora=1):
         Personalizacion.ejemin, Personalizacion.ejemax, Personalizacion.interpri = ejeymin, ejeymax, ejeyprim
-        Personalizacion.intersecu, Personalizacion.interdias, Personalizacion.estadoejey = ejeysecu, ejexinter, False
+        Personalizacion.intersecu, Personalizacion.interdias, Personalizacion.rangopreci, Personalizacion.interpreci, Personalizacion.estadoejey = ejeysecu, ejexinter, rangolluvia, intervalolluvia, False
         loader = QUiLoader()        
         ui_file_path = resource_path("ui/configuracionejes.ui")
         ui_file = loader.load(ui_file_path, None)
@@ -969,6 +969,8 @@ class Personalizacion:
         spininterpri = dialogo.findChild(QDoubleSpinBox, "spin_intervalo_primario")
         spinintersecu = dialogo.findChild(QDoubleSpinBox, "spin_intervalo_secundario")
         spininterdias = dialogo.findChild(QSpinBox, "spin_intervalo_dias")
+        spinrangolluvia = dialogo.findChild(QSpinBox, "spin_rango_precipitacion")
+        spinintervalolluvia = dialogo.findChild(QSpinBox, "spin_intervalo_precipitacion")
         botonResetear = dialogo.findChild(QPushButton, "btn_resetear")
         botonAceptar = dialogo.findChild(QPushButton, "btn_guardar")
         botonCancelar = dialogo.findChild(QPushButton, "btn_cancelar")
@@ -978,6 +980,8 @@ class Personalizacion:
         spininterpri.setValue(ejeyprim * unidad)
         spinintersecu.setValue(ejeysecu * unidad)
         spininterdias.setValue(ejexinter * hora)
+        spinrangolluvia.setValue(rangolluvia)
+        spinintervalolluvia.setValue(intervalolluvia)
         # Función para calcular y actualizar la diferencia en días
         def resetear_valores():
             spinminimo.setValue(0)
@@ -985,6 +989,8 @@ class Personalizacion:
             spininterpri.setValue(0)
             spinintersecu.setValue(0)
             spininterdias.setValue(0)
+            spinrangolluvia.setValue(0)
+            spinintervalolluvia.setValue(0)
             botonAceptar.setEnabled(True)
         def actualizar_diferencia():
             vejemin = spinminimo.value()
@@ -997,11 +1003,15 @@ class Personalizacion:
             valinterpri = spininterpri.value()
             valintersecu = spinintersecu.value()
             valinterdias = spininterdias.value()
+            valrangolluvia = spinrangolluvia.value()
+            valintervalolluvia = spinintervalolluvia.value()
             Personalizacion.ejemin = valejemin / unidad
             Personalizacion.ejemax = valejemax / unidad
             Personalizacion.interpri = valinterpri / unidad
             Personalizacion.intersecu = valintersecu / unidad
             Personalizacion.interdias = int(valinterdias / hora)
+            Personalizacion.rangopreci = valrangolluvia
+            Personalizacion.interpreci = valintervalolluvia
             Personalizacion.estadoejey = True
             dialogo.close()
         def cancelar_ejes():
@@ -1013,7 +1023,7 @@ class Personalizacion:
         botonAceptar.clicked.connect(devolver_ejes)
         botonCancelar.clicked.connect(cancelar_ejes)
         dialogo.exec()
-        return Personalizacion.estadoejey, Personalizacion.ejemin, Personalizacion.ejemax, Personalizacion.interpri, Personalizacion.intersecu, Personalizacion.interdias
+        return Personalizacion.estadoejey, Personalizacion.ejemin, Personalizacion.ejemax, Personalizacion.interpri, Personalizacion.intersecu, Personalizacion.interdias, Personalizacion.rangopreci, Personalizacion.interpreci
     
     def dialogoConfiguracionEjesInclinometro(ejexmin, ejexmax, ejexprim, ejexsecu, interprofu, unidad):
         Personalizacion.estaeje, Personalizacion.rangoxmin, Personalizacion.rangoxmax = False, ejexmin, ejexmax

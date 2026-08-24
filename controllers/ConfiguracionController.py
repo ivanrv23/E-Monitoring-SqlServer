@@ -2,8 +2,8 @@ from models.ConfiguracionModel import ConfiguracionModel
 
 class ConfiguracionController:
     
-    def ctrlActualizarConfiguracionEjes(idproyecto, modulo, tipo, valejemin, valejemax, valinterpri, valintersecu, valinterdias):
-        respuesta = ConfiguracionModel.mdlActualizarConfiguracionEjes(idproyecto, modulo, tipo, valejemin, valejemax, valinterpri, valintersecu, valinterdias)
+    def ctrlActualizarConfiguracionEjes(idproyecto, modulo, tipo, valejemin, valejemax, valinterpri, valintersecu, valinterdias, valrangolluvia, valintervalolluvia):
+        respuesta = ConfiguracionModel.mdlActualizarConfiguracionEjes(idproyecto, modulo, tipo, valejemin, valejemax, valinterpri, valintersecu, valinterdias, valrangolluvia, valintervalolluvia)
         return respuesta
     
     def ctrlActualizarConfiguracionEjesTDR(idproyecto, minejex, maxejex, xprimario, xsecundario, minejey, maxejey, yprimario, ysecundario):
