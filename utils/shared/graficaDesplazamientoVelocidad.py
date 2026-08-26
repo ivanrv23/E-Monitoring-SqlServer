@@ -397,6 +397,32 @@ def dibujar_eventos(ax, id_proyecto, tipo_inst, instrumentos_dict, fecha_inicio,
 
     return globales, especificos
 
+def generar_ticks_precipitacion(rango_max, intervalo, min_etiquetas=5):
+    """
+    Genera los ticks del eje de precipitación respetando 3 reglas:
+    1. Nunca supera rango_max (a diferencia de np.arange(0, max+intervalo, intervalo))
+    2. Muestra los múltiplos del intervalo hasta el último que quepa,
+       y SIEMPRE agrega rango_max como último tick aunque rompa el patrón.
+    3. Si intervalo <= 0, genera automáticamente ~min_etiquetas ticks.
+    """
+    rango_max = float(rango_max)
+    intervalo = float(intervalo) if intervalo else 0.0
+
+    if rango_max <= 0:
+        return np.array([0.0])
+
+    if intervalo <= 0:
+        # Autogenerar ~5 etiquetas equiespaciadas
+        ticks = np.linspace(0, rango_max, min_etiquetas)
+    else:
+        # arange con stop=rango_max (exclusivo) -> nunca pasa del máximo
+        ticks = np.arange(0, rango_max, intervalo)
+        # Forzar que el máximo real siempre aparezca, aunque no calce con el intervalo
+        if not np.isclose(ticks[-1], rango_max):
+            ticks = np.append(ticks, rango_max)
+
+    return ticks   
+
 def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_lectura, labelejex, labelejey, tipo, medida, tiempo, titulo, idproyecto, modulo, pluviometro_data=None, equipostendencia=None, escala=None, fecha_inicio=None, fecha_fin=None):
     ax = None
     ax2 = None
@@ -552,7 +578,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         else:
                             ax2.set_ylim(0, int(estilo[3]))
                         barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color=estilo[5], width=ancho, label="Precipitación")
-                        ticks = np.arange(0, int(estilo[3]) + int(estilo[4]), int(estilo[4]))
+                        ticks = generar_ticks_precipitacion (int(estilo[3]), int(estilo[4]))
                         ax2.set_yticks(ticks)
                     else:
                         if posicionlluvia == 0:
@@ -560,19 +586,19 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         else:
                             ax2.set_ylim(0, rango_max_lluvia)
                         barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color='cyan', width=ancho, alpha=0.5, label="Precipitación")
-                        ticks = np.arange(0, rango_max_lluvia + intervalo_lluvia, intervalo_lluvia)
+                        ticks = generar_ticks_precipitacion (rango_max_lluvia, intervalo_lluvia)
                         ax2.set_yticks(ticks)
-                    ax2.set_ylabel("Precipitacion (mm)", fontsize=ejezise)
+                    ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
                 else:
                     ax2 = ax.twinx()
                     if posicionlluvia == 0:
                         ax2.set_ylim(rango_max_lluvia, 0)
                     else:
                         ax2.set_ylim(0, rango_max_lluvia)
-                    ticks = np.arange(0, rango_max_lluvia + intervalo_lluvia, intervalo_lluvia)
+                    ticks = generar_ticks_precipitacion (rango_max_lluvia, intervalo_lluvia)
                     ax2.set_yticks(ticks)
                     ax2.axhline(y=0, color='cyan', linestyle='-', linewidth=2, alpha=0.5)
-                    ax2.set_ylabel("Precipitacion (mm)", fontsize=ejezise)
+                    ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
                     barras_pluviometro = mpatches.Patch(color='cyan', alpha=0.5)
             else:
                 if pluviometro_data:
@@ -595,7 +621,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         else:
                             ax2.set_ylim(0, int(estilo[3]))
                         barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color=estilo[5], width=ancho, label="Precipitación")
-                        ticks = np.arange(0, int(estilo[3]) + int(estilo[4]), int(estilo[4]))
+                        ticks = generar_ticks_precipitacion (int(estilo[3]), int(estilo[4]))
                         ax2.set_yticks(ticks)
                     else:
                         if posicionlluvia == 0:
@@ -603,10 +629,10 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         else:
                             ax2.set_ylim(0, rango_max_lluvia)
                         barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color='cyan', width=ancho, alpha=0.5, label="Precipitación")
-                        ticks = np.arange(0, rango_max_lluvia + intervalo_lluvia, intervalo_lluvia)
+                        ticks = generar_ticks_precipitacion (rango_max_lluvia, intervalo_lluvia)
                         ax2.set_yticks(ticks)
 
-                    ax2.set_ylabel("Precipitacion (mm)", fontsize=ejezise)
+                    ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
 
     lineas = []
     lblecuacion_rcuadrado = ""
@@ -1397,7 +1423,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     else:
                         ax2.set_ylim(0, int(estilo[3]))
                     barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color=estilo[5], width=ancho, label="Precipitación")
-                    ticks = np.arange(0, int(estilo[3]) + int(estilo[4]), int(estilo[4]))
+                    ticks = generar_ticks_precipitacion (int(estilo[3]), int(estilo[4]))
                     ax2.set_yticks(ticks)
                 else:
                     if posicionlluvia == 0:
@@ -1405,9 +1431,9 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     else:
                         ax2.set_ylim(0, rango_max_lluvia)
                     barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color='cyan', width=ancho, alpha=0.5, label="Precipitación")
-                    ticks = np.arange(0, rango_max_lluvia + intervalo_lluvia, intervalo_lluvia)
+                    ticks = generar_ticks_precipitacion (rango_max_lluvia, intervalo_lluvia)
                     ax2.set_yticks(ticks)
-                ax2.set_ylabel("Precipitacion (mm)", fontsize=ejezise)
+                ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
             else:
                 if modulo == "PIEZOMETROS":
                     ax2 = ax.twinx()
@@ -1415,10 +1441,10 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                         ax2.set_ylim(rango_max_lluvia, 0)
                     else:
                         ax2.set_ylim(0, rango_max_lluvia)
-                    ticks = np.arange(0, rango_max_lluvia + intervalo_lluvia, intervalo_lluvia)
+                    ticks = generar_ticks_precipitacion (rango_max_lluvia, intervalo_lluvia)
                     ax2.set_yticks(ticks)
                     ax2.axhline(y=0, color='cyan', linestyle='-', linewidth=2, alpha=0.5)
-                    ax2.set_ylabel("Precipitacion (mm)", fontsize=ejezise)
+                    ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
                     barras_pluviometro = mpatches.Patch(color='cyan', alpha=0.5)
         else:
             if pluviometro_data:
@@ -1441,7 +1467,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     else:
                         ax2.set_ylim(0, int(estilo[3]))
                     barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color=estilo[5], width=ancho, label="Precipitación")
-                    ticks = np.arange(0, int(estilo[3]) + int(estilo[4]), int(estilo[4]))
+                    ticks = generar_ticks_precipitacion (int(estilo[3]), int(estilo[4]))
                     ax2.set_yticks(ticks)
                 else:
                     if posicionlluvia == 0:
@@ -1449,9 +1475,9 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     else:
                         ax2.set_ylim(0, rango_max_lluvia)
                     barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color='cyan', width=ancho, alpha=0.5, label="Precipitación")
-                    ticks = np.arange(0, rango_max_lluvia + intervalo_lluvia, intervalo_lluvia)
+                    ticks = generar_ticks_precipitacion (rango_max_lluvia, intervalo_lluvia)
                     ax2.set_yticks(ticks)
-                ax2.set_ylabel("Precipitacion (mm)", fontsize=ejezise)
+                ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
                 barras_pluviometro = mpatches.Patch(color='cyan', alpha=0.5)
                 
     else:
@@ -1475,7 +1501,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     else:
                         ax2.set_ylim(0, int(estilo[3]))
                     barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color=estilo[5], width=ancho, label="Precipitación")
-                    ticks = np.arange(0, int(estilo[3]) + int(estilo[4]), int(estilo[4]))
+                    ticks = generar_ticks_precipitacion (int(estilo[3]), int(estilo[4]))
                     ax2.set_yticks(ticks)
                 else:
                     if posicionlluvia == 0:
@@ -1483,7 +1509,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     else:
                         ax2.set_ylim(0, rango_max_lluvia)
                     barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color='cyan', width=ancho, alpha=0.5, label="Precipitación")
-                ax2.set_ylabel("Precipitacion (mm)", fontsize=ejezise)
+                ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
 
     # Graficar datos
     lineas = []

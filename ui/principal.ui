@@ -1910,7 +1910,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <item>
                 <widget class="QPushButton" name="btn_exportar_desplazamiento">
                  <property name="toolTip">
-                  <string>Expotar data gráfico</string>
+                  <string>Exportar Data del Gráfico</string>
                  </property>
                  <property name="text">
                   <string/>
@@ -2338,7 +2338,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <item>
                 <widget class="QPushButton" name="btn_exportar_velocidad">
                  <property name="toolTip">
-                  <string>Expotar data gráfico</string>
+                  <string>Exportar Data del Gráfico</string>
                  </property>
                  <property name="text">
                   <string/>

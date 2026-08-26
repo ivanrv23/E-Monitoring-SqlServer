@@ -48,6 +48,9 @@ from services.security.session import Session
 from views.dashboard_view import DashboardView
 from modules.conexion.conexioDB import ConexionDB
 
+import qtawesome as qta
+from PySide6.QtCore import QSize
+
 class MenuEventFilter(QObject):
     def __init__(self, menu, main_window):
         super().__init__(menu)
@@ -229,7 +232,11 @@ class MainView:
             btnfiltrarfechasdesplaza = MainView.main_window.findChild(QPushButton, "btn_filtrarfechas_desplaza")
             cargarIcono(btnfiltrarfechasdesplaza, ListaIconos.ICONOS["calendario"])
             btnanularfechasdesplaza = MainView.main_window.findChild(QPushButton, "btn_anularfechas_desplaza")
-            cargarIcono(btnanularfechasdesplaza, ListaIconos.ICONOS["regresar"])
+            # cargarIcono(btnanularfechasdesplaza, ListaIconos.ICONOS["regresar"])
+            btnanularfechasdesplaza.setIcon(qta.icon("fa6s.calendar-xmark"))
+            btnanularfechasdesplaza.setIconSize(QSize(18, 18))
+
+
             btnVozDesplazamiento = MainView.main_window.findChild(QPushButton, "btn_voz_desplazamiento")
             cargarIcono(btnVozDesplazamiento, ListaIconos.ICONOS["asistente_voz"])
             btn_add_reporteSD= MainView.main_window.findChild(QPushButton, "btn_reporte_grafica_desplazamiento")
@@ -248,7 +255,9 @@ class MainView:
             btn_umbral_desplazamiento_personalizado= MainView.main_window.findChild(QPushButton, "btn_umbral_personalizado_D")
             cargarIcono(btn_umbral_desplazamiento_personalizado, ListaIconos.ICONOS["umbral2"])
             btn_expotar_desplazamiento= MainView.main_window.findChild(QPushButton, "btn_exportar_desplazamiento")
-            cargarIcono(btn_expotar_desplazamiento, ListaIconos.ICONOS["exportar_grafico"])
+            # #cargarIcono(btn_expotar_desplazamiento, ListaIconos.ICONOS["exportar_grafico"])
+            btn_expotar_desplazamiento.setIcon(qta.icon("fa6s.file-arrow-down"))
+            btn_expotar_desplazamiento.setIconSize(QSize(18, 18))
 
             ############################## BOTONES VELOCIDAD #############################
             btn_refrescar_vista_desplazamiento = MainView.main_window.findChild(QPushButton, "btn_refrescar_vista_velocidad")

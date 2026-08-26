@@ -1024,6 +1024,69 @@ class Personalizacion:
         botonCancelar.clicked.connect(cancelar_ejes)
         dialogo.exec()
         return Personalizacion.estadoejey, Personalizacion.ejemin, Personalizacion.ejemax, Personalizacion.interpri, Personalizacion.intersecu, Personalizacion.interdias, Personalizacion.rangopreci, Personalizacion.interpreci
+
+    def dialogoConfiguracionEjesAcelerografo(ejeymin, ejeymax, ejeyprim, ejeysecu, ejexinter, unidad, hora=1):
+        Personalizacion.ejemin, Personalizacion.ejemax, Personalizacion.interpri = ejeymin, ejeymax, ejeyprim
+        Personalizacion.intersecu, Personalizacion.interdias, Personalizacion.estadoejey = ejeysecu, ejexinter, False
+        loader = QUiLoader()        
+        ui_file_path = resource_path("ui/configuracionejesAcelerografo.ui")
+        ui_file = loader.load(ui_file_path, None)
+        dialogo = QDialog()
+        dialogo.setWindowTitle("Configuración de Ejes")
+        layout = QVBoxLayout()
+        layout.addWidget(ui_file)
+        dialogo.setLayout(layout)
+        # Acceso a los botones
+        spinminimo = dialogo.findChild(QDoubleSpinBox, "spin_limite_inferior")
+        spinmaximo = dialogo.findChild(QDoubleSpinBox, "spin_limite_superior")
+        spininterpri = dialogo.findChild(QDoubleSpinBox, "spin_intervalo_primario")
+        spinintersecu = dialogo.findChild(QDoubleSpinBox, "spin_intervalo_secundario")
+        spininterdias = dialogo.findChild(QSpinBox, "spin_intervalo_dias")
+        botonResetear = dialogo.findChild(QPushButton, "btn_resetear")
+        botonAceptar = dialogo.findChild(QPushButton, "btn_guardar")
+        botonCancelar = dialogo.findChild(QPushButton, "btn_cancelar")
+        # cargar valores por defecto
+        spinminimo.setValue(ejeymin * unidad)
+        spinmaximo.setValue(ejeymax * unidad)
+        spininterpri.setValue(ejeyprim * unidad)
+        spinintersecu.setValue(ejeysecu * unidad)
+        spininterdias.setValue(ejexinter * hora)
+        # Función para calcular y actualizar la diferencia en días
+        def resetear_valores():
+            spinminimo.setValue(0)
+            spinmaximo.setValue(0)
+            spininterpri.setValue(0)
+            spinintersecu.setValue(0)
+            spininterdias.setValue(0)
+            botonAceptar.setEnabled(True)
+        def actualizar_diferencia():
+            vejemin = spinminimo.value()
+            vejemax = spinmaximo.value()
+            # Habilitar o deshabilitar el botón según la diferencia
+            botonAceptar.setEnabled(vejemax >= vejemin)
+        def devolver_ejes():
+            valejemin = spinminimo.value()
+            valejemax = spinmaximo.value()
+            valinterpri = spininterpri.value()
+            valintersecu = spinintersecu.value()
+            valinterdias = spininterdias.value()
+            Personalizacion.ejemin = valejemin / unidad
+            Personalizacion.ejemax = valejemax / unidad
+            Personalizacion.interpri = valinterpri / unidad
+            Personalizacion.intersecu = valintersecu / unidad
+            Personalizacion.interdias = int(valinterdias / hora)
+            Personalizacion.estadoejey = True
+            dialogo.close()
+        def cancelar_ejes():
+            dialogo.close()
+        # Conectar las señales de cambio de valor
+        botonResetear.clicked.connect(resetear_valores)
+        spinminimo.valueChanged.connect(actualizar_diferencia)
+        spinmaximo.valueChanged.connect(actualizar_diferencia)
+        botonAceptar.clicked.connect(devolver_ejes)
+        botonCancelar.clicked.connect(cancelar_ejes)
+        dialogo.exec()
+        return Personalizacion.estadoejey, Personalizacion.ejemin, Personalizacion.ejemax, Personalizacion.interpri, Personalizacion.intersecu, Personalizacion.interdias
     
     def dialogoConfiguracionEjesInclinometro(ejexmin, ejexmax, ejexprim, ejexsecu, interprofu, unidad):
         Personalizacion.estaeje, Personalizacion.rangoxmin, Personalizacion.rangoxmax = False, ejexmin, ejexmax

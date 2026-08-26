@@ -145,19 +145,14 @@ class GraficaComportamiento:
     # ─────────────────────────────────────────────────────────────
     #  Método principal
     # ─────────────────────────────────────────────────────────────
-    def graficarComportamientoPrismas(main, idproyecto, fechainicial, fechafinal, filtrado):
+    def graficarComportamientoPrismas(main, idproyecto, idcomponente, idinstrumento, nombreprisma, fechainicial, fechafinal, filtrado):
         widget           = main.findChild(QWidget,   "widget_graficas_comportamiento")
-        comboComponentes = main.findChild(QComboBox, "combo_componentes_comportamiento")
-        comboPrismas     = main.findChild(QComboBox, "combo_prismas_comportamiento")
         comboGraficas    = main.findChild(QComboBox, "combo_tiposgrafica_comportamiento")
         comboUnidades    = main.findChild(QComboBox, "combo_unidades_comportamiento")
 
-        idcomponente  = comboComponentes.currentData()
-        idinstrumento = comboPrismas.currentData()
         tipografica   = comboGraficas.currentData()   or "desplazamiento"
         unidadmedida  = comboUnidades.currentData()   or 1
         nombreunidad  = comboUnidades.currentText()
-        nombreprisma  = comboPrismas.currentText()
 
         if not idinstrumento:
             return

@@ -99,7 +99,7 @@
             <item row="12" column="0">
              <widget class="QLabel" name="label_13">
               <property name="text">
-               <string>Grosor de Vértices en las gráficas:</string>
+               <string>Grosor de Vértices en las Gráficas:</string>
               </property>
              </widget>
             </item>
@@ -338,42 +338,42 @@
             <item row="14" column="0">
              <widget class="QLabel" name="label_14">
               <property name="text">
-               <string>Suavizado</string>
+               <string>Suavizado: </string>
               </property>
              </widget>
             </item>
             <item row="15" column="0">
              <widget class="QLabel" name="label_17">
               <property name="text">
-               <string>Etiquetas eje x</string>
+               <string>Etiquetas Eje X: </string>
               </property>
              </widget>
             </item>
             <item row="16" column="0">
              <widget class="QLabel" name="label_18">
               <property name="text">
-               <string>Formato mes eje x</string>
+               <string>Formato Mes Eje X: </string>
               </property>
              </widget>
             </item>
             <item row="14" column="1" colspan="2">
              <widget class="QCheckBox" name="check_suavizado">
               <property name="text">
-               <string>Suavizado</string>
+               <string>Suavizado </string>
               </property>
              </widget>
             </item>
             <item row="15" column="1" colspan="2">
              <widget class="QCheckBox" name="check_fechahora">
               <property name="text">
-               <string>Mostrar fecha y hora</string>
+               <string>Mostrar Fecha y Hora</string>
               </property>
              </widget>
             </item>
             <item row="16" column="1" colspan="2">
              <widget class="QCheckBox" name="check_mesletras">
               <property name="text">
-               <string>Mes letras</string>
+               <string>Mes en Letras</string>
               </property>
              </widget>
             </item>
@@ -398,7 +398,7 @@
              <item row="0" column="0">
               <widget class="QGroupBox" name="group_prismas_velocidad">
                <property name="title">
-                <string>Grafica Prismas Veloc. Incremental</string>
+                <string>Gráfica Prismas Veloc. Incremental</string>
                </property>
                <layout class="QVBoxLayout" name="verticalLayout_3">
                 <item>
@@ -427,14 +427,14 @@
                 <item>
                  <widget class="QRadioButton" name="radio_filtro_sinfechas">
                   <property name="text">
-                   <string>Filtro Visual con Zoom</string>
+                   <string>Filtro Absoluto (Histórico)</string>
                   </property>
                  </widget>
                 </item>
                 <item>
                  <widget class="QRadioButton" name="radio_filtro_confechas">
                   <property name="text">
-                   <string>Filtro con Recálculo</string>
+                   <string>Filtro Relativo (Recálculo)</string>
                   </property>
                  </widget>
                 </item>
@@ -467,7 +467,7 @@
              <item row="1" column="1">
               <widget class="QGroupBox" name="group_mostrar_lluvia">
                <property name="title">
-                <string>Mostrar Precipitaciones</string>
+                <string>Orientación de Precipitaciones</string>
                </property>
                <layout class="QVBoxLayout" name="verticalLayout_5">
                 <item>

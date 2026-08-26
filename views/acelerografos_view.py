@@ -283,10 +283,10 @@ class AcelerografosView:
                     ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8]
                 else:
                     ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = 0, 0, 0, 0, 0
-                estadoeje, minejey, maxejey, primario, secundario, dias = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, tipomedida, unidadtiempo)
+                estadoeje, minejey, maxejey, primario, secundario, dias = Personalizacion.dialogoConfiguracionEjesAcelerografo(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, tipomedida, unidadtiempo)
                 if estadoeje:
                     # guardar configuracion
-                    respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(AcelerografosView.idproyecto, "ACELEROGRAFOS", tipo, minejey, maxejey, primario, secundario, dias)
+                    respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(AcelerografosView.idproyecto, "ACELEROGRAFOS", tipo, minejey, maxejey, primario, secundario, dias, 0, 0)
                     if respuesta:
                         AcelerografosView.graficarAcelerografosMarcados(aceleromarcados)
     

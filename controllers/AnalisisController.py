@@ -126,7 +126,7 @@ class AnalisisController:
                 if tipografica == "VI3D":
                     if tipovelocidad == 0:
                         method_name = 'mdlCalcularVelocidadPositiva' + tipografica
-                prismasdata = getattr(VelocidadModel, method_name)(tabla, unidad, prismas, idcomponente)
+                prismasdata = getattr(VelocidadModel, method_name)(tabla, unidad, prismas, idcomponente, fechaini, fechafin)
                 if prismasdata:
                     prismastotales.extend(prismasdata)
             else:
@@ -140,7 +140,7 @@ class AnalisisController:
         else: # Desplazamiento
             if tipofiltro == 0:
                 method_name = 'mdlCalcularDesplazamiento' + tipografica
-                prismasdata = getattr(DesplazamientoModel, method_name)(tabla, unidad, prismas, idcomponente)
+                prismasdata = getattr(DesplazamientoModel, method_name)(tabla, unidad, prismas, idcomponente, fechaini, fechafin)
                 if prismasdata:
                     prismastotales.extend(prismasdata)
             else:

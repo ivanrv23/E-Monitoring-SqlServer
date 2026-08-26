@@ -253,6 +253,13 @@ class AnalisisView:
     intervalo_principal_y = 0
     intervalo_secundario_y = 0
     timer_busqueda_analisis = None
+    idcomponente_limpieza_actual = None 
+    idcomponente_comportamiento_actual = None
+    idcomponente_histograma_actual = None
+    nombreprisma_histograma_actual = None
+    idcomponente_elipse_actual = None
+    nombreprisma_elipse_actual = None
+    tipoprisma_elipse_actual = None
 
     def inicializarVistaAnalisis(main, proyectoid, proyectoname, fechaini, fechafin):
         AnalisisView.main = main
@@ -263,8 +270,8 @@ class AnalisisView:
         comboPrismasHistograma = AnalisisView.main.findChild(QComboBox, "combo_prismas_histograma")
         comboComponentesElipse = main.findChild(QComboBox, "combo_componentes_elipse")
         comboPrismasElipse = main.findChild(QComboBox, "combo_prismas_elipse")
-        comboComponentesLimpieza = AnalisisView.main.findChild(QComboBox, "combo_componentes_limpieza")
-        comboPrismasLimpieza = main.findChild(QComboBox, "combo_prismas_limpieza")
+        comboComponentesElipse.setEnabled(False)
+        comboPrismasElipse.setEnabled(False)
         if AnalisisView.estadochecklist:
             tree_widget = main.findChild(QTreeWidget, "tree_actual_analisis")
             tree_vacio = main.findChild(QTreeWidget, "tree_actual_vacio")
@@ -422,9 +429,7 @@ class AnalisisView:
             btnEjesVariacion.clicked.connect(lambda: AnalisisView.mostrarModalConfiguracionEjesCoordenadas(tree_actual))
             # VISTA HISTOGRAMA
             btn_refrescar_histograma = main.findChild(QPushButton, "btn_refrescar_histograma")
-            btn_refrescar_histograma.clicked.connect(AnalisisView.graficarHistograma)
-            comboComponentesHistograma.activated.connect(AnalisisView.cargarPrismasComboHistograma)
-            comboPrismasHistograma.activated.connect(AnalisisView.graficarHistograma)
+            btn_refrescar_histograma.clicked.connect(lambda: AnalisisView.validarHistogramaArbol(tree_actual))
             lista_calculos_histograma = {
                 '3DA': 'Desplazamiento Acum. 3D',
                 '3DI': 'Desplazamiento Incr. 3D',
@@ -454,7 +459,7 @@ class AnalisisView:
             combo_tipografica = AnalisisView.main.findChild(QComboBox, "combo_tipografica_histograma")
             for key, value in lista_calculos_histograma.items():
                 combo_tipografica.addItem(value, key)
-            combo_tipografica.activated.connect(AnalisisView.graficarHistograma)
+            combo_tipografica.activated.connect(lambda: AnalisisView.validarHistogramaArbol(tree_actual))
             # metodos limpieza histograma
             lista_limpieza_histograma = [
                 ('Método IQR', "IQR"),
@@ -511,10 +516,8 @@ class AnalisisView:
             # Botones
             btnEjesComportamiento = main.findChild(QPushButton, "btn_ejes_comportamiento")
             btnEjesComportamiento.clicked.connect(AnalisisView.mostrarModalConfiguracionEjesComportamiento)
-            comboComponentesComportamiento.activated.connect(AnalisisView.cargarPrismasComportamientoComponente)
-            comboPrismasComportamiento.activated.connect(AnalisisView.ValidarComportamientoPrismas)
             comboGraficasComportamiento.activated.connect(AnalisisView.ValidarUnidadesComportamientoPrismas)
-            comboUnidadesComprtamiento.activated.connect(AnalisisView.ValidarComportamientoPrismas)
+            comboUnidadesComprtamiento.activated.connect(lambda: AnalisisView.validarComportamientoPrismasArbol(tree_actual))
             btnConfigurarComportamiento = main.findChild(QPushButton, "btn_configurar_comportamiento")
             btnConfigurarComportamiento.clicked.connect(AnalisisView.validarMarcadoDesmarcadoComportamiento)
             # VISTA ELIPSE DE ERROR
@@ -573,11 +576,20 @@ class AnalisisView:
             comboTipoDataLimpieza = main.findChild(QComboBox, "combo_tipo_grafico")
             for value, key in lista_tipografica_limpieza_datos:
                 comboTipoDataLimpieza.addItem(value, key)
-            comboComponentesLimpieza.activated.connect(AnalisisView.cargarPrismasLimpiezaComponente)
-            comboPrismasLimpieza.activated.connect(AnalisisView.graficarCoordenadasPrismas)
-            comboTipoDataLimpieza.activated.connect(AnalisisView.graficarCoordenadasPrismas)
+
+            # Estos combos ya no controlan la selección (ahora se hace desde el árbol),
+            # pero se mantienen visibles como referencia visual. Se deshabilitan
+            # para que no disparen ninguna acción.
+            comboComponentesLimpieza = main.findChild(QComboBox, "combo_componentes_limpieza")
+            comboPrismasLimpieza = main.findChild(QComboBox, "combo_prismas_limpieza")
+            if comboComponentesLimpieza:
+                comboComponentesLimpieza.setEnabled(False)
+            if comboPrismasLimpieza:
+                comboPrismasLimpieza.setEnabled(False)
+
+            comboTipoDataLimpieza.activated.connect(lambda: AnalisisView.validarLimpiezaCoordenadas(tree_actual))
             btn_refrescar_lipiar_datos_prismas = main.findChild(QPushButton, "btn_refresca_grafica_limpieza")
-            btn_refrescar_lipiar_datos_prismas.clicked.connect(AnalisisView.graficarCoordenadasPrismas)
+            btn_refrescar_lipiar_datos_prismas.clicked.connect(lambda: AnalisisView.validarLimpiezaCoordenadas(tree_actual))
             # validación de las vistas
             AnalisisView.ocultarMostrarVistasAnalisis()
             AnalisisView.estadoPagina = False
@@ -686,17 +698,17 @@ class AnalisisView:
             else:
                 AnalisisView.limpiarGraficasAnalisis()
         elif tipografico == "CP":
-            AnalisisView.ValidarComportamientoPrismas()
+            AnalisisView.ValidarComportamientoPrismas(tree_actual)
         elif tipografico == "VC":
             AnalisisView.validarVariacionesCoordenadas(tree_actual)
         elif tipografico == "HI":
-            AnalisisView.graficarHistograma()
+            AnalisisView.validarHistogramaArbol(tree_actual)
         elif tipografico == "RE":
             AnalisisView.grafica_barras_resumen()
         elif tipografico == "EE":
-            AnalisisView.graficarElipseDesviaciones()
+            AnalisisView.validarElipseArbol(tree_actual)
         elif tipografico == "LC":
-            AnalisisView.graficarCoordenadasPrismas()
+            AnalisisView.graficarCoordenadasPrismas(tree_actual)
     
     def obtenerMostrarPrismasMarcados(tree_actual):
         lista = EquiposAnalisis.obtener_todos_elementos_marcados(tree_actual)
@@ -714,6 +726,17 @@ class AnalisisView:
                     AnalisisView.limpiarGraficasAnalisis()
                 elif tipografico == "VC":
                     AnalisisView.limpiarGraficaVariacion()
+                elif tipografico == "LC":
+                    AnalisisView.limpiarGraficaLimpieza()
+                elif tipografico == "CP":
+                    AnalisisView.limpiarGraficaComportamiento()
+                elif tipografico == "HI":
+                    AnalisisView.limpiarGraficaHistograma()
+                elif tipografico == "EE":
+                    AnalisisView.idcomponente_elipse_actual = None
+                    AnalisisView.nombreprisma_elipse_actual = None
+                    AnalisisView.tipoprisma_elipse_actual = None
+                    AnalisisView.limpiarGraficaElipse()
         else:
             tipo_grafico_analisis = AnalisisView.main.findChild(QComboBox, "combo_graficas_analisis")
             tipografico = tipo_grafico_analisis.currentData()
@@ -724,6 +747,8 @@ class AnalisisView:
                 AnalisisView.limpiarGraficasAnalisis()
             elif tipografico == "VC":
                 AnalisisView.limpiarGraficaVariacion()
+            elif tipografico == "LC":
+                AnalisisView.limpiarGraficaLimpieza()
     
     def obtenerListaEquiposMarcados(lista, tipolista):
         equiposmarcados = []
@@ -741,6 +766,10 @@ class AnalisisView:
             AnalisisView.graficarEstereografia(prismasmarcados)
         elif tipografico == "VC":
             AnalisisView.graficarVariacionesCoordenadas(prismasmarcados)
+        elif tipografico == "LC":
+            AnalisisView.graficarCoordenadasPrismas(prismasmarcados)
+        elif tipografico == "EE":
+            AnalisisView.graficarElipseArbol(prismasmarcados)
         elif tipografico == "IV":
             config = SoftwareConfiguracion.obtenerDataSoftware()
             filtrado = config[16]
@@ -852,7 +881,7 @@ class AnalisisView:
             scroll_comportamiento.hide()
             scroll_graficas_variacion.show()
         elif tipografica == 'HI':
-            listachecks.setCurrentIndex(10)
+            listachecks.setCurrentIndex(9)
             scroll_trayectoria_estereografia.hide()
             scroll_graficas_analisis.hide()
             scroll_graficas_variacion.hide()
@@ -861,6 +890,7 @@ class AnalisisView:
             scroll_limpiar_datos.hide()
             scroll_comportamiento.hide()
             scroll_graficas_histograma.show()
+            AnalisisView.validarHistogramaArbol(tree_actual)
         elif tipografica == 'RE':
             listachecks.setCurrentIndex(10)
             scroll_trayectoria_estereografia.hide()
@@ -872,7 +902,7 @@ class AnalisisView:
             scroll_comportamiento.hide()
             scroll_resumen_equipos.show()
         elif tipografica == 'CP':
-            listachecks.setCurrentIndex(10)
+            listachecks.setCurrentIndex(9)
             scroll_trayectoria_estereografia.hide()
             scroll_graficas_analisis.hide()
             scroll_graficas_variacion.hide()
@@ -881,8 +911,9 @@ class AnalisisView:
             scroll_limpiar_datos.hide()
             scroll_resumen_equipos.hide()
             scroll_comportamiento.show()
+            AnalisisView.validarComportamientoPrismasArbol(tree_actual)
         elif tipografica == 'EE':
-            listachecks.setCurrentIndex(10)
+            listachecks.setCurrentIndex(9)
             scroll_trayectoria_estereografia.hide()
             scroll_graficas_analisis.hide()
             scroll_graficas_variacion.hide()
@@ -891,8 +922,9 @@ class AnalisisView:
             scroll_limpiar_datos.hide()
             scroll_comportamiento.hide()
             scroll_elipzoide_error.show()
+            AnalisisView.validarElipseArbol(tree_actual)
         else:
-            listachecks.setCurrentIndex(10)
+            listachecks.setCurrentIndex(9)
             scroll_trayectoria_estereografia.hide()
             scroll_graficas_analisis.hide()
             scroll_graficas_variacion.hide()
@@ -901,6 +933,7 @@ class AnalisisView:
             scroll_elipzoide_error.hide()
             scroll_comportamiento.hide()
             scroll_limpiar_datos.show()
+            AnalisisView.validarLimpiezaCoordenadas(tree_actual)
     
     def validarCheckboxVistasAnalisis():
         combo_grafico_analisis = AnalisisView.main.findChild(QComboBox, "combo_graficas_analisis")
@@ -913,15 +946,15 @@ class AnalisisView:
         elif tipografica == 'VC':
             listachecks.setCurrentIndex(9)
         elif tipografica == 'HI':
-            listachecks.setCurrentIndex(10)
+            listachecks.setCurrentIndex(9)
         elif tipografica == 'RE':
             listachecks.setCurrentIndex(10)
         elif tipografica == 'CP':
-            listachecks.setCurrentIndex(10)
+            listachecks.setCurrentIndex(9)
         elif tipografica == 'EE':
             listachecks.setCurrentIndex(10)
         else:
-            listachecks.setCurrentIndex(10)
+            listachecks.setCurrentIndex(9)
     
     def validarGraficaEstereografia(tree_actual):
         lista = EquiposAnalisis.obtener_todos_elementos_marcados(tree_actual)
@@ -968,18 +1001,16 @@ class AnalisisView:
             combovistas = AnalisisView.main.findChild(QComboBox, "cb_tipo_vista_trayectoria")
             GraficarEstereografiaTrayectoria.graficar_trayectoria(widget_trayectoria, datos, combovistas, tipo)
 
-    def ValidarComportamientoPrismas():
-        combo_grafico = AnalisisView.main.findChild(QComboBox, "combo_graficas_analisis")
-        if combo_grafico.currentData() != 'CP':
-            return
-        AnalisisView.limpiarGraficaComportamiento()
-        comboComponentes = AnalisisView.main.findChild(QComboBox, "combo_componentes_comportamiento")
-        if comboComponentes.count() > 0:
-            comboPrismas = AnalisisView.main.findChild(QComboBox, "combo_prismas_comportamiento")
-            if comboPrismas.count() > 0:
-                config = SoftwareConfiguracion.obtenerDataSoftware()
-                filtrado = config[16]
-                GraficaComportamiento.graficarComportamientoPrismas(AnalisisView.main, AnalisisView.idproyecto, AnalisisView.fechainicial, AnalisisView.fechafinal, filtrado)
+    def ValidarComportamientoPrismas(tree_actual):
+        lista = EquiposAnalisis.obtener_todos_elementos_marcados(tree_actual)
+        if lista:
+            prismasmarcados = AnalisisView.obtenerListaEquiposMarcados(lista, "Prismas")
+            if len(prismasmarcados) > 0:
+                AnalisisView.graficarComportamientoArbol(prismasmarcados)
+            else:
+                AnalisisView.limpiarGraficaComportamiento()
+        else:
+            AnalisisView.limpiarGraficaComportamiento()
     
     def cargarPrismasComportamientoComponente():
         comboComponentes = AnalisisView.main.findChild(QComboBox, "combo_componentes_comportamiento")
@@ -991,7 +1022,8 @@ class AnalisisView:
                 comboPrismas.clear()
                 for prisma in listaprismas: # idinstr, idcompo, tipo, nomb, idequipo, tabla, estado
                     comboPrismas.addItem(prisma[3], prisma[0])
-                AnalisisView.ValidarComportamientoPrismas()
+                treeWidget =  AnalisisView.main.findChild(QTreeWidget, "tree_actual_analisis")
+                AnalisisView.ValidarComportamientoPrismas(treeWidget)
 
     def ValidarUnidadesComportamientoPrismas():
         comboGraficas = AnalisisView.main.findChild(QComboBox, "combo_tiposgrafica_comportamiento")
@@ -1005,13 +1037,16 @@ class AnalisisView:
             comboUnidades.clear()
             for texto, valor in [("Metros/día",1),("Centímetros/día",100),("Milímetros/día",1000),("Metros/hora",1/24),("Centímetros/hora",100/24),("Milímetros/hora",1000/24)]:
                 comboUnidades.addItem(texto, valor)
-        AnalisisView.ValidarComportamientoPrismas()
+        treeWidget =  AnalisisView.main.findChild(QTreeWidget, "tree_actual_analisis")
+        AnalisisView.ValidarComportamientoPrismas(treeWidget)
 
     def validarMarcadoDesmarcadoComportamiento():
-        comboComponentes = AnalisisView.main.findChild(QComboBox, "combo_componentes_comportamiento")
         comboGraficas = AnalisisView.main.findChild(QComboBox, "combo_tiposgrafica_comportamiento")
-        idcomponente = comboComponentes.currentData()
+        idcomponente = AnalisisView.idcomponente_comportamiento_actual
         tipografica = comboGraficas.currentData()
+        if not idcomponente:
+            mostrar_mensaje("Comportamiento de Prismas", "Debe marcar un prisma en el árbol antes de configurar.", "advertencia")
+            return
         def reiniciar():
             treeWidget =  AnalisisView.main.findChild(QTreeWidget, "tree_actual_analisis")
             AnalisisView.validarVistaAnalisis(treeWidget)
@@ -1027,7 +1062,122 @@ class AnalisisView:
                 AnalisisView.limpiarGraficaVariacion()
         else:
             AnalisisView.limpiarGraficaVariacion()
+
+    def validarLimpiezaCoordenadas(tree_actual):
+        lista = EquiposAnalisis.obtener_todos_elementos_marcados(tree_actual)
+        if lista:
+            prismasmarcados = AnalisisView.obtenerListaEquiposMarcados(lista, "Prismas")
+            if len(prismasmarcados) > 0:
+                AnalisisView.graficarCoordenadasPrismas(prismasmarcados)
+            else:
+                AnalisisView.limpiarGraficaLimpieza()
+        else:
+            AnalisisView.limpiarGraficaLimpieza()
+
+    def validarComportamientoPrismasArbol(tree_actual):
+        combo_grafico = AnalisisView.main.findChild(QComboBox, "combo_graficas_analisis")
+        if combo_grafico.currentData() != 'CP':
+            return
+        lista = EquiposAnalisis.obtener_todos_elementos_marcados(tree_actual)
+        if lista:
+            prismasmarcados = AnalisisView.obtenerListaEquiposMarcados(lista, "Prismas")
+            if len(prismasmarcados) > 0:
+                AnalisisView.graficarComportamientoArbol(prismasmarcados)
+            else:
+                AnalisisView.limpiarGraficaComportamiento()
+        else:
+            AnalisisView.limpiarGraficaComportamiento()
+
+    def validarHistogramaArbol(tree_actual):
+        combo_grafico = AnalisisView.main.findChild(QComboBox, "combo_graficas_analisis")
+        if combo_grafico.currentData() != 'HI':
+            return
+        lista = EquiposAnalisis.obtener_todos_elementos_marcados(tree_actual)
+        if lista:
+            prismasmarcados = AnalisisView.obtenerListaEquiposMarcados(lista, "Prismas")
+            if len(prismasmarcados) > 0:
+                AnalisisView.graficarHistogramaArbol(prismasmarcados)
+            else:
+                AnalisisView.limpiarGraficaHistograma()
+        else:
+            AnalisisView.limpiarGraficaHistograma()
+
+    def graficarHistogramaArbol(prismasmarcados):
+        if not prismasmarcados:
+            AnalisisView.limpiarGraficaHistograma()
+            return
+
+        # Solo se grafica un prisma a la vez: se toma el primero marcado en el árbol
+        componente, listaprismas = prismasmarcados[0]
+        nombrecomponente, idcomponente, idproy = componente
+        if not listaprismas:
+            AnalisisView.limpiarGraficaHistograma()
+            return
+
+        nombreprisma, idinstrumento, tipoprisma = listaprismas[0]
+        AnalisisView.idcomponente_histograma_actual = idcomponente
+        AnalisisView.nombreprisma_histograma_actual = nombreprisma
+        AnalisisView.tipoprisma_histograma_actual = tipoprisma
+
+        AnalisisView.graficarHistograma()
+
+    def graficarComportamientoArbol(prismasmarcados):
+        if not prismasmarcados:
+            AnalisisView.limpiarGraficaComportamiento()
+            return
+
+        componente, listaprismas = prismasmarcados[0]
+        nombrecomponente, idcomponente, idproy = componente
+        if not listaprismas:
+            AnalisisView.limpiarGraficaComportamiento()
+            return
+
+        nombreprisma, idinstrumento, tipoprisma = listaprismas[0]
+        AnalisisView.idcomponente_comportamiento_actual = idcomponente
+
+        AnalisisView.limpiarGraficaComportamiento()
+        config = SoftwareConfiguracion.obtenerDataSoftware()
+        filtrado = config[16]
+        GraficaComportamiento.graficarComportamientoPrismas(
+            AnalisisView.main, AnalisisView.idproyecto, idcomponente, idinstrumento, nombreprisma,
+            AnalisisView.fechainicial, AnalisisView.fechafinal, filtrado
+        )
+
+    def graficarElipseArbol(prismasmarcados):
+        if not prismasmarcados:
+            AnalisisView.limpiarGraficaElipse()
+            return
+
+        componente, listaprismas = prismasmarcados[0]
+        nombrecomponente, idcomponente, idproy = componente
+        if not listaprismas:
+            AnalisisView.limpiarGraficaElipse()
+            return
+
+        nombreprisma, idinstrumento, tipoprisma = listaprismas[0]
+        AnalisisView.idcomponente_elipse_actual = idcomponente
+        AnalisisView.nombreprisma_elipse_actual = nombreprisma
+        AnalisisView.tipoprisma_elipse_actual = tipoprisma
+
+        AnalisisView.graficarElipseDesviaciones()
     
+    def validarElipseArbol(tree_actual):
+        lista = EquiposAnalisis.obtener_todos_elementos_marcados(tree_actual)
+        if lista:
+            prismasmarcados = AnalisisView.obtenerListaEquiposMarcados(lista, "Prismas")
+            if len(prismasmarcados) > 0:
+                AnalisisView.graficarElipseArbol(prismasmarcados)
+            else:
+                AnalisisView.idcomponente_elipse_actual = None
+                AnalisisView.nombreprisma_elipse_actual = None
+                AnalisisView.tipoprisma_elipse_actual = None
+                AnalisisView.limpiarGraficaElipse()
+        else:
+            AnalisisView.idcomponente_elipse_actual = None
+            AnalisisView.nombreprisma_elipse_actual = None
+            AnalisisView.tipoprisma_elipse_actual = None
+            AnalisisView.limpiarGraficaElipse()
+        
     def graficarVariacionesCoordenadas(prismasmarcados):
         config = SoftwareConfiguracion.obtenerDataSoftware()
         filtrado = config[16]
@@ -1079,10 +1229,10 @@ class AnalisisView:
                 AnalisisView.graficarHistograma()
     
     def graficarHistograma():
-        combo_prismas = AnalisisView.main.findChild(QComboBox, "combo_prismas_histograma")
-        if combo_prismas.count() > 0:
-            nombreprisma = combo_prismas.currentText()
-            tipoprisma, idcomponente = combo_prismas.currentData()
+        nombreprisma = AnalisisView.nombreprisma_histograma_actual
+        tipoprisma = AnalisisView.tipoprisma_histograma_actual
+        idcomponente = AnalisisView.idcomponente_histograma_actual
+        if nombreprisma and idcomponente:
             combo_tipografica = AnalisisView.main.findChild(QComboBox, "combo_tipografica_histograma")
             tipografica = combo_tipografica.currentData()
             spinintervalo = AnalisisView.main.findChild(QSpinBox, "spin_intervalo_histograma")
@@ -1128,19 +1278,18 @@ class AnalisisView:
                 
     def registrar_desviaciones_manuales():
         if AnalisisView.idproyecto:
-            comboComponentesElipse = AnalisisView.main.findChild(QComboBox, "combo_componentes_elipse")
-            if comboComponentesElipse.count() > 0:
-                idcomponente = comboComponentesElipse.currentData()
+            idcomponente = AnalisisView.idcomponente_elipse_actual
+            if idcomponente:
                 CalcularDesviaciones.registro_desviacion(AnalisisView.idproyecto, idcomponente)
+            else:
+                mostrar_mensaje("Desviaciones", "Debe marcar un prisma en el árbol.", "advertencia")
     
     def aplicarLimpiezaRuidoDesviaciones():
         if AnalisisView.idproyecto:
-            comboPrismasElipse = AnalisisView.main.findChild(QComboBox, "combo_prismas_elipse")
-            comboComponentesElipse = AnalisisView.main.findChild(QComboBox, "combo_componentes_elipse")
-            componente = comboComponentesElipse.currentData()
-            if comboPrismasElipse.count() > 0:
-                nombreprisma = comboPrismasElipse.currentText()
-                tipoprisma = comboPrismasElipse.currentData()
+            componente = AnalisisView.idcomponente_elipse_actual
+            nombreprisma = AnalisisView.nombreprisma_elipse_actual
+            tipoprisma = AnalisisView.tipoprisma_elipse_actual
+            if nombreprisma and tipoprisma:
                 # crear dialogo
                 dlg = QMessageBox()
                 dlg.setWindowTitle("Limpieza Ruido Prismas")
@@ -1185,11 +1334,10 @@ class AnalisisView:
         # Verificar si existen desviaciones calculadas
         desviaciones = AnalisisController.ctrlVerificarSIdesviaciones(AnalisisView.idproyecto)
         if desviaciones:
-            comboPrismasElipseError = AnalisisView.main.findChild(QComboBox, "combo_prismas_elipse")
             comboUnidadesMedidaElipse = AnalisisView.main.findChild(QComboBox, "combo_unidades_medida")
-            if comboPrismasElipseError.count() > 0:
-                nombreprisma = comboPrismasElipseError.currentText()
-                tipoprisma = comboPrismasElipseError.currentData()
+            nombreprisma = AnalisisView.nombreprisma_elipse_actual
+            tipoprisma = AnalisisView.tipoprisma_elipse_actual
+            if nombreprisma and tipoprisma:
                 config = SoftwareConfiguracion.obtenerDataSoftware()
                 filtrado = config[16]
                 datos = AnalisisController.ctrlObtenerDataElipseError(AnalisisView.idproyecto, nombreprisma, tipoprisma, AnalisisView.fechainicial, AnalisisView.fechafinal, filtrado)
@@ -1426,10 +1574,7 @@ class AnalisisView:
         # PASO 5: Reemplazar la columna original con los valores ajustados
         nuevo_valor = valores_ajustados[posicion_ajuste]
         df_ajustado[variable] = valores_ajustados
-        idcomponente = 0
-        comboComponentesLimpieza = AnalisisView.main.findChild(QComboBox, "combo_componentes_limpieza")
-        if comboComponentesLimpieza.count() > 0:
-            idcomponente = comboComponentesLimpieza.currentData()
+        idcomponente = AnalisisView.idcomponente_limpieza_actual or 0
         # Llamar al controlador
         respu, existe = AnalisisController.ctrlAjustarDataPrismaCoordenada(df_ajustado, tabla, idcomponente)
         if respu:
@@ -1454,35 +1599,45 @@ class AnalisisView:
                     comboPrismasLimpieza.addItem(prisma[3], prisma[2])
                 AnalisisView.graficarCoordenadasPrismas()
     
-    def graficarCoordenadasPrismas():
-        comboPrismasLimpiezaDatos = AnalisisView.main.findChild(QComboBox, "combo_prismas_limpieza")
+    def graficarCoordenadasPrismas(prismasmarcados=None):
+        if not prismasmarcados:
+            AnalisisView.limpiarGraficaLimpieza()
+            return
+
+        # Solo se edita/limpia un prisma a la vez: se toma el primero marcado en el árbol
+        componente, listaprismas = prismasmarcados[0]
+        nombrecomponente, idcomponente, idproy = componente
+        if not listaprismas:
+            AnalisisView.limpiarGraficaLimpieza()
+            return
+
+        nombreprisma, idinstrumento, tipoprisma = listaprismas[0]
+        AnalisisView.idcomponente_limpieza_actual = idcomponente
+
         combo_limpieza_datos = AnalisisView.main.findChild(QComboBox, "combo_tipo_grafico")
-        if comboPrismasLimpiezaDatos.count() > 0:
-            nombreprisma = comboPrismasLimpiezaDatos.currentText()
-            tipoprisma = comboPrismasLimpiezaDatos.currentData()
-            tipo_grafico = combo_limpieza_datos.currentData()
-            if tipo_grafico == "GE":
-                ubicacion = 'X'
-            elif tipo_grafico == "GN":
-                ubicacion = 'Y'
-            elif tipo_grafico == "GC":
-                ubicacion = 'Z'
-            else:
-                ubicacion = 'DISTANCIA'
-            datos = AnalisisController.ctrlObtenerDataPrismas(AnalisisView.idproyecto, nombreprisma, tipoprisma)
-            if datos:
-                widget_desplazamiento_limpieza = AnalisisView.main.findChild(QWidget, "widget_grafica_limpieza_datos")
-                AnalisisView.limpiarGraficaLimpieza()
-                GraficarCoordenadasPrismas.graficarDesplazamiento(AnalisisView.idproyecto, widget_desplazamiento_limpieza, datos,ubicacion,AnalisisView.ajustarDataPrismaCoordenadas)
+        tipo_grafico = combo_limpieza_datos.currentData()
+        if tipo_grafico == "GE":
+            ubicacion = 'X'
+        elif tipo_grafico == "GN":
+            ubicacion = 'Y'
+        elif tipo_grafico == "GC":
+            ubicacion = 'Z'
+        else:
+            ubicacion = 'DISTANCIA'
+
+        datos = AnalisisController.ctrlObtenerDataPrismas(AnalisisView.idproyecto, nombreprisma, tipoprisma)
+        if datos:
+            widget_desplazamiento_limpieza = AnalisisView.main.findChild(QWidget, "widget_grafica_limpieza_datos")
+            AnalisisView.limpiarGraficaLimpieza()
+            GraficarCoordenadasPrismas.graficarDesplazamiento(AnalisisView.idproyecto, widget_desplazamiento_limpieza, datos, ubicacion, AnalisisView.ajustarDataPrismaCoordenadas)
         else:
             AnalisisView.limpiarGraficaLimpieza()
     
     def restablecerCambiosPrismasElipse():
         if AnalisisView.idproyecto:
-            comboPrismasElipse = AnalisisView.main.findChild(QComboBox, "combo_prismas_elipse")
-            if comboPrismasElipse.count() > 0:
-                nombreprisma = comboPrismasElipse.currentText()
-                tipoprisma = comboPrismasElipse.currentData()
+            nombreprisma = AnalisisView.nombreprisma_elipse_actual
+            tipoprisma = AnalisisView.tipoprisma_elipse_actual
+            if nombreprisma and tipoprisma:
                 # crear dialogo
                 dlg = QMessageBox()
                 dlg.setWindowTitle("Restablecer Prismas")
@@ -1660,10 +1815,10 @@ class AnalisisView:
         return df, df_clean, results
 
     def aplicarMetodoLimpiezaHistograma():
-        combo_prismas = AnalisisView.main.findChild(QComboBox, "combo_prismas_histograma")
-        if combo_prismas.count() > 0:
-            nombreprisma = combo_prismas.currentText()
-            tipoprisma, idcompo = combo_prismas.currentData()
+        nombreprisma = AnalisisView.nombreprisma_histograma_actual
+        tipoprisma = AnalisisView.tipoprisma_histograma_actual
+        idcompo = AnalisisView.idcomponente_histograma_actual
+        if nombreprisma and idcompo:
             combo_tipografica = AnalisisView.main.findChild(QComboBox, "combo_tipografica_histograma")
             tipografica = combo_tipografica.currentData()
             spinintervalo = AnalisisView.main.findChild(QSpinBox, "spin_intervalo_histograma")
@@ -2054,8 +2209,7 @@ class AnalisisView:
                         AnalisisView.graficarVariacionesCoordenadas(prismasmarcados)
     
     def mostrarModalConfiguracionEjesComportamiento():
-        comboComponentes = AnalisisView.main.findChild(QComboBox, "combo_componentes_comportamiento")
-        if comboComponentes.count() > 0:
+        if AnalisisView.idcomponente_comportamiento_actual is not None:
             comboTipograficas = AnalisisView.main.findChild(QComboBox, "combo_tiposgrafica_comportamiento")
             comboUnidades = AnalisisView.main.findChild(QComboBox, "combo_unidades_comportamiento")
             tipografico = comboTipograficas.currentData() or "desplazamiento"
@@ -2071,8 +2225,9 @@ class AnalisisView:
                 # guardar configuracion
                 respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(AnalisisView.idproyecto, "ANALISIS", tipografico, minejey, maxejey, primario, secundario, dias)
                 if respuesta:
-                    AnalisisView.ValidarComportamientoPrismas()
-    
+                    treeWidget =  AnalisisView.main.findChild(QTreeWidget, "tree_actual_analisis")
+                    AnalisisView.ValidarComportamientoPrismas(treeWidget)
+
     def actualizarVistaAnalisis(fechaini, fechafin, filtro=False):
         AnalisisView.fechainicial = fechaini
         AnalisisView.fechafinal = fechafin
@@ -2083,18 +2238,24 @@ class AnalisisView:
     
     def mostrarDataTablaDesviaciones():
         if AnalisisView.idproyecto:
-            comboPrismasElipse = AnalisisView.main.findChild(QComboBox, "combo_prismas_elipse")
-            nombreprisma = comboPrismasElipse.currentText()
-            tipoprisma = comboPrismasElipse.currentData()
-            ResumenPrismas.modalDataTablaDesviaciones(AnalisisView.idproyecto, nombreprisma, tipoprisma)
-    
+            nombreprisma = AnalisisView.nombreprisma_elipse_actual
+            tipoprisma = AnalisisView.tipoprisma_elipse_actual
+            if nombreprisma and tipoprisma:
+                ResumenPrismas.modalDataTablaDesviaciones(AnalisisView.idproyecto, nombreprisma, tipoprisma)
+            else:
+                mostrar_mensaje("Desviaciones", "Debe marcar un prisma en el árbol.", "advertencia")
+
     def reiniciarVistaAnalisis(main, proyecto_id, proyecto_name):
         # reiniciar variables
         AnalisisView.main = main
         AnalisisView.idproyecto = proyecto_id
         AnalisisView.nameproyecto = proyecto_name
         AnalisisView.estadochecklist = True
+        AnalisisView.idcomponente_elipse_actual = None
+        AnalisisView.nombreprisma_elipse_actual = None
+        AnalisisView.tipoprisma_elipse_actual = None
         AnalisisView.limpiarGraficasAnalisis()
+        
         # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
         buscador_arbol = main.findChild(QLineEdit, "input_buscar_analisis")
         if buscador_arbol is not None:
