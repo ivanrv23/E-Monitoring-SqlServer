@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QVBoxLayout, QSizePolicy, QPushButton, QHBoxLayout)
+from PySide6.QtWidgets import (QVBoxLayout, QSizePolicy, QPushButton, QHBoxLayout, QCheckBox)
 from matplotlib.colors import TABLEAU_COLORS
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from utils.common.customToolbar import CustomToolbar 
@@ -10,6 +10,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 from controllers.ConfiguracionController import ConfiguracionController
+
 
 # Subclase de NavigationToolbar para desactivar el texto de coordenadas
 class CustomNavigationToolbar(CustomToolbar):
@@ -71,6 +72,10 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
     toolbar1.setOrientation(Qt.Horizontal)
     toolbar_layout1.addWidget(toolbar1)
 
+    check_inspector1 = QCheckBox("Inspector de Datos")
+    check_inspector1.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
+    toolbar_layout1.addWidget(check_inspector1)
+
     # Configuración de gráficos en Matplotlib
     gs1 = gridspec.GridSpec(1, 2, width_ratios=[2, 1], wspace=0.2, figure=figure1)
     ax1 = figure1.add_subplot(gs1[0])
@@ -87,6 +92,14 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
     ax1.set_ylabel("Profundidad (m)", fontsize=ejezise)
     ax1.set_title(titulo1, pad=20, fontsize=titulozise)  # Separar el título de la gráfica
     ax1.grid(True, linestyle='--', linewidth=0.5)
+
+    annot1 = ax1.annotate("", xy=(0, 0), xytext=(15, 15), textcoords="offset points",
+                          bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#cccccc", lw=1, alpha=0.95),
+                          arrowprops=dict(arrowstyle="-|>", connectionstyle="arc3,rad=0.2", color="#555555", lw=0.8))
+    annot1.set_visible(False)
+    punto_resaltado1, = ax1.plot([], [], 'o', color='#dc3545', markersize=6,
+                                  markeredgecolor='white', markeredgewidth=1, zorder=10)
+    punto_resaltado1.set_visible(False)
 
     # Ajustar el eje Y para que siempre comience en 0 y vaya hacia abajo
     if datos["profundidad_detalle"].max() > 0:
@@ -167,6 +180,10 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
     toolbar2.setOrientation(Qt.Horizontal)
     toolbar_layout2.addWidget(toolbar2)
 
+    check_inspector2 = QCheckBox("Inspector de Datos")
+    check_inspector2.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
+    toolbar_layout2.addWidget(check_inspector2)
+
     # Configuración de gráficos en Matplotlib
     gs2 = gridspec.GridSpec(1, 2, width_ratios=[2, 1], wspace=0.2, figure=figure2)
     ax2 = figure2.add_subplot(gs2[0])
@@ -184,6 +201,14 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
     ax2.set_title(titulo2, pad=20, fontsize=titulozise)  # Separar el título de la gráfica
     ax2.grid(True, linestyle='--', linewidth=0.5)
     ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
+
+    annot2 = ax2.annotate("", xy=(0, 0), xytext=(15, 15), textcoords="offset points",
+                          bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#cccccc", lw=1, alpha=0.95),
+                          arrowprops=dict(arrowstyle="-|>", connectionstyle="arc3,rad=0.2", color="#555555", lw=0.8))
+    annot2.set_visible(False)
+    punto_resaltado2, = ax2.plot([], [], 'o', color='#dc3545', markersize=6,
+                                  markeredgecolor='white', markeredgewidth=1, zorder=10)
+    punto_resaltado2.set_visible(False)
 
     # Ajustar el eje Y para que siempre comience en 0 y vaya hacia abajo
     if datos["profundidad_detalle"].max() > 0:
@@ -348,6 +373,117 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
     # Conectar el evento de clic
     figure1.canvas.mpl_connect('button_press_event', on_click)
     figure2.canvas.mpl_connect('button_press_event', on_click)
+
+    def on_hover1(event):
+        if not check_inspector1.isChecked() or event.inaxes != ax1:
+            if annot1.get_visible():
+                annot1.set_visible(False)
+                punto_resaltado1.set_visible(False)
+                canvas1.draw_idle()
+            return
+
+        min_dist = 30
+        encontrado = None
+        xlim, ylim = ax1.get_xlim(), ax1.get_ylim()
+
+        for line, fecha_str, subset in lines1:
+            if not line.get_visible():
+                continue
+            x_data = subset["CampoA"].to_numpy()
+            y_data = subset["profundidad_detalle"].to_numpy()
+            mask = (x_data >= min(xlim)) & (x_data <= max(xlim)) & (y_data >= min(ylim)) & (y_data <= max(ylim))
+            if not np.any(mask):
+                continue
+            puntos_px = ax1.transData.transform(np.column_stack([x_data[mask], y_data[mask]]))
+            mouse = np.array([event.x, event.y])
+            dists = np.sqrt(np.sum((puntos_px - mouse) ** 2, axis=1))
+            idx = np.argmin(dists)
+            if dists[idx] < min_dist:
+                min_dist = dists[idx]
+                encontrado = (x_data[mask][idx], y_data[mask][idx], fecha_str)
+
+        if encontrado:
+            fx, fy, fecha_str = encontrado
+            punto_resaltado1.set_data([fx], [fy])
+            punto_resaltado1.set_visible(True)
+            punto_pixel = ax1.transData.transform((fx, fy))
+            x_rel, y_rel = ax1.transAxes.inverted().transform(punto_pixel)
+            offset_x, offset_y = 15, 15
+            ha, va = 'left', 'bottom'
+            if y_rel > 0.70: va, offset_y = 'top', -15
+            if x_rel > 0.65: ha, offset_x = 'right', -15
+            annot1.xy = (fx, fy)
+            annot1.xytext = (offset_x, offset_y)
+            annot1.set_ha(ha)
+            annot1.set_va(va)
+            annot1.set_text(f"Fecha: {fecha_str}\nProfundidad: {fy:.2f} m\nDesplaz. A: {fx:.3f}")
+            annot1.set_fontsize(9)
+            annot1.set_color('#333333')
+            annot1.set_visible(True)
+            annot1.set_zorder(999)
+            canvas1.draw_idle()
+        else:
+            if annot1.get_visible():
+                annot1.set_visible(False)
+                punto_resaltado1.set_visible(False)
+                canvas1.draw_idle()
+
+    def on_hover2(event):
+        if not check_inspector2.isChecked() or event.inaxes != ax2:
+            if annot2.get_visible():
+                annot2.set_visible(False)
+                punto_resaltado2.set_visible(False)
+                canvas2.draw_idle()
+            return
+
+        min_dist = 30
+        encontrado = None
+        xlim, ylim = ax2.get_xlim(), ax2.get_ylim()
+
+        for line, fecha_str, subset in lines2:
+            if not line.get_visible():
+                continue
+            x_data = subset["CampoB"].to_numpy()
+            y_data = subset["profundidad_detalle"].to_numpy()
+            mask = (x_data >= min(xlim)) & (x_data <= max(xlim)) & (y_data >= min(ylim)) & (y_data <= max(ylim))
+            if not np.any(mask):
+                continue
+            puntos_px = ax2.transData.transform(np.column_stack([x_data[mask], y_data[mask]]))
+            mouse = np.array([event.x, event.y])
+            dists = np.sqrt(np.sum((puntos_px - mouse) ** 2, axis=1))
+            idx = np.argmin(dists)
+            if dists[idx] < min_dist:
+                min_dist = dists[idx]
+                encontrado = (x_data[mask][idx], y_data[mask][idx], fecha_str)
+
+        if encontrado:
+            fx, fy, fecha_str = encontrado
+            punto_resaltado2.set_data([fx], [fy])
+            punto_resaltado2.set_visible(True)
+            punto_pixel = ax2.transData.transform((fx, fy))
+            x_rel, y_rel = ax2.transAxes.inverted().transform(punto_pixel)
+            offset_x, offset_y = 15, 15
+            ha, va = 'left', 'bottom'
+            if y_rel > 0.70: va, offset_y = 'top', -15
+            if x_rel > 0.65: ha, offset_x = 'right', -15
+            annot2.xy = (fx, fy)
+            annot2.xytext = (offset_x, offset_y)
+            annot2.set_ha(ha)
+            annot2.set_va(va)
+            annot2.set_text(f"Fecha: {fecha_str}\nProfundidad: {fy:.2f} m\nDesplaz. B: {fx:.3f}")
+            annot2.set_fontsize(9)
+            annot2.set_color('#333333')
+            annot2.set_visible(True)
+            annot2.set_zorder(999)
+            canvas2.draw_idle()
+        else:
+            if annot2.get_visible():
+                annot2.set_visible(False)
+                punto_resaltado2.set_visible(False)
+                canvas2.draw_idle()
+
+    canvas1.mpl_connect('motion_notify_event', on_hover1)
+    canvas2.mpl_connect('motion_notify_event', on_hover2)
 
     # Actualizar canvas para desplazamiento A y B
     canvas1.draw()

@@ -77,13 +77,13 @@ class InclinometrosView:
             combo_medidas.activated.connect(lambda: InclinometrosView.obtenerMostrarInclinometrosMarcados(tree_actual_inclinometros))
             # Definimos el diccionario de tipos de desplazamiento
             lista_graficos_inclinometros = {
-                'AI3D': 'Desplazamiento Acum. Incr. 3D',
-                'DAAB': 'Desplazamiento Acumulado AB',
-                'DIAB': 'Desplazamiento Incremental AB',
-                'DANE': 'Desplazamiento Acumulado NE',
-                'DINE': 'Desplazamiento Incremental NE',
-                'PAAB': 'Posoción absoluta AB',
-                'PANE': 'Posoción absoluta NE',
+                'AI3D': 'Desplaz. Acumulado e Incremental',
+                'DAAB': 'Desplaz. Acumulado AB',
+                'DIAB': 'Desplaz. Incremental AB',
+                'DANE': 'Desplaz. Acumulado NE',
+                'DINE': 'Desplaz. Incremental NE',
+                'PAAB': 'Posición Absoluta AB',
+                'PANE': 'Posición Absoluta NE',
                 'CSAB': 'Checksum AB',
             }
             # Localizamos el QComboBox en la interfaz

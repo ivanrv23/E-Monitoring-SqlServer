@@ -416,9 +416,9 @@ class DesplazamientoView:
 
     @staticmethod
     def iniciar_hilo_final(tree_actual):
-        """Genera un request cancelable y lanza la consulta."""
-        # 1. Generar nuevo request_id
-        #    (cancela automáticamente la consulta anterior via SPID)
+        if DesplazamientoView.main is None or DesplazamientoView.idproyecto is None:
+            return
+    
         request_id = desplazamiento_query_manager.start_request()
 
         # 2. Obtener lo que quedó marcado al final de los clics

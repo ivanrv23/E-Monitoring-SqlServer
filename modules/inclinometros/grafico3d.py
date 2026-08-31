@@ -2,10 +2,11 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from PySide6.QtWidgets import (QVBoxLayout, QSizePolicy,QPushButton,QHBoxLayout)
+from PySide6.QtWidgets import (QVBoxLayout, QSizePolicy,QPushButton,QHBoxLayout, QCheckBox)
 from matplotlib.colors import TABLEAU_COLORS
 from PySide6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from mpl_toolkits.mplot3d import proj3d
 from utils.common.customToolbar import CustomToolbar 
 from utils.common.alertas import mostrar_mensaje
 from matplotlib.figure import Figure
@@ -44,6 +45,12 @@ def plot_3d_in_widget(idproyecto, datos, titulo, nombreejex, nombreejey, widget,
     # Convertir la columna 'Fecha' a datetime si no está en ese formato
     df['Fecha'] = pd.to_datetime(df['Fecha'])
 
+    # --- Datos precalculados para el Inspector (hover en 3D) ---
+    puntos_x = df['D_A'].to_numpy()
+    puntos_y = df['D_B'].to_numpy()
+    puntos_z = df['Profundidad'].to_numpy()
+    puntos_fecha = df['Fecha'].dt.strftime('%d/%m/%Y').to_numpy()
+
     # Obtener el QSpinBox y desconectar el evento si está conectado
     try:
         if spin_rotacion.receivers(spin_rotacion.valueChanged) > 0:
@@ -73,6 +80,10 @@ def plot_3d_in_widget(idproyecto, datos, titulo, nombreejex, nombreejey, widget,
     toolbar = CustomNavigationToolbar(canvas, widget)
     toolbar.setOrientation(Qt.Horizontal)
     toolbar_layout.addWidget(toolbar)
+
+    check_inspector = QCheckBox("Inspector de Datos")
+    check_inspector.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
+    toolbar_layout.addWidget(check_inspector)
 
     # Configuración de gráficos en Matplotlib
     gs = gridspec.GridSpec(1, 2, width_ratios=[2, 1], wspace=0.02, figure=figure)
@@ -162,6 +173,15 @@ def plot_3d_in_widget(idproyecto, datos, titulo, nombreejex, nombreejey, widget,
     else:
         ax.set_zlim([-0.1, 0.1])  # Si todos los valores son cero
 
+    # --- Elementos del Inspector de Datos (hover en 3D) ---
+    info_box = ax.text2D(0.02, 0.98, "", transform=ax.transAxes, fontsize=9, color='#333333',
+                          va='top', ha='left',
+                          bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#cccccc", alpha=0.92))
+    info_box.set_visible(False)
+    punto_resaltado, = ax.plot([], [], [], 'o', color='#dc3545', markersize=7,
+                                markeredgecolor='white', markeredgewidth=1, zorder=20)
+    punto_resaltado.set_visible(False)
+
     # Subparcela para la leyenda
     ax_legend = figure.add_subplot(gs[1])
     ax_legend.axis("off")
@@ -231,6 +251,49 @@ def plot_3d_in_widget(idproyecto, datos, titulo, nombreejex, nombreejey, widget,
     # Reconectar el evento solo si el canvas está disponible
     if canvas is not None:
         spin_rotacion.valueChanged.connect(lambda: rotar_en_x(ax, angulo_inicial, spin_rotacion, figure))
+
+    # --- Inspector de Datos (hover en 3D) ---
+    def on_hover(event):
+        if not check_inspector.isChecked() or event.inaxes != ax or len(puntos_x) == 0:
+            if info_box.get_visible():
+                info_box.set_visible(False)
+                punto_resaltado.set_data([], [])
+                punto_resaltado.set_3d_properties([])
+                punto_resaltado.set_visible(False)
+                canvas.draw_idle()
+            return
+
+        try:
+            proj = ax.get_proj()
+            x2, y2, _ = proj3d.proj_transform(puntos_x, puntos_y, puntos_z, proj)
+            puntos_px = ax.transData.transform(np.column_stack([x2, y2]))
+        except Exception:
+            return
+
+        mouse = np.array([event.x, event.y])
+        dists = np.sqrt(np.sum((puntos_px - mouse) ** 2, axis=1))
+        idx = np.argmin(dists)
+
+        if dists[idx] < 20:
+            fx, fy, fz = puntos_x[idx], puntos_y[idx], puntos_z[idx]
+            fecha_str = puntos_fecha[idx]
+            punto_resaltado.set_data([fx], [fy])
+            punto_resaltado.set_3d_properties([fz])
+            punto_resaltado.set_visible(True)
+            info_box.set_text(
+                f"Fecha: {fecha_str}\nProfundidad: {fz:.2f} m\nDesplaz. A: {fx:.3f}\nDesplaz. B: {fy:.3f}"
+            )
+            info_box.set_visible(True)
+            canvas.draw_idle()
+        else:
+            if info_box.get_visible():
+                info_box.set_visible(False)
+                punto_resaltado.set_data([], [])
+                punto_resaltado.set_3d_properties([])
+                punto_resaltado.set_visible(False)
+                canvas.draw_idle()
+
+    canvas.mpl_connect('motion_notify_event', on_hover)
 
     # Ajustar manualmente los márgenes para maximizar el espacio del gráfico
     figure.subplots_adjust(left=0, right=1, top=1, bottom=0)

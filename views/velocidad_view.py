@@ -376,6 +376,10 @@ class VelocidadView:
     @staticmethod
     def iniciar_peticion_final(tree_actual):
         """Genera un request cancelable y lanza la consulta."""
+        # Si la vista de Velocidad nunca se inicializó, no hay nada que refrescar
+        if VelocidadView.main is None or VelocidadView.idproyecto is None:
+            return
+
         # 1. Generar nuevo request_id
         #    (cancela automáticamente la consulta anterior via SPID)
         request_id = velocidad_query_manager.start_request()

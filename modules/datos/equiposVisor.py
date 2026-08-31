@@ -444,6 +444,86 @@ class EquiposVisor:
             else:
                 hijo.setCheckState(0, estado)
             EquiposVisor.marcardesmarcar_todos_hijos_visor(hijo, estado)
+    @staticmethod
+    def recalcular_jerarquia_visual(item):
+        for i in range(item.childCount()):
+            EquiposVisor.recalcular_jerarquia_visual(item.child(i))
+
+        if item.childCount() > 0:
+            estados_hijos = [item.child(k).checkState(0) for k in range(item.childCount())]
+            if all(s == Qt.Checked for s in estados_hijos):
+                nuevo_st = Qt.Checked
+            elif all(s == Qt.Unchecked for s in estados_hijos):
+                nuevo_st = Qt.Unchecked
+            else:
+                nuevo_st = Qt.PartiallyChecked
+            item.setCheckState(0, nuevo_st)
+            item.setData(0, Qt.UserRole + 999, nuevo_st)  # mismo "hack" que ya usan en Visor
+
+    @staticmethod
+    def marcar_desmarcar_proyecto_completo(treeWidget, estado, callback_graficar):
+        treeWidget.blockSignals(True)
+        try:
+            for i in range(treeWidget.topLevelItemCount()):
+                componente = treeWidget.topLevelItem(i)
+                componente.setCheckState(0, estado)
+                componente.setData(0, Qt.UserRole + 999, estado)
+                # Ojo: usamos la variante "_visor", no la genérica,
+                # porque respeta la regla especial de piezómetros (solo la última fecha)
+                EquiposVisor.marcardesmarcar_todos_hijos_visor(componente, estado)
+        finally:
+            treeWidget.blockSignals(False)
+        callback_graficar()
+
+    @staticmethod
+    def aplicar_marcado_predeterminado(treeWidget, preferencias, callback_graficar):
+        if preferencias is None:
+            return
+
+        dict_pref = {}
+        for id_c, id_i in preferencias:
+            id_c_int = int(id_c)
+            dict_pref.setdefault(id_c_int, []).append(id_i if id_i is None else int(id_i))
+
+        treeWidget.blockSignals(True)
+        try:
+            # 1. Desmarcar todo el árbol
+            for i in range(treeWidget.topLevelItemCount()):
+                item_root = treeWidget.topLevelItem(i)
+                item_root.setCheckState(0, Qt.Unchecked)
+                EquiposVisor.marcardesmarcar_todos_hijos_visor(item_root, Qt.Unchecked)
+
+            # 2. Marcar según lo guardado
+            for i in range(treeWidget.topLevelItemCount()):
+                item_zona = treeWidget.topLevelItem(i)
+                id_zona_actual = int(item_zona.text(2))
+
+                if id_zona_actual in dict_pref:
+                    opciones = dict_pref[id_zona_actual]
+
+                    if None in opciones:
+                        item_zona.setCheckState(0, Qt.Checked)
+                        EquiposVisor.marcardesmarcar_todos_hijos_visor(item_zona, Qt.Checked)
+                    else:
+                        def marcar_recursivo(padre):
+                            for j in range(padre.childCount()):
+                                hijo = padre.child(j)
+                                if not hijo.text(1).isdigit():
+                                    try:
+                                        id_inst_hijo = int(hijo.text(2))
+                                    except ValueError:
+                                        id_inst_hijo = None
+                                    if id_inst_hijo in opciones:
+                                        hijo.setCheckState(0, Qt.Checked)
+                                marcar_recursivo(hijo)
+                        marcar_recursivo(item_zona)
+
+            # 3. Recalcular estados intermedios (PartiallyChecked)
+            for i in range(treeWidget.topLevelItemCount()):
+                EquiposVisor.recalcular_jerarquia_visual(treeWidget.topLevelItem(i))
+        finally:
+            treeWidget.blockSignals(False)
+            callback_graficar()
     
     def obtenerListaPiezocuerdamanualFechas(tipo, piezometrosmarcados, proyectoid):
         resultado = []

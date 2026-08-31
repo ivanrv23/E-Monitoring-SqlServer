@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import gc
 import math
 import numpy as np
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QCheckBox
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from utils.common.customToolbar import CustomToolbar
 from utils.common.alertas import mostrar_mensaje
@@ -74,6 +74,10 @@ class GraficarImpedancia:
         widget.toolbar = CustomToolbar(canvas, widget)
         toolbar_layout.addWidget(widget.toolbar)
         layout.addLayout(toolbar_layout)
+
+        check_inspector = QCheckBox("Inspector de Datos")
+        check_inspector.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
+        toolbar_layout.addWidget(check_inspector)
 
         # Agrupar por fecha de lectura y tipo de gráfico
         profundidad = data_filtrada['Profundidad']
@@ -252,6 +256,14 @@ class GraficarImpedancia:
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
         plt.setp(ax.get_xticklabels(), rotation=90, ha="center", fontsize=etiquesize)
         plt.setp(ax.get_yticklabels(), fontsize=etiquesize)
+
+        annot = ax.annotate("", xy=(0, 0), xytext=(15, 15), textcoords="offset points",
+                            bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#cccccc", lw=1, alpha=0.95),
+                            arrowprops=dict(arrowstyle="-|>", connectionstyle="arc3,rad=0.2", color="#555555", lw=0.8))
+        annot.set_visible(False)
+        punto_resaltado, = ax.plot([], [], 'o', color='#dc3545', markersize=6,
+                                    markeredgecolor='white', markeredgewidth=1, zorder=10)
+        punto_resaltado.set_visible(False)
         
         # Configuración de leyenda paginada
         leyenda_elementos = lineas
@@ -301,6 +313,69 @@ class GraficarImpedancia:
             boton_anterior.clicked.connect(anterior_pagina)
             toolbar_layout.addWidget(boton_anterior)
             toolbar_layout.addWidget(boton_siguiente)
+
+        def on_hover(event):
+            if not check_inspector.isChecked() or event.inaxes != ax:
+                if annot.get_visible():
+                    annot.set_visible(False)
+                    punto_resaltado.set_visible(False)
+                    canvas.draw_idle()
+                return
+
+            min_dist = 30
+            encontrado = None
+            xlim, ylim = ax.get_xlim(), ax.get_ylim()
+
+            for linea in lineas:
+                if not hasattr(linea, 'get_xdata') or not linea.get_visible():
+                    continue  # Salta los puntos de "fallas" (son scatter, no líneas)
+                x_data = np.asarray(linea.get_xdata(), dtype=float)
+                y_data = np.asarray(linea.get_ydata(), dtype=float)
+                mask = (x_data >= min(xlim)) & (x_data <= max(xlim)) & (y_data >= min(ylim)) & (y_data <= max(ylim))
+                if not np.any(mask):
+                    continue
+                puntos_px = ax.transData.transform(np.column_stack([x_data[mask], y_data[mask]]))
+                mouse = np.array([event.x, event.y])
+                dists = np.sqrt(np.sum((puntos_px - mouse) ** 2, axis=1))
+                idx = np.argmin(dists)
+                if dists[idx] < min_dist:
+                    min_dist = dists[idx]
+                    encontrado = (x_data[mask][idx], y_data[mask][idx], linea.get_label())
+
+            if encontrado:
+                fx, fy, fecha_str = encontrado
+                if es_grafico_IP:
+                    impedancia_val, profundidad_val = fx, fy
+                else:
+                    profundidad_val, impedancia_val = fx, fy
+
+                punto_resaltado.set_data([fx], [fy])
+                punto_resaltado.set_visible(True)
+
+                punto_pixel = ax.transData.transform((fx, fy))
+                x_rel, y_rel = ax.transAxes.inverted().transform(punto_pixel)
+                offset_x, offset_y = 15, 15
+                ha, va = 'left', 'bottom'
+                if y_rel > 0.70: va, offset_y = 'top', -15
+                if x_rel > 0.65: ha, offset_x = 'right', -15
+
+                annot.xy = (fx, fy)
+                annot.xytext = (offset_x, offset_y)
+                annot.set_ha(ha)
+                annot.set_va(va)
+                annot.set_text(f"Fecha: {fecha_str}\nProfundidad: {profundidad_val:.2f} {tipomedida}\nImpedancia: {impedancia_val:.2f} Ω")
+                annot.set_fontsize(9)
+                annot.set_color('#333333')
+                annot.set_visible(True)
+                annot.set_zorder(999)
+                canvas.draw_idle()
+            else:
+                if annot.get_visible():
+                    annot.set_visible(False)
+                    punto_resaltado.set_visible(False)
+                    canvas.draw_idle()
+
+        canvas.mpl_connect('motion_notify_event', on_hover)
 
         actualizar_leyenda()
         canvas.draw_idle()

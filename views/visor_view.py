@@ -14,7 +14,7 @@ from PySide6.QtCore import Qt, QThread, Signal, QTimer, QObject, QEvent, QMutex
 from services.queries.graph_query_manager import visor_query_manager
 from services.queries.query_context import set_active_request, clear_active_request
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QComboBox, QTreeWidget, QPushButton, QSlider, QStackedWidget,
-                               QDialog, QGridLayout, QLineEdit, QLabel, QColorDialog, QHBoxLayout, QApplication)
+                               QDialog, QGridLayout, QLineEdit, QLabel, QColorDialog, QHBoxLayout, QApplication,QMenu)
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from vtkmodules.util.numpy_support import numpy_to_vtk
 from utils.common.alertas import mostrar_mensaje
@@ -47,6 +47,10 @@ from modules.visualization.procesarLidar import ProcesarLidar
 from controllers.PrismasVirtualesController import PrismasVirtualesController
 from utils.shared.arbolmarcado import TreeCheckbox
 from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
+from utils.shared.personalizacion import Personalizacion
+from controllers.InterfazController import InterfazController
+from utils.shared.sincronizarPrismas import sincronizarPrismasVisorADesplazamiento
+
 # desactivando alertas de vtk
 vtk.vtkObject.GlobalWarningDisplayOff()
 import time
@@ -107,6 +111,11 @@ class VisorView:
                 tree_actual_visor.itemClicked.connect(VisorView.checkProyectoActualVisor)
                 tree_actual_visor.setContextMenuPolicy(Qt.CustomContextMenu)
                 tree_actual_visor.customContextMenuRequested.connect(VisorView.clicderechoProyectoActualVisor)
+
+                # --- NUEVO: clic derecho en el encabezado ---
+                header = tree_actual_visor.header()
+                header.setContextMenuPolicy(Qt.CustomContextMenu)
+                header.customContextMenuRequested.connect(VisorView.clicderechoEncabezadoProyectoVisor)
                 # --- Buscador de equipos en el árbol ---
                 buscador_visor = VisorView.main.findChild(QLineEdit, "input_buscar_visor")
                 if buscador_visor is None:
@@ -416,6 +425,7 @@ class VisorView:
                 treeWidget = VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
                 paginacion = VisorView.main.findChild(QStackedWidget, "stacked_visor")
                 VisorView.obtenerMostrarEquiposMarcados(treeWidget, paginacion)
+                sincronizarPrismasVisorADesplazamiento(VisorView.main) 
                 
             VisorView.timer_consulta_visor.timeout.connect(ejecutar_refresco)
             VisorView._timer_visor_conectado = True
@@ -427,6 +437,61 @@ class VisorView:
         treeWidget =  VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
         EquiposVisor.validarOpcionesMenuCheckbox(point, VisorView.main, treeWidget, VisorView.actualizarGraficaFechasInclinometros, VisorView.actualizarGraficaFechasPiezometros, VisorView.validarTopografiasMostrarVisor, VisorView.reiniciarVistasAfectadas)
     
+    def clicderechoEncabezadoProyectoVisor(point):
+        tree_actual = VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
+        pos_global = tree_actual.header().mapToGlobal(point)
+
+        def refrescar_visor_y_sincronizar():
+            VisorView.obtenerMostrarEquiposMarcados(
+                tree_actual, VisorView.main.findChild(QStackedWidget, "stacked_visor")
+            )
+            sincronizarPrismasVisorADesplazamiento(VisorView.main)
+
+        menu = QMenu()
+        menu.addAction("Marcar Todo").triggered.connect(
+            lambda: EquiposVisor.marcar_desmarcar_proyecto_completo(
+                tree_actual, Qt.Checked, refrescar_visor_y_sincronizar
+            )
+        )
+        menu.addAction("Desmarcar Todo").triggered.connect(
+            lambda: EquiposVisor.marcar_desmarcar_proyecto_completo(
+                tree_actual, Qt.Unchecked, refrescar_visor_y_sincronizar
+            )
+        )
+
+        menu.addSeparator()
+
+        def accion_aplicar():
+            preferencias = InterfazController.ctrlObtenerPreferenciasMarcado(VisorView.idproyecto, "VISOR")
+            EquiposVisor.aplicar_marcado_predeterminado(
+                tree_actual, preferencias, refrescar_visor_y_sincronizar
+            )
+        menu.addAction("Aplicar Última Plantilla").triggered.connect(accion_aplicar)
+
+        def accion_configurar():
+            prefs_actuales = InterfazController.ctrlObtenerPreferenciasMarcado(VisorView.idproyecto, "VISOR")
+            if prefs_actuales is None:
+                prefs_actuales = []
+
+            def callback_guardar(nombre_plantilla, lista_datos):
+                return InterfazController.ctrlGuardarPlantillaNombrada(
+                    VisorView.idproyecto, "VISOR", nombre_plantilla, lista_datos, len(lista_datos)
+                )
+
+            Personalizacion.dialogoAgregarNuevaPlantilla(tree_actual, callback_guardar)
+        menu.addAction("Agregar Nueva Plantilla").triggered.connect(accion_configurar)
+
+        def accion_lista_plantillas():
+            Personalizacion.dialogoListaPlantillas(
+                VisorView.idproyecto,
+                tree_actual,
+                refrescar_visor_y_sincronizar,
+                "VISOR"
+            )
+        menu.addAction("Lista de Plantillas").triggered.connect(accion_lista_plantillas)
+
+        menu.exec(pos_global)
+
     def reiniciarVistasAfectadas(tipoequipo="Todos"):
         from views.datos_view import DatosView
         from views.desplazamiento_view import DesplazamientoView
