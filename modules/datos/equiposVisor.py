@@ -446,6 +446,10 @@ class EquiposVisor:
             EquiposVisor.marcardesmarcar_todos_hijos_visor(hijo, estado)
     @staticmethod
     def recalcular_jerarquia_visual(item):
+        """
+        Recorre recursivamente el árbol recalculando el estado Checked/Unchecked/PartiallyChecked
+        y sincroniza obligatoriamente la memoria interna UserRole + 999.
+        """
         for i in range(item.childCount()):
             EquiposVisor.recalcular_jerarquia_visual(item.child(i))
 
@@ -457,73 +461,98 @@ class EquiposVisor:
                 nuevo_st = Qt.Unchecked
             else:
                 nuevo_st = Qt.PartiallyChecked
+                
             item.setCheckState(0, nuevo_st)
-            item.setData(0, Qt.UserRole + 999, nuevo_st)  # mismo "hack" que ya usan en Visor
-
-    @staticmethod
-    def marcar_desmarcar_proyecto_completo(treeWidget, estado, callback_graficar):
-        treeWidget.blockSignals(True)
-        try:
-            for i in range(treeWidget.topLevelItemCount()):
-                componente = treeWidget.topLevelItem(i)
-                componente.setCheckState(0, estado)
-                componente.setData(0, Qt.UserRole + 999, estado)
-                # Ojo: usamos la variante "_visor", no la genérica,
-                # porque respeta la regla especial de piezómetros (solo la última fecha)
-                EquiposVisor.marcardesmarcar_todos_hijos_visor(componente, estado)
-        finally:
-            treeWidget.blockSignals(False)
-        callback_graficar()
+            # Sincronización explícita de memoria requerida por validarCambioReal / Visor
+            item.setData(0, Qt.UserRole + 999, nuevo_st)
 
     @staticmethod
     def aplicar_marcado_predeterminado(treeWidget, preferencias, callback_graficar):
+        """
+        Aplica las preferencias guardadas de la plantilla seleccionada sobre el QTreeWidget.
+        Sincroniza tanto el estado visible de los checkboxes como la memoria UserRole + 999.
+        """
         if preferencias is None:
             return
 
         dict_pref = {}
         for id_c, id_i in preferencias:
-            id_c_int = int(id_c)
-            dict_pref.setdefault(id_c_int, []).append(id_i if id_i is None else int(id_i))
+            try:
+                id_c_int = int(id_c)
+            except (ValueError, TypeError):
+                continue
+            
+            id_i_val = int(id_i) if (id_i is not None and str(id_i).lower() != 'none') else None
+            dict_pref.setdefault(id_c_int, []).append(id_i_val)
 
         treeWidget.blockSignals(True)
         try:
-            # 1. Desmarcar todo el árbol
+            # 1. Desmarcar recursivamente todo el árbol y limpiar memoria
             for i in range(treeWidget.topLevelItemCount()):
                 item_root = treeWidget.topLevelItem(i)
                 item_root.setCheckState(0, Qt.Unchecked)
+                item_root.setData(0, Qt.UserRole + 999, Qt.Unchecked)
                 EquiposVisor.marcardesmarcar_todos_hijos_visor(item_root, Qt.Unchecked)
 
-            # 2. Marcar según lo guardado
+            # 2. Marcar ítems pertenecientes a la plantilla
             for i in range(treeWidget.topLevelItemCount()):
                 item_zona = treeWidget.topLevelItem(i)
-                id_zona_actual = int(item_zona.text(2))
+                try:
+                    id_zona_actual = int(item_zona.text(2))
+                except (ValueError, TypeError):
+                    continue
 
                 if id_zona_actual in dict_pref:
                     opciones = dict_pref[id_zona_actual]
 
                     if None in opciones:
+                        # Zona completa marcada
                         item_zona.setCheckState(0, Qt.Checked)
+                        item_zona.setData(0, Qt.UserRole + 999, Qt.Checked)
                         EquiposVisor.marcardesmarcar_todos_hijos_visor(item_zona, Qt.Checked)
                     else:
+                        # Marcado por equipos específicos
                         def marcar_recursivo(padre):
                             for j in range(padre.childCount()):
                                 hijo = padre.child(j)
-                                if not hijo.text(1).isdigit():
+                                tipo_hijo = hijo.text(1).lower()
+
+                                # Verificar si el nodo representa un equipo con ID
+                                if not tipo_hijo.isdigit():
                                     try:
                                         id_inst_hijo = int(hijo.text(2))
-                                    except ValueError:
+                                    except (ValueError, TypeError):
                                         id_inst_hijo = None
-                                    if id_inst_hijo in opciones:
+
+                                    if id_inst_hijo is not None and id_inst_hijo in opciones:
                                         hijo.setCheckState(0, Qt.Checked)
+                                        hijo.setData(0, Qt.UserRole + 999, Qt.Checked)
+                                        
+                                        # Si el equipo requiere selecciones secundarias (p. ej. Piezómetros con subfechas)
+                                        if tipo_hijo in ["piezometrocuerda", "piezometromanual", "inclinometro"]:
+                                            for k in range(hijo.childCount()):
+                                                sub_hijo = hijo.child(k)
+                                                # Para piezómetros se selecciona la última fecha disponible por omisión
+                                                if k == hijo.childCount() - 1 or tipo_hijo == "inclinometro":
+                                                    sub_hijo.setCheckState(0, Qt.Checked)
+                                                    sub_hijo.setData(0, Qt.UserRole + 999, Qt.Checked)
+                                                else:
+                                                    sub_hijo.setCheckState(0, Qt.Unchecked)
+                                                    sub_hijo.setData(0, Qt.UserRole + 999, Qt.Unchecked)
+
                                 marcar_recursivo(hijo)
+
                         marcar_recursivo(item_zona)
 
-            # 3. Recalcular estados intermedios (PartiallyChecked)
+            # 3. Recalcular la jerarquía completa (Padres y Abuelos) actualizando memorias
             for i in range(treeWidget.topLevelItemCount()):
                 EquiposVisor.recalcular_jerarquia_visual(treeWidget.topLevelItem(i))
+
         finally:
             treeWidget.blockSignals(False)
-            callback_graficar()
+
+        # 4. Forzar el refresco de los elementos gráficos en el Visor VTK
+        callback_graficar()
     
     def obtenerListaPiezocuerdamanualFechas(tipo, piezometrosmarcados, proyectoid):
         resultado = []

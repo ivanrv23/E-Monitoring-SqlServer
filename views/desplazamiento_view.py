@@ -83,6 +83,11 @@ class DesplazamientoView:
     _workers_anteriores = []   # Mantener referencias vivas hasta que terminen
     timer_consulta = None
     timer_busqueda_desplaza = None
+    timer_marcado_desplaza = None
+    # ── Bandera compartida: evita conectar el árbol dos veces (una vez desde
+    #    Desplazamiento y otra desde Velocidad, ya que comparten el mismo
+    #    QTreeWidget físico "tree_actual_desplazamiento") ──
+    conexionesArbolRealizadas = False
     
     def inicializarVistaDesplazamiento(main, proyectoid, proyectoname, fechaini, fechafin):
         DesplazamientoView.main = main
@@ -105,13 +110,17 @@ class DesplazamientoView:
 
         if DesplazamientoView.estadoPagina:
             tree_actual_desplaza =  main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-            # tree_actual_desplaza.itemClicked.connect(DesplazamientoView.checkProyectoActualDesplazamiento)
-            # tree_actual_desplaza.setContextMenuPolicy(Qt.CustomContextMenu)
-            # tree_actual_desplaza.customContextMenuRequested.connect(DesplazamientoView.clicderechoProyectoActualDesplazamiento)
-            # Habilitar clic derecho en el encabezado (Header)
-            # header = tree_actual_desplaza.header()
-            # header.setContextMenuPolicy(Qt.CustomContextMenu)
-            # header.customContextMenuRequested.connect(DesplazamientoView.clicderechoEncabezadoProyecto)
+
+            # --- Conexión del árbol (una sola vez, la comparte con Velocidad) ---
+            if not DesplazamientoView.conexionesArbolRealizadas:
+                tree_actual_desplaza.currentItemChanged.connect(DesplazamientoView.seleccionEquipoDesplazamiento)
+                tree_actual_desplaza.itemClicked.connect(DesplazamientoView.checkProyectoActualDesplazamiento)
+                tree_actual_desplaza.setContextMenuPolicy(Qt.CustomContextMenu)
+                tree_actual_desplaza.customContextMenuRequested.connect(DesplazamientoView.clicderechoProyectoActualDesplazamiento)
+                header = tree_actual_desplaza.header()
+                header.setContextMenuPolicy(Qt.CustomContextMenu)
+                header.customContextMenuRequested.connect(DesplazamientoView.clicderechoEncabezadoProyecto)
+                DesplazamientoView.conexionesArbolRealizadas = True
 
             # --- Buscador de equipos en el árbol ---
             buscador_desplaza = main.findChild(QLineEdit, "input_buscar_desplazamiento")
@@ -269,6 +278,13 @@ class DesplazamientoView:
     def clicderechoEncabezadoProyecto(point):
         tree_actual = DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
         pos_global = tree_actual.header().mapToGlobal(point)
+
+        def refrescar_desplaza_veloc_y_sincronizar():
+            DesplazamientoView.obtenerMostrarPrismasMarcados(tree_actual)
+            from views.velocidad_view import VelocidadView
+            VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)
+            from utils.shared.sincronizarPrismas import sincronizarPrismasDesplazamientoAVisor
+            sincronizarPrismasDesplazamientoAVisor(DesplazamientoView.main)
         
         menu = QMenu()
         menu.addAction("Marcar Todo").triggered.connect(lambda: EquiposDesplazamiento.marcar_desmarcar_proyecto_completo(tree_actual, Qt.Checked, lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(tree_actual)))
@@ -355,19 +371,57 @@ class DesplazamientoView:
                         GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unidad)
     
     def checkProyectoActualDesplazamiento(parent_item, column):
-        treeWidget =  DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-        EquiposDesplazamiento.validarMarcadoCheckbox(parent_item, column, lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(treeWidget))
-    
+        def callback_refresco():
+            if DesplazamientoView.timer_marcado_desplaza is None:
+                DesplazamientoView.timer_marcado_desplaza = QTimer()
+                DesplazamientoView.timer_marcado_desplaza.setSingleShot(True)
+            else:
+                DesplazamientoView.timer_marcado_desplaza.stop()
+                try:
+                    DesplazamientoView.timer_marcado_desplaza.timeout.disconnect()
+                except TypeError:
+                    pass
+
+            def ejecutar_refresco():
+                treeWidget = DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+                # 1. Refrescar gráfica de Desplazamiento
+                DesplazamientoView.obtenerMostrarPrismasMarcados(treeWidget)
+                # 2. Refrescar gráfica de Velocidad (mismo árbol físico)
+                from views.velocidad_view import VelocidadView
+                VelocidadView.obtenerMostrarPrismasMarcados(treeWidget)
+                # 3. Sincronizar hacia Visor y refrescar el 3D
+                from utils.shared.sincronizarPrismas import sincronizarPrismasDesplazamientoAVisor
+                sincronizarPrismasDesplazamientoAVisor(DesplazamientoView.main)
+
+            DesplazamientoView.timer_marcado_desplaza.timeout.connect(ejecutar_refresco)
+            DesplazamientoView.timer_marcado_desplaza.start(300)
+
+        EquiposDesplazamiento.validarMarcadoCheckbox(parent_item, column, callback_refresco)
+
+    @staticmethod
+    def seleccionEquipoDesplazamiento(current, previous):
+        if current is None:
+            return
+        from utils.shared.sincronizarPrismas import sincronizarSeleccionDesplazamientoAVisor
+        sincronizarSeleccionDesplazamientoAVisor(DesplazamientoView.main, current)
+
     def clicderechoProyectoActualDesplazamiento(point):
         treeWidget =  DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-        
+
+        def refrescar_desplaza_veloc_y_sincronizar():
+            DesplazamientoView.obtenerMostrarPrismasMarcados(treeWidget)
+            from views.velocidad_view import VelocidadView
+            VelocidadView.obtenerMostrarPrismasMarcados(treeWidget)
+            from utils.shared.sincronizarPrismas import sincronizarPrismasDesplazamientoAVisor
+            sincronizarPrismasDesplazamientoAVisor(DesplazamientoView.main)
+
         # Agregamos el argumento extra: la función que dispara la gráfica
         EquiposDesplazamiento.validarOpcionesMenuCheckbox(
             point, 
             DesplazamientoView.main, 
             treeWidget, 
             DesplazamientoView.reiniciarVistasAfectadas,
-            lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(treeWidget)
+            refrescar_desplaza_veloc_y_sincronizar
         )
         
     def reiniciarVistasAfectadas(tipoequipo="Todos"):
@@ -752,4 +806,3 @@ class DesplazamientoView:
         else:
             from utils.common.alertas import mostrar_mensaje
             mostrar_mensaje("Exportar", "No hay datos en pantalla para exportar.", "advertencia")
-    

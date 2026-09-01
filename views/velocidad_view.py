@@ -96,12 +96,25 @@ class VelocidadView:
         
         if VelocidadView.estadoPagina:
             tree_actual_velocidad =  main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-            # tree_actual_velocidad.itemClicked.connect(VelocidadView.checkProyectoActualVelocidad)
-            # tree_actual_velocidad.setContextMenuPolicy(Qt.CustomContextMenu)
-            # tree_actual_velocidad.customContextMenuRequested.connect(VelocidadView.clicderechoProyectoActualVelocidad)
-            # header = tree_actual_velocidad.header()
-            # header.setContextMenuPolicy(Qt.CustomContextMenu)
-            # header.customContextMenuRequested.connect(VelocidadView.clicderechoEncabezadoProyecto)
+
+            # --- Conexión del árbol (compartido físicamente con Desplazamiento) ---
+            # Velocidad y Desplazamiento usan el MISMO QTreeWidget
+            # ("tree_actual_desplazamiento"). Para que el marcado se
+            # refleje siempre en las 3 vistas (Desplazamiento, Velocidad
+            # y Visor) sin importar qué pestaña se abra primero, la
+            # conexión de señales del árbol se hace UNA sola vez y
+            # siempre apunta a los handlers de DesplazamientoView, que
+            # ya disparan el triple refresco (Desplaz + Veloc + Visor).
+            from views.desplazamiento_view import DesplazamientoView
+            if not DesplazamientoView.conexionesArbolRealizadas:
+                tree_actual_velocidad.currentItemChanged.connect(DesplazamientoView.seleccionEquipoDesplazamiento)
+                tree_actual_velocidad.itemClicked.connect(DesplazamientoView.checkProyectoActualDesplazamiento)
+                tree_actual_velocidad.setContextMenuPolicy(Qt.CustomContextMenu)
+                tree_actual_velocidad.customContextMenuRequested.connect(DesplazamientoView.clicderechoProyectoActualDesplazamiento)
+                header = tree_actual_velocidad.header()
+                header.setContextMenuPolicy(Qt.CustomContextMenu)
+                header.customContextMenuRequested.connect(DesplazamientoView.clicderechoEncabezadoProyecto)
+                DesplazamientoView.conexionesArbolRealizadas = True
 
             # --- Buscador de equipos en el árbol (compartido con Desplazamiento) ---
             buscador_veloc = main.findChild(QLineEdit, "input_buscar_desplazamiento")
@@ -201,6 +214,16 @@ class VelocidadView:
                 btnExportarV.clicked.connect(VelocidadView.ejecutar_exportacion_grafica)
             VelocidadView.estadoPagina = False
     
+    # ─────────────────────────────────────────────────────────────────
+    # NOTA: Los siguientes 3 métodos (clicderechoEncabezadoProyecto,
+    # checkProyectoActualVelocidad, clicderechoProyectoActualVelocidad)
+    # ya NO se conectan a ninguna señal del árbol: la conexión real
+    # ahora siempre apunta a los handlers equivalentes de
+    # DesplazamientoView (ver inicializarVistaVelocidad más arriba),
+    # para garantizar el triple refresco Desplaz+Veloc+Visor sin
+    # importar qué vista se abra primero. Se dejan aquí solo como
+    # referencia / por si se necesitan reactivar en el futuro.
+    # ─────────────────────────────────────────────────────────────────
     def clicderechoEncabezadoProyecto(point):
             tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
             pos_global = tree_actual.header().mapToGlobal(point)
@@ -730,4 +753,3 @@ class VelocidadView:
         else:
             from utils.common.alertas import mostrar_mensaje
             mostrar_mensaje("Exportar", "No hay datos en pantalla para exportar.", "advertencia")
-    

@@ -1568,12 +1568,21 @@ class Personalizacion:
                 it = tree_config.topLevelItem(i); idz = limpiar_id(it.text(2))
                 if it.checkState(0) == Qt.Checked: res.append((idz, None))
                 elif it.checkState(0) == Qt.PartiallyChecked:
+                    TIPOS_EQUIPO = {"topografia", "prisma", "inclinometro", "piezometrocuerda",
+                                    "piezometromanual", "pluviometro", "celda", "acelerografo",
+                                    "sondajetdr", "adicional", "prismavirtual"}
                     def buscar(p):
                         for j in range(p.childCount()):
                             h = p.child(j)
-                            if h.text(1).lower() in ["prisma", "pluviometro"] and h.checkState(0) == Qt.Checked:
-                                res.append((idz, limpiar_id(h.text(2))))
-                            buscar(h)
+                            tipo_h = h.text(1).lower()
+                            if tipo_h in TIPOS_EQUIPO:
+                                if h.checkState(0) == Qt.Checked:
+                                    res.append((idz, limpiar_id(h.text(2))))
+                                # No seguimos bajando: ya capturamos el equipo completo
+                                # (evita entrar en "actortopo", que son sub-archivos de topografía)
+                            else:
+                                # Es un nodo de grupo intermedio (ej. "Prismas", "Topografías") -> seguir bajando
+                                buscar(h)
                     buscar(it)
 
             if len(res) == 0:

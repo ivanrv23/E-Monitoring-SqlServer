@@ -706,6 +706,12 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
               </item>
               <item>
                <widget class="QLabel" name="label_dashboard">
+                <property name="font">
+                 <font>
+                  <weight>75</weight>
+                  <bold>true</bold>
+                 </font>
+                </property>
                 <property name="text">
                  <string/>
                 </property>
@@ -905,7 +911,42 @@ QLineEdit:disabled {
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
-                  <width>655</width>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QLabel" name="label_titulo_tabla_datos">
+                <property name="font">
+                 <font>
+                  <weight>75</weight>
+                  <bold>true</bold>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">QFrame {
+    border: 1px solid #ffffff;
+}
+</string>
+                </property>
+                <property name="text">
+                 <string>DATOS</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_27">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
                   <height>20</height>
                  </size>
                 </property>
@@ -932,25 +973,6 @@ QLineEdit:disabled {
                </widget>
               </item>
              </layout>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="label_titulo_tabla_datos">
-             <property name="font">
-              <font>
-               <weight>75</weight>
-               <bold>true</bold>
-              </font>
-             </property>
-             <property name="styleSheet">
-              <string notr="true"/>
-             </property>
-             <property name="text">
-              <string>VISTA DATOS</string>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignCenter</set>
-             </property>
             </widget>
            </item>
            <item>
@@ -1171,8 +1193,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>836</width>
-                <height>28</height>
+                <width>952</width>
+                <height>32</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_5">
@@ -1340,6 +1362,16 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 </widget>
                </item>
                <item>
+                <widget class="QPushButton" name="btn_aplicar_dtm">
+                 <property name="toolTip">
+                  <string>Generar DTM</string>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
+               <item>
                 <widget class="QPushButton" name="btn_filtrarfechas_visor">
                  <property name="toolTip">
                   <string>Filtrar por Fechas</string>
@@ -1353,16 +1385,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <widget class="QPushButton" name="btn_anularfechas_visor">
                  <property name="toolTip">
                   <string>Anular Filtro por Fechas</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_aplicar_dtm">
-                 <property name="toolTip">
-                  <string>Generar DTM</string>
                  </property>
                  <property name="text">
                   <string/>
@@ -1442,6 +1464,16 @@ QSlider::handle:horizontal {
                 </spacer>
                </item>
                <item>
+                <widget class="QPushButton" name="btn_exportar_vectores">
+                 <property name="toolTip">
+                  <string>Exportar Vectores DXF</string>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
+               <item>
                 <widget class="QPushButton" name="btn_graficar_desplazamientos_lidar">
                  <property name="toolTip">
                   <string>Desplazamiento Lidar</string>
@@ -1475,16 +1507,6 @@ QSlider::handle:horizontal {
                 <widget class="QPushButton" name="btn_imagen_visor">
                  <property name="toolTip">
                   <string>Imagen a Reporte General</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_exportar_vectores">
-                 <property name="toolTip">
-                  <string>Exportar Vectores DXF</string>
                  </property>
                  <property name="text">
                   <string/>
@@ -1744,254 +1766,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_6">
            <item>
-            <widget class="QScrollArea" name="scrollArea_3">
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>40</height>
-              </size>
-             </property>
-             <property name="styleSheet">
-              <string notr="true"/>
-             </property>
-             <property name="widgetResizable">
-              <bool>true</bool>
-             </property>
-             <widget class="QWidget" name="scrollAreaWidgetContents_3">
-              <property name="geometry">
-               <rect>
-                <x>0</x>
-                <y>0</y>
-                <width>995</width>
-                <height>28</height>
-               </rect>
-              </property>
-              <layout class="QHBoxLayout" name="horizontalLayout_6">
-               <property name="leftMargin">
-                <number>6</number>
-               </property>
-               <property name="topMargin">
-                <number>0</number>
-               </property>
-               <property name="rightMargin">
-                <number>6</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-               <item>
-                <widget class="QPushButton" name="btn_refrescar_vista_desplazamiento">
-                 <property name="toolTip">
-                  <string>Actualizar Vista</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="combo_medida_desplaza">
-                 <property name="minimumSize">
-                  <size>
-                   <width>100</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                 <property name="toolTip">
-                  <string>Unidades de Medida</string>
-                 </property>
-                 <property name="styleSheet">
-                  <string notr="true"/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="combo_tiempo_desplaza">
-                 <property name="minimumSize">
-                  <size>
-                   <width>100</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                 <property name="toolTip">
-                  <string>Unidades de Tiempo</string>
-                 </property>
-                 <property name="styleSheet">
-                  <string notr="true"/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="combo_promedio_desplaza">
-                 <property name="minimumSize">
-                  <size>
-                   <width>120</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="spin_promedio_desplaza">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>999</number>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_resumen_desplazamiento">
-                 <property name="toolTip">
-                  <string>Tabla Resumen Desplazamiento</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_filtrarfechas_desplaza">
-                 <property name="toolTip">
-                  <string>Filtrar por Fechas</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_anularfechas_desplaza">
-                 <property name="toolTip">
-                  <string>Anular Filtro por Fechas</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_voz_desplazamiento">
-                 <property name="toolTip">
-                  <string>Asistente de Voz</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <spacer name="horizontalSpacer_3">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>40</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-               <item>
-                <widget class="QComboBox" name="combo_tipos_desplazamiento">
-                 <property name="minimumSize">
-                  <size>
-                   <width>150</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                 <property name="toolTip">
-                  <string>Tipos de Gráfica</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_exportar_desplazamiento">
-                 <property name="toolTip">
-                  <string>Exportar Data del Gráfico</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_umbral_personalizado_D">
-                 <property name="toolTip">
-                  <string>Umbral Personalizado</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_umbral_desplazamiento">
-                 <property name="toolTip">
-                  <string>Mostrar Umbral</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_limpieza_desplazamiento">
-                 <property name="toolTip">
-                  <string>Limpieza de Ruido</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_tendencia_desplazamiento">
-                 <property name="toolTip">
-                  <string>Tendencias</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_ejes_desplazamiento">
-                 <property name="toolTip">
-                  <string>Configurar Ejes</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_reporte_grafica_desplazamiento">
-                 <property name="toolTip">
-                  <string>Imagen a Reporte Anexos</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_imagen_desplazamiento">
-                 <property name="toolTip">
-                  <string>Imagen a Reporte General</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-            </widget>
-           </item>
-           <item>
             <widget class="QScrollArea" name="scrollArea_4">
              <property name="widgetResizable">
               <bool>true</bool>
@@ -2001,11 +1775,259 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>175</width>
-                <height>110</height>
+                <width>952</width>
+                <height>659</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_8">
+               <item>
+                <widget class="QScrollArea" name="scrollArea_3">
+                 <property name="maximumSize">
+                  <size>
+                   <width>16777215</width>
+                   <height>40</height>
+                  </size>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true"/>
+                 </property>
+                 <property name="widgetResizable">
+                  <bool>true</bool>
+                 </property>
+                 <widget class="QWidget" name="scrollAreaWidgetContents_3">
+                  <property name="geometry">
+                   <rect>
+                    <x>0</x>
+                    <y>0</y>
+                    <width>995</width>
+                    <height>34</height>
+                   </rect>
+                  </property>
+                  <layout class="QHBoxLayout" name="horizontalLayout_6">
+                   <property name="leftMargin">
+                    <number>6</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>6</number>
+                   </property>
+                   <property name="bottomMargin">
+                    <number>0</number>
+                   </property>
+                   <item>
+                    <widget class="QPushButton" name="btn_refrescar_vista_desplazamiento">
+                     <property name="toolTip">
+                      <string>Actualizar Vista</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="combo_medida_desplaza">
+                     <property name="minimumSize">
+                      <size>
+                       <width>100</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                     <property name="toolTip">
+                      <string>Unidades de Medida</string>
+                     </property>
+                     <property name="styleSheet">
+                      <string notr="true"/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="combo_tiempo_desplaza">
+                     <property name="minimumSize">
+                      <size>
+                       <width>100</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                     <property name="toolTip">
+                      <string>Unidades de Tiempo</string>
+                     </property>
+                     <property name="styleSheet">
+                      <string notr="true"/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="combo_promedio_desplaza">
+                     <property name="minimumSize">
+                      <size>
+                       <width>120</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QSpinBox" name="spin_promedio_desplaza">
+                     <property name="minimum">
+                      <number>1</number>
+                     </property>
+                     <property name="maximum">
+                      <number>999</number>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_resumen_desplazamiento">
+                     <property name="toolTip">
+                      <string>Tabla Resumen Desplazamiento</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_filtrarfechas_desplaza">
+                     <property name="toolTip">
+                      <string>Filtrar por Fechas</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_anularfechas_desplaza">
+                     <property name="toolTip">
+                      <string>Anular Filtro por Fechas</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="horizontalSpacer_3">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>40</width>
+                       <height>20</height>
+                      </size>
+                     </property>
+                    </spacer>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="combo_tipos_desplazamiento">
+                     <property name="minimumSize">
+                      <size>
+                       <width>150</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                     <property name="toolTip">
+                      <string>Tipos de Gráfica</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_exportar_desplazamiento">
+                     <property name="toolTip">
+                      <string>Exportar Data del Gráfico</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_umbral_personalizado_D">
+                     <property name="toolTip">
+                      <string>Umbral Personalizado</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_umbral_desplazamiento">
+                     <property name="toolTip">
+                      <string>Mostrar Umbral</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_limpieza_desplazamiento">
+                     <property name="toolTip">
+                      <string>Limpieza de Ruido</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_tendencia_desplazamiento">
+                     <property name="toolTip">
+                      <string>Tendencias</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_ejes_desplazamiento">
+                     <property name="toolTip">
+                      <string>Configurar Ejes</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_reporte_grafica_desplazamiento">
+                     <property name="toolTip">
+                      <string>Imagen a Reporte Anexos</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_imagen_desplazamiento">
+                     <property name="toolTip">
+                      <string>Imagen a Reporte General</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_voz_desplazamiento">
+                     <property name="toolTip">
+                      <string>Asistente de Voz</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
+                </widget>
+               </item>
                <item>
                 <widget class="QFrame" name="frame">
                  <property name="frameShape">
@@ -2015,22 +2037,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <enum>QFrame::Raised</enum>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_7">
-                  <item>
-                   <widget class="QLabel" name="label">
-                    <property name="font">
-                     <font>
-                      <weight>75</weight>
-                      <bold>true</bold>
-                     </font>
-                    </property>
-                    <property name="text">
-                     <string>VISTA DESPLAZAMIENTO</string>
-                    </property>
-                    <property name="alignment">
-                     <set>Qt::AlignCenter</set>
-                    </property>
-                   </widget>
-                  </item>
                   <item>
                    <widget class="QLabel" name="label_tendencia_desplaza">
                     <property name="text">
@@ -2048,8 +2054,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>674</width>
-                       <height>510</height>
+                       <width>912</width>
+                       <height>554</height>
                       </rect>
                      </property>
                      <property name="sizePolicy">
@@ -2172,254 +2178,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_26">
            <item>
-            <widget class="QScrollArea" name="scrollArea_22">
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>40</height>
-              </size>
-             </property>
-             <property name="styleSheet">
-              <string notr="true"/>
-             </property>
-             <property name="widgetResizable">
-              <bool>true</bool>
-             </property>
-             <widget class="QWidget" name="scrollAreaWidgetContents_23">
-              <property name="geometry">
-               <rect>
-                <x>0</x>
-                <y>0</y>
-                <width>985</width>
-                <height>28</height>
-               </rect>
-              </property>
-              <layout class="QHBoxLayout" name="horizontalLayout_23">
-               <property name="leftMargin">
-                <number>6</number>
-               </property>
-               <property name="topMargin">
-                <number>0</number>
-               </property>
-               <property name="rightMargin">
-                <number>6</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-               <item>
-                <widget class="QPushButton" name="btn_refrescar_vista_velocidad">
-                 <property name="toolTip">
-                  <string>Actualizar Vista</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="combo_medida_velocidad">
-                 <property name="minimumSize">
-                  <size>
-                   <width>100</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                 <property name="toolTip">
-                  <string>Unidades de Medida</string>
-                 </property>
-                 <property name="styleSheet">
-                  <string notr="true"/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="combo_tiempo_velocidad">
-                 <property name="minimumSize">
-                  <size>
-                   <width>100</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                 <property name="toolTip">
-                  <string>Unidades de Tiempo</string>
-                 </property>
-                 <property name="styleSheet">
-                  <string notr="true"/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="combo_promedio_velocidad">
-                 <property name="minimumSize">
-                  <size>
-                   <width>120</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="spin_promedio_velocidad">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>999</number>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_resumen_velocidad">
-                 <property name="toolTip">
-                  <string>Tabla Resumen Velocidad</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_filtrarfechas_velocidad">
-                 <property name="toolTip">
-                  <string>Filtrar por Fechas</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_anularfechas_velocidad">
-                 <property name="toolTip">
-                  <string>Anular Filtro por Fechas</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_voz_velocidad">
-                 <property name="toolTip">
-                  <string>Asistente de Voz</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <spacer name="horizontalSpacer_22">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>40</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-               <item>
-                <widget class="QComboBox" name="combo_tipos_velocidad">
-                 <property name="minimumSize">
-                  <size>
-                   <width>140</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                 <property name="toolTip">
-                  <string>Tipo de Gráfica</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_exportar_velocidad">
-                 <property name="toolTip">
-                  <string>Exportar Data del Gráfico</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_umbral_personalizado_V">
-                 <property name="toolTip">
-                  <string>Umbral Personalizado</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_umbral_velocidad">
-                 <property name="toolTip">
-                  <string>Mostrar Umbral</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_limpieza_velocidad">
-                 <property name="toolTip">
-                  <string>Limpieza de Ruido</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_tendencia_velocidad">
-                 <property name="toolTip">
-                  <string>Tendencias</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_ejes_velocidad">
-                 <property name="toolTip">
-                  <string>Configurar Ejes</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_reporte_grafica_velocidad">
-                 <property name="toolTip">
-                  <string>Imagen a Reporte Anexos</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_imagen_velocidad">
-                 <property name="toolTip">
-                  <string>Imagen a Reporte General</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-            </widget>
-           </item>
-           <item>
             <widget class="QScrollArea" name="scrollArea_20">
              <property name="styleSheet">
               <string notr="true"/>
@@ -2432,11 +2190,259 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>138</width>
-                <height>110</height>
+                <width>952</width>
+                <height>659</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_24">
+               <item>
+                <widget class="QScrollArea" name="scrollArea_22">
+                 <property name="maximumSize">
+                  <size>
+                   <width>16777215</width>
+                   <height>40</height>
+                  </size>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true"/>
+                 </property>
+                 <property name="widgetResizable">
+                  <bool>true</bool>
+                 </property>
+                 <widget class="QWidget" name="scrollAreaWidgetContents_23">
+                  <property name="geometry">
+                   <rect>
+                    <x>-53</x>
+                    <y>0</y>
+                    <width>985</width>
+                    <height>34</height>
+                   </rect>
+                  </property>
+                  <layout class="QHBoxLayout" name="horizontalLayout_23">
+                   <property name="leftMargin">
+                    <number>6</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>6</number>
+                   </property>
+                   <property name="bottomMargin">
+                    <number>0</number>
+                   </property>
+                   <item>
+                    <widget class="QPushButton" name="btn_refrescar_vista_velocidad">
+                     <property name="toolTip">
+                      <string>Actualizar Vista</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="combo_medida_velocidad">
+                     <property name="minimumSize">
+                      <size>
+                       <width>100</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                     <property name="toolTip">
+                      <string>Unidades de Medida</string>
+                     </property>
+                     <property name="styleSheet">
+                      <string notr="true"/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="combo_tiempo_velocidad">
+                     <property name="minimumSize">
+                      <size>
+                       <width>100</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                     <property name="toolTip">
+                      <string>Unidades de Tiempo</string>
+                     </property>
+                     <property name="styleSheet">
+                      <string notr="true"/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="combo_promedio_velocidad">
+                     <property name="minimumSize">
+                      <size>
+                       <width>120</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QSpinBox" name="spin_promedio_velocidad">
+                     <property name="minimum">
+                      <number>1</number>
+                     </property>
+                     <property name="maximum">
+                      <number>999</number>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_resumen_velocidad">
+                     <property name="toolTip">
+                      <string>Tabla Resumen Velocidad</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_filtrarfechas_velocidad">
+                     <property name="toolTip">
+                      <string>Filtrar por Fechas</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_anularfechas_velocidad">
+                     <property name="toolTip">
+                      <string>Anular Filtro por Fechas</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="horizontalSpacer_22">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>40</width>
+                       <height>20</height>
+                      </size>
+                     </property>
+                    </spacer>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="combo_tipos_velocidad">
+                     <property name="minimumSize">
+                      <size>
+                       <width>140</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                     <property name="toolTip">
+                      <string>Tipo de Gráfica</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_exportar_velocidad">
+                     <property name="toolTip">
+                      <string>Exportar Data del Gráfico</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_umbral_personalizado_V">
+                     <property name="toolTip">
+                      <string>Umbral Personalizado</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_umbral_velocidad">
+                     <property name="toolTip">
+                      <string>Mostrar Umbral</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_limpieza_velocidad">
+                     <property name="toolTip">
+                      <string>Limpieza de Ruido</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_tendencia_velocidad">
+                     <property name="toolTip">
+                      <string>Tendencias</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_ejes_velocidad">
+                     <property name="toolTip">
+                      <string>Configurar Ejes</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_reporte_grafica_velocidad">
+                     <property name="toolTip">
+                      <string>Imagen a Reporte Anexos</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_imagen_velocidad">
+                     <property name="toolTip">
+                      <string>Imagen a Reporte General</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btn_voz_velocidad">
+                     <property name="toolTip">
+                      <string>Asistente de Voz</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
+                </widget>
+               </item>
                <item>
                 <widget class="QFrame" name="frame_3">
                  <property name="frameShape">
@@ -2455,17 +2461,10 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                      </font>
                     </property>
                     <property name="text">
-                     <string>VISTA VELOCIDAD</string>
+                     <string>VELOCIDAD</string>
                     </property>
                     <property name="alignment">
                      <set>Qt::AlignCenter</set>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="label_tendencia_velocidad">
-                    <property name="text">
-                     <string/>
                     </property>
                    </widget>
                   </item>
@@ -2479,8 +2478,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>674</width>
-                       <height>510</height>
+                       <width>912</width>
+                       <height>554</height>
                       </rect>
                      </property>
                      <property name="sizePolicy">
@@ -2654,10 +2653,10 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
              <widget class="QWidget" name="scrollAreaWidgetContents_24">
               <property name="geometry">
                <rect>
-                <x>0</x>
+                <x>-55</x>
                 <y>0</y>
                 <width>1041</width>
-                <height>28</height>
+                <height>34</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_24">
@@ -2712,16 +2711,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                  </property>
                  <property name="styleSheet">
                   <string notr="true"/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_voz_inclinometros">
-                 <property name="toolTip">
-                  <string>Asistente de Voz</string>
-                 </property>
-                 <property name="text">
-                  <string/>
                  </property>
                 </widget>
                </item>
@@ -2817,6 +2806,16 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 </widget>
                </item>
                <item>
+                <widget class="QPushButton" name="btn_analisis_profundidad">
+                 <property name="toolTip">
+                  <string>Análisis de Profundidad</string>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
+               <item>
                 <widget class="QPushButton" name="btn_umbral_personalizado_I">
                  <property name="toolTip">
                   <string>Umbral Personalizado</string>
@@ -2847,16 +2846,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 </widget>
                </item>
                <item>
-                <widget class="QPushButton" name="btn_analisis_profundidad">
-                 <property name="toolTip">
-                  <string>Análisis de Profundidad</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
                 <widget class="QPushButton" name="btn_reporte_inclinometros">
                  <property name="toolTip">
                   <string>Imagen a Reporte Anexos</string>
@@ -2870,6 +2859,16 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <widget class="QPushButton" name="btn_imagen_inclinometros">
                  <property name="toolTip">
                   <string>Imagen a Reporte General</string>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btn_voz_inclinometros">
+                 <property name="toolTip">
+                  <string>Asistente de Voz</string>
                  </property>
                  <property name="text">
                   <string/>
@@ -2890,8 +2889,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>166</width>
-                <height>91</height>
+                <width>952</width>
+                <height>613</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_11">
@@ -2913,7 +2912,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                      </font>
                     </property>
                     <property name="text">
-                     <string>VISTA INCLINÓMETROS</string>
+                     <string>INCLINÓMETROS</string>
                     </property>
                     <property name="alignment">
                      <set>Qt::AlignCenter</set>
@@ -2930,8 +2929,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>902</width>
-                       <height>538</height>
+                       <width>912</width>
+                       <height>554</height>
                       </rect>
                      </property>
                      <property name="sizePolicy">
@@ -3106,8 +3105,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>724</width>
-                <height>28</height>
+                <width>952</width>
+                <height>38</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_8">
@@ -3179,16 +3178,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <widget class="QPushButton" name="btn_anularfechas_piezometros">
                  <property name="toolTip">
                   <string>Anular Filtro por Fechas</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_voz_piezometros">
-                 <property name="toolTip">
-                  <string>Asistente de Voz</string>
                  </property>
                  <property name="text">
                   <string/>
@@ -3294,6 +3283,16 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                  </property>
                 </widget>
                </item>
+               <item>
+                <widget class="QPushButton" name="btn_voz_piezometros">
+                 <property name="toolTip">
+                  <string>Asistente de Voz</string>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
               </layout>
              </widget>
             </widget>
@@ -3308,8 +3307,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>154</width>
-                <height>110</height>
+                <width>952</width>
+                <height>613</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_12">
@@ -3331,17 +3330,10 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                      </font>
                     </property>
                     <property name="text">
-                     <string>VISTA PIEZÓMETROS</string>
+                     <string>PIEZÓMETROS</string>
                     </property>
                     <property name="alignment">
                      <set>Qt::AlignCenter</set>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="label_tendencia_piezometros">
-                    <property name="text">
-                     <string/>
                     </property>
                    </widget>
                   </item>
@@ -3355,8 +3347,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>674</width>
-                       <height>510</height>
+                       <width>912</width>
+                       <height>554</height>
                       </rect>
                      </property>
                      <property name="sizePolicy">
@@ -3532,8 +3524,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>927</width>
-                <height>28</height>
+                <width>952</width>
+                <height>38</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_10">
@@ -3645,16 +3637,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 </widget>
                </item>
                <item>
-                <widget class="QPushButton" name="btn_voz_celdas">
-                 <property name="toolTip">
-                  <string>Asistente de Voz</string>
-                 </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
                 <spacer name="horizontalSpacer_7">
                  <property name="orientation">
                   <enum>Qt::Horizontal</enum>
@@ -3759,6 +3741,16 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                  </property>
                 </widget>
                </item>
+               <item>
+                <widget class="QPushButton" name="btn_voz_celdas">
+                 <property name="toolTip">
+                  <string>Asistente de Voz</string>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
               </layout>
              </widget>
             </widget>
@@ -3773,8 +3765,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>223</width>
-                <height>110</height>
+                <width>952</width>
+                <height>613</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_15">
@@ -3796,17 +3788,10 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                      </font>
                     </property>
                     <property name="text">
-                     <string>VISTA CELDAS DE ASENTAMIENTO</string>
+                     <string>CELDAS DE ASENTAMIENTO</string>
                     </property>
                     <property name="alignment">
                      <set>Qt::AlignCenter</set>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="label_tendencia_celdas">
-                    <property name="text">
-                     <string/>
                     </property>
                    </widget>
                   </item>
@@ -3820,8 +3805,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>674</width>
-                       <height>510</height>
+                       <width>912</width>
+                       <height>554</height>
                       </rect>
                      </property>
                      <property name="sizePolicy">
@@ -3997,8 +3982,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>464</width>
-                <height>28</height>
+                <width>952</width>
+                <height>38</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_14">
@@ -4025,6 +4010,16 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 </widget>
                </item>
                <item>
+                <widget class="QComboBox" name="cb_tipo_grafico_acelerografos">
+                 <property name="minimumSize">
+                  <size>
+                   <width>140</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                </widget>
+               </item>
+               <item>
                 <widget class="QPushButton" name="btn_filtrarfechas_acelero">
                  <property name="toolTip">
                   <string>Filtrar por Fechas</string>
@@ -4045,27 +4040,36 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 </widget>
                </item>
                <item>
-                <widget class="QPushButton" name="btn_voz_acelerografos">
-                 <property name="toolTip">
-                  <string>Asistente de Voz</string>
+                <spacer name="horizontalSpacer_11">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
                  </property>
-                 <property name="text">
-                  <string/>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="cb_tipo_grafico_acelerografos">
-                 <property name="minimumSize">
+                 <property name="sizeHint" stdset="0">
                   <size>
-                   <width>140</width>
-                   <height>0</height>
+                   <width>40</width>
+                   <height>20</height>
                   </size>
                  </property>
+                </spacer>
+               </item>
+               <item>
+                <widget class="QLabel" name="label_10">
+                 <property name="font">
+                  <font>
+                   <weight>75</weight>
+                   <bold>true</bold>
+                  </font>
+                 </property>
+                 <property name="text">
+                  <string>ACELERÓGRAFOS</string>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignCenter</set>
+                 </property>
                 </widget>
                </item>
                <item>
-                <spacer name="horizontalSpacer_11">
+                <spacer name="horizontalSpacer_28">
                  <property name="orientation">
                   <enum>Qt::Horizontal</enum>
                  </property>
@@ -4088,17 +4092,17 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 </widget>
                </item>
                <item>
-                <widget class="QPushButton" name="btn_ejes_acelerografos">
-                 <property name="toolTip">
-                  <string>Configurar Ejes</string>
-                 </property>
+                <widget class="QPushButton" name="btn_umbral_acelerografo">
                  <property name="text">
                   <string/>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="QPushButton" name="btn_umbral_acelerografo">
+                <widget class="QPushButton" name="btn_ejes_acelerografos">
+                 <property name="toolTip">
+                  <string>Configurar Ejes</string>
+                 </property>
                  <property name="text">
                   <string/>
                  </property>
@@ -4124,6 +4128,16 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                  </property>
                 </widget>
                </item>
+               <item>
+                <widget class="QPushButton" name="btn_voz_acelerografos">
+                 <property name="toolTip">
+                  <string>Asistente de Voz</string>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
               </layout>
              </widget>
             </widget>
@@ -4133,74 +4147,15 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
              <property name="widgetResizable">
               <bool>true</bool>
              </property>
-             <widget class="QWidget" name="scrollAreaWidgetContents_15">
+             <widget class="QWidget" name="widget_acelerografos">
               <property name="geometry">
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>712</width>
-                <height>567</height>
+                <width>952</width>
+                <height>613</height>
                </rect>
               </property>
-              <layout class="QVBoxLayout" name="verticalLayout_35">
-               <item>
-                <widget class="QFrame" name="frame_5">
-                 <property name="frameShape">
-                  <enum>QFrame::StyledPanel</enum>
-                 </property>
-                 <property name="frameShadow">
-                  <enum>QFrame::Raised</enum>
-                 </property>
-                 <layout class="QVBoxLayout" name="verticalLayout_36">
-                  <item>
-                   <widget class="QLabel" name="label_10">
-                    <property name="font">
-                     <font>
-                      <weight>75</weight>
-                      <bold>true</bold>
-                     </font>
-                    </property>
-                    <property name="text">
-                     <string>VISTA ACELERÓGRAFOS</string>
-                    </property>
-                    <property name="alignment">
-                     <set>Qt::AlignCenter</set>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QScrollArea" name="scrollArea_36">
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                    <property name="minimumSize">
-                     <size>
-                      <width>674</width>
-                      <height>510</height>
-                     </size>
-                    </property>
-                    <property name="widgetResizable">
-                     <bool>true</bool>
-                    </property>
-                    <widget class="QWidget" name="widget_acelerografos">
-                     <property name="geometry">
-                      <rect>
-                       <x>0</x>
-                       <y>0</y>
-                       <width>672</width>
-                       <height>508</height>
-                      </rect>
-                     </property>
-                    </widget>
-                   </widget>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
-              </layout>
              </widget>
             </widget>
            </item>
@@ -4355,8 +4310,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>414</width>
-                <height>28</height>
+                <width>952</width>
+                <height>38</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_16">
@@ -4396,17 +4351,36 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 </widget>
                </item>
                <item>
-                <widget class="QPushButton" name="btn_voz_sondajestdr">
-                 <property name="toolTip">
-                  <string>Asistente de Voz</string>
+                <spacer name="horizontalSpacer_13">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>40</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+               <item>
+                <widget class="QLabel" name="label_11">
+                 <property name="font">
+                  <font>
+                   <weight>75</weight>
+                   <bold>true</bold>
+                  </font>
                  </property>
                  <property name="text">
-                  <string/>
+                  <string>TDR</string>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignCenter</set>
                  </property>
                 </widget>
                </item>
                <item>
-                <spacer name="horizontalSpacer_13">
+                <spacer name="horizontalSpacer_38">
                  <property name="orientation">
                   <enum>Qt::Horizontal</enum>
                  </property>
@@ -4464,6 +4438,16 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                  </property>
                 </widget>
                </item>
+               <item>
+                <widget class="QPushButton" name="btn_voz_sondajestdr">
+                 <property name="toolTip">
+                  <string>Asistente de Voz</string>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
               </layout>
              </widget>
             </widget>
@@ -4478,8 +4462,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>712</width>
-                <height>567</height>
+                <width>952</width>
+                <height>613</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_38">
@@ -4492,22 +4476,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <enum>QFrame::Raised</enum>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_39">
-                  <item>
-                   <widget class="QLabel" name="label_11">
-                    <property name="font">
-                     <font>
-                      <weight>75</weight>
-                      <bold>true</bold>
-                     </font>
-                    </property>
-                    <property name="text">
-                     <string>VISTA TDR</string>
-                    </property>
-                    <property name="alignment">
-                     <set>Qt::AlignCenter</set>
-                    </property>
-                   </widget>
-                  </item>
                   <item>
                    <widget class="QScrollArea" name="scrollArea_5">
                     <property name="minimumSize">
@@ -4524,8 +4492,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>672</width>
-                       <height>508</height>
+                       <width>912</width>
+                       <height>573</height>
                       </rect>
                      </property>
                     </widget>
@@ -4689,8 +4657,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>334</width>
-                <height>28</height>
+                <width>952</width>
+                <height>32</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_19">
@@ -4810,7 +4778,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>98</width>
+                   <width>946</width>
                    <height>88</height>
                   </rect>
                  </property>
@@ -4843,8 +4811,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                          <rect>
                           <x>0</x>
                           <y>0</y>
-                          <width>348</width>
-                          <height>28</height>
+                          <width>906</width>
+                          <height>32</height>
                          </rect>
                         </property>
                         <layout class="QHBoxLayout" name="horizontalLayout_22">
@@ -4985,7 +4953,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>98</width>
+                   <width>946</width>
                    <height>88</height>
                   </rect>
                  </property>
@@ -5018,8 +4986,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                          <rect>
                           <x>0</x>
                           <y>0</y>
-                          <width>817</width>
-                          <height>28</height>
+                          <width>906</width>
+                          <height>32</height>
                          </rect>
                         </property>
                         <layout class="QHBoxLayout" name="horizontalLayout_31">
@@ -5195,7 +5163,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>98</width>
+                   <width>946</width>
                    <height>107</height>
                   </rect>
                  </property>
@@ -5228,8 +5196,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                          <rect>
                           <x>0</x>
                           <y>0</y>
-                          <width>781</width>
-                          <height>28</height>
+                          <width>906</width>
+                          <height>32</height>
                          </rect>
                         </property>
                         <layout class="QHBoxLayout" name="horizontalLayout_18">
@@ -5467,7 +5435,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>98</width>
+                   <width>946</width>
                    <height>107</height>
                   </rect>
                  </property>
@@ -5500,8 +5468,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                          <rect>
                           <x>0</x>
                           <y>0</y>
-                          <width>677</width>
-                          <height>28</height>
+                          <width>906</width>
+                          <height>32</height>
                          </rect>
                         </property>
                         <layout class="QHBoxLayout" name="horizontalLayout_25">
@@ -5708,7 +5676,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>98</width>
+                   <width>946</width>
                    <height>88</height>
                   </rect>
                  </property>
@@ -5741,8 +5709,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                          <rect>
                           <x>0</x>
                           <y>0</y>
-                          <width>432</width>
-                          <height>28</height>
+                          <width>906</width>
+                          <height>32</height>
                          </rect>
                         </property>
                         <layout class="QHBoxLayout" name="horizontalLayout_30">
@@ -5890,7 +5858,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>435</width>
+                   <width>946</width>
                    <height>591</height>
                   </rect>
                  </property>
@@ -5923,8 +5891,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                          <rect>
                           <x>0</x>
                           <y>0</y>
-                          <width>366</width>
-                          <height>28</height>
+                          <width>446</width>
+                          <height>32</height>
                          </rect>
                         </property>
                         <layout class="QHBoxLayout" name="horizontalLayout_26">
@@ -6099,8 +6067,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                          <rect>
                           <x>0</x>
                           <y>0</y>
-                          <width>342</width>
-                          <height>28</height>
+                          <width>432</width>
+                          <height>38</height>
                          </rect>
                         </property>
                         <layout class="QHBoxLayout" name="horizontalLayout_27">
@@ -6257,7 +6225,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>98</width>
+                   <width>946</width>
                    <height>94</height>
                   </rect>
                  </property>
@@ -6602,7 +6570,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>98</width>
+                <width>948</width>
                 <height>78</height>
                </rect>
               </property>
@@ -6635,8 +6603,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>622</width>
-                       <height>28</height>
+                       <width>908</width>
+                       <height>32</height>
                       </rect>
                      </property>
                      <layout class="QHBoxLayout" name="horizontalLayout_37">
@@ -6944,8 +6912,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>537</width>
-                <height>28</height>
+                <width>952</width>
+                <height>38</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_29">
@@ -7109,8 +7077,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>316</width>
-                       <height>494</height>
+                       <width>456</width>
+                       <height>567</height>
                       </rect>
                      </property>
                      <layout class="QVBoxLayout" name="verticalLayout_53">
@@ -8909,8 +8877,8 @@ El reporte mensual elaborado por la Jefatura de Geotecnia esta alineado a la RES
                      <rect>
                       <x>0</x>
                       <y>0</y>
-                      <width>148</width>
-                      <height>28</height>
+                      <width>460</width>
+                      <height>38</height>
                      </rect>
                     </property>
                     <layout class="QHBoxLayout" name="horizontalLayout_32">
@@ -9167,7 +9135,7 @@ QLineEdit:disabled {
               <string notr="true"/>
              </property>
              <property name="text">
-              <string>VISTA USUARIOS</string>
+              <string>USUARIOS</string>
              </property>
              <property name="alignment">
               <set>Qt::AlignCenter</set>
@@ -9251,7 +9219,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>89</width>
                   <height>89</height>
                  </rect>
                 </property>
@@ -9283,7 +9251,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>89</width>
                   <height>89</height>
                  </rect>
                 </property>
@@ -9315,7 +9283,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>89</width>
                   <height>89</height>
                  </rect>
                 </property>
@@ -9347,7 +9315,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>89</width>
                   <height>89</height>
                  </rect>
                 </property>
@@ -9379,7 +9347,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>89</width>
                   <height>89</height>
                  </rect>
                 </property>
@@ -9411,7 +9379,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>89</width>
                   <height>89</height>
                  </rect>
                 </property>
@@ -9443,7 +9411,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>89</width>
                   <height>89</height>
                  </rect>
                 </property>
@@ -9475,7 +9443,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>89</width>
                   <height>89</height>
                  </rect>
                 </property>
@@ -9507,7 +9475,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>89</width>
                   <height>89</height>
                  </rect>
                 </property>
@@ -9539,7 +9507,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>89</width>
                   <height>89</height>
                  </rect>
                 </property>

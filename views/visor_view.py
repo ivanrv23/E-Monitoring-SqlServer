@@ -98,6 +98,13 @@ class VisorView:
     label_carga_visor = None
     respuesta = ConfiguracionVisor.obtenerDataConfiguracionVisor()
     colorfondo = respuesta[0]
+
+    @staticmethod
+    def seleccionEquipoVisor(current, previous):
+        if current is None:
+            return
+        from utils.shared.sincronizarPrismas import sincronizarSeleccionVisorADesplazamiento
+        sincronizarSeleccionVisorADesplazamiento(VisorView.main, current)
     
     def inicializarVistaVisor(main, proyectoid, proyectoname, fechaini, fechafin):
         VisorView.main = main
@@ -271,6 +278,7 @@ class VisorView:
                 paginacionvisor = VisorView.main.findChild(QStackedWidget, "stacked_visor")
                 
             if not VisorView.conexionesRealizadas:  
+                tree_actual_visor.currentItemChanged.connect(VisorView.seleccionEquipoVisor)
                 botonRefrescarVisor = VisorView.main.findChild(QPushButton, "btn_refrescar_vista_visor")
                 if botonRefrescarVisor:
                     botonRefrescarVisor.clicked.connect(lambda: VisorView.obtenerMostrarEquiposMarcados(tree_actual_visor, paginacionvisor))
@@ -588,7 +596,6 @@ class VisorView:
             if len(prismasmarcados) > 0:
                 VisorView.iniciar_hilo_final_visor(tree_actual)
             else:
-                #  LIMPIAR TODO: prismas Y vectores completamente
                 VisorView._ocultar_prismas_sin_destruir_cache()
                 VisorView._limpiar_vectores_completamente()
                 
@@ -603,6 +610,50 @@ class VisorView:
                 VisorView.mostrarPiezometrosCuerdaVisor(paginacion, piezocuerdasmarcados)
             else:
                 VisorView.limpiarPiezometrosCuerdaVisor()
+
+            # ---- ESTO ES LO QUE FALTABA ----
+            piezomanualesmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Piezómetros Casagrande")
+            if len(piezomanualesmarcados) > 0:
+                VisorView.mostrarPiezometrosManualVisor(paginacion, piezomanualesmarcados)
+            else:
+                VisorView.limpiarPiezometrosManualVisor()
+
+            pluviometrosmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Pluviómetros")
+            if len(pluviometrosmarcados) > 0:
+                VisorView.mostrarPluviometrosVisor(paginacion, pluviometrosmarcados)
+            else:
+                VisorView.limpiarPluviometrosVisor()
+
+            celdasmarcadas = VisorView.obtenerListaEquiposMarcados(lista, "Celdas de Asentamiento")
+            if len(celdasmarcadas) > 0:
+                VisorView.mostrarCeldasAsentamientoVisor(paginacion, celdasmarcadas)
+            else:
+                VisorView.limpiarCeldasAsentamientoVisor()
+
+            acelerografosmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Acelerógrafos")
+            if len(acelerografosmarcados) > 0:
+                VisorView.mostrarAcelerografosVisor(paginacion, acelerografosmarcados)
+            else:
+                VisorView.limpiarAcelerografosVisor()
+
+            sondajestdrmarcados = VisorView.obtenerListaEquiposMarcados(lista, "TDR")
+            if len(sondajestdrmarcados) > 0:
+                VisorView.mostrarSondajestdrVisor(paginacion, sondajestdrmarcados)
+            else:
+                VisorView.limpiarSondajestdrVisor()
+
+            adicionalesmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Equipos Adicionales")
+            if len(adicionalesmarcados) > 0:
+                VisorView.mostrarEquiposAdicionalesVisor(paginacion, adicionalesmarcados)
+            else:
+                VisorView.limpiarEquiposAdicionalesVisor()
+
+            prismasvirtualesmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Prismas Virtuales")
+            if len(prismasvirtualesmarcados) > 0:
+                VisorView.mostrarPrismasVirtualesVisor(paginacion, prismasvirtualesmarcados)
+            else:
+                VisorView.limpiarPrismasVirtualesVisor()
+            # ---- FIN DE LO AGREGADO ----
                 
         else:
             VisorView.limpiarTodosElementosVisor()
@@ -1763,7 +1814,6 @@ class VisorView:
     
     # Graficar los inclinometros 3d en el visor
     def mostrarInclinometrosVisor(paginacion, escala, inclinometrofechasmarcados):
-        if paginacion.currentIndex() == 0:
             # iniciar hilo
             # loading = LoadingView.cargar_loading()
             # def on_thread_complete():
@@ -2051,8 +2101,7 @@ class VisorView:
                 linea.SetVisibility(False)
             VisorView.vtkWidgetVisor.GetRenderWindow().Render()
     
-    def mostrarPiezometrosCuerdaVisor(paginacion, piezocuerdafechasmarcados):
-        if paginacion.currentIndex() == 0:
+    def mostrarPiezometrosCuerdaVisor(paginacion, piezocuerdafechasmarcados):    
             if len(piezocuerdafechasmarcados) > 0:
                 # limpiar cilindros
                 VisorView.limpiarPiezometrosCuerdaVisor()
@@ -2256,7 +2305,6 @@ class VisorView:
                     mostrar_mensaje("ERROR AL MOSTRAR PIEZÓMETRO", f"Hubo error con los siguientes piezómetros:\n {piezoerroneos}", "advertencia")
     
     def mostrarPiezometrosManualVisor(paginacion, piezomanualfechasmarcados):
-        if paginacion.currentIndex() == 0:
             if len(piezomanualfechasmarcados) > 0:
                 # limpiar cilindros
                 VisorView.limpiarPiezometrosManualVisor()
@@ -2484,7 +2532,6 @@ class VisorView:
             VisorView.vtkWidgetVisor.GetRenderWindow().Render()
     
     def mostrarPluviometrosVisor(paginacion, pluviomarcados):
-        if paginacion.currentIndex() == 0:
             VisorView.limpiarPluviometrosVisor()
             listapluviometros = PluviometroController.ctrlListarPluviometrosProyecto(VisorView.idproyecto, pluviomarcados)
             # crear y mostrar actores dxf
@@ -2546,7 +2593,6 @@ class VisorView:
             VisorView.vtkWidgetVisor.GetRenderWindow().Render()
     
     def mostrarCeldasAsentamientoVisor(paginacion, celdasmarcadas):
-        if paginacion.currentIndex() == 0:
             VisorView.limpiarCeldasAsentamientoVisor()
             listaceldas = CeldaController.ctrlListarCeldasProyecto(VisorView.idproyecto, celdasmarcadas)
             # crear y mostrar actores dxf
@@ -2613,7 +2659,6 @@ class VisorView:
             VisorView.vtkWidgetVisor.GetRenderWindow().Render()
     
     def mostrarAcelerografosVisor(paginacion, aceleromarcados):
-        if paginacion.currentIndex() == 0:
             VisorView.limpiarAcelerografosVisor()
             listaaceleros = AcelerografoController.ctrlListarAcelerografosProyecto(VisorView.idproyecto, aceleromarcados)
             # crear y mostrar actores dxf
@@ -2677,7 +2722,6 @@ class VisorView:
             VisorView.vtkWidgetVisor.GetRenderWindow().Render()
     
     def mostrarSondajestdrVisor(paginacion, sondajesmarcados):
-        if paginacion.currentIndex() == 0:
             VisorView.limpiarSondajestdrVisor()
             listasondajes = TDRController.ctrlListarSondajestdrProyecto(VisorView.idproyecto, sondajesmarcados)
             if len(listasondajes) > 0:
@@ -2770,7 +2814,6 @@ class VisorView:
             VisorView.vtkWidgetVisor.GetRenderWindow().Render()
     
     def mostrarEquiposAdicionalesVisor(paginacion, equiposmarcados):
-        if paginacion.currentIndex() == 0:
             VisorView.limpiarEquiposAdicionalesVisor()
             listaequipos = EquipoController.ctrlListarAdicionalesProyecto(VisorView.idproyecto, equiposmarcados)
             if len(listaequipos) > 0:
@@ -2885,7 +2928,6 @@ class VisorView:
             VisorView.vtkWidgetVisor.GetRenderWindow().Render()
             
     def mostrarPrismasVirtualesVisor(paginacion, prismasvirtuales):
-        if paginacion.currentIndex() == 0:
             VisorView.limpiarPrismasVirtualesVisor()
             listaprismasvirtuales = PrismasVirtualesController.ctrlPrismasVirtualesProyecto(VisorView.idproyecto, prismasvirtuales)
             if len(listaprismasvirtuales) > 0:

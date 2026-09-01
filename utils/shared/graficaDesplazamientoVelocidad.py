@@ -683,35 +683,37 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                 if str(instru[equipotipo]) == str(equipo):
                     if regresion == 'Lineal':
                         lineal = CalculosTendencias.dibujarTendenciaLineal(datos_equipo['Fecha'], datos_equipo[tipo], ax, tiempo, 1, nombreequipo, lineatenden, grosortenden, colortenden)
+                        if tiempo != "FECHA":
+                            ecualbl = CalculosTendencias.generarEcuacionTendencia(datos_equipo['Fecha'], datos_equipo[tipo], tiempo, 1)
+                            lineal.set_label(f"{lineal.get_label()}:  {ecualbl}")
                         lineas.append(lineal)
-                        ecualbl = CalculosTendencias.generarEcuacionTendencia(datos_equipo['Fecha'], datos_equipo[tipo], tiempo, 1)
-                        lblecuacion_rcuadrado = lblecuacion_rcuadrado + nombreequipo + ':  ' + ecualbl + '\n'
                     elif regresion == 'Polinómica':
                         polino = CalculosTendencias.dibujarTendenciaLineal(datos_equipo['Fecha'], datos_equipo[tipo], ax, tiempo, grado, nombreequipo, lineatenden, grosortenden, colortenden)
+                        if tiempo != "FECHA":
+                            ecualbl = CalculosTendencias.generarEcuacionTendencia(datos_equipo['Fecha'], datos_equipo[tipo], tiempo, grado)
+                            polino.set_label(f"{polino.get_label()}:  {ecualbl}")
                         lineas.append(polino)
-                        ecualbl = CalculosTendencias.generarEcuacionTendencia(datos_equipo['Fecha'], datos_equipo[tipo], tiempo, grado)
-                        lblecuacion_rcuadrado = lblecuacion_rcuadrado + nombreequipo + ':  ' + ecualbl + '\n'
                     elif regresion == 'Media Móvil':
                         media = CalculosTendencias.dibujarMediaMovil(datos_equipo['Fecha'], datos_equipo[tipo], ax, nombreequipo, grado, lineatenden, grosortenden, colortenden)
                         lineas.append(media)
                     elif regresion == 'Logarítmica':
                         logari, ecualbl = CalculosTendencias.dibujarTendenciaLogaritmica(datos_equipo['Fecha'], datos_equipo[tipo], ax, tiempo, nombreequipo, lineatenden, grosortenden, colortenden)
+                        if tiempo != "FECHA":
+                            logari.set_label(f"{logari.get_label()}:  {ecualbl}")
                         lineas.append(logari)
-                        lblecuacion_rcuadrado = lblecuacion_rcuadrado + nombreequipo + ':  ' + ecualbl + '\n'
                     elif regresion == 'Exponencial':
                         exponen, ecualbl = CalculosTendencias.dibujarTendenciaExponencial(datos_equipo['Fecha'], datos_equipo[tipo], ax, tiempo, nombreequipo, lineatenden, grosortenden, colortenden)
                         if exponen:
+                            if tiempo != "FECHA":
+                                exponen.set_label(f"{exponen.get_label()}:  {ecualbl}")
                             lineas.append(exponen)
-                            lblecuacion_rcuadrado = lblecuacion_rcuadrado + nombreequipo + ':  ' + ecualbl + '\n'
                     elif regresion == 'Potencial':
                         potenci, ecualbl = CalculosTendencias.dibujarTendenciaPotencial(datos_equipo['Fecha'], datos_equipo[tipo], ax, tiempo, nombreequipo, lineatenden, grosortenden, colortenden)
                         if potenci:
+                            if tiempo != "FECHA":
+                                potenci.set_label(f"{potenci.get_label()}:  {ecualbl}")
                             lineas.append(potenci)
-                            lblecuacion_rcuadrado = lblecuacion_rcuadrado + nombreequipo + ':  ' + ecualbl + '\n'
-    if labeltendencia:
-        if tiempo != "FECHA":
-            labeltendencia.setText(lblecuacion_rcuadrado)
-        else:
+        if labeltendencia:
             labeltendencia.setText("")
 
     ax.set_title(titulo, fontsize=titulozise)
@@ -1625,36 +1627,39 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     if str(instru[0]) == str(idinstrumento):
                         if regresion == 'Lineal':
                             lineal = CalculosTendencias.dibujarTendenciaLineal(datos_equipo['Fecha'], datos_equipo[tipo], ax, tiempo, 1, nombreequipo, lineatenden, grosortenden, colortenden)
+                            if tiempo != "FECHA":
+                                ecualbl = CalculosTendencias.generarEcuacionTendencia(datos_equipo['Fecha'], datos_equipo[tipo], tiempo, 1)
+                                lineal.set_label(f"{lineal.get_label()}:  {ecualbl}")
                             lineas.append(lineal)
-                            ecualbl = CalculosTendencias.generarEcuacionTendencia(datos_equipo['Fecha'], datos_equipo[tipo], tiempo, 1)
-                            lblecuacion_rcuadrado = lblecuacion_rcuadrado + nombreequipo + ':  ' + ecualbl + '\n'
                         elif regresion == 'Polinómica':
                             polino = CalculosTendencias.dibujarTendenciaLineal(datos_equipo['Fecha'], datos_equipo[tipo], ax, tiempo, grado, nombreequipo, lineatenden, grosortenden, colortenden)
+                            if tiempo != "FECHA":
+                                ecualbl = CalculosTendencias.generarEcuacionTendencia(datos_equipo['Fecha'], datos_equipo[tipo], tiempo, grado)
+                                polino.set_label(f"{polino.get_label()}:  {ecualbl}")
                             lineas.append(polino)
-                            ecualbl = CalculosTendencias.generarEcuacionTendencia(datos_equipo['Fecha'], datos_equipo[tipo], tiempo, grado)
-                            lblecuacion_rcuadrado = lblecuacion_rcuadrado + nombreequipo + ':  ' + ecualbl + '\n'
                         elif regresion == 'Media Móvil':
                             media = CalculosTendencias.dibujarMediaMovil(datos_equipo['Fecha'], datos_equipo[tipo], ax, nombreequipo, grado, lineatenden, grosortenden, colortenden)
                             lineas.append(media)
                         elif regresion == 'Logarítmica':
                             logari, ecualbl = CalculosTendencias.dibujarTendenciaLogaritmica(datos_equipo['Fecha'], datos_equipo[tipo], ax, tiempo, nombreequipo, lineatenden, grosortenden, colortenden)
+                            if tiempo != "FECHA":
+                                logari.set_label(f"{logari.get_label()}:  {ecualbl}")
                             lineas.append(logari)
-                            lblecuacion_rcuadrado = lblecuacion_rcuadrado + nombreequipo + ':  ' + ecualbl + '\n'
                         elif regresion == 'Exponencial':
                             exponen, ecualbl = CalculosTendencias.dibujarTendenciaExponencial(datos_equipo['Fecha'], datos_equipo[tipo], ax, tiempo, nombreequipo, lineatenden, grosortenden, colortenden)
                             if exponen:
+                                if tiempo != "FECHA":
+                                    exponen.set_label(f"{exponen.get_label()}:  {ecualbl}")
                                 lineas.append(exponen)
-                                lblecuacion_rcuadrado = lblecuacion_rcuadrado + nombreequipo + ':  ' + ecualbl + '\n'
                         elif regresion == 'Potencial':
                             potenci, ecualbl = CalculosTendencias.dibujarTendenciaPotencial(datos_equipo['Fecha'], datos_equipo[tipo], ax, tiempo, nombreequipo, lineatenden, grosortenden, colortenden)
                             if potenci:
+                                if tiempo != "FECHA":
+                                    potenci.set_label(f"{potenci.get_label()}:  {ecualbl}")
                                 lineas.append(potenci)
-                                lblecuacion_rcuadrado = lblecuacion_rcuadrado + nombreequipo + ':  ' + ecualbl + '\n'
 
-    if tiempo != "FECHA":
-        labeltendencia.setText(lblecuacion_rcuadrado)
-    else:
-        labeltendencia.setText("")
+            if labeltendencia:
+                labeltendencia.setText("")
 
     if tipo == "NF":
         # graficar terrenos
