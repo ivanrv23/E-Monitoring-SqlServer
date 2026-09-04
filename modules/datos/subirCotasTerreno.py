@@ -459,6 +459,8 @@ class SubirCotasTerreno:
         dlg.setWindowTitle("Eliminar Cotas de Terreno")
         dlg.setText(f"¿Está seguro eliminar todos las Cotas de Terreno?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -538,6 +540,8 @@ class SubirCotasTerreno:
         dlg.setWindowTitle("Eliminar Cota de Terreno")
         dlg.setText(f"¿Está seguro eliminar la cota '{nombrecota}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:

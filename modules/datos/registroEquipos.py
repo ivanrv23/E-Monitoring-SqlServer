@@ -609,6 +609,8 @@ class RegistroEquipos:
         dlg.setWindowTitle("Eliminar Equipos Adicionales")
         dlg.setText(f"¿Está seguro eliminar todos los Adicionales?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -721,6 +723,8 @@ class RegistroEquipos:
         dlg.setWindowTitle("Eliminar Equipo Adicional")
         dlg.setText(f"¿Está seguro eliminar el equipo adicional '{nombreequipo}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:

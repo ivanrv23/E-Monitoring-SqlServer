@@ -33,6 +33,11 @@ class DashboardView():
         DashboardView.idproyecto = idproyecto
         comboComponentesDashboard = main.findChild(QComboBox, "cb_lista_componentes_dashboard")
         comboComponentesDashboard.clear()
+
+        label_dashboard = main.findChild(QLabel, "label_dashboard")
+        if label_dashboard:
+            label_dashboard.setText("DASHBOARD")
+
         if DashboardView.idproyecto:
             componentes = DashboardController.ctrlObtenerComponentes(DashboardView.idproyecto)
             if componentes:
@@ -69,7 +74,8 @@ class DashboardView():
         nombre_componente = comboComponentesDashboard.currentText() if comboComponentesDashboard and comboComponentesDashboard.currentData() is not None else ""
         label_dashboard = DashboardView.main.findChild(QLabel, "label_dashboard")
         if label_dashboard:
-            label_dashboard.setText(f"DASHBOARD {nombre_componente.upper()}")
+            texto = f"DASHBOARD {nombre_componente.upper()}" if nombre_componente else "DASHBOARD"
+            label_dashboard.setText(texto)
 
         def on_threaddashboard_complete(datos):
             DashboardView.construir_dashboard(datos)

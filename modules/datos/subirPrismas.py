@@ -716,6 +716,8 @@ class SubirPrismas:
         dlg.setWindowTitle("Dar de Baja Prismas")
         dlg.setText(f"¿Está seguro dar de baja a todos los prismas?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -736,6 +738,8 @@ class SubirPrismas:
         dlg.setWindowTitle("Eliminar Prismas")
         dlg.setText(f"¿Está seguro eliminar todos los prismas?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -755,6 +759,8 @@ class SubirPrismas:
         dlg.setWindowTitle("Dar de Alta Prismas")
         dlg.setText(f"¿Está seguro dar de alta a todos los prismas?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -774,6 +780,8 @@ class SubirPrismas:
         dlg.setWindowTitle("Dar de Baja Prisma")
         dlg.setText(f"¿Está seguro dar de baja al prisma '{nombreprisma}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -877,6 +885,8 @@ class SubirPrismas:
                     dlg.setWindowTitle("Prisma Existente")
                     dlg.setText(f"Ya existe un prisma con el mismo nombre.\n¿Desea unir la data de ambos?")
                     dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                    dlg.button(QMessageBox.Yes).setText("Sí")
+                    dlg.button(QMessageBox.No).setText("No")
                     dlg.setIcon(QMessageBox.Question)
                     result = dlg.exec()
                     if result == QMessageBox.Yes:
@@ -904,6 +914,8 @@ class SubirPrismas:
         dlg.setWindowTitle("Eliminar Prisma")
         dlg.setText(f"¿Está seguro eliminar el prisma '{nombreprisma}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -923,6 +935,8 @@ class SubirPrismas:
         dlg.setWindowTitle("Dar de Alta Prisma")
         dlg.setText(f"¿Está seguro dar de alta al prisma '{nombreprisma}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:

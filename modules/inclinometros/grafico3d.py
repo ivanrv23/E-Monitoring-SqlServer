@@ -104,7 +104,7 @@ def plot_3d_in_widget(idproyecto, datos, titulo, nombreejex, nombreejey, widget,
     ax.set_xlabel(nombreejex, labelpad=5, fontsize=ejezise)
     ax.set_ylabel(nombreejey, labelpad=5, fontsize=ejezise)
     ax.set_zlabel("Profundidad (m)", labelpad=7, fontsize=ejezise)
-    ax.set_title(titulo, pad=15, fontsize=titulozise)  # Reducir el padding del título
+    ax.set_title(titulo, pad=5, fontsize=titulozise)  # Reducir el padding del título
 
     # Ajuste del tamaño de los valores en los ejes
     ax.tick_params(axis='x', labelsize=etiquesize)

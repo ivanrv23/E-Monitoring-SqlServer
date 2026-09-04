@@ -1119,6 +1119,8 @@ class SubirPiezometros:
         dlg.setWindowTitle("Eliminar P. Cuerda Vibrante")
         dlg.setText(f"¿Está seguro eliminar todos los Piezómetros?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -1272,6 +1274,8 @@ class SubirPiezometros:
         dlg.setWindowTitle("Eliminar P. Cuerda Vibrante")
         dlg.setText(f"¿Está seguro eliminar el Piezómetro '{nombrepiezo}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -1342,6 +1346,8 @@ class SubirPiezometros:
         dlg.setWindowTitle("Eliminar Piezómetros Casagrande")
         dlg.setText(f"¿Está seguro eliminar todos los Piezómetros?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -1459,6 +1465,8 @@ class SubirPiezometros:
         dlg.setWindowTitle("Eliminar Piezómetro Casagrande")
         dlg.setText(f"¿Está seguro eliminar el Piezómetro '{nombrepiezo}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:

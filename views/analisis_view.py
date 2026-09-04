@@ -1454,7 +1454,8 @@ class AnalisisView:
                 dlg = QMessageBox()
                 dlg.setWindowTitle("Limpieza Ruido Prismas")
                 dlg.setText(f"¿Está seguro de aplicar limpieza al prisma {nombreprisma}?")
-                dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                dlg.button(QMessageBox.Yes).setText("Sí")
+                dlg.button(QMessageBox.No).setText("No")
                 dlg.setIcon(QMessageBox.Question)
                 result = dlg.exec()
                 if result == QMessageBox.Yes:
@@ -1531,7 +1532,7 @@ class AnalisisView:
                 None,
                 "Desviaciones Estándar",
                 "No existen desviaciones calculadas. ¿Desea calcularlas?",
-                QMessageBox.Yes | QMessageBox.No
+                QMessageBox.Sí | QMessageBox.No
             )
             if respuesta == QMessageBox.Yes:
                 # Mostrar diálogo personalizado para seleccionar la fecha de cálculo
@@ -1806,6 +1807,8 @@ class AnalisisView:
                 dlg.setWindowTitle("Restablecer Prismas")
                 dlg.setText(f"¿Está seguro de restablecer cambios del prisma {nombreprisma}?")
                 dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                dlg.button(QMessageBox.Yes).setText("Sí")
+                dlg.button(QMessageBox.No).setText("No")
                 dlg.setIcon(QMessageBox.Question)
                 result = dlg.exec()
                 if result == QMessageBox.Yes:

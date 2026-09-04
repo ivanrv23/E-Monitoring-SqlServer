@@ -581,6 +581,8 @@ class SubirTDR:
         dlg.setWindowTitle("Eliminar Sondajes TDR")
         dlg.setText(f"¿Está seguro eliminar todos los TDR?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -727,6 +729,8 @@ class SubirTDR:
         dlg.setWindowTitle("Cambiar Base TDR")
         dlg.setText(f"¿Elegir la '{fecha}' como base?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -830,6 +834,8 @@ class SubirTDR:
         dlg.setWindowTitle("Eliminar Sondaje TDR")
         dlg.setText(f"¿Está seguro eliminar el TDR '{nombretdr}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:

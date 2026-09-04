@@ -336,6 +336,8 @@ class UsuariosView:
         dlg.setWindowTitle("Eliminar Usuario")
         dlg.setText(f"¿Desea eliminar el usuario '{usuario}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:

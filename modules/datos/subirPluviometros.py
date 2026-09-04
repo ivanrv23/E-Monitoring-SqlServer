@@ -485,6 +485,8 @@ class SubirPluviometros:
         dlg.setWindowTitle("Eliminar Pluviómetros")
         dlg.setText(f"¿Está seguro eliminar todos los Pluviómetros?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -579,6 +581,8 @@ class SubirPluviometros:
         dlg.setWindowTitle("Eliminar Pluviómetro")
         dlg.setText(f"¿Está seguro eliminar el Pluviómetro '{nombrepluvio}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:

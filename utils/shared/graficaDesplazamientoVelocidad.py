@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.patches as mpatches
 import matplotlib.dates as mdates
+import locale
 from datetime import datetime
 from PySide6.QtGui import Qt
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QDialog, QWidget, QCheckBox, QSizePolicy
@@ -19,7 +20,10 @@ from controllers.PiezometroController import PiezometroController
 from controllers.CeldaController import CeldaController
 from controllers.EventosController import EventosController
 from views.EventosDialog import EventosDialog
-import locale
+from matplotlib.offsetbox import DrawingArea, TextArea, HPacker, VPacker, AnchoredOffsetbox
+from matplotlib.lines import Line2D
+from matplotlib.patches import Rectangle
+
 
 # Configurar el idioma de las fechas a español
 try:
@@ -197,6 +201,124 @@ def plot_linea_suavizada(ax, x_data, y_data, tiempo, activo=False, **kwargs):
     linea_real._asociados = objetos_vinculados 
 
     return linea_real
+
+
+
+def _crear_icono_leyenda(handle, ancho=26, alto=14):
+    """Ícono (línea o parche de color) para representar el handle."""
+    da = DrawingArea(ancho, alto, 0, 0)
+    if hasattr(handle, 'get_color') and hasattr(handle, 'get_linestyle'):
+        color = handle.get_color()
+        estilo = handle.get_linestyle()
+        if estilo in (None, 'None', 'none'):
+            estilo = '-'
+        marcador = handle.get_marker()
+        if marcador in (None, 'None', 'none'):
+            marcador = None
+        icono = Line2D([1, ancho - 1], [alto / 2, alto / 2],
+                        color=color, linestyle=estilo,
+                        linewidth=max(handle.get_linewidth(), 1.2),
+                        marker=marcador, markersize=5)
+        da.add_artist(icono)
+        artista_pick = icono
+    else:
+        color = handle.get_facecolor() if hasattr(handle, 'get_facecolor') else 'cyan'
+        rect = Rectangle((1, 1), ancho - 2, alto - 2, facecolor=color, edgecolor='none', alpha=0.7)
+        da.add_artist(rect)
+        artista_pick = rect
+    artista_pick.set_picker(5)
+    return da, artista_pick
+
+
+def _medir_ancho_texto(ax, texto, fontsize, fuente, renderer):
+    obj = ax.text(0, 0, texto, fontproperties={'family': fuente, 'size': fontsize})
+    ancho = obj.get_window_extent(renderer).width
+    obj.remove()
+    return ancho
+
+
+def construir_leyenda_flujo(ax, canvas, figure, widget, lineas, barras_pluviometro, fuente, leyendazise):
+    canvas.draw()
+    renderer = canvas.get_renderer()
+
+    entradas = list(lineas)
+    if barras_pluviometro:
+        entradas.append(barras_pluviometro)
+
+    # DrawingArea/OffsetBox usan PUNTOS; get_window_extent() usa PÍXELES
+    # reales del render. Convertimos para que las sumas sean coherentes.
+    dpi_scale = figure.dpi / 72.0
+    ANCHO_ICONO = 15
+    SEP_ICONO_TEXTO = 3
+    SEP_ENTRADAS = 10
+    ancho_icono_px = ANCHO_ICONO * dpi_scale
+    sep_icono_texto_px = SEP_ICONO_TEXTO * dpi_scale
+    sep_entradas_px = SEP_ENTRADAS * dpi_scale
+
+    anchos, labels = [], []
+    for h in entradas:
+        label = h.get_label() if hasattr(h, 'get_label') else "Precipitación"
+        ancho_texto = _medir_ancho_texto(ax, label, leyendazise, fuente, renderer)
+        anchos.append(ancho_icono_px + sep_icono_texto_px + ancho_texto)
+        labels.append(label)
+
+    # --- Empacado en filas (wrap) ---
+    # CLAVE: usamos el ancho de los EJES medido con el mismo renderer
+    # (mismo espacio de píxeles que el texto), no widget.width() —
+    # eso es lo que causaba el desajuste con el escalado de pantalla.
+    MARGEN_SEGURIDAD = 5  # colchón en px para evitar recortes por redondeo
+    ancho_disponible = ax.get_window_extent(renderer).width - MARGEN_SEGURIDAD
+
+    filas_idx, fila_actual, ancho_fila = [], [], 0
+    for i, ancho_entrada in enumerate(anchos):
+        ancho_con_nueva = ancho_fila + ancho_entrada + (sep_entradas_px if fila_actual else 0)
+        if fila_actual and ancho_con_nueva > ancho_disponible:
+            filas_idx.append(fila_actual)
+            fila_actual, ancho_fila = [i], ancho_entrada
+        else:
+            fila_actual.append(i)
+            ancho_fila = ancho_con_nueva
+    if fila_actual:
+        filas_idx.append(fila_actual)
+
+    # --- Construcción visual (SIN cambios: sigue usando puntos) ---
+    mapa_toggle = {}
+    filas_boxes = []
+    for fila in filas_idx:
+        cajas_entrada = []
+        for i in fila:
+            handle = entradas[i]
+            icono_da, artista_pick = _crear_icono_leyenda(handle, ancho=ANCHO_ICONO)
+            texto_area = TextArea(labels[i], textprops=dict(size=leyendazise, family=fuente))
+            cajas_entrada.append(HPacker(children=[icono_da, texto_area], align="center", pad=0, sep=SEP_ICONO_TEXTO))
+            asociados = getattr(handle, '_asociados', [])
+            mapa_toggle[artista_pick] = (handle, asociados)
+        filas_boxes.append(HPacker(children=cajas_entrada, align="center", pad=0, sep=SEP_ENTRADAS))
+
+    leyenda_box = VPacker(children=filas_boxes, align="center", pad=2, sep=6)
+
+    anchored = AnchoredOffsetbox(loc='upper center', child=leyenda_box,
+                                  bbox_to_anchor=(0.5, 0), bbox_transform=ax.transAxes,
+                                  frameon=False, pad=0, borderpad=0)
+    ax.add_artist(anchored)
+    return anchored, mapa_toggle
+
+def configurar_evento_leyenda_flujo(canvas, mapa_toggle):
+    def on_pick(event):
+        artista = event.artist
+        if artista not in mapa_toggle:
+            return
+        handle, asociados = mapa_toggle[artista]
+        nuevo_estado = not handle.get_visible()
+        handle.set_visible(nuevo_estado)
+        for obj in asociados:
+            obj.set_visible(nuevo_estado)
+        artista.set_alpha(1.0 if nuevo_estado else 0.2)
+        canvas.draw_idle()
+
+    if hasattr(canvas, '_leyenda_gid'):
+        canvas.mpl_disconnect(canvas._leyenda_gid)
+    canvas._leyenda_gid = canvas.mpl_connect('pick_event', on_pick)
 
 def configurar_evento_leyenda(canvas, legend, handles):
     """
@@ -680,7 +802,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
 
         if equipostendencia:
             for instru, regresion, grado in equipostendencia:
-                if str(instru[equipotipo]) == str(equipo):
+                if str(instru[0]) == str(idinstrumento): 
                     if regresion == 'Lineal':
                         lineal = CalculosTendencias.dibujarTendenciaLineal(datos_equipo['Fecha'], datos_equipo[tipo], ax, tiempo, 1, nombreequipo, lineatenden, grosortenden, colortenden)
                         if tiempo != "FECHA":
@@ -885,63 +1007,57 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
 
     def actualizar_leyenda():
         try:
-            ncols = calculate_columns()
-            leyenda_elementos = lineas + ([barras_pluviometro] if barras_pluviometro else [])
-            leyenda_labels = [line.get_label() for line in lineas] + (["Precipitación"] if barras_pluviometro else [])
-            
+            if hasattr(ax, '_leyenda_flujo') and ax._leyenda_flujo is not None:
+                ax._leyenda_flujo.remove()
+
             if SUAVIZADO_ESTADO:
                 for line in lineas:
                     if hasattr(line, '_estilo_puro'):
                         line.set_linestyle(line._estilo_puro)
                         line.set_alpha(1.0)
 
-            legend = ax.legend(handles=leyenda_elementos, labels=leyenda_labels, 
-                            loc='upper center', bbox_to_anchor=(0.5, 0), 
-                            ncol=ncols, frameon=False, fontsize=leyendazise, 
-                            borderaxespad=0.8)
-
-            # --- CAMBIO CLAVE: CONECTAR INTERACCIÓN ---
-            # Pasamos los elementos reales de la leyenda para que sean interactivos
-            configurar_evento_leyenda(canvas, legend, leyenda_elementos)
-            # ------------------------------------------
+            anchored, mapa_toggle = construir_leyenda_flujo(
+                ax, canvas, figure, widget, lineas, barras_pluviometro, fuente, leyendazise
+            )
+            ax._leyenda_flujo = anchored
+            configurar_evento_leyenda_flujo(canvas, mapa_toggle)
 
             if SUAVIZADO_ESTADO:
                 for line in lineas:
-                    if hasattr(line, '_estilo_puro'):
-                        # Restauramos el estado fantasma, pero respetamos si el usuario lo apagó
-                        # Si la línea está visible (on), se mantiene transparente en el gráfico
-                        # Si la línea está oculta (off), se queda oculta.
-                        if line.get_visible():
-                            line.set_linestyle('none')
-                            line.set_alpha(0)
+                    if hasattr(line, '_estilo_puro') and line.get_visible():
+                        line.set_linestyle('none')
+                        line.set_alpha(0)
 
             renderer = canvas.get_renderer()
             canvas.draw()
+
             fig_bbox = figure.bbox
-            legend_bbox = legend.get_window_extent(renderer)
-            legend_height = legend_bbox.height / fig_bbox.height
-            padding = 0.08
-            bottom_margin = 0.20 + legend_height + padding
-            top_margin = 0.95 - (legend_height * 0.3)
+            leyenda_bbox = anchored.get_window_extent(renderer)
+            legend_height = leyenda_bbox.height / fig_bbox.height
+            padding = 0.06
+
+            TOP_MARGIN_FIJO = 0.92
+            MIN_ALTO_GRAFICA = 0.25
+            MAX_BOTTOM = 1 - MIN_ALTO_GRAFICA - 0.05
+
+            top_margin = TOP_MARGIN_FIJO
+            bottom_margin = min(0.12 + legend_height + padding, MAX_BOTTOM)
 
             if bottom_margin >= top_margin:
-                bottom_margin = 0.25
-                top_margin = 0.90
-                if ncols == 1:
-                    bottom_margin = 0.35
-                    top_margin = 0.85
+                bottom_margin = MAX_BOTTOM
+                top_margin = MIN_ALTO_GRAFICA + 0.05
 
             figure.subplots_adjust(bottom=bottom_margin, top=top_margin, left=0.1, right=0.90)
             canvas.draw()
-            if figure.subplotpars.bottom >= figure.subplotpars.top:
-                raise ValueError("Margen inválido, aplicando valores seguros")
+
             xlabel_bbox = ax.xaxis.label.get_window_extent(renderer=renderer)
             xlabel_bottom = xlabel_bbox.transformed(ax.transAxes.inverted()).y0
-            legend.set_bbox_to_anchor((0.5, xlabel_bottom))
+            anchored.set_bbox_to_anchor((0.5, xlabel_bottom), ax.transAxes)
+            canvas.draw_idle()
         except Exception as e:
-            figure.subplots_adjust(bottom=0.25, top=0.90, left=0.1, right=0.90)
-            ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, fontsize=8)
+            figure.subplots_adjust(bottom=0.30, top=0.85, left=0.1, right=0.90)
             canvas.draw()
+
 
     def on_resize(event):
         actualizar_leyenda()

@@ -285,7 +285,7 @@ class VisorView:
                 
                 lbltipovista = VisorView.main.findChild(QLabel, "label_modo_visor")
                 if lbltipovista:
-                    lbltipovista.setText("VISTA VISOR 3D")
+                    lbltipovista.setText("VISTA 3D")
                 
                 botonvista3d = VisorView.main.findChild(QPushButton, "btn_vista3d")
                 if botonvista3d:
@@ -913,10 +913,10 @@ class VisorView:
     def cambiarVistaVisor(tipo, lbltipovisor, paginacionvisor):
         if tipo == "3D":
             paginacionvisor.setCurrentIndex(0)
-            lbltipovisor.setText("VISTA VISOR 3D")
+            lbltipovisor.setText("VISTA 3D")
         elif tipo == "CORTE":
             paginacionvisor.setCurrentIndex(1)
-            lbltipovisor.setText("VISTA VISOR CORTE 3D")
+            lbltipovisor.setText("VISTA CORTE 3D")
         else:
             paginacionvisor.setCurrentIndex(2)
             lbltipovisor.setText("MAPA DE CALOR")
@@ -928,7 +928,7 @@ class VisorView:
             if len(toposmarcados) > 0:
                 respuesta = VisorView.recortarGrafico(paginacion, toposmarcados)
                 if respuesta:
-                    lbltipovisor.setText("VISTA VISOR CORTE 3D")
+                    lbltipovisor.setText("VISTA CORTE 3D")
             
     def mostrarTopografiasVisor(topomarcados):
         # GRAFICAR LAS TOPOGRAFÍAS

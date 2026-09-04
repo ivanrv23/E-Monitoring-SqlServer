@@ -235,6 +235,8 @@ class CrearProyecto:
         dlg.setWindowTitle("Eliminar Componente")
         dlg.setText(f"¿Desea eliminar el componente '{nombrezona}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -253,6 +255,8 @@ class CrearProyecto:
         dlg.setWindowTitle("Eliminar Componente")
         dlg.setText(f"¿Desea eliminar el componente '{nombrezona}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:

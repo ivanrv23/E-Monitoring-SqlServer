@@ -492,6 +492,8 @@ class DatosView:
         dlg.setWindowTitle("Omitir Lectura Prisma")
         dlg.setText(f"¿Desea omitir/incluir la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -506,6 +508,8 @@ class DatosView:
         dlg.setWindowTitle("Eliminar Lectura Prisma")
         dlg.setText(f"¿Desea eliminar la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -533,6 +537,8 @@ class DatosView:
             dlg.setWindowTitle("Estado Lectura Prisma")
             dlg.setText(f"¿Desea omitir/incluir las lecturas '{dataomitir}'?")
             dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            dlg.button(QMessageBox.Yes).setText("Sí")
+            dlg.button(QMessageBox.No).setText("No")
             dlg.setIcon(QMessageBox.Question)
             result = dlg.exec()
             if result == QMessageBox.Yes:
@@ -557,6 +563,8 @@ class DatosView:
             dlg.setWindowTitle("Eliminar Lecturas Prisma")
             dlg.setText(f"¿Desea eliminar las lecturas '{dataeliminar}'?")
             dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            dlg.button(QMessageBox.Yes).setText("Sí")
+            dlg.button(QMessageBox.No).setText("No")
             dlg.setIcon(QMessageBox.Question)
             result = dlg.exec()
             if result == QMessageBox.Yes:
@@ -804,6 +812,8 @@ class DatosView:
         dlg.setWindowTitle("Omitir Lectura Piezómetro")
         dlg.setText(f"¿Desea omitir/incluir la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -818,6 +828,8 @@ class DatosView:
         dlg.setWindowTitle("Eliminar Lectura Piezómetro")
         dlg.setText(f"¿Desea eliminar la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -845,6 +857,8 @@ class DatosView:
             dlg.setWindowTitle("Omitir Lecturas Piezómetro")
             dlg.setText(f"¿Desea omitir/incluir las lecturas '{dataomitir}'?")
             dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            dlg.button(QMessageBox.Yes).setText("Sí")
+            dlg.button(QMessageBox.No).setText("No")
             dlg.setIcon(QMessageBox.Question)
             result = dlg.exec()
             if result == QMessageBox.Yes:
@@ -869,6 +883,8 @@ class DatosView:
             dlg.setWindowTitle("Eliminar Lecturas Piezómetro")
             dlg.setText(f"¿Desea eliminar las lecturas '{dataeliminar}'?")
             dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            dlg.button(QMessageBox.Yes).setText("Sí")
+            dlg.button(QMessageBox.No).setText("No")
             dlg.setIcon(QMessageBox.Question)
             result = dlg.exec()
             if result == QMessageBox.Yes:
@@ -1040,6 +1056,8 @@ class DatosView:
         dlg.setWindowTitle("Omitir Lectura Piezómetro")
         dlg.setText(f"¿Desea omitir/incluir la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -1054,6 +1072,8 @@ class DatosView:
         dlg.setWindowTitle("Eliminar Lectura Piezómetro")
         dlg.setText(f"¿Desea eliminar la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -1081,6 +1101,8 @@ class DatosView:
             dlg.setWindowTitle("Omitir Lecturas Piezómetro")
             dlg.setText(f"¿Desea omitir/incluir las lecturas '{dataomitir}'?")
             dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            dlg.button(QMessageBox.Yes).setText("Sí")
+            dlg.button(QMessageBox.No).setText("No")
             dlg.setIcon(QMessageBox.Question)
             result = dlg.exec()
             if result == QMessageBox.Yes:
@@ -1105,6 +1127,8 @@ class DatosView:
             dlg.setWindowTitle("Eliminar Lecturas Piezómetro")
             dlg.setText(f"¿Desea eliminar las lecturas '{dataeliminar}'?")
             dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            dlg.button(QMessageBox.Yes).setText("Sí")
+            dlg.button(QMessageBox.No).setText("No")
             dlg.setIcon(QMessageBox.Question)
             result = dlg.exec()
             if result == QMessageBox.Yes:
@@ -1144,6 +1168,8 @@ class DatosView:
         dlg.setWindowTitle("Omitir Lectura Pluviómetro")
         dlg.setText(f"¿Desea omitir/incluir la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -1231,6 +1257,8 @@ class DatosView:
         dlg.setWindowTitle("Eliminar Lectura Piezómetro")
         dlg.setText(f"¿Desea eliminar la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -1258,6 +1286,8 @@ class DatosView:
             dlg.setWindowTitle("Eliminar Lecturas Pluviómetro")
             dlg.setText(f"¿Desea eliminar las lecturas '{dataeliminar}'?")
             dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            dlg.button(QMessageBox.Yes).setText("Sí")
+            dlg.button(QMessageBox.No).setText("No")
             dlg.setIcon(QMessageBox.Question)
             result = dlg.exec()
             if result == QMessageBox.Yes:
@@ -1364,6 +1394,8 @@ class DatosView:
         dlg.setWindowTitle("Eliminar Lectura Cotas Terreno")
         dlg.setText(f"¿Desea eliminar la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -1391,6 +1423,8 @@ class DatosView:
             dlg.setWindowTitle("Eliminar Lecturas Cotas Terreno")
             dlg.setText(f"¿Desea eliminar las lecturas '{dataeliminar}'?")
             dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            dlg.button(QMessageBox.Yes).setText("Sí")
+            dlg.button(QMessageBox.No).setText("No")
             dlg.setIcon(QMessageBox.Question)
             result = dlg.exec()
             if result == QMessageBox.Yes:
@@ -1524,6 +1558,8 @@ class DatosView:
         dlg.setWindowTitle("Omitir Lectura Celda")
         dlg.setText(f"¿Desea omitir/incluir la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -1538,6 +1574,8 @@ class DatosView:
         dlg.setWindowTitle("Eliminar Lectura Celdas")
         dlg.setText(f"¿Desea eliminar la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -1565,6 +1603,8 @@ class DatosView:
             dlg.setWindowTitle("Omitir Lecturas Celdas")
             dlg.setText(f"¿Desea omitir/incluir las lecturas '{dataomitir}'?")
             dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            dlg.button(QMessageBox.Yes).setText("Sí")
+            dlg.button(QMessageBox.No).setText("No")
             dlg.setIcon(QMessageBox.Question)
             result = dlg.exec()
             if result == QMessageBox.Yes:
@@ -1589,6 +1629,8 @@ class DatosView:
             dlg.setWindowTitle("Eliminar Lecturas Celdas")
             dlg.setText(f"¿Desea eliminar las lecturas '{dataeliminar}'?")
             dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            dlg.button(QMessageBox.Yes).setText("Sí")
+            dlg.button(QMessageBox.No).setText("No")
             dlg.setIcon(QMessageBox.Question)
             result = dlg.exec()
             if result == QMessageBox.Yes:
@@ -1704,6 +1746,8 @@ class DatosView:
         dlg.setWindowTitle("Omitir Lectura Acelerógrafo")
         dlg.setText(f"¿Desea omitir/incluir la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -1719,6 +1763,8 @@ class DatosView:
         dlg.setWindowTitle("Eliminar Lectura Acelerógrafo")
         dlg.setText(f"¿Desea eliminar la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -1746,6 +1792,8 @@ class DatosView:
             dlg.setWindowTitle("Eliminar Lecturas Acelerógrafo")
             dlg.setText(f"¿Desea eliminar las lecturas '{dataeliminar}'?")
             dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            dlg.button(QMessageBox.Yes).setText("Sí")
+            dlg.button(QMessageBox.No).setText("No")
             dlg.setIcon(QMessageBox.Question)
             result = dlg.exec()
             if result == QMessageBox.Yes:

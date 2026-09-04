@@ -390,6 +390,8 @@ class SubirInclinometros:
         dlg.setWindowTitle("Eliminar Inclinómetros")
         dlg.setText(f"¿Está seguro eliminar todos los inclinómetros?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -514,6 +516,8 @@ class SubirInclinometros:
         dlg.setWindowTitle("Eliminar Inclinómetro")
         dlg.setText(f"¿Está seguro eliminar el inclinómetro '{nombreinclino}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -644,6 +648,8 @@ class SubirInclinometros:
         dlg.setWindowTitle("Cambiar Base Inclinómetro")
         dlg.setText(f"¿Elegir la '{fecha}' como base?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -665,6 +671,8 @@ class SubirInclinometros:
         dlg.setWindowTitle("Eliminar Lectura Inclinómetro")
         dlg.setText(f"¿Está seguro de eliminar la lectura '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:

@@ -374,6 +374,8 @@ class ResumenPrismas():
         dlg.setWindowTitle("Omitir Lectura Prisma")
         dlg.setText(f"¿Desea omitir/incluir la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -388,6 +390,8 @@ class ResumenPrismas():
         dlg.setWindowTitle("Eliminar Lectura Prisma")
         dlg.setText(f"¿Desea eliminar la lectura del '{nombre}' con fecha '{fecha}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -412,6 +416,8 @@ class ResumenPrismas():
             dlg.setWindowTitle("Estado Lectura Prisma")
             dlg.setText(f"¿Desea omitir/incluir las lecturas '{dataomitir}'?")
             dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            dlg.button(QMessageBox.Yes).setText("Sí")
+            dlg.button(QMessageBox.No).setText("No")
             dlg.setIcon(QMessageBox.Question)
             result = dlg.exec()
             if result == QMessageBox.Yes:
@@ -436,6 +442,8 @@ class ResumenPrismas():
             dlg.setWindowTitle("Eliminar Lecturas Prisma")
             dlg.setText(f"¿Desea eliminar las lecturas '{dataeliminar}'?")
             dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            dlg.button(QMessageBox.Yes).setText("Sí")
+            dlg.button(QMessageBox.No).setText("No")
             dlg.setIcon(QMessageBox.Question)
             result = dlg.exec()
             if result == QMessageBox.Yes:

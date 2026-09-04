@@ -664,19 +664,85 @@ class Personalizacion:
         frameTendencias = dialogo.findChild(QFrame, "frame_tendencias")
         btnAceptarRegresion = dialogo.findChild(QPushButton, "btn_aceptar_regresion")
         btnCancelarRegresion = dialogo.findChild(QPushButton, "btn_cancelar_regresion")
+
+        # --- ESTILO DEL CHECKBOX (NUEVO) ---
+        checkTodosPrismas.setStyleSheet("""
+            QCheckBox { 
+                color: #2c3e50; 
+                font-size: 11px; 
+                font-weight: bold; 
+                spacing: 8px;
+            }
+            QCheckBox::indicator { 
+                width: 16px; 
+                height: 16px; 
+                border-radius: 3px;
+                border: 2px solid #95a5a6;
+                background-color: white;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #3498db;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #2c3e50;
+                border-color: #2c3e50;
+            }
+        """)
+        
         # crear los checkbox
         treePrismasRegresion.setHeaderLabels(["PRISMAS"])
-        lista_prismas_disponibles = []
+
+        # ✅ Configuración visual mejorada
+        treePrismasRegresion.setHeaderHidden(False)  # Mantener encabezado visible
+        treePrismasRegresion.setIndentation(18)      # Sangría consistente con plantillas
+        treePrismasRegresion.setAlternatingRowColors(False)  # Sin colores alternos
+
+        # ✅ Estilo moderno idéntico al de plantillas
+        treePrismasRegresion.setStyleSheet(treePrismasRegresion.styleSheet() + """
+            QTreeWidget::item {
+                padding: 5px 2px;
+                margin-bottom: 2px;
+            }
+            QTreeWidget::indicator { 
+                width: 8px; height: 8px; border-radius: 2px;
+                border: 1.5px solid #95a5a6; background-color: white;
+            }
+            QTreeWidget::indicator:checked { background-color: #2c3e50; border-color: #2c3e50; }
+            QTreeWidget::indicator:indeterminate { background-color: #7f8c8d; border-color: #7f8c8d; }
+        """)
+
+        lista_prismas_disponibles = []   # (tabla, nombreprisma, idprisma)
+
         for componente, listaprismas in prismasmarcados:
+            nombre_componente, id_componente = componente[0], componente[1]
+
+            nodo_componente = QTreeWidgetItem(treePrismasRegresion)
+            nodo_componente.setText(0, nombre_componente)
+            nodo_componente.setFlags(nodo_componente.flags() | Qt.ItemIsUserCheckable)
+            nodo_componente.setCheckState(0, Qt.Unchecked)
+
+            mapa_id_prisma = {}
+            for item_p in listaprismas:
+                try:
+                    mapa_id_prisma[item_p[0]] = item_p[1]
+                except Exception:
+                    pass
+
             resultado = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
             for tabla, prismas in resultado.items():
                 for nombreprisma in prismas:
-                    parent = QTreeWidgetItem(treePrismasRegresion)
-                    parent.setText(0, nombreprisma)
-                    parent.setText(1, tabla)
-                    parent.setFlags(parent.flags() | Qt.ItemIsUserCheckable)
-                    parent.setCheckState(0, Qt.Unchecked)
-                    lista_prismas_disponibles.append((tabla, nombreprisma))
+                    idprisma = mapa_id_prisma.get(nombreprisma, nombreprisma)
+                    hijo = QTreeWidgetItem(nodo_componente)   # <-- ahora cuelga del componente, no del root
+                    hijo.setText(0, nombreprisma)
+                    hijo.setText(1, tabla)
+                    hijo.setText(2, str(idprisma))
+                    hijo.setFlags(hijo.flags() | Qt.ItemIsUserCheckable)
+                    hijo.setCheckState(0, Qt.Unchecked)
+                    lista_prismas_disponibles.append((tabla, nombreprisma, idprisma))
+
+        treePrismasRegresion.setColumnCount(3)
+        treePrismasRegresion.setColumnHidden(1, True)
+        treePrismasRegresion.setColumnHidden(2, True)
         # --- NUEVO: fila única combo+spin para modo "todos" ---
         layout_tend = frameTendencias.layout()
         if layout_tend is None:
@@ -721,65 +787,151 @@ class Personalizacion:
                 # NUEVO: generar un registro de tendencia por cada prisma disponible
                 tiporegresion = combo_todos.currentText()
                 grado = spin_todos.value()
-                for tabla, nombreprisma in lista_prismas_disponibles:
-                    dato = (tabla, nombreprisma, 0)
+                for tabla, nombreprisma, idprisma in lista_prismas_disponibles:
+                    dato = (idprisma, nombreprisma, tabla)
                     item = (dato, tiporegresion, grado)
                     Personalizacion.prismaselegidos.append(item)
             else:
-                for tipo, nombre, cod in Personalizacion.combospincreados:
+                for tipo, nombre, idprisma in Personalizacion.combospincreados:
                     combo = dialogo.findChild(QComboBox, f"combo_{nombre}_{tipo}")
                     spin = dialogo.findChild(QSpinBox, f"spin_{nombre}_{tipo}")
-                    dato = (tipo, nombre, cod)
+                    dato = (idprisma, nombre, tipo)
                     item = (dato, combo.currentText(), spin.value())
                     Personalizacion.prismaselegidos.append(item)
             dialogo.close()
         def cancelarPrismasRegresion():
             dialogo.close()
-        def checkboxChanged(parent_item, column):
+
+        def es_raiz(item):
+            return item.parent() is None
+
+        def actualizar_padre(item):
+            padre = item.parent()
+            if padre is not None:
+                estados = [padre.child(i).checkState(0) for i in range(padre.childCount())]
+                if all(e == Qt.Checked for e in estados):
+                    padre.setCheckState(0, Qt.Checked)
+                elif all(e == Qt.Unchecked for e in estados):
+                    padre.setCheckState(0, Qt.Unchecked)
+                else:
+                    padre.setCheckState(0, Qt.PartiallyChecked)
+
+        def agregar_fila_tendencia(nombre, tipo, idprisma):
+            Personalizacion.combospincreados.append((tipo, nombre, idprisma))
+            label, combobox, spinbox = Personalizacion.crearComboSpinTendencia(nombre, tipo)
+            fila_widget = QWidget()
+            fila_widget.setObjectName(f"widget_{nombre}_{tipo}")
+            fila_layout = QHBoxLayout(fila_widget)
+            fila_layout.addWidget(label); fila_layout.addWidget(combobox); fila_layout.addWidget(spinbox)
+            fila_layout.setContentsMargins(0, 0, 0, 0)
+            layout = frameTendencias.layout()
+            if layout is None:
+                layout = QVBoxLayout(frameTendencias)
+                layout.setSpacing(0)
+                layout.setAlignment(Qt.AlignTop)
+                layout.setContentsMargins(0, 0, 0, 0)
+                frameTendencias.setLayout(layout)
+            layout.addWidget(fila_widget)
+            Personalizacion.num_checkboxes_marcados += 1
+
+        def quitar_fila_tendencia(nombre, tipo):
+            posma = Personalizacion.obtenerIndexDatoArreglo(Personalizacion.combospincreados, tipo, nombre)
+            if posma is not None:
+                Personalizacion.combospincreados.pop(posma)
+                Personalizacion.num_checkboxes_marcados -= 1
+            fila_widget = dialogo.findChild(QWidget, f"widget_{nombre}_{tipo}")
+            layout = frameTendencias.layout()
+            if layout is not None and fila_widget is not None:
+                layout.removeWidget(fila_widget)
+                fila_widget.deleteLater()
+
+        def on_item_changed(item, column):
             if checkTodosPrismas.isChecked():
                 return
-            nombre = parent_item.text(column)
-            tipo = parent_item.text(1)
-            estado = parent_item.checkState(0)
-            if str(estado) == "CheckState.Checked": # marcado
-                if Personalizacion.comprobarExisteDatoArreglo(Personalizacion.combospincreados, tipo, nombre) is False:
-                    if Personalizacion.num_checkboxes_marcados >= 3:
-                        parent_item.setCheckState(0, Qt.Unchecked)
-                    else:
-                        Personalizacion.combospincreados.append((tipo, nombre, 0))
-                        label, combobox, spinbox = Personalizacion.crearComboSpinTendencia(nombre, tipo)
-                        # mostrar en el frame
-                        fila_widget = QWidget()
-                        fila_widget.setObjectName(f"widget_{nombre}_{tipo}")
-                        fila_layout = QHBoxLayout(fila_widget)  # Crear un layout horizontal para fila_widget
-                        fila_layout.addWidget(label)
-                        fila_layout.addWidget(combobox)
-                        fila_layout.addWidget(spinbox)
-                        fila_layout.setContentsMargins(0, 0, 0, 0)  # Establecer márgenes a 0
-                        layout = frameTendencias.layout()
-                        if layout is None:
-                            layout = QVBoxLayout(frameTendencias)
-                            layout.setSpacing(0)  # Establecer espaciado a 0
-                            layout.setAlignment(Qt.AlignTop)  # Alinear hacia arriba
-                            layout.setContentsMargins(0, 0, 0, 0)  # Establecer márgenes a 0
-                            frameTendencias.setLayout(layout)
-                        layout.addWidget(fila_widget)  # Agregar fila_widget al layout vertical
-                        Personalizacion.num_checkboxes_marcados += 1
-            else: # desmarcado
-                if Personalizacion.comprobarExisteDatoArreglo(Personalizacion.combospincreados, tipo, nombre):
-                    posma = Personalizacion.obtenerIndexDatoArreglo(Personalizacion.combospincreados, tipo, nombre)
-                    if posma is not None:
-                        Personalizacion.combospincreados.pop(posma)
-                        Personalizacion.num_checkboxes_marcados -= 1
-                    # limpiar frame
-                    layout = frameTendencias.layout()
-                    fila_widget = dialogo.findChild(QWidget, f"widget_{nombre}_{tipo}")
-                    if layout is not None and fila_widget is not None:
-                        layout.removeWidget(fila_widget)
-                        fila_widget.deleteLater()     
+
+            if es_raiz(item):
+                estado = item.checkState(0)
+                if estado == Qt.PartiallyChecked:
+                    return  # ese estado solo se asigna en cascada, no por click directo
+
+                if estado == Qt.Checked:
+                    faltantes = [item.child(i) for i in range(item.childCount())
+                                 if item.child(i).checkState(0) != Qt.Checked]
+                    disponibles = 3 - Personalizacion.num_checkboxes_marcados
+                    if len(faltantes) > disponibles:
+                        from utils.common.alertas import mostrar_mensaje
+                        mostrar_mensaje("Límite alcanzado", "Máximo 3 prismas en total.", "advertencia")
+                        treePrismasRegresion.blockSignals(True)
+                        item.setCheckState(0, Qt.PartiallyChecked if Personalizacion.num_checkboxes_marcados > 0 else Qt.Unchecked)
+                        treePrismasRegresion.blockSignals(False)
+                        return
+
+                treePrismasRegresion.blockSignals(True)
+                for i in range(item.childCount()):
+                    item.child(i).setCheckState(0, estado)
+                treePrismasRegresion.blockSignals(False)
+
+                for i in range(item.childCount()):
+                    hijo = item.child(i)
+                    nombre, tipo = hijo.text(0), hijo.text(1)
+                    existe = Personalizacion.comprobarExisteDatoArreglo(Personalizacion.combospincreados, tipo, nombre)
+                    if estado == Qt.Checked and not existe:
+                        agregar_fila_tendencia(nombre, tipo, hijo.text(2))
+                    elif estado == Qt.Unchecked and existe:
+                        quitar_fila_tendencia(nombre, tipo)
+            else:
+                nombre, tipo = item.text(0), item.text(1)
+                estado = item.checkState(0)
+                if estado == Qt.Checked:
+                    if not Personalizacion.comprobarExisteDatoArreglo(Personalizacion.combospincreados, tipo, nombre):
+                        if Personalizacion.num_checkboxes_marcados >= 3:
+                            treePrismasRegresion.blockSignals(True)
+                            item.setCheckState(0, Qt.Unchecked)
+                            treePrismasRegresion.blockSignals(False)
+                            return
+                        agregar_fila_tendencia(nombre, tipo, item.text(2))
+                else:
+                    if Personalizacion.comprobarExisteDatoArreglo(Personalizacion.combospincreados, tipo, nombre):
+                        quitar_fila_tendencia(nombre, tipo)
+
+                treePrismasRegresion.blockSignals(True)
+                actualizar_padre(item)
+                treePrismasRegresion.blockSignals(False)
+
+        # --- ESTILOS DE BOTONES (NUEVO) ---
+        btnAceptarRegresion.setFixedHeight(36)
+        btnAceptarRegresion.setCursor(Qt.PointingHandCursor)
+        btnAceptarRegresion.setStyleSheet("""
+            QPushButton { 
+                background-color: #2c3e50; 
+                color: white; 
+                font-size: 11px; 
+                font-weight: bold; 
+                border-radius: 18px; 
+                padding: 0 20px;
+            }
+            QPushButton:hover { background-color: #34495e; }
+            QPushButton:pressed { background-color: #1a252f; }
+        """)
+
+        btnCancelarRegresion.setFixedHeight(36)
+        btnCancelarRegresion.setCursor(Qt.PointingHandCursor)
+        btnCancelarRegresion.setStyleSheet("""
+            QPushButton { 
+                background-color: transparent; 
+                color: #7f8c8d; 
+                border: 1px solid #bdc3c7; 
+                border-radius: 18px; 
+                padding: 0 20px;
+                font-size: 11px; 
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #ecf0f1; }
+        """)
+
         # conectar señales
         checkTodosPrismas.toggled.connect(toggle_modo_todos)
-        treePrismasRegresion.itemClicked.connect(checkboxChanged)
+        treePrismasRegresion.itemClicked.connect(on_item_changed)
         btnAceptarRegresion.clicked.connect(aceptarPrismasRegresion)
         btnCancelarRegresion.clicked.connect(cancelarPrismasRegresion)
         dialogo.exec()
@@ -794,8 +946,12 @@ class Personalizacion:
         ui_file = loader.load(ui_file_path, None)
         dialogo = QDialog()
         dialogo.setWindowTitle("Configuración de Tendencias")
+        dialogo.setFixedSize(460, 650)
+        dialogo.setStyleSheet("background-color: #fcfcfc;")
         layout = QVBoxLayout()
         layout.addWidget(ui_file)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(10)
         dialogo.setLayout(layout)
         # Acceso a los botones
         checkTodosEquipos = dialogo.findChild(QCheckBox, "check_all_prismas")
@@ -1373,7 +1529,7 @@ class Personalizacion:
         botonguardar.clicked.connect(guardarPersonalizacion)
         botoncancelar.clicked.connect(cancelarPersonalizacion)
         dialogo.exec()
-    
+        
     @staticmethod
     def dialogoAgregarNuevaPlantilla(tree_referencia, fn_guardar):
         from PySide6.QtWidgets import QLineEdit 

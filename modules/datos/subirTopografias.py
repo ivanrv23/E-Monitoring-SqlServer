@@ -149,6 +149,8 @@ class SubirTopografias:
         dlg.setWindowTitle("Eliminar Topografías")
         dlg.setText(f"¿Está seguro eliminar todos las Topografías?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -238,6 +240,8 @@ class SubirTopografias:
         dlg.setWindowTitle("Eliminar Topografía")
         dlg.setText(f"¿Está seguro eliminar la Topografía '{nombretopo}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -266,6 +270,8 @@ class SubirTopografias:
         dlg.setWindowTitle("Eliminar Elemento de Topografía")
         dlg.setText(f"¿Está seguro eliminar el elemento '{nombreactor}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:

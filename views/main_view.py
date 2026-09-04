@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtGui import QIcon, QAction, QKeySequence
-from PySide6.QtWidgets import (QMenu, QStackedWidget, QToolButton, QPushButton, QTreeWidget, QMessageBox, QApplication, QComboBox)
+from PySide6.QtWidgets import (QMenu, QStackedWidget, QToolButton, QPushButton, QTreeWidget, QMessageBox, QApplication, QComboBox, QLabel)
 from PySide6.QtCore import Qt, QObject, QEvent
 from utils.common.alertas import mostrar_mensaje
 from utils.common.rutasarchivos import resource_path
@@ -94,6 +94,14 @@ class MainView:
             if MainView.main_window is None:
                 raise RuntimeError("No se pudo cargar la ventana principal desde el archivo UI.")
             MainView.main_window.setWindowTitle(f"E-MONITORING {MainView.version} - {MainView.proyecto_name.upper()}")
+
+            ################################ TÍTULO DASHBOARD POR DEFECTO #################################
+            # El Dashboard es la página inicial (índice 0) y nada dispara su
+            # inicialización al arrancar, así que el label se setea aquí manualmente
+            # para que diga "DASHBOARD" desde el primer instante, con o sin proyecto cargado.
+            label_dashboard = MainView.main_window.findChild(QLabel, "label_dashboard")
+            if label_dashboard:
+                label_dashboard.setText("DASHBOARD")
 
             ################################ MENÚ LATERAL #################################
             MainView.botones_menu = {

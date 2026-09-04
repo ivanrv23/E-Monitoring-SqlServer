@@ -309,8 +309,8 @@ class InclinometrosView:
             datosacum = InclinometroController.ctrlObtenerDAAB(InclinometrosView.idproyecto, inclinometromarcados, unidadmedida, azimuth, anguzz, rint)
             if datosacum:
                 titulo = f"Desplazamiento Acumulado 3D - {nombreinclinometro}"
-                nombreejex = f"D. Acum. A ({unimed})"
-                nombreejey = f"D. Acum. B ({unimed})"
+                nombreejex = f"Desplaz. Acumulado A ({unimed})"
+                nombreejey = f"Desplaz. Acumulado B ({unimed})"
                 plot_3d_in_widget(InclinometrosView.idproyecto, datosacum, titulo, nombreejex, nombreejey, widget_inclinoizquierda, spin_rotacion, unidadmedida, grafico, totallecturas)
             else:
                 InclinometrosView.limpiarGraficaInclinometros()
@@ -318,8 +318,8 @@ class InclinometrosView:
             datosincr = InclinometroController.ctrlObtenerDIAB(InclinometrosView.idproyecto, inclinometromarcados, unidadmedida, azimuth, anguzz, rint)
             if datosincr:
                 titulo = f"Desplazamiento Incremental 3D - {nombreinclinometro}"
-                nombreejex = f"D. Increm. A ({unimed})"
-                nombreejey = f"D. Increm. B ({unimed})"
+                nombreejex = f"Desplaz. Incremental A ({unimed})"
+                nombreejey = f"Desplaz. Incremental B ({unimed})"
                 plot_3d_in_widget(InclinometrosView.idproyecto, datosincr, titulo, nombreejex, nombreejey, widget_inclinoderecha, spin_rotacion, unidadmedida, grafico, totallecturas)
             else:
                 InclinometrosView.limpiarGraficaInclinometros()
@@ -327,33 +327,33 @@ class InclinometrosView:
             if grafico == 'DIAB':
                 titulo1 = f'Desplazamiento Incremental A - {nombreinclinometro}'
                 titulo2 = f'Desplazamiento Incremental B - {nombreinclinometro}'
-                nombreeje1 = f"D. Increm. A ({unimed})"
-                nombreeje2 = f"D. Increm. B ({unimed})"
+                nombreeje1 = f"Desplaz. Incremental ({unimed})"
+                nombreeje2 = f"Desplaz. Incremental ({unimed})"
             elif grafico=='DINE':
                 titulo1 = f'Desplazamiento Incremental E - {nombreinclinometro}'
                 titulo2 = f'Desplazamiento Incremental N - {nombreinclinometro}'
-                nombreeje1 = f"D. Increm. E ({unimed})"
-                nombreeje2 = f"D. Increm. N ({unimed})"
+                nombreeje1 = f"Desplaz. Incremental ({unimed})"
+                nombreeje2 = f"Desplaz. Incremental ({unimed})"
             elif grafico=='DAAB':
                 titulo1 = f'Desplazamiento Acumulado A - {nombreinclinometro}'
                 titulo2 = f'Desplazamiento Acumulado B - {nombreinclinometro}'
-                nombreeje1 = f"D. Acum. A ({unimed})"
-                nombreeje2 = f"D. Acum. B ({unimed})"
+                nombreeje1 = f"Desplaz. Acumulado ({unimed})"
+                nombreeje2 = f"Desplaz. Acumulado ({unimed})"
             elif grafico=='DANE':
                 titulo1 = f'Desplazamiento Acumulado E - {nombreinclinometro}'
                 titulo2 = f'Desplazamiento Acumulado N - {nombreinclinometro}'
-                nombreeje1 = f"D. Acum. E ({unimed})"
-                nombreeje2 = f"D. Acum. N ({unimed})"
+                nombreeje1 = f"Desplaz. Acumulado ({unimed})"
+                nombreeje2 = f"Desplaz. Acumulado ({unimed})"
             elif grafico=='PAAB':
                 titulo1 = f'Posición Absoluta A - {nombreinclinometro}'
                 titulo2 = f'Posición Absoluta B - {nombreinclinometro}'
-                nombreeje1 = f"Pos. Absoluta A ({unimed})"
-                nombreeje2 = f"Pos. Absoluta B ({unimed})"
+                nombreeje1 = f"Posición Absoluta ({unimed})"
+                nombreeje2 = f"Posición Absoluta ({unimed})"
             elif grafico=='PANE':
                 titulo1 = f'Posición Absoluta E - {nombreinclinometro}'
                 titulo2 = f'Posición Absoluta N - {nombreinclinometro}'
-                nombreeje1 = f"Pos. Absoluta E ({unimed})"
-                nombreeje2 = f"Pos. Absoluta N ({unimed})"
+                nombreeje1 = f"Posición Absoluta ({unimed})"
+                nombreeje2 = f"Posición Absoluta ({unimed})"
             elif grafico=='CSAB':
                 titulo1 = f'Checksum A - {nombreinclinometro}'
                 titulo2 = f'Checksum B - {nombreinclinometro}'

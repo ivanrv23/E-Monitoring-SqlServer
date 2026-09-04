@@ -337,7 +337,7 @@ class UmbralView:
                 dialog, 
                 "Confirmar Eliminación", 
                 f"¿Está seguro que desea eliminar el umbral '{umbral_seleccionado_nombre}'?",
-                QMessageBox.Yes | QMessageBox.No
+                QMessageBox.Sí | QMessageBox.No
             )
             
             if confirm == QMessageBox.Yes:

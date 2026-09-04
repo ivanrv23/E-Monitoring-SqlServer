@@ -725,6 +725,8 @@ class SubirCeldas:
         dlg.setWindowTitle("Eliminar Celdas")
         dlg.setText(f"¿Está seguro eliminar todos las Celdas?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -850,6 +852,8 @@ class SubirCeldas:
         dlg.setWindowTitle("Eliminar Celda")
         dlg.setText(f"¿Está seguro eliminar la Celda '{nombrecelda}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:

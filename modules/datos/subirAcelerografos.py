@@ -449,6 +449,8 @@ class SubirAcelerografos:
         dlg.setWindowTitle("Eliminar Acelerógrafos")
         dlg.setText(f"¿Está seguro eliminar todos los Acelerógrafos?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
@@ -585,6 +587,8 @@ class SubirAcelerografos:
         dlg.setWindowTitle("Eliminar Acelerógrafo")
         dlg.setText(f"¿Está seguro eliminar el Acelerógrafo '{nombreacelero}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:
