@@ -71,6 +71,9 @@ class VelocidadView:
     datos_memoria = []
     # ── Variables del sistema de consultas ──
     worker_velocidad = None
+    umbral_activo_velocidad = False
+    umbrales_cache = None
+    tendencia_cache_velocidad = None
     _workers_anteriores = []
     timer_consulta = None
     timer_busqueda_veloc = None
@@ -106,15 +109,13 @@ class VelocidadView:
             # siempre apunta a los handlers de DesplazamientoView, que
             # ya disparan el triple refresco (Desplaz + Veloc + Visor).
             from views.desplazamiento_view import DesplazamientoView
-            if not DesplazamientoView.conexionesArbolRealizadas:
+            if not tree_actual_velocidad.property("conexiones_arbol_realizadas"):
                 tree_actual_velocidad.currentItemChanged.connect(DesplazamientoView.seleccionEquipoDesplazamiento)
                 tree_actual_velocidad.itemClicked.connect(DesplazamientoView.checkProyectoActualDesplazamiento)
                 tree_actual_velocidad.setContextMenuPolicy(Qt.CustomContextMenu)
                 tree_actual_velocidad.customContextMenuRequested.connect(DesplazamientoView.clicderechoProyectoActualDesplazamiento)
                 header = tree_actual_velocidad.header()
-                header.setContextMenuPolicy(Qt.CustomContextMenu)
-                header.customContextMenuRequested.connect(DesplazamientoView.clicderechoEncabezadoProyecto)
-                DesplazamientoView.conexionesArbolRealizadas = True
+                tree_actual_velocidad.setProperty("conexiones_arbol_realizadas", True)
 
             # --- Buscador de equipos en el árbol (compartido con Desplazamiento) ---
             buscador_veloc = main.findChild(QLineEdit, "input_buscar_desplazamiento")
@@ -199,7 +200,8 @@ class VelocidadView:
             btnLimpiarRuido = main.findChild(QPushButton, "btn_limpieza_velocidad")
             btnLimpiarRuido.clicked.connect(lambda: VelocidadView.mostrarModalLimpiezaRuido(tree_actual_velocidad))
             btnTendencia = main.findChild(QPushButton, "btn_tendencia_velocidad")
-            btnTendencia.clicked.connect(lambda: VelocidadView.mostrarModalTendencia(tree_actual_velocidad))
+            btnTendencia.setCheckable(True)
+            btnTendencia.clicked.connect(lambda checked: VelocidadView.toggleTendencia(tree_actual_velocidad, btnTendencia, checked))
             btnEjesVelocidad = main.findChild(QPushButton, "btn_ejes_velocidad")
             btnEjesVelocidad.clicked.connect(lambda: VelocidadView.mostrarModalConfiguracionEjes(tree_actual_velocidad))
             btn_guardar_grafico_reporte = main.findChild(QPushButton, "btn_reporte_grafica_velocidad")
@@ -293,48 +295,64 @@ class VelocidadView:
         widget_grafico = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")
         pintado = GraficarUmbrales.clean_on_widget(widget_grafico, 'color')
         if pintado is False:
-            combo_tipo_grafico = VelocidadView.main.findChild(QWidget, "combo_tipos_velocidad")
-            tipo = combo_tipo_grafico.currentData()
-            combo_medidas = VelocidadView.main.findChild(QComboBox, "combo_medida_velocidad")
-            unidad = combo_medidas.currentData()
-            if unidad == "MD":
-                unidadmedida = 1
-            elif unidad == "CMD":
-                unidadmedida = 100
-            elif unidad == "MMD":
-                unidadmedida = 1000
-            elif unidad == "MH":
-                unidadmedida = 1/24
-            elif unidad == "CMH":
-                unidadmedida = 100/24
-            else:
-                unidadmedida = 1000/24
-            tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-            lista = EquiposVelocidad.obtener_todos_elementos_marcados(tree_actual)
-            if lista:
-                prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
-                if len(prismasmarcados) > 0:
-                    idcompo, c, umbrales = 0, 0, None
-                    for componente, listaprismas in prismasmarcados:
-                        idcompo = componente[1]
-                        c += 1
-                    if c == 1:
-                        umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(VelocidadView.idproyecto, idcompo, tipo, 'umbral_prisma')
-                    else:
-                        # validar umbrales
-                        validar = UmbralController.ctrlValidarUmbralesComponentes(VelocidadView.idproyecto, tipo, "umbral_prisma")
-                        cantidad, idcomponen = validar
-                        if cantidad > 0:
-                            if cantidad == 1:
-                                umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(VelocidadView.idproyecto, idcomponen, tipo, 'umbral_prisma')
-                            else:
-                                componentes = UmbralController.ctrlListarComponentesUmbrales(VelocidadView.idproyecto, tipo, "umbral_prisma")
-                                if componentes:
-                                    codigoseleccionado = GraficarUmbrales.mostrarSeleccionUmbrales(componentes, "Umbral Prismas")
-                                    if codigoseleccionado:
-                                        umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(VelocidadView.idproyecto, codigoseleccionado, tipo, "umbral_prisma")
-                    if umbrales:
-                        GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unidadmedida)
+            VelocidadView._dibujarUmbralesVelocidad(widget_grafico)
+        else:
+            # El usuario quitó los umbrales manualmente -> ya no se deben reponer
+            VelocidadView.umbral_activo_velocidad = False
+            VelocidadView.umbrales_cache = None
+
+    def _dibujarUmbralesVelocidad(widget_grafico=None, forzar_seleccion=False):
+        if widget_grafico is None:
+            widget_grafico = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")
+
+        combo_tipo_grafico = VelocidadView.main.findChild(QWidget, "combo_tipos_velocidad")
+        tipo = combo_tipo_grafico.currentData()
+        combo_medidas = VelocidadView.main.findChild(QComboBox, "combo_medida_velocidad")
+        unidad = combo_medidas.currentData()
+        if unidad == "MD": unidadmedida = 1
+        elif unidad == "CMD": unidadmedida = 100
+        elif unidad == "MMD": unidadmedida = 1000
+        elif unidad == "MH": unidadmedida = 1/24
+        elif unidad == "CMH": unidadmedida = 100/24
+        else: unidadmedida = 1000/24
+
+        # --- REUTILIZAR SELECCIÓN YA HECHA (no reabrir diálogo) ---
+        if (not forzar_seleccion) and VelocidadView.umbrales_cache is not None \
+                and VelocidadView.umbrales_cache.get('tipo') == tipo:
+            umbrales = VelocidadView.umbrales_cache['umbrales']
+            if umbrales:
+                GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unidadmedida)
+                VelocidadView.umbral_activo_velocidad = True
+            return
+        # ------------------------------------------------------------
+
+        tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+        lista = EquiposVelocidad.obtener_todos_elementos_marcados(tree_actual)
+        if lista:
+            prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
+            if len(prismasmarcados) > 0:
+                idcompo, c, umbrales = 0, 0, None
+                for componente, listaprismas in prismasmarcados:
+                    idcompo = componente[1]
+                    c += 1
+                if c == 1:
+                    umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(VelocidadView.idproyecto, idcompo, tipo, 'umbral_prisma')
+                else:
+                    validar = UmbralController.ctrlValidarUmbralesComponentes(VelocidadView.idproyecto, tipo, "umbral_prisma")
+                    cantidad, idcomponen = validar
+                    if cantidad > 0:
+                        if cantidad == 1:
+                            umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(VelocidadView.idproyecto, idcomponen, tipo, 'umbral_prisma')
+                        else:
+                            componentes = UmbralController.ctrlListarComponentesUmbrales(VelocidadView.idproyecto, tipo, "umbral_prisma")
+                            if componentes:
+                                codigoseleccionado = GraficarUmbrales.mostrarSeleccionUmbrales(componentes, "Umbral Prismas")
+                                if codigoseleccionado:
+                                    umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(VelocidadView.idproyecto, codigoseleccionado, tipo, "umbral_prisma")
+                if umbrales:
+                    VelocidadView.umbrales_cache = {'tipo': tipo, 'umbrales': umbrales}  # <-- guarda caché
+                    GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unidadmedida)
+                    VelocidadView.umbral_activo_velocidad = True
     
     def checkProyectoActualVelocidad(parent_item, column):
         treeWidget =  VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
@@ -411,6 +429,7 @@ class VelocidadView:
         lista = EquiposVelocidad.obtener_todos_elementos_marcados(tree_actual)
         if not lista:
             VelocidadView.limpiarGraficaVelocidad()
+            VelocidadView.tendencia_cache_velocidad = None
             velocidad_query_manager.finish_request(request_id)
             return
 
@@ -473,7 +492,9 @@ class VelocidadView:
 
         VelocidadView.datos_memoria = datos
         if len(datos) > 0:
-            VelocidadView.graficarPrismasVelocidad(lista, datos, tipografico, tipomedida, tipotiempo)
+            VelocidadView.graficarPrismasVelocidad(lista, datos, tipografico, tipomedida, tipotiempo, VelocidadView.tendencia_cache_velocidad)
+            if VelocidadView.umbral_activo_velocidad:
+                VelocidadView._dibujarUmbralesVelocidad()
         else:
             VelocidadView.limpiarGraficaVelocidad()
         VelocidadView.main.unsetCursor()
@@ -557,10 +578,56 @@ class VelocidadView:
                 procesar_grafica(widget_velocidad, labeltendencia, datos, 1, indextiempo, 5, labelx, labely, tipografico, unidadmedida, tipotiempo, titulo, VelocidadView.idproyecto, modulo, pluviometros, tendencias, escala)
         else:
             VelocidadView.limpiarGraficaVelocidad()
-    
+
+    @staticmethod
+    def toggleTendencia(treeWidget, btnTendencia, checked):
+        if checked:
+            aplicado = VelocidadView.mostrarModalTendencia(treeWidget)
+            if not aplicado:
+                btnTendencia.blockSignals(True)
+                btnTendencia.setChecked(False)
+                btnTendencia.blockSignals(False)
+        else:
+            VelocidadView.quitarTendencia(treeWidget)
+
+
+    @staticmethod
+    def quitarTendencia(treeWidget):
+        VelocidadView.tendencia_cache_velocidad = None
+        lista = EquiposVelocidad.obtener_todos_elementos_marcados(treeWidget)
+        if not lista:
+            return
+        prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
+        if len(prismasmarcados) == 0:
+            return
+        tipo_grafico_desplazamiento = VelocidadView.main.findChild(QComboBox, "combo_tipos_velocidad")
+        tipografico = tipo_grafico_desplazamiento.currentData()
+        combotipomedida = VelocidadView.main.findChild(QComboBox, "combo_medida_velocidad")
+        tipomedida = combotipomedida.currentData()
+        combo_promedios = VelocidadView.main.findChild(QComboBox, "combo_promedio_velocidad")
+        spin_promedio = VelocidadView.main.findChild(QSpinBox, "spin_promedio_velocidad")
+        tipopromedio = combo_promedios.currentData()
+        numeropromedio = spin_promedio.value()
+        if tipomedida == "MD": unidadmedida = 1
+        elif tipomedida == "CMD": unidadmedida = 100
+        elif tipomedida == "MMD": unidadmedida = 1000
+        elif tipomedida == "MH": unidadmedida = 1/24
+        elif tipomedida == "CMH": unidadmedida = 100/24
+        else: unidadmedida = 1000/24
+        combotipofecha = VelocidadView.main.findChild(QComboBox, "combo_tiempo_velocidad")
+        tipotiempo = combotipofecha.currentData()
+        config = SoftwareConfiguracion.obtenerDataSoftware()
+        velocprisma, filtrado = config[15], config[16]
+        datos = VelocidadController.ctrlDatosPrismasMarcados(VelocidadView.idproyecto, prismasmarcados, VelocidadView.fechainicial, VelocidadView.fechafinal, tipografico, unidadmedida, velocprisma, filtrado, tipopromedio, numeropromedio)
+        if len(datos) > 0:
+            VelocidadView.graficarPrismasVelocidad(lista, datos, tipografico, tipomedida, tipotiempo, None)
+            if VelocidadView.umbral_activo_velocidad:
+                VelocidadView._dibujarUmbralesVelocidad()
+            
     def limpiarGraficaVelocidad():
         widget_velocidad = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")
         limpiar_widget(widget_velocidad)
+        VelocidadView.umbral_activo_velocidad = False
     
     def mostrarModalLimpiezaRuido(treeWidget):
         lista = EquiposVelocidad.obtener_todos_elementos_marcados(treeWidget)
@@ -609,6 +676,8 @@ class VelocidadView:
                             data = CalculosTendencias.ajustarCalculoSaltos(datos, prismasLimpieza, 1, 5)
                         # graficar
                         VelocidadView.graficarPrismasVelocidad(lista, data, tipografico, tipomedida, tipotiempo)
+                        if VelocidadView.umbral_activo_velocidad:
+                            VelocidadView._dibujarUmbralesVelocidad()
     
     def mostrarModalTendencia(treeWidget):
         lista = EquiposVelocidad.obtener_todos_elementos_marcados(treeWidget)
@@ -617,6 +686,7 @@ class VelocidadView:
             if len(prismasmarcados) > 0:
                 regresion = Personalizacion.dialogoFiltroRegresionPrismas(prismasmarcados)
                 if len(regresion) > 0:
+                    VelocidadView.tendencia_cache_velocidad = regresion
                     tipo_grafico_desplazamiento = VelocidadView.main.findChild(QComboBox, "combo_tipos_velocidad")
                     tipografico = tipo_grafico_desplazamiento.currentData()
                     combotipomedida = VelocidadView.main.findChild(QComboBox, "combo_medida_velocidad")
@@ -629,18 +699,12 @@ class VelocidadView:
                     else:
                         spin_promedio.setEnabled(True)
                     numeropromedio = spin_promedio.value()
-                    if tipomedida == "MD":
-                        unidadmedida = 1
-                    elif tipomedida == "CMD":
-                        unidadmedida = 100
-                    elif tipomedida == "MMD":
-                        unidadmedida = 1000
-                    elif tipomedida == "MH":
-                        unidadmedida = 1/24
-                    elif tipomedida == "CMH":
-                        unidadmedida = 100/24
-                    else:
-                        unidadmedida = 1000/24
+                    if tipomedida == "MD": unidadmedida = 1
+                    elif tipomedida == "CMD": unidadmedida = 100
+                    elif tipomedida == "MMD": unidadmedida = 1000
+                    elif tipomedida == "MH": unidadmedida = 1/24
+                    elif tipomedida == "CMH": unidadmedida = 100/24
+                    else: unidadmedida = 1000/24
                     combotipofecha = VelocidadView.main.findChild(QComboBox, "combo_tiempo_velocidad")
                     tipotiempo = combotipofecha.currentData()
                     config = SoftwareConfiguracion.obtenerDataSoftware()
@@ -648,6 +712,10 @@ class VelocidadView:
                     datos = VelocidadController.ctrlDatosPrismasMarcados(VelocidadView.idproyecto, prismasmarcados, VelocidadView.fechainicial, VelocidadView.fechafinal, tipografico, unidadmedida, velocprisma, filtrado, tipopromedio, numeropromedio)
                     if len(datos) > 0:
                         VelocidadView.graficarPrismasVelocidad(lista, datos, tipografico, tipomedida, tipotiempo, regresion)
+                        if VelocidadView.umbral_activo_velocidad:
+                            VelocidadView._dibujarUmbralesVelocidad()
+                        return True
+        return False
     
     def mostrarModalConfiguracionEjes(treeWidget):
         lista = EquiposVelocidad.obtener_todos_elementos_marcados(treeWidget)
@@ -699,7 +767,9 @@ class VelocidadView:
                         datos = VelocidadController.ctrlDatosPrismasMarcados(VelocidadView.idproyecto, prismasmarcados, VelocidadView.fechainicial, VelocidadView.fechafinal, tipografico, unidadmedida, velocprisma, filtrado, tipopromedio, numeropromedio)
                         if len(datos) > 0:
                             VelocidadView.graficarPrismasVelocidad(lista, datos, tipografico, tipomedida, tipotiempo)
-    
+                            if VelocidadView.umbral_activo_velocidad:
+                                VelocidadView._dibujarUmbralesVelocidad()
+
     def mostrarTablaResumenVelocidad():
         if VelocidadView.idproyecto:
             ResumenPrismas.modalResumenTablaPrismas("VELOCIDAD", VelocidadView.idproyecto, VelocidadView.fechainicial, VelocidadView.fechafinal)
@@ -729,6 +799,8 @@ class VelocidadView:
         VelocidadView.idproyecto = proyecto_id
         VelocidadView.nameproyecto = proyecto_name
         VelocidadView.estadochecklist = True
+        VelocidadView.umbrales_cache = None
+        VelocidadView.tendencia_cache_velocidad = None
         VelocidadView.limpiarGraficaVelocidad()
     
     def iniciarAsistenteVozVelocidad(treeWidget, botonvoz):

@@ -205,7 +205,7 @@ def plot_linea_suavizada(ax, x_data, y_data, tiempo, activo=False, **kwargs):
 
 
 def _crear_icono_leyenda(handle, ancho=26, alto=14):
-    """Ícono (línea o parche de color) para representar el handle."""
+    """Ícono (línea con un solo punto centrado, o parche de color) para representar el handle."""
     da = DrawingArea(ancho, alto, 0, 0)
     if hasattr(handle, 'get_color') and hasattr(handle, 'get_linestyle'):
         color = handle.get_color()
@@ -215,12 +215,21 @@ def _crear_icono_leyenda(handle, ancho=26, alto=14):
         marcador = handle.get_marker()
         if marcador in (None, 'None', 'none'):
             marcador = None
+
+        # Línea completa de extremo a extremo, SIN marcador en los extremos
         icono = Line2D([1, ancho - 1], [alto / 2, alto / 2],
                         color=color, linestyle=estilo,
-                        linewidth=max(handle.get_linewidth(), 1.2),
-                        marker=marcador, markersize=5)
+                        linewidth=max(handle.get_linewidth(), 1.2))
         da.add_artist(icono)
-        artista_pick = icono
+        artista_pick = icono  # el pick sigue sobre la línea completa
+
+        # Si la serie original usa marcador, agregamos UN SOLO punto centrado
+        if marcador is not None:
+            punto_centro = Line2D([ancho / 2], [alto / 2],
+                                   color=color, linestyle='none',
+                                   marker=marcador, markersize=5,
+                                   markeredgecolor=color)
+            da.add_artist(punto_centro)
     else:
         color = handle.get_facecolor() if hasattr(handle, 'get_facecolor') else 'cyan'
         rect = Rectangle((1, 1), ancho - 2, alto - 2, facecolor=color, edgecolor='none', alpha=0.7)
@@ -228,7 +237,6 @@ def _crear_icono_leyenda(handle, ancho=26, alto=14):
         artista_pick = rect
     artista_pick.set_picker(5)
     return da, artista_pick
-
 
 def _medir_ancho_texto(ax, texto, fontsize, fuente, renderer):
     obj = ax.text(0, 0, texto, fontproperties={'family': fuente, 'size': fontsize})
@@ -435,8 +443,9 @@ def limpiar_widget(widget):
             item = layout.takeAt(0)
             widget_to_remove = item.widget()
             if widget_to_remove is not None:
-                widget_to_remove.hide() # Ocultar antes de borrar evita crashes visuales
-                widget_to_remove.deleteLater()
+                widget_to_remove.hide()
+                widget_to_remove.setParent(None)   # <-- desvincula YA del padre (children() ya no lo ve)
+                widget_to_remove.deleteLater()     # sigue liberando memoria después
             else:
                 sub_layout = item.layout()
                 if sub_layout is not None:

@@ -554,6 +554,33 @@ class EquiposVisor:
         # 4. Forzar el refresco de los elementos gráficos en el Visor VTK
         callback_graficar()
     
+
+    @staticmethod
+    def marcar_desmarcar_proyecto_completo(treeWidget, estado, callback_graficar):
+        """
+        Marca o desmarca TODOS los equipos del proyecto (todas las zonas/componentes).
+        Reutiliza marcardesmarcar_todos_hijos_visor para respetar la lógica especial
+        de piezómetros (solo última fecha marcada) e inclinómetros, y luego recalcula
+        toda la jerarquía visual sincronizando la memoria UserRole + 999.
+        """
+        treeWidget.blockSignals(True)
+        try:
+            for i in range(treeWidget.topLevelItemCount()):
+                item_zona = treeWidget.topLevelItem(i)
+                item_zona.setCheckState(0, estado)
+                item_zona.setData(0, Qt.UserRole + 999, estado)
+                EquiposVisor.marcardesmarcar_todos_hijos_visor(item_zona, estado)
+
+            # Recalcular toda la jerarquía (por ejemplo, cuando se desmarca, las
+            # subfechas de piezómetros quedan en estados mixtos y hay que resincronizar)
+            for i in range(treeWidget.topLevelItemCount()):
+                EquiposVisor.recalcular_jerarquia_visual(treeWidget.topLevelItem(i))
+        finally:
+            treeWidget.blockSignals(False)
+
+        # Forzar el refresco de los elementos gráficos en el Visor VTK
+        callback_graficar()
+
     def obtenerListaPiezocuerdamanualFechas(tipo, piezometrosmarcados, proyectoid):
         resultado = []
         for componente, piezometros in piezometrosmarcados:

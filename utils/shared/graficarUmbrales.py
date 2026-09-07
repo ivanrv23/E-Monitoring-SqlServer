@@ -66,7 +66,10 @@ class GraficarUmbrales:
         if umbrales:
             for widget in widgets:
                 # Buscar el canvas de Matplotlib dentro del widget
-                canvas = next((child for child in widget.children() if isinstance(child, FigureCanvas)), None)
+                canvas = None
+                for child in widget.children():
+                    if isinstance(child, FigureCanvas):
+                        canvas = child
                 if canvas is not None:
                     if tipo:
                         for ax in canvas.figure.axes:
@@ -185,7 +188,10 @@ class GraficarUmbrales:
         limpieza_realizada = False
         for widget in widgets:
             # Buscar el canvas de Matplotlib dentro del widget
-            canvas = next((child for child in widget.children() if isinstance(child, FigureCanvas)), None)
+            canvas = None
+            for child in widget.children():
+                if isinstance(child, FigureCanvas):
+                    canvas = child
             if canvas is not None:
                 if tipo:
                     for ax in canvas.figure.axes:
