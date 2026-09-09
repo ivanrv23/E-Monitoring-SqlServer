@@ -112,8 +112,13 @@ class AcelerografosView:
                 for acelero in listaacelero:
                     idacelerografo = acelero[2]
             if idacelerografo:
-                fechafinal = datetime.strptime(AcelerografosView.fechafinal, "%Y-%m-%d %H:%M:%S")
-                fechainicial = datetime.strptime(AcelerografosView.fechainicial, "%Y-%m-%d %H:%M:%S")
+                def _a_datetime(valor):
+                    if isinstance(valor, datetime):
+                        return valor
+                    return datetime.strptime(valor, "%Y-%m-%d %H:%M:%S")
+
+                fechafinal = _a_datetime(AcelerografosView.fechafinal)
+                fechainicial = _a_datetime(AcelerografosView.fechainicial)
                 año = fechafinal.year
                 dia_del_anio = fechafinal.timetuple().tm_yday
                 añodia = (año, dia_del_anio)
@@ -123,8 +128,9 @@ class AcelerografosView:
                 if hora_inicio > hora_fin:
                     hora_inicio = fechafinal.strftime("%H:%M:%S")
                     hora_fin = fechainicial.strftime("%H:%M:%S")
-                generar_csvs_para_fecha(AcelerografosView.idproyecto, idacelerografo,tipografica, añodia, horario, unidadg)
-        
+                generar_csvs_para_fecha(AcelerografosView.idproyecto, idacelerografo, tipografica, añodia, horario, unidadg)
+
+
     def graficarUmbralesAcelerografos(widget_grafico):
         pintado = GraficarUmbrales.clean_on_widget(widget_grafico, 'color', tipo="ACELEROGRAFOS")
         if pintado is False:

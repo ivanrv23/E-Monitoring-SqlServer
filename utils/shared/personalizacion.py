@@ -671,13 +671,13 @@ class Personalizacion:
                 color: #2c3e50; 
                 font-size: 11px; 
                 font-weight: bold; 
-                spacing: 8px;
+                spacing: 6px;
             }
             QCheckBox::indicator { 
-                width: 16px; 
-                height: 16px; 
-                border-radius: 3px;
-                border: 2px solid #95a5a6;
+                width: 10px; 
+                height: 10px; 
+                border-radius: 2px;
+                border: 1.5px solid #95a5a6;
                 background-color: white;
             }
             QCheckBox::indicator:hover {
@@ -959,6 +959,79 @@ class Personalizacion:
         frameTendencias = dialogo.findChild(QFrame, "frame_tendencias")
         btnAceptarRegresion = dialogo.findChild(QPushButton, "btn_aceptar_regresion")
         btnCancelarRegresion = dialogo.findChild(QPushButton, "btn_cancelar_regresion")
+
+        # --- ESTILO DEL CHECKBOX "Seleccionar todos" ---
+        checkTodosEquipos.setStyleSheet("""
+            QCheckBox { 
+                color: #2c3e50; 
+                font-size: 11px; 
+                font-weight: bold; 
+                spacing: 6px;
+            }
+            QCheckBox::indicator { 
+                width: 10px; 
+                height: 10px; 
+                border-radius: 2px;
+                border: 1.5px solid #95a5a6;
+                background-color: white;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #3498db;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #2c3e50;
+                border-color: #2c3e50;
+            }
+        """)
+
+        # --- ESTILO DEL ÁRBOL (igual que en Prismas) ---
+        treeEquiposRegresion.setHeaderHidden(False)
+        treeEquiposRegresion.setIndentation(18)
+        treeEquiposRegresion.setAlternatingRowColors(False)
+        treeEquiposRegresion.setStyleSheet(treeEquiposRegresion.styleSheet() + """
+            QTreeWidget::item {
+                padding: 5px 2px;
+                margin-bottom: 2px;
+            }
+            QTreeWidget::indicator { 
+                width: 8px; height: 8px; border-radius: 2px;
+                border: 1.5px solid #95a5a6; background-color: white;
+            }
+            QTreeWidget::indicator:checked { background-color: #2c3e50; border-color: #2c3e50; }
+            QTreeWidget::indicator:indeterminate { background-color: #7f8c8d; border-color: #7f8c8d; }
+        """)
+
+        # --- ESTILOS DE BOTONES (igual que en Prismas) ---
+        btnAceptarRegresion.setFixedHeight(36)
+        btnAceptarRegresion.setCursor(Qt.PointingHandCursor)
+        btnAceptarRegresion.setStyleSheet("""
+            QPushButton { 
+                background-color: #2c3e50; 
+                color: white; 
+                font-size: 11px; 
+                font-weight: bold; 
+                border-radius: 18px; 
+                padding: 0 20px;
+            }
+            QPushButton:hover { background-color: #34495e; }
+            QPushButton:pressed { background-color: #1a252f; }
+        """)
+
+        btnCancelarRegresion.setFixedHeight(36)
+        btnCancelarRegresion.setCursor(Qt.PointingHandCursor)
+        btnCancelarRegresion.setStyleSheet("""
+            QPushButton { 
+                background-color: transparent; 
+                color: #7f8c8d; 
+                border: 1px solid #bdc3c7; 
+                border-radius: 18px; 
+                padding: 0 20px;
+                font-size: 11px; 
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #ecf0f1; }
+        """)
+
         # crear los checkbox
         treeEquiposRegresion.setHeaderLabels([tipoequipos])
         lista_equipos_disponibles = []

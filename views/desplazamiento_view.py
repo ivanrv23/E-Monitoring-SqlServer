@@ -227,8 +227,8 @@ class DesplazamientoView:
             btn_guardar_grafico_reporte.clicked.connect(lambda: DesplazamientoView.mostrarDialogoReporteDesplazamiento(tree_actual_desplaza, widget_grafico, combo_tipo_grafico, "Anexos"))
             btnReporteGeneral = main.findChild(QPushButton, "btn_imagen_desplazamiento")
             btnReporteGeneral.clicked.connect(lambda: DesplazamientoView.mostrarDialogoReporteDesplazamiento(tree_actual_desplaza, widget_grafico, combo_tipo_grafico, "General"))
-            btnAplicarUmbralPersonalizado = main.findChild(QPushButton, "btn_umbral_personalizado_D")
-            btnAplicarUmbralPersonalizado.clicked.connect(DesplazamientoView.graficarUmbralesPersonalizado)
+            # btnAplicarUmbralPersonalizado = main.findChild(QPushButton, "btn_umbral_personalizado_D")
+            # btnAplicarUmbralPersonalizado.clicked.connect(DesplazamientoView.graficarUmbralesPersonalizado)
 
             btnExportarD = main.findChild(QPushButton, "btn_exportar_desplazamiento")
             if btnExportarD:
@@ -329,12 +329,12 @@ class DesplazamientoView:
         menu.addAction("Lista de Plantillas").triggered.connect(accion_lista_plantillas)
         menu.exec(pos_global)
         
-    def graficarUmbralesPersonalizado():
-        if DesplazamientoView.idproyecto:
-            widget_grafico = DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento")
-            combo_medidas = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza")
-            unidad = combo_medidas.currentData()
-            graficarUmbralesPersonalizado(widget_grafico,unidad,DesplazamientoView.idproyecto)
+    # def graficarUmbralesPersonalizado():
+    #     if DesplazamientoView.idproyecto:
+    #         widget_grafico = DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento")
+    #         combo_medidas = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza")
+    #         unidad = combo_medidas.currentData()
+    #         graficarUmbralesPersonalizado(widget_grafico,unidad,DesplazamientoView.idproyecto)
             
     def graficarUmbralesDesplazamiento():
         widget_grafico = DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento")

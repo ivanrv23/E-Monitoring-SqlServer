@@ -9,6 +9,7 @@ from utils.common.customToolbar import CustomToolbar
 from utils.common.alertas import mostrar_mensaje
 from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 from controllers.ConfiguracionController import ConfiguracionController
+from utils.shared.graficaDesplazamientoVelocidad import configurar_evento_leyenda
 
 class GraficarImpedancia:
     
@@ -283,10 +284,15 @@ class GraficarImpedancia:
 
         def actualizar_leyenda():
             nonlocal pagina_actual
-            if total_filas_leyenda == 0: return # Evitar errores si no hay leyenda
+            if total_filas_leyenda == 0: return
             inicio = pagina_actual * equipos_por_pagina
             fin = min(inicio + equipos_por_pagina, filas_totales)
-            ax.legend(leyenda_elementos[inicio:fin], leyenda_labels[inicio:fin], loc=leyenda_posicion, bbox_to_anchor=leyenda_bbox, ncol=leyenda_ncol, frameon=False, prop={'size': leyendazise})
+            handles_pagina = leyenda_elementos[inicio:fin]
+            labels_pagina = leyenda_labels[inicio:fin]
+            legend = ax.legend(handles_pagina, labels_pagina, loc=leyenda_posicion,
+                                bbox_to_anchor=leyenda_bbox, ncol=leyenda_ncol,
+                                frameon=False, prop={'size': leyendazise})
+            configurar_evento_leyenda(canvas, legend, handles_pagina)
             figure.subplots_adjust(**ajuste_margenes)
             canvas.draw_idle()
 

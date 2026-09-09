@@ -134,6 +134,27 @@ class AcelerografoModel:
                 conn.close()
     
     @staticmethod
+    def mdlCambiarEstadoLecturaAcelerografo(tabla, iddetalle):
+        # Alterna el estado: si está en 1 (Activo) pasa a 0 (Omitido) y viceversa
+        sql = f"""UPDATE {tabla} SET estado_detalle = CASE WHEN estado_detalle = 1 THEN 0 ELSE 1 END WHERE id_detalle = ?;"""
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (iddetalle,))
+            conn.commit()
+            if cur.rowcount > 0:
+                return True
+            else:
+                return False
+        except Exception as e:
+            print("Error al cambiar estado lectura acelerografo: " + str(e))
+            return False
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
     def mdlEliminarLecturaAcelerografo(tabla, idacelero, idproyecto, username, nombres):
         conn = None
         sql = f"""DELETE FROM {tabla} WHERE id_detalle = ?;"""

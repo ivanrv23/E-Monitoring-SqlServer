@@ -1822,7 +1822,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>1001</width>
+                  <width>967</width>
                   <height>34</height>
                  </rect>
                 </property>
@@ -1974,16 +1974,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <widget class="QPushButton" name="btn_exportar_desplazamiento">
                    <property name="toolTip">
                     <string>Exportar Data del Gráfico</string>
-                   </property>
-                   <property name="text">
-                    <string/>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QPushButton" name="btn_umbral_personalizado_D">
-                   <property name="toolTip">
-                    <string>Umbral Personalizado</string>
                    </property>
                    <property name="text">
                     <string/>
@@ -2258,7 +2248,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>985</width>
+                  <width>951</width>
                   <height>34</height>
                  </rect>
                 </property>
@@ -2397,16 +2387,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <widget class="QPushButton" name="btn_exportar_velocidad">
                    <property name="toolTip">
                     <string>Exportar Data del Gráfico</string>
-                   </property>
-                   <property name="text">
-                    <string/>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QPushButton" name="btn_umbral_personalizado_V">
-                   <property name="toolTip">
-                    <string>Umbral Personalizado</string>
                    </property>
                    <property name="text">
                     <string/>
@@ -3102,8 +3082,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>815</width>
-              <height>28</height>
+              <width>952</width>
+              <height>38</height>
              </rect>
             </property>
             <layout class="QHBoxLayout" name="horizontalLayout_8">
@@ -3333,8 +3313,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>98</width>
-              <height>28</height>
+              <width>952</width>
+              <height>613</height>
              </rect>
             </property>
            </widget>

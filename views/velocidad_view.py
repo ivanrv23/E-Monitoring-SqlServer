@@ -208,8 +208,8 @@ class VelocidadView:
             btn_guardar_grafico_reporte.clicked.connect(lambda: VelocidadView.mostrarDialogoReporteVelocidad(tree_actual_velocidad, widget_grafico, combo_tipo_grafico, "Anexos"))
             btnReporteGeneral = main.findChild(QPushButton, "btn_imagen_velocidad")
             btnReporteGeneral.clicked.connect(lambda: VelocidadView.mostrarDialogoReporteVelocidad(tree_actual_velocidad, widget_grafico, combo_tipo_grafico, "General"))
-            btnAplicarUmbralPersonalizado = main.findChild(QPushButton, "btn_umbral_personalizado_V")
-            btnAplicarUmbralPersonalizado.clicked.connect(VelocidadView.graficarUmbralesPersonalizado)
+            # btnAplicarUmbralPersonalizado = main.findChild(QPushButton, "btn_umbral_personalizado_V")
+            # btnAplicarUmbralPersonalizado.clicked.connect(VelocidadView.graficarUmbralesPersonalizado)
                         
             btnExportarV = main.findChild(QPushButton, "btn_exportar_velocidad")
             if btnExportarV:
@@ -272,24 +272,24 @@ class VelocidadView:
             menu.addAction("Lista de Plantillas").triggered.connect(accion_lista_plantillas)
             menu.exec(pos_global)
     
-    def graficarUmbralesPersonalizado():
-        if VelocidadView.idproyecto:
-            widget_grafico = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")
-            combo_medidas = VelocidadView.main.findChild(QComboBox, "combo_medida_velocidad")
-            unidad = combo_medidas.currentData()
-            if unidad == "MD":
-                unidadmedida = 1
-            elif unidad == "CMD":
-                unidadmedida = 100
-            elif unidad == "MMD":
-                unidadmedida = 1000
-            elif unidad == "MH":
-                unidadmedida = 1/24
-            elif unidad == "CMH":
-                unidadmedida = 100/24
-            else:
-                unidadmedida = 1000/24
-            graficarUmbralesPersonalizado(widget_grafico,unidadmedida,VelocidadView.idproyecto)
+    # def graficarUmbralesPersonalizado():
+    #     if VelocidadView.idproyecto:
+    #         widget_grafico = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")
+    #         combo_medidas = VelocidadView.main.findChild(QComboBox, "combo_medida_velocidad")
+    #         unidad = combo_medidas.currentData()
+    #         if unidad == "MD":
+    #             unidadmedida = 1
+    #         elif unidad == "CMD":
+    #             unidadmedida = 100
+    #         elif unidad == "MMD":
+    #             unidadmedida = 1000
+    #         elif unidad == "MH":
+    #             unidadmedida = 1/24
+    #         elif unidad == "CMH":
+    #             unidadmedida = 100/24
+    #         else:
+    #             unidadmedida = 1000/24
+    #         graficarUmbralesPersonalizado(widget_grafico,unidadmedida,VelocidadView.idproyecto)
             
     def graficarUmbralesVelocidad():
         widget_grafico = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")

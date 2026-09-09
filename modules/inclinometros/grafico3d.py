@@ -2,6 +2,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import textwrap
 from PySide6.QtWidgets import (QVBoxLayout, QSizePolicy,QPushButton,QHBoxLayout, QCheckBox)
 from matplotlib.colors import TABLEAU_COLORS
 from PySide6.QtCore import Qt
@@ -95,16 +96,17 @@ def plot_3d_in_widget(idproyecto, datos, titulo, nombreejex, nombreejey, widget,
     colores = colores * (len(unique_fechas) // len(colores) + 1)  # Repetir colores si faltan
 
     # Graficar cada línea de desplazamiento usando un loop sobre fechas únicas
-    for i, fecha in enumerate(unique_fechas):
-        subset = df[df["Fecha"] == fecha]
-        if not subset.empty and subset["D_A"].notna().any() and subset["D_B"].notna().any() and subset["Profundidad"].notna().any():
-            ax.plot(subset["D_A"], subset["D_B"], subset["Profundidad"], color=colores[i], linewidth=grosorlinea)
+    # for i, fecha in enumerate(unique_fechas):
+    #     subset = df[df["Fecha"] == fecha]
+    #     if not subset.empty and subset["D_A"].notna().any() and subset["D_B"].notna().any() and subset["Profundidad"].notna().any():
+    #         ax.plot(subset["D_A"], subset["D_B"], subset["Profundidad"], color=colores[i], linewidth=grosorlinea)
 
     # Configuración de etiquetas
     ax.set_xlabel(nombreejex, labelpad=5, fontsize=ejezise)
     ax.set_ylabel(nombreejey, labelpad=5, fontsize=ejezise)
     ax.set_zlabel("Profundidad (m)", labelpad=7, fontsize=ejezise)
-    ax.set_title(titulo, pad=5, fontsize=titulozise)  # Reducir el padding del título
+    titulo_dividido = textwrap.fill(titulo, width=25)  # ajusta "width" a tu gusto
+    ax.set_title(titulo_dividido, pad=8, fontsize=titulozise, linespacing=1.3)
 
     # Ajuste del tamaño de los valores en los ejes
     ax.tick_params(axis='x', labelsize=etiquesize)
@@ -190,29 +192,62 @@ def plot_3d_in_widget(idproyecto, datos, titulo, nombreejex, nombreejey, widget,
     items_per_page = 15
     total_pages = (len(unique_fechas) + items_per_page - 1) // items_per_page
 
+    mapa_lineas_3d = {}
+    for i, fecha in enumerate(unique_fechas):
+        subset = df[df["Fecha"] == fecha]
+        if not subset.empty and subset["D_A"].notna().any() and subset["D_B"].notna().any() and subset["Profundidad"].notna().any():
+            linea3d, = ax.plot(subset["D_A"], subset["D_B"], subset["Profundidad"], color=colores[i], linewidth=grosorlinea)
+            mapa_lineas_3d[fecha] = linea3d
+
     def update_legend(page):
         start_idx = page * items_per_page
         end_idx = start_idx + items_per_page
         current_fechas = unique_fechas[start_idx:end_idx]
         formatted_dates = [fecha.strftime('%d/%m/%Y') for fecha in current_fechas]
-        # Agregar el label inicial al principio de la leyenda
+
+        activas = sum(1 for linea in mapa_lineas_3d.values() if linea.get_visible())
+        ocultas = total - activas
+
         all_handles = []
         all_labels = []
-        activas = len(unique_fechas)
-        ocultas = total - activas
         total_handle = plt.Line2D([0], [0], color='w', label=f'Total: {total}', linestyle='None')
         activa_handle = plt.Line2D([0], [0], color='w', label=f'Activas: {activas}', linestyle='None')
         oculta_handle = plt.Line2D([0], [0], color='w', label=f'Ocultas: {ocultas}', linestyle='None')
-        all_handles.append(total_handle)
-        all_handles.append(activa_handle)
-        all_handles.append(oculta_handle)
-        all_labels.append(f'Total: {total}')
-        all_labels.append(f'Activas: {activas}')
-        all_labels.append(f'Ocultas: {ocultas}')
+        all_handles.extend([total_handle, activa_handle, oculta_handle])
+        all_labels.extend([f'Total: {total}', f'Activas: {activas}', f'Ocultas: {ocultas}'])
+
         date_handles = [plt.Line2D([0], [0], color=colores[i], lw=3) for i in range(len(current_fechas))]
         all_handles.extend(date_handles)
         all_labels.extend(formatted_dates)
-        ax_legend.legend(all_handles, all_labels, loc="center left", prop={'size': leyendazise}, bbox_to_anchor=(1.0, 0.5), bbox_transform=ax.transAxes)
+
+        legend = ax_legend.legend(all_handles, all_labels, loc="center left", prop={'size': leyendazise},
+                                bbox_to_anchor=(1.0, 0.5), bbox_transform=ax.transAxes)
+
+        # --- Click en la leyenda para mostrar/ocultar cada fecha (3D) ---
+        leg_handles = getattr(legend, 'legend_handles', None) or legend.legendHandles
+        mapa_toggle = {}
+        OFFSET_NO_INTERACTIVO = 3
+        for idx, fecha in enumerate(current_fechas):
+            linea_real = mapa_lineas_3d.get(fecha)
+            if linea_real is not None:
+                leg_handle = leg_handles[OFFSET_NO_INTERACTIVO + idx]
+                leg_handle.set_picker(6)
+                leg_handle.set_alpha(1.0 if linea_real.get_visible() else 0.15)
+                mapa_toggle[leg_handle] = linea_real
+
+        def on_pick(event):
+            leg_handle = event.artist
+            if leg_handle not in mapa_toggle:
+                return
+            linea_real = mapa_toggle[leg_handle]
+            linea_real.set_visible(not linea_real.get_visible())
+            update_legend(page)
+            canvas.draw_idle()
+
+        if hasattr(canvas, '_leyenda_gid_3d'):
+            canvas.mpl_disconnect(canvas._leyenda_gid_3d)
+        canvas._leyenda_gid_3d = canvas.mpl_connect('pick_event', on_pick)
+
         canvas.draw()
 
     # Crear botones de paginación con nombres únicos y símbolos de triángulo

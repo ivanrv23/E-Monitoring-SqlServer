@@ -90,7 +90,8 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
         lines1.append((line, fecha.strftime('%d/%m/%Y'), subset))
     ax1.set_xlabel(nombreeje1, fontsize=ejezise)
     ax1.set_ylabel("Profundidad (m)", fontsize=ejezise)
-    ax1.set_title(titulo1, pad=20, fontsize=titulozise)  # Separar el título de la gráfica
+    titulo1_dividido = titulo1.replace(" - ", "\n")
+    ax1.set_title(titulo1_dividido, pad=20, fontsize=titulozise, linespacing=1.3)  # Separar el título de la gráfica
     ax1.grid(True, linestyle='--', linewidth=0.5)
 
     annot1 = ax1.annotate("", xy=(0, 0), xytext=(15, 15), textcoords="offset points",
@@ -109,7 +110,59 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
     items_per_page = 15
     total_pages = (len(unique_fechas) + items_per_page - 1) // items_per_page
 
-    def update_legend(page, ax_legend, main_axis, canvas):
+    def update_legend(page, ax_legend, main_axis, canvas, lines_list):
+        start_idx = page * items_per_page
+        end_idx = start_idx + items_per_page
+        current_fechas = unique_fechas[start_idx:end_idx]
+        formatted_dates = [fecha.strftime('%d/%m/%Y') for fecha in current_fechas]
+
+        mapa_lineas = {fecha_str: line for line, fecha_str, _ in lines_list}
+        activas = sum(1 for line in mapa_lineas.values() if line.get_visible())
+        ocultas = total - activas
+
+        all_handles = []
+        all_labels = []
+        total_handle = plt.Line2D([0], [0], color='w', label=f'Total: {total}', linestyle='None')
+        activa_handle = plt.Line2D([0], [0], color='w', label=f'Activas: {activas}', linestyle='None')
+        oculta_handle = plt.Line2D([0], [0], color='w', label=f'Ocultas: {ocultas}', linestyle='None')
+        all_handles.extend([total_handle, activa_handle, oculta_handle])
+        all_labels.extend([f'Total: {total}', f'Activas: {activas}', f'Ocultas: {ocultas}'])
+
+        date_handles = [plt.Line2D([0], [0], color=colores[i], lw=3) for i in range(len(current_fechas))]
+        all_handles.extend(date_handles)
+        all_labels.extend(formatted_dates)
+
+        legend = ax_legend.legend(all_handles, all_labels, loc="center left", prop={'size': leyendazise},
+                                bbox_to_anchor=(1, 0.5), bbox_transform=main_axis.transAxes)
+
+        # --- Click en la leyenda para mostrar/ocultar cada fecha ---
+        leg_handles = getattr(legend, 'legend_handles', None) or legend.legendHandles
+        mapa_toggle = {}
+        OFFSET_NO_INTERACTIVO = 3  # Total / Activas / Ocultas
+        for idx, fecha in enumerate(current_fechas):
+            fecha_str = fecha.strftime('%d/%m/%Y')
+            linea_real = mapa_lineas.get(fecha_str)
+            if linea_real is not None:
+                leg_handle = leg_handles[OFFSET_NO_INTERACTIVO + idx]
+                leg_handle.set_picker(6)
+                leg_handle.set_alpha(1.0 if linea_real.get_visible() else 0.15)
+                mapa_toggle[leg_handle] = linea_real
+
+        def on_pick(event):
+            leg_handle = event.artist
+            if leg_handle not in mapa_toggle:
+                return
+            linea_real = mapa_toggle[leg_handle]
+            linea_real.set_visible(not linea_real.get_visible())
+            update_legend(page, ax_legend, main_axis, canvas, lines_list)  # refresca contadores
+            canvas.draw_idle()
+
+        if hasattr(canvas, '_leyenda_gid'):
+            canvas.mpl_disconnect(canvas._leyenda_gid)
+        canvas._leyenda_gid = canvas.mpl_connect('pick_event', on_pick)
+
+        canvas.draw()
+
         start_idx = page * items_per_page
         end_idx = start_idx + items_per_page
         current_fechas = unique_fechas[start_idx:end_idx]
@@ -135,6 +188,7 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
                         bbox_to_anchor=(1, 0.5), bbox_transform=main_axis.transAxes)
         canvas.draw()
 
+
     # Crear botones de paginación con nombres únicos y símbolos de triángulo
     if total_pages > 1:
         prev_button1 = QPushButton("◀")  # Triángulo hacia la izquierda
@@ -144,13 +198,13 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
             nonlocal current_page1
             if current_page1 > 0:
                 current_page1 -= 1
-                update_legend(current_page1, ax_legend1, ax1, canvas1)  # Pasar ax1 como main_axis
+                update_legend(current_page1, ax_legend1, ax1, canvas1, lines1)  # Pasar ax1 como main_axis
 
         def on_next_button1():
             nonlocal current_page1
             if current_page1 < total_pages - 1:
                 current_page1 += 1
-                update_legend(current_page1, ax_legend1, ax1, canvas1)  # Pasar ax1 como main_axis
+                update_legend(current_page1, ax_legend1, ax1, canvas1, lines1)  # Pasar ax1 como main_axis
 
         prev_button1.clicked.connect(on_prev_button1)
         next_button1.clicked.connect(on_next_button1)
@@ -162,7 +216,7 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
     main_layout1.addLayout(toolbar_layout1)
 
     current_page1 = 0
-    update_legend(current_page1, ax_legend1, ax1, canvas1)  # Pasar ax1 como main_axis
+    update_legend(current_page1, ax_legend1, ax1, canvas1, lines1)  # Pasar ax1 como main_axis
 
     # Formatear fechas a 'día-mes-año' y añadir leyenda en widget1
     ax1.xaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
@@ -198,7 +252,8 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
         lines2.append((line, fecha.strftime('%d/%m/%Y'), subset))
     ax2.set_xlabel(nombreeje2, fontsize=ejezise)
     ax2.set_ylabel("Profundidad (m)", fontsize=ejezise)
-    ax2.set_title(titulo2, pad=20, fontsize=titulozise)  # Separar el título de la gráfica
+    titulo2_dividido = titulo2.replace(" - ", "\n")
+    ax2.set_title(titulo2_dividido, pad=20, fontsize=titulozise, linespacing=1.3)  # Separar el título de la gráfica
     ax2.grid(True, linestyle='--', linewidth=0.5)
     ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
 
@@ -223,13 +278,13 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
             nonlocal current_page2
             if current_page2 > 0:
                 current_page2 -= 1
-                update_legend(current_page2, ax_legend2, ax2, canvas2)  # Pasar ax2 como main_axis
+                update_legend(current_page2, ax_legend2, ax2, canvas2, lines2)  # Pasar ax2 como main_axis
 
         def on_next_button2():
             nonlocal current_page2
             if current_page2 < total_pages - 1:
                 current_page2 += 1
-                update_legend(current_page2, ax_legend2, ax2, canvas2)  # Pasar ax2 como main_axis
+                update_legend(current_page2, ax_legend2, ax2, canvas2, lines2)  # Pasar ax2 como main_axis
 
         prev_button2.clicked.connect(on_prev_button2)
         next_button2.clicked.connect(on_next_button2)
@@ -241,7 +296,7 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
     main_layout2.addLayout(toolbar_layout2)
 
     current_page2 = 0
-    update_legend(current_page2, ax_legend2, ax2, canvas2)  # Pasar ax2 como main_axis
+    update_legend(current_page2, ax_legend2, ax2, canvas2, lines2)  # Pasar ax2 como main_axis
 
     # Ajustar limites de gráficas eje x de los dos graficos
     ejexmin, ejexmax, ejexprin, ejexsecu, intervaloy = 0, 0, 0, 0, 0

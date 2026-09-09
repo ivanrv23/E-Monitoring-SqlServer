@@ -1148,6 +1148,7 @@ class DatosView:
         edit_action = QAction("Editar Lectura", table)
         hide_action = QAction("Omitir/incluir Lectura", table)
         delete_action = QAction("Eliminar Lectura", table)
+        hide_action.triggered.connect(lambda: DatosView.hide_row_pluviometros(iddetalle, nombre, fecha, tablasql))
         # Conectar las acciones con los valores de la fila
         edit_action.triggered.connect(lambda: DatosView.editarDatosLecturaPluviometros(iddetalle, nombre, fecha, medida, observa, estado, tablasql))
         delete_action.triggered.connect(lambda: DatosView.delete_row_pluviometros(iddetalle, nombre, fecha, tablasql))

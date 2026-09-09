@@ -17,6 +17,10 @@ class AcelerografoController:
         else:
             fechamin, fechamax = MetodosGenerales.obtenerRangoFechas(365)
             return fechamin, fechamax
+
+    def ctrlCambiarEstadoLecturaAcelerografo(tablasql, iddetalle):
+        respuesta = AcelerografoModel.mdlCambiarEstadoLecturaAcelerografo(tablasql, iddetalle)
+        return respuesta
     
     def ctrlListarAcelerografosProyecto(idproyecto, aceleromarcados):
         acelerografos = []

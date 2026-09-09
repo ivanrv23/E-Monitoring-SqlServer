@@ -16,6 +16,10 @@ class PluviometroController:
                 if infopluvio:
                     pluviometros.append(infopluvio)
         return pluviometros
+
+    def ctrlCambiarEstadoLecturaPluviometro(tabla, iddetalle):
+        respuesta = PluviometroModel.mdlCambiarEstadoLecturaPluviometro(tabla, iddetalle)
+        return respuesta
     
     def ctrlGuardarNuevoPluviometro(proyectoid, datos):
         respuesta = PluviometroModel.mdlGuardarNuevoPluviometro(proyectoid, datos)

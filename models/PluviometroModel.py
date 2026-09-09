@@ -271,6 +271,25 @@ class PluviometroModel:
         finally:
             if conn:
                 conn.close()
+
+    def mdlCambiarEstadoLecturaPluviometro(tabla, iddetalle):
+        conn = None
+        sql = f"""UPDATE {tabla} SET estado_detalle = CASE WHEN estado_detalle = 1 THEN 0 ELSE 1 END WHERE id_detalle = ?;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (iddetalle,))
+            conn.commit()
+            if cur.rowcount > 0:
+                return True
+            else:
+                return False
+        except Exception as e:
+            print("Error al cambiar estado lectura pluviometro: " + str(e))
+            return False
+        finally:
+            if conn:
+                conn.close()
     
     def mdlEliminarLecturaPluviometro(tabla, idpluviometro, idproyecto, username, nombres):
         conn = None
