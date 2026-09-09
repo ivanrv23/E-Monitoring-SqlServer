@@ -74,6 +74,8 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
 
     check_inspector1 = QCheckBox("Inspector de Datos")
     check_inspector1.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
+    check_inspector1.setChecked(bool(widget1.property("estado_inspector")))
+    check_inspector1.toggled.connect(lambda checked: widget1.setProperty("estado_inspector", checked))
     toolbar_layout1.addWidget(check_inspector1)
 
     # Configuración de gráficos en Matplotlib
@@ -236,6 +238,8 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
 
     check_inspector2 = QCheckBox("Inspector de Datos")
     check_inspector2.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
+    check_inspector2.setChecked(bool(widget2.property("estado_inspector")))
+    check_inspector2.toggled.connect(lambda checked: widget2.setProperty("estado_inspector", checked))
     toolbar_layout2.addWidget(check_inspector2)
 
     # Configuración de gráficos en Matplotlib

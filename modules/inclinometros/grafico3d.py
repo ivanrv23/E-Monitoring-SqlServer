@@ -84,6 +84,8 @@ def plot_3d_in_widget(idproyecto, datos, titulo, nombreejex, nombreejey, widget,
 
     check_inspector = QCheckBox("Inspector de Datos")
     check_inspector.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
+    check_inspector.setChecked(bool(widget.property("estado_inspector")))
+    check_inspector.toggled.connect(lambda checked: widget.setProperty("estado_inspector", checked))
     toolbar_layout.addWidget(check_inspector)
 
     # Configuración de gráficos en Matplotlib
