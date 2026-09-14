@@ -407,6 +407,8 @@ class MainView:
             cargarIcono(btnReporteGeneralTDR, ListaIconos.ICONOS["imagenes"])
             btn_configurar_ejes_tdr = MainView.main_window.findChild(QPushButton, "btn_ejes_tdr")
             cargarIcono(btn_configurar_ejes_tdr, ListaIconos.ICONOS["configurar_ejes"])
+            btn_umbral_tdr = MainView.main_window.findChild(QPushButton, "btn_umbral_tdr")
+            cargarIcono(btn_umbral_tdr, ListaIconos.ICONOS["umbral"])
             
             ############################## BOTONES ANALISIS #############################
             btn_refrescar_vista_analisis = MainView.main_window.findChild(QPushButton, "btn_refrescar_vista_analisis")
@@ -602,25 +604,49 @@ class MainView:
             actionCargarPiezometrosManual.triggered.connect(MainView.subirDataPiezometroManual)
             actionFormatoPiezoManual = MainView.main_window.findChild(QAction, "action_formato_casagrande")
             actionFormatoPiezoManual.triggered.connect(MainView.subirFormatoPiezometroManual)
-            # #################################### Umbrales
+            # #################################### Umbrales Generales 
             # umbrales prismas
-            actionUmbralesPrismas = MainView.main_window.findChild(QAction, "action_umbrales_prismas")
-            actionUmbralesPrismas.triggered.connect(lambda: MainView.configurarUmbralesInstrumentacion('PRISMAS'))
+            actionUmbralesPrismas = MainView.main_window.findChild(QAction, "action_umbral_general_prismas")
+            actionUmbralesPrismas.triggered.connect(lambda: MainView.configurarUmbralesGeneralesInstrumentacion('PRISMAS'))
             # umbrales inclinómetros
-            actionUmbralesInclinometros = MainView.main_window.findChild(QAction, "action_umbrales_inclinometros")
-            actionUmbralesInclinometros.triggered.connect(lambda: MainView.configurarUmbralesInstrumentacion('INCLINOMETROS'))
+            actionUmbralesInclinometros = MainView.main_window.findChild(QAction, "action_umbral_general_inclinometros")
+            actionUmbralesInclinometros.triggered.connect(lambda: MainView.configurarUmbralesGeneralesInstrumentacion('INCLINOMETRO'))
             # umbrales piezómetros
-            actionUmbralesPiezometros = MainView.main_window.findChild(QAction, "action_umbrales_piezometros")
-            actionUmbralesPiezometros.triggered.connect(lambda: MainView.configurarUmbralesInstrumentacion('PIEZOMETROS'))
+            actionUmbralesPiezometros = MainView.main_window.findChild(QAction, "action_umbral_general_piezometros")
+            actionUmbralesPiezometros.triggered.connect(lambda: MainView.configurarUmbralesGeneralesInstrumentacion('PIEZOMETROMANUAL'))
+
+            actionUmbralesCuerdaVibrante = MainView.main_window.findChild(QAction, "action_umbral_general_cuerdavibrante")
+            actionUmbralesCuerdaVibrante.triggered.connect(lambda: MainView.configurarUmbralesGeneralesInstrumentacion('PIEZOMETROCUERDA'))
             # umbrales celdas
-            actionUmbralesCeldas = MainView.main_window.findChild(QAction, "action_umbrales_celdas")
-            actionUmbralesCeldas.triggered.connect(lambda: MainView.configurarUmbralesInstrumentacion('CELDAS'))
+            actionUmbralesCeldas = MainView.main_window.findChild(QAction, "action_umbral_general_celdas")
+            actionUmbralesCeldas.triggered.connect(lambda: MainView.configurarUmbralesGeneralesInstrumentacion('CELDA'))
             # umbrales acelerógrafos
-            actionUmbralesAcelerografos = MainView.main_window.findChild(QAction, "action_umbrales_acelerografos")
-            actionUmbralesAcelerografos.triggered.connect(lambda: MainView.configurarUmbralesInstrumentacion('ACELEROGRAFOS'))
-            # umbrales personalizado
-            actionUmbralesPersonalizado = MainView.main_window.findChild(QAction, "action_umbral_personalizado")
-            actionUmbralesPersonalizado.triggered.connect(MainView.registrarUmbralPersonalizado)
+            actionUmbralesAcelerografos = MainView.main_window.findChild(QAction, "action_umbral_general_acelerografos")
+            actionUmbralesAcelerografos.triggered.connect(lambda: MainView.configurarUmbralesGeneralesInstrumentacion('ACELEROGRAFO'))
+            # umbrales tdr
+            actionUmbralesTDR = MainView.main_window.findChild(QAction, "action_umbral_general_TDR")
+            actionUmbralesTDR.triggered.connect(lambda: MainView.configurarUmbralesGeneralesInstrumentacion('TDR'))
+
+            # #################################### Umbrales Personalizados 
+            # umbrales inclinómetros
+            actionUmbralesInclinometrosPerso = MainView.main_window.findChild(QAction, "action_umbral_personalizado_inclinometros")
+            actionUmbralesInclinometrosPerso.triggered.connect(lambda: MainView.registrarUmbralPersonalizado('INCLINOMETRO'))
+            # umbrales piezómetros
+            actionUmbralesPiezometrosPerso = MainView.main_window.findChild(QAction, "action_umbral_personalizado_piezometros")
+            actionUmbralesPiezometrosPerso.triggered.connect(lambda: MainView.registrarUmbralPersonalizado('PIEZOMETROMANUAL'))
+
+            actionUmbralesCuerdaVibrantePerso = MainView.main_window.findChild(QAction, "action_umbral_personalizado_cuerdavibrante")
+            actionUmbralesCuerdaVibrantePerso.triggered.connect(lambda: MainView.registrarUmbralPersonalizado('PIEZOMETROCUERDA'))
+            # umbrales celdas
+            actionUmbralesCeldasPerso = MainView.main_window.findChild(QAction, "action_umbral_personalizado_celdas")
+            actionUmbralesCeldasPerso.triggered.connect(lambda: MainView.registrarUmbralPersonalizado('CELDA'))
+            # umbrales acelerógrafos
+            actionUmbralesAcelerografosPerso = MainView.main_window.findChild(QAction, "action_umbral_personalizado_acelerografos")
+            actionUmbralesAcelerografosPerso.triggered.connect(lambda: MainView.registrarUmbralPersonalizado('ACELEROGRAFO'))
+            # umbrales tdr
+            actionUmbralesTDRPerso = MainView.main_window.findChild(QAction, "action_umbral_personalizado_tdr")
+            actionUmbralesTDRPerso.triggered.connect(lambda: MainView.registrarUmbralPersonalizado('TDR'))
+
             # estratos
             actionConfigurarEstratos = MainView.main_window.findChild(QAction, "action_estratos_inclinometros")
             actionConfigurarEstratos.triggered.connect(lambda: ConfigurarEstratos.modalEstratos(MainView.proyecto_id))
@@ -1365,11 +1391,8 @@ class MainView:
         if MainView.proyecto_id:
             SubirPiezometros.cargarDataFormatosCasagrande(MainView.main_window, MainView.proyecto_id)
             MainView.actualizarRangoFechas()
-    
-    def registrarUmbralPersonalizado():
-        UmbralView.modalUmbralesPersonalizado(MainView.proyecto_id)
-        
-    def configurarUmbralesInstrumentacion(tipo):
+     
+    def configurarUmbralesGeneralesInstrumentacion(tipo):
         if MainView.proyecto_id:
             pagina = MainView.main_window.findChild(QStackedWidget, "stackedWidget_principal").currentIndex()
             if tipo == 'PRISMAS':
@@ -1410,16 +1433,16 @@ class MainView:
                     unidad1, unidad2 = 1, 1
                     medida1, medida2 = "m", "m/d"
                 UmbralView.modalUmbralesPrismas(MainView.proyecto_id, tipo, unidad1, unidad2, medida1, medida2)
-            elif tipo == 'INCLINOMETROS':
+            elif tipo == 'INCLINOMETRO':
                 if pagina == 5:
                     combo_medidas = InclinometrosView.main.findChild(QComboBox, "combo_medida_inclinometros")
                     unidadmedida = combo_medidas.currentData()
                 else:
                     unidadmedida = 1
                 UmbralView.modalUmbralesInclinometros(MainView.proyecto_id, tipo, unidadmedida)
-            elif tipo == 'ACELEROGRAFOS':
-                UmbralView.modalUmbralesAcelerografos(MainView.proyecto_id)
-            elif tipo == 'CELDAS': # piezometros y celdas
+            elif tipo == 'ACELEROGRAFO':
+                UmbralView.modalUmbralesAcelerografos(MainView.proyecto_id, tipo)
+            elif tipo == 'CELDA': # piezometros y celdas
                 if pagina == 7:
                     combo_medidas = CeldasView.main.findChild(QComboBox, "combo_medida_celdas")
                     unidad = combo_medidas.currentData()
@@ -1429,6 +1452,10 @@ class MainView:
                     unidad = 1
                     tipovelocidad = "Por Mes"
                 UmbralView.modalUmbralesCeldas(MainView.proyecto_id, tipo, unidad, tipovelocidad)
+            elif tipo == 'TDR': # TDR
+                unidad = 1
+                UmbralView.modalUmbralesTDR(MainView.proyecto_id, tipo, unidad)
+            # PIEZOMETRO
             else:
                 if pagina == 6:
                     combo_medidas = PiezometrosView.main.findChild(QComboBox, "combo_medida_piezometros")
@@ -1436,6 +1463,43 @@ class MainView:
                 else:
                     unidad = 1
                 UmbralView.modalUmbralesPiezometros(MainView.proyecto_id, tipo, unidad)
+        else:
+            mostrar_mensaje('Sin Proyecto', 'Inicie un proyecto primero.','advertencia')
+
+
+    def registrarUmbralPersonalizado(tipo):
+        if MainView.proyecto_id:
+            pagina = MainView.main_window.findChild(QStackedWidget, "stackedWidget_principal").currentIndex()
+            if tipo == 'INCLINOMETRO':
+                if pagina == 5:
+                    combo_medidas = InclinometrosView.main.findChild(QComboBox, "combo_medida_inclinometros")
+                    unidadmedida = combo_medidas.currentData()
+                else:
+                    unidadmedida = 1
+                UmbralView.modalUmbralesPersonalizadosInclinometros(MainView.proyecto_id, tipo, unidadmedida)
+            elif tipo == 'ACELEROGRAFO':
+                UmbralView.modalUmbralesPersonalizadosAcelerografos(MainView.proyecto_id, tipo)
+            elif tipo == 'CELDA': # piezometros y celdas
+                if pagina == 7:
+                    combo_medidas = CeldasView.main.findChild(QComboBox, "combo_medida_celdas")
+                    unidad = combo_medidas.currentData()
+                    combotipovelocidad = CeldasView.main.findChild(QComboBox, "cb_tipo_calculo_velocidad_celda")
+                    tipovelocidad = combotipovelocidad.currentText()
+                else:
+                    unidad = 1
+                    tipovelocidad = "Por Mes"
+                UmbralView.modalUmbralesPersonalizadosCeldas(MainView.proyecto_id, tipo, unidad, tipovelocidad)
+            elif tipo == 'TDR': # TDR
+                unidad = 1
+                UmbralView.modalUmbralesPersonalizadosTDR(MainView.proyecto_id, tipo, unidad)
+            # PIEZOMETRO
+            else:
+                if pagina == 6:
+                    combo_medidas = PiezometrosView.main.findChild(QComboBox, "combo_medida_piezometros")
+                    unidad = combo_medidas.currentData()
+                else:
+                    unidad = 1
+                UmbralView.modalUmbralesPersonalizadosPiezometros(MainView.proyecto_id, tipo, unidad)
         else:
             mostrar_mensaje('Sin Proyecto', 'Inicie un proyecto primero.','advertencia')
 

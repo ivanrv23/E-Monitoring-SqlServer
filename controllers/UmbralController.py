@@ -2,107 +2,25 @@ from models.UmbralModel import UmbralModel
 from models.PrismaModel import PrismaModel
 
 class UmbralController:
-    
-    def ctrlObtenerUmbralesPersonalizados(proyectoid):
-        umbral = UmbralModel.mdlObtenerUmbralesPersonalizados(proyectoid)
-        return umbral
-    
-    @staticmethod
-    def ctrlGuardarUmbralesPersonalizados(proyectoid, nombre, datos):
-        """Guarda nuevos umbrales personalizados"""
-        # Preparar los datos para insertar
-        valores = []
-        for item in datos:
-            # Solo incluir nuevas filas (sin ID)
-            if not item.get("id_fila"):
-                valores.append((
-                    proyectoid,
-                    item["condicion"],
-                    item["color"],
-                    item["riesgo"],
-                    item["rango"],
-                    item["acciones"],
-                    nombre
-                ))
-        
-        if valores:
-            return UmbralModel.mdlGuardarUmbralesPersonalizados(valores)
-        return True
-    
-    @staticmethod
-    def ctrlObtenerNombresUmbrales(proyectoid):
-        """Obtiene nombres únicos de umbrales para un proyecto"""
-        return UmbralModel.mdlObtenerNombresUmbrales(proyectoid)
-    
-    @staticmethod
-    def ctrlObtenerUmbralPorNombre(proyectoid, nombre_umbral):
-        """Obtiene todos los detalles de un umbral por su nombre"""
-        return UmbralModel.mdlObtenerUmbralPorNombre(proyectoid, nombre_umbral)
-    
-    @staticmethod
-    def ctrlEliminarUmbralPorNombre(proyectoid, nombre_umbral):
-        """Elimina todos los registros de un umbral por su nombre"""
-        return UmbralModel.mdlEliminarUmbralPorNombre(proyectoid, nombre_umbral)
-    
-    @staticmethod
-    def ctrlActualizarUmbral(proyectoid, nombre_original, nombre_nuevo, datos):
-        """Actualiza un umbral existente con posible cambio de nombre"""
-        # 1. Actualizar nombre si ha cambiado
-        if nombre_original != nombre_nuevo:
-            if not UmbralModel.mdlActualizarNombreUmbral(proyectoid, nombre_original, nombre_nuevo):
-                return False
-        
-        # 2. Actualizar/insertar filas
-        for fila in datos:
-            id_fila = fila.get("id_fila")
-            
-            if id_fila:  # Fila existente (actualizar)
-                if not UmbralModel.mdlActualizarFilaUmbral(
-                    id_fila,
-                    fila["condicion"],
-                    fila["color"],
-                    fila["riesgo"],
-                    fila["rango"],
-                    fila["acciones"]
-                ):
-                    return False
-            else:  # Nueva fila (insertar)
-                if not UmbralModel.mdlGuardarFilaUmbral(
-                    proyectoid,
-                    nombre_nuevo,
-                    fila["condicion"],
-                    fila["color"],
-                    fila["riesgo"],
-                    fila["rango"],
-                    fila["acciones"]
-                ):
-                    return False
-        
-        return True
-    
-    @staticmethod
-    def ctrlExisteNombreUmbral(proyectoid, nombre_umbral, excluir=None):
-        """Verifica si ya existe un umbral con el mismo nombre"""
-        nombres = UmbralController.ctrlObtenerNombresUmbrales(proyectoid)
-        
-        # Si estamos excluyendo un nombre (para edición)
-        if excluir:
-            nombres = [n for n in nombres if n != excluir]
-        
-        return nombre_umbral in nombres
-    
-    @staticmethod
-    def ctrlEliminarFilaUmbral(id_fila):
-        """Elimina una fila específica de un umbral"""
-        return UmbralModel.mdlEliminarFilaUmbral(id_fila)
 
-    def ctrlGuardarUmbralesEquipos(proyectoid, componente_id, selected_id, data, tabla):
+    def ctrlGuardarUmbralesEquipos(proyectoid, componente_id, tipografica, data, tipoequipo):
         for item in data:
             umbral_id = item['id']
             if umbral_id is None or umbral_id == 0:
-                success = UmbralModel.mdlGuardarUmbralesEquipos(proyectoid, componente_id, selected_id, [item], tabla)
+                success = UmbralModel.mdlGuardarUmbralesEquipos(proyectoid, componente_id, tipografica, [item], tipoequipo)
             else:
-                success = UmbralModel.mdlActualizarUmbralEquipos(umbral_id, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'], selected_id,tabla)
+                success = UmbralModel.mdlActualizarUmbralEquipos(umbral_id, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'])
+            if not success:
+                return False
+        return True
+
+    def ctrlGuardarUmbralesPersonalizados(proyectoid, equipo_id, tipografica, data, tipoequipo):
+        for item in data:
+            umbral_id = item['id']
+            if umbral_id is None or umbral_id == 0:
+                success = UmbralModel.mdlGuardarUmbralesPersonalizados(proyectoid, equipo_id, tipografica, [item], tipoequipo)
+            else:
+                success = UmbralModel.mdlActualizarUmbralPersonalizados(umbral_id, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'])
             if not success:
                 return False
         return True
@@ -118,21 +36,36 @@ class UmbralController:
                 return False
         return True
     
-    def ctrlGuardarUmbralesAcelerografo(proyectoid, componente_id, data):
+    def ctrlGuardarUmbralesAcelerografos(proyectoid, componente_id, tipografica, data, tipoequipo):
         for item in data:
             umbral_id = item['id']
             if umbral_id is None or umbral_id == 0:
-                success = UmbralModel.mdlGuardarUmbralesAcelerografo(proyectoid, componente_id, [item])
+                success = UmbralModel.mdlGuardarUmbralesGeneralesAcelerografos(proyectoid, componente_id, tipografica, [item], tipoequipo)
             else:
-                success = UmbralModel.mdlActualizarUmbralAcelerografo(umbral_id, item['nombre'],item['riesgo'], item['color'], item['distancia'], item['magnitud'],item['acciones'])
+                success = UmbralModel.mdlActualizarUmbralAcelerografo(umbral_id, item['nombre'], item['riesgo'], item['color'], item['distancia'], item['magnitud'], item['acciones'])
             if not success:
                 return False
         return True
 
-    def ctrlObtenerUmbralesAjustes(proyectoid, componete_id, tipo, tabla):
-        umbral = UmbralModel.mdlObtenerUmbralesAjustes(proyectoid, componete_id, tipo, tabla)
+    def ctrlGuardarUmbralesPersonalizadosAcelerografos(proyectoid, equipo_id, tipografica, data, tipoequipo):
+        for item in data:
+            umbral_id = item['id']
+            if umbral_id is None or umbral_id == 0:
+                success = UmbralModel.mdlGuardarUmbralesPersonalizadosAcelerografos(proyectoid, equipo_id, tipografica, [item], tipoequipo)
+            else:
+                success = UmbralModel.mdlActualizarUmbralPersonalizadoAcelerografo(umbral_id, item['nombre'], item['riesgo'], item['color'], item['distancia'], item['magnitud'], item['acciones'])
+            if not success:
+                return False
+        return True
+
+    def ctrlObtenerUmbralesAjustes(proyectoid, componete_id, tipografica, tipoequipo):
+        umbral = UmbralModel.mdlObtenerUmbralesAjustes(proyectoid, componete_id, tipografica, tipoequipo)
         return umbral
 
+    def ctrlObtenerUmbralesPersonalizados(idequipo, tipografica, tipoequipo):
+        umbral = UmbralModel.mdlObtenerUmbralesPersonalizados(idequipo, tipografica, tipoequipo)
+        return umbral
+    
     def ctrlObtenerUmbralesInstrumentacion(proyectoid, componete_id, tipo, tabla):
         umbral = UmbralModel.mdlObtenerUmbralesInstrumentacion(proyectoid, componete_id, tipo, tabla)
         return umbral
@@ -181,8 +114,12 @@ class UmbralController:
         umbral = UmbralModel.mdlPiezometroID(ids,tipos)
         return umbral
     
-    def ctrlEliminarUmbralEquipos(umbral_id,tabla):
-        umbral = UmbralModel.mdlEliminarUmbralEquipos(umbral_id,tabla)
+    def ctrlEliminarUmbralEquipos(umbral_id):
+        umbral = UmbralModel.mdlEliminarUmbralEquipos(umbral_id)
+        return umbral
+
+    def ctrlEliminarUmbralPersonalizados(umbral_id):
+        umbral = UmbralModel.mdlEliminarUmbralPersonalizados(umbral_id)
         return umbral
     #####
     def ctrlEliminarUmbralAcelerografo(umbral_id):
@@ -677,5 +614,12 @@ class UmbralController:
         umbral = UmbralModel.mdlObtenerUmbralesPiezometros(ids)
         return umbral
     
+    @staticmethod
+    def ctrlListarInstrumentosComponente(proyectoid, componente_id, tipo_equipo):
+        return UmbralModel.mdlListarInstrumentosComponente(proyectoid, componente_id, tipo_equipo)
+
+    @staticmethod
+    def ctrlListarTiposInstrumentoComponente(componente_id):
+        return UmbralModel.mdlListarTiposInstrumentoComponente(componente_id)
     
     

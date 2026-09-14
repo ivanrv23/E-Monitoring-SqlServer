@@ -92,3 +92,129 @@ ADD
   [rango_precipitacion] FLOAT DEFAULT ((0)),
   [intervalo_precipitacion] FLOAT DEFAULT ((0));
   
+----- generar alter de la tala umbral_prismas ?????
+CREATE TABLE [dbemonitoring].[dbo].[umbral_general] (
+    [id_umbral]        INT IDENTITY(1,1) NOT NULL,
+    [id_proyecto]      INT NOT NULL,
+    [id_componente]    INT NOT NULL DEFAULT (0),
+    [condicion_umbral] VARCHAR(255) NULL,
+    [color_umbral]     VARCHAR(50) NOT NULL,
+    [riesgo_umbral]    VARCHAR(255) NULL,
+    [rango_umbral]     FLOAT NOT NULL,
+    [rango2_umbral]    FLOAT NOT NULL DEFAULT (0),
+    [acciones_umbral]  VARCHAR(MAX) NULL,
+    [tipo_umbral]      VARCHAR(100) NOT NULL,
+    [tipo_equipo]      VARCHAR(100) NOT NULL,
+
+    CONSTRAINT [PK_umbral_general] 
+        PRIMARY KEY CLUSTERED ([id_umbral]),
+
+    CONSTRAINT [FK_umbral_general_proyectos]
+        FOREIGN KEY ([id_proyecto])
+        REFERENCES [dbemonitoring].[dbo].[proyectos] ([id_proyecto])
+);
+
+
+CREATE TABLE [umbral_personalizado] (
+  [id_umbral] INT IDENTITY(1,1) NOT NULL,
+  [id_proyecto] INT NOT NULL,
+  [id_equipo] INT NOT NULL,
+  [condicion_umbral] VARCHAR(255) NULL,
+  [color_umbral]     VARCHAR(50) NOT NULL,
+  [riesgo_umbral]    VARCHAR(255) NULL,
+  [rango_umbral]     FLOAT NOT NULL,
+  [rango2_umbral]    FLOAT NOT NULL DEFAULT (0),
+  [acciones_umbral]  VARCHAR(MAX) NULL,
+  [tipo_umbral]      VARCHAR(100) NOT NULL,
+  [tipo_equipo]      VARCHAR(100) NOT NULL,
+
+  CONSTRAINT [PK_umbral_personalizado] PRIMARY KEY CLUSTERED ([id_umbral]),
+
+  CONSTRAINT [FK_umbral_personalizado_proyectos]
+        FOREIGN KEY ([id_proyecto])
+        REFERENCES [dbemonitoring].[dbo].[proyectos] ([id_proyecto])
+);
+
+
+-- 1. Agregar columnas nuevas permitiendo NULL temporalmente
+ALTER TABLE [umbral_personalizado]
+ADD
+    [id_equipo] INT NULL,
+    [rango2_umbral] FLOAT NULL,
+    [tipo_umbral] VARCHAR(100) NULL,
+    [tipo_equipo] VARCHAR(100) NULL;
+GO
+
+
+-- 2. Asignar valores a los registros existentes
+-- AJUSTAR ESTOS VALORES SEGÚN TU LÓGICA DE NEGOCIO
+UPDATE [umbral_personalizado]
+SET
+    [id_equipo] = 0,
+    [rango2_umbral] = 0,
+    [tipo_umbral] = '',
+    [tipo_equipo] = '';
+GO
+
+
+-- 3. Cambiar las columnas a NOT NULL
+ALTER TABLE [umbral_personalizado]
+ALTER COLUMN [id_proyecto] INT NOT NULL;
+GO
+
+ALTER TABLE [umbral_personalizado]
+ALTER COLUMN [id_equipo] INT NOT NULL;
+GO
+
+ALTER TABLE [umbral_personalizado]
+ALTER COLUMN [condicion_umbral] VARCHAR(255) NULL;
+GO
+
+ALTER TABLE [umbral_personalizado]
+ALTER COLUMN [color_umbral] VARCHAR(50) NOT NULL;
+GO
+
+ALTER TABLE [umbral_personalizado]
+ALTER COLUMN [riesgo_umbral] VARCHAR(255) NULL;
+GO
+
+ALTER TABLE [umbral_personalizado]
+ALTER COLUMN [rango_umbral] FLOAT NOT NULL;
+GO
+
+ALTER TABLE [umbral_personalizado]
+ALTER COLUMN [rango2_umbral] FLOAT NOT NULL;
+GO
+
+ALTER TABLE [umbral_personalizado]
+ALTER COLUMN [acciones_umbral] VARCHAR(MAX) NULL;
+GO
+
+ALTER TABLE [umbral_personalizado]
+ALTER COLUMN [tipo_umbral] VARCHAR(100) NOT NULL;
+GO
+
+ALTER TABLE [umbral_personalizado]
+ALTER COLUMN [tipo_equipo] VARCHAR(100) NOT NULL;
+GO
+
+
+-- 4. Agregar el DEFAULT para rango2_umbral
+ALTER TABLE [umbral_personalizado]
+ADD CONSTRAINT [DF_umbral_personalizado_rango2]
+    DEFAULT (0) FOR [rango2_umbral];
+GO
+
+
+-- 5. Eliminar columna antigua
+ALTER TABLE [umbral_personalizado]
+DROP COLUMN [nombre_umbral];
+GO
+
+
+-- 6. Agregar FK de proyectos
+ALTER TABLE [umbral_personalizado]
+ADD CONSTRAINT [FK_umbral_personalizado_proyectos]
+    FOREIGN KEY ([id_proyecto])
+    REFERENCES [dbemonitoring].[dbo].[proyectos] ([id_proyecto]);
+GO
