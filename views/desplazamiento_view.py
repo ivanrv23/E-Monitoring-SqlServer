@@ -284,8 +284,6 @@ class DesplazamientoView:
             DesplazamientoView.obtenerMostrarPrismasMarcados(tree_actual)
             from views.velocidad_view import VelocidadView
             VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)
-            from utils.shared.sincronizarPrismas import sincronizarPrismasDesplazamientoAVisor
-            sincronizarPrismasDesplazamientoAVisor(DesplazamientoView.main)
         
         menu = QMenu()
         menu.addAction("Marcar Todo").triggered.connect(lambda: EquiposDesplazamiento.marcar_desmarcar_proyecto_completo(tree_actual, Qt.Checked, lambda: DesplazamientoView.obtenerMostrarPrismasMarcados(tree_actual)))
@@ -412,9 +410,6 @@ class DesplazamientoView:
                 # 2. Refrescar gráfica de Velocidad (mismo árbol físico)
                 from views.velocidad_view import VelocidadView
                 VelocidadView.obtenerMostrarPrismasMarcados(treeWidget)
-                # 3. Sincronizar hacia Visor y refrescar el 3D
-                from utils.shared.sincronizarPrismas import sincronizarPrismasDesplazamientoAVisor
-                sincronizarPrismasDesplazamientoAVisor(DesplazamientoView.main)
 
             DesplazamientoView.timer_marcado_desplaza.timeout.connect(ejecutar_refresco)
             DesplazamientoView.timer_marcado_desplaza.start(300)
@@ -435,8 +430,6 @@ class DesplazamientoView:
             DesplazamientoView.obtenerMostrarPrismasMarcados(treeWidget)
             from views.velocidad_view import VelocidadView
             VelocidadView.obtenerMostrarPrismasMarcados(treeWidget)
-            from utils.shared.sincronizarPrismas import sincronizarPrismasDesplazamientoAVisor
-            sincronizarPrismasDesplazamientoAVisor(DesplazamientoView.main)
 
         # Agregamos el argumento extra: la función que dispara la gráfica
         EquiposDesplazamiento.validarOpcionesMenuCheckbox(

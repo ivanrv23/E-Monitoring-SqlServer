@@ -1,9 +1,10 @@
 import os
+import qtawesome as qta
 from datetime import datetime
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtGui import QIcon, QAction, QKeySequence
 from PySide6.QtWidgets import (QMenu, QStackedWidget, QToolButton, QPushButton, QTreeWidget, QMessageBox, QApplication, QComboBox, QLabel)
-from PySide6.QtCore import Qt, QObject, QEvent
+from PySide6.QtCore import Qt, QObject, QEvent, QSize
 from utils.common.alertas import mostrar_mensaje
 from utils.common.rutasarchivos import resource_path
 from utils.generic.cargariconos import cargarIcono
@@ -47,9 +48,6 @@ from modules.estratros.estratosEquipos import ConfigurarEstratos
 from services.security.session import Session
 from views.dashboard_view import DashboardView
 from modules.conexion.conexioDB import ConexionDB
-
-import qtawesome as qta
-from PySide6.QtCore import QSize
 
 class MenuEventFilter(QObject):
     def __init__(self, menu, main_window):
@@ -213,7 +211,7 @@ class MainView:
             btnanularfechasvisor = MainView.main_window.findChild(QPushButton, "btn_anularfechas_visor")
             # cargarIcono(btnanularfechasvisor, ListaIconos.ICONOS["regresar"])
             btnanularfechasvisor.setIcon(qta.icon("fa6s.calendar-xmark"))
-            btnanularfechasvisor.setIconSize(QSize(18, 18))
+            btnanularfechasvisor.setIconSize(QSize(16, 16))
             btnReporteGeneralVisor = MainView.main_window.findChild(QPushButton, "btn_imagen_visor")
             cargarIcono(btnReporteGeneralVisor, ListaIconos.ICONOS["imagenes"])
             btnReporteVisor = MainView.main_window.findChild(QPushButton, "btn_reporte_visor")
@@ -244,7 +242,7 @@ class MainView:
             btnanularfechasdesplaza = MainView.main_window.findChild(QPushButton, "btn_anularfechas_desplaza")
             # cargarIcono(btnanularfechasdesplaza, ListaIconos.ICONOS["regresar"])
             btnanularfechasdesplaza.setIcon(qta.icon("fa6s.calendar-xmark"))
-            btnanularfechasdesplaza.setIconSize(QSize(18, 18))
+            btnanularfechasdesplaza.setIconSize(QSize(16, 16))
 
 
             btnVozDesplazamiento = MainView.main_window.findChild(QPushButton, "btn_voz_desplazamiento")
@@ -267,7 +265,7 @@ class MainView:
             btn_expotar_desplazamiento= MainView.main_window.findChild(QPushButton, "btn_exportar_desplazamiento")
             # #cargarIcono(btn_expotar_desplazamiento, ListaIconos.ICONOS["exportar_grafico"])
             btn_expotar_desplazamiento.setIcon(qta.icon("fa6s.file-arrow-down"))
-            btn_expotar_desplazamiento.setIconSize(QSize(18, 18))
+            btn_expotar_desplazamiento.setIconSize(QSize(16, 16))
 
             ############################## BOTONES VELOCIDAD #############################
             btn_refrescar_vista_desplazamiento = MainView.main_window.findChild(QPushButton, "btn_refrescar_vista_velocidad")
@@ -279,7 +277,7 @@ class MainView:
             btnanularfechasveloci = MainView.main_window.findChild(QPushButton, "btn_anularfechas_velocidad")
             # cargarIcono(btnanularfechasveloci, ListaIconos.ICONOS["regresar"])
             btnanularfechasveloci.setIcon(qta.icon("fa6s.calendar-xmark"))
-            btnanularfechasveloci.setIconSize(QSize(18, 18))
+            btnanularfechasveloci.setIconSize(QSize(16, 16))
             btnVozVelocidad = MainView.main_window.findChild(QPushButton, "btn_voz_velocidad")
             cargarIcono(btnVozVelocidad, ListaIconos.ICONOS["asistente_voz"])
             btn_add_reportevelocidad= MainView.main_window.findChild(QPushButton, "btn_reporte_grafica_velocidad")
@@ -328,7 +326,7 @@ class MainView:
             btnanularfechaspiezo = MainView.main_window.findChild(QPushButton, "btn_anularfechas_piezometros")
             # cargarIcono(btnanularfechaspiezo, ListaIconos.ICONOS["regresar"])
             btnanularfechaspiezo.setIcon(qta.icon("fa6s.calendar-xmark"))
-            btnanularfechaspiezo.setIconSize(QSize(18, 18))
+            btnanularfechaspiezo.setIconSize(QSize(16, 16))
             btnVozPiezometros = MainView.main_window.findChild(QPushButton, "btn_voz_piezometros")
             cargarIcono(btnVozPiezometros, ListaIconos.ICONOS["asistente_voz"])
             btn_add_reporte_piezometro = MainView.main_window.findChild(QPushButton, "btn_reporte_grafica_piezometro")
@@ -355,7 +353,7 @@ class MainView:
             btnanularfechascelda = MainView.main_window.findChild(QPushButton, "btn_anularfechas_celdas")
             # cargarIcono(btnanularfechascelda, ListaIconos.ICONOS["regresar"])
             btnanularfechascelda.setIcon(qta.icon("fa6s.calendar-xmark"))
-            btnanularfechascelda.setIconSize(QSize(18, 18))
+            btnanularfechascelda.setIconSize(QSize(16, 16))
             btnVozCeldas = MainView.main_window.findChild(QPushButton, "btn_voz_celdas")
             cargarIcono(btnVozCeldas, ListaIconos.ICONOS["asistente_voz"])
             btn_add_reporte_celdas = MainView.main_window.findChild(QPushButton, "btn_reporte_grafica_celdas")
@@ -382,7 +380,7 @@ class MainView:
             btnanularfechasacelero = MainView.main_window.findChild(QPushButton, "btn_anularfechas_acelero")
             # cargarIcono(btnanularfechasacelero, ListaIconos.ICONOS["regresar"])
             btnanularfechasacelero.setIcon(qta.icon("fa6s.calendar-xmark"))
-            btnanularfechasacelero.setIconSize(QSize(18, 18))
+            btnanularfechasacelero.setIconSize(QSize(16, 16))
             btnVozAcelerografos = MainView.main_window.findChild(QPushButton, "btn_voz_acelerografos")
             cargarIcono(btnVozAcelerografos, ListaIconos.ICONOS["asistente_voz"])
             btn_add_reporte_acelerografos = MainView.main_window.findChild(QPushButton, "btn_reporte_grafica_acelerografos")
@@ -416,7 +414,7 @@ class MainView:
             btnanularfechasanalisis = MainView.main_window.findChild(QPushButton, "btn_anularfechas_analisis")
             # cargarIcono(btnanularfechasanalisis, ListaIconos.ICONOS["regresar"])
             btnanularfechasanalisis.setIcon(qta.icon("fa6s.calendar-xmark"))
-            btnanularfechasanalisis.setIconSize(QSize(18, 18))
+            btnanularfechasanalisis.setIconSize(QSize(16, 16))
             # Trayectoria
             btn_refrescar_trayectoria = MainView.main_window.findChild(QPushButton, "btn_refresca_grafica_trayectoria")
             cargarIcono(btn_refrescar_trayectoria, ListaIconos.ICONOS["refrescar_grafico"])

@@ -177,27 +177,27 @@ class DashboardModel:
         return cur.fetchone() is not None
 
     @staticmethod
-    def _resumen_sin_detalle(cur, id_proyecto, id_componente, tabla_principal, columna_nombre_equipo, columna_estado, tipo_equipo):
+    def _resumen_sin_detalle(cur, id_proyecto, id_componente, tipo_equipo_db, tipo_equipo_label):
         """Cuando no existe la tabla de detalle (sin historial de lecturas),
-        solo se puede determinar operativo/inoperativo desde la tabla principal.
+        se usa instrumentacion.estado_instrumentacion como fuente de verdad.
         Como no hay forma de verificar la fecha de última lectura, todos los
         operativos se consideran también desactualizados."""
-        sql = f"""
+        sql = """
             SELECT
-                COUNT(CASE WHEN t.{columna_estado} = 1 THEN 1 END) AS operativos,
-                COUNT(CASE WHEN t.{columna_estado} = 0 THEN 1 END) AS inoperativos
-            FROM {tabla_principal} t
-            INNER JOIN instrumentacion i ON t.{columna_nombre_equipo} = i.nombre_equipo
-            WHERE t.id_proyecto = ? AND i.id_componente = ?
+                COUNT(CASE WHEN i.estado_instrumentacion = 1 THEN 1 END) AS operativos,
+                COUNT(CASE WHEN i.estado_instrumentacion = 0 THEN 1 END) AS inoperativos
+            FROM instrumentacion i
+            INNER JOIN componentes c ON c.id_componente = i.id_componente
+            WHERE c.id_proyecto = ? AND i.id_componente = ? AND i.tipo_equipo = ?
         """
-        cur.execute(sql, (id_proyecto, id_componente))
+        cur.execute(sql, (id_proyecto, id_componente, tipo_equipo_db))
         row = cur.fetchone()
         operativos = row[0] if row else 0
         inoperativos = row[1] if row else 0
         return [
-            (tipo_equipo, 'Operativos', operativos),
-            (tipo_equipo, 'Inoperativos', inoperativos),
-            (tipo_equipo, 'Desactualizados', operativos),
+            (tipo_equipo_label, 'Operativos', operativos),
+            (tipo_equipo_label, 'Inoperativos', inoperativos),
+            (tipo_equipo_label, 'Desactualizados', operativos),
         ]
 
     @staticmethod
@@ -221,28 +221,7 @@ class DashboardModel:
             tabla_prismas = f"prismas{proyecto_id}"
             if DashboardModel._tabla_existe(cur, tabla_prismas):
                 sql_prismas = f"""
-                    WITH UltimoEstado AS (
-                        -- El estado (operativo/inoperativo) de cada prisma es el de
-                        -- su última fila insertada, sin importar si esa lectura es válida.
-                        SELECT
-                            p.nombre_prisma,
-                            i.estado_instrumentacion AS state_prisma,
-                            ROW_NUMBER() OVER (
-                                PARTITION BY p.nombre_prisma
-                                ORDER BY p.hora_prisma DESC, p.id_prisma DESC
-                            ) AS rn
-                        FROM {tabla_prismas} p
-                        INNER JOIN instrumentacion i
-                            ON p.nombre_prisma = i.nombre_equipo
-                        WHERE i.id_componente = ?
-                    ),
-                    PrismaActual AS (
-                        SELECT nombre_prisma, state_prisma
-                        FROM UltimoEstado
-                        WHERE rn = 1
-                    ),
-                    -- Última lectura ACTIVA por prisma (estado_prisma = 1)
-                    UltimaLecturaActiva AS (
+                    WITH UltimaLecturaActiva AS (
                         SELECT
                             nombre_prisma,
                             MAX(hora_prisma) AS ultima_lectura_activa
@@ -250,38 +229,38 @@ class DashboardModel:
                         WHERE estado_prisma = 1
                         GROUP BY nombre_prisma
                     ),
-                    -- Un registro por prisma: su estado actual + si está desactualizado
-                    -- (SOLO se marca desactualizado si está operativo; un inoperativo
-                    -- no cuenta como desactualizado, según lo pedido)
                     Resumen AS (
                         SELECT
-                            pa.nombre_prisma,
-                            pa.state_prisma,
+                            i.estado_instrumentacion,
                             CASE
-                                WHEN pa.state_prisma = 1
+                                WHEN i.estado_instrumentacion = 1
                                      AND (
                                         ula.ultima_lectura_activa IS NULL
                                         OR ula.ultima_lectura_activa < DATEADD(DAY, -?, GETDATE())
                                      )
                                 THEN 1 ELSE 0
                             END AS es_desactualizado
-                        FROM PrismaActual pa
+                        FROM instrumentacion i
+                        INNER JOIN componentes c ON c.id_componente = i.id_componente
                         LEFT JOIN UltimaLecturaActiva ula
-                            ON ula.nombre_prisma = pa.nombre_prisma
+                            ON ula.nombre_prisma = i.nombre_equipo
+                        WHERE c.id_proyecto = ?
+                          AND i.id_componente = ?
+                          AND i.tipo_equipo = 'PRISMAS'
                     )
                     SELECT 'Prismas' AS tipo_equipo, 'Operativos' AS categoria,
-                           COUNT(CASE WHEN state_prisma = 1 THEN 1 END) AS total_equipos
+                           COUNT(CASE WHEN estado_instrumentacion = 1 THEN 1 END) AS total_equipos
                     FROM Resumen
                     UNION ALL
                     SELECT 'Prismas', 'Inoperativos',
-                           COUNT(CASE WHEN state_prisma = 0 THEN 1 END)
+                           COUNT(CASE WHEN estado_instrumentacion = 0 THEN 1 END)
                     FROM Resumen
                     UNION ALL
                     SELECT 'Prismas', 'Desactualizados',
                            COUNT(CASE WHEN es_desactualizado = 1 THEN 1 END)
                     FROM Resumen
                 """
-                cur.execute(sql_prismas, (id_componente, DIAS_DESACTUALIZADO))
+                cur.execute(sql_prismas, (DIAS_DESACTUALIZADO, proyecto_id, id_componente))
                 resultado_final.extend(cur.fetchall())
             else:
                 resultado_final.extend([
@@ -312,29 +291,31 @@ class DashboardModel:
                     ),
                     Resumen AS (
                         SELECT
-                            inc.estado_inclinometro,
+                            i.estado_instrumentacion,
                             CASE
-                                WHEN inc.estado_inclinometro = 1
+                                WHEN i.estado_instrumentacion = 1
                                      AND (
                                         ul.ultima_fecha IS NULL
                                         OR ul.ultima_fecha < DATEADD(DAY, -?, GETDATE())
                                      )
                                 THEN 1 ELSE 0
                             END AS es_desactualizado
-                        FROM inclinometros inc
-                        INNER JOIN instrumentacion i
+                        FROM instrumentacion i
+                        INNER JOIN componentes c ON c.id_componente = i.id_componente
+                        LEFT JOIN inclinometros inc
                             ON inc.nombre_inclinometro = i.nombre_equipo
                         LEFT JOIN UltimaLectura ul
                             ON ul.id_inclinometro = inc.id_inclinometro
-                        WHERE inc.id_proyecto = ?
-                        AND i.id_componente = ?
+                        WHERE c.id_proyecto = ?
+                          AND i.id_componente = ?
+                          AND i.tipo_equipo = 'INCLINOMETRO'
                     )
                     SELECT 'Inclinometros' AS tipo_equipo, 'Operativos' AS categoria,
-                           COUNT(CASE WHEN estado_inclinometro = 1 THEN 1 END) AS total_equipos
+                           COUNT(CASE WHEN estado_instrumentacion = 1 THEN 1 END) AS total_equipos
                     FROM Resumen
                     UNION ALL
                     SELECT 'Inclinometros', 'Inoperativos',
-                           COUNT(CASE WHEN estado_inclinometro = 0 THEN 1 END)
+                           COUNT(CASE WHEN estado_instrumentacion = 0 THEN 1 END)
                     FROM Resumen
                     UNION ALL
                     SELECT 'Inclinometros', 'Desactualizados',
@@ -345,7 +326,7 @@ class DashboardModel:
                 resultado_final.extend(cur.fetchall())
             else:
                 resultado_final.extend(DashboardModel._resumen_sin_detalle(
-                    cur, proyecto_id, id_componente, "inclinometros", "nombre_inclinometro", "estado_inclinometro", "Inclinometros"
+                    cur, proyecto_id, id_componente, "INCLINOMETRO", "Inclinometros"
                 ))
             
             # -----------------------------------------------------------
@@ -360,7 +341,6 @@ class DashboardModel:
             if DashboardModel._tabla_existe(cur, tabla_detalle_cuerda):
                 sql_cuerda = f"""
                     WITH UltimaLectura AS (
-                        -- Última lectura activa por piezómetro (solo estado_cuerda = 1)
                         SELECT
                             id_piezometro,
                             MAX(fecha_cuerda) AS ultima_fecha
@@ -370,29 +350,31 @@ class DashboardModel:
                     ),
                     Resumen AS (
                         SELECT
-                            pc.estado_piezometro,
+                            i.estado_instrumentacion,
                             CASE
-                                WHEN pc.estado_piezometro = 1
+                                WHEN i.estado_instrumentacion = 1
                                      AND (
                                         ul.ultima_fecha IS NULL
                                         OR ul.ultima_fecha < DATEADD(DAY, -?, GETDATE())
                                      )
                                 THEN 1 ELSE 0
                             END AS es_desactualizado
-                        FROM piezometrocuerdas pc
-                        INNER JOIN instrumentacion i
+                        FROM instrumentacion i
+                        INNER JOIN componentes c ON c.id_componente = i.id_componente
+                        LEFT JOIN piezometrocuerdas pc
                             ON pc.nombre_piezometro = i.nombre_equipo
                         LEFT JOIN UltimaLectura ul
                             ON ul.id_piezometro = pc.id_piezometro
-                        WHERE pc.id_proyecto = ?
-                        AND i.id_componente = ?
+                        WHERE c.id_proyecto = ?
+                          AND i.id_componente = ?
+                          AND i.tipo_equipo = 'PIEZOMETROCUERDA'
                     )
                     SELECT 'PiezometrosCuerda' AS tipo_equipo, 'Operativos' AS categoria,
-                           COUNT(CASE WHEN estado_piezometro = 1 THEN 1 END) AS total_equipos
+                           COUNT(CASE WHEN estado_instrumentacion = 1 THEN 1 END) AS total_equipos
                     FROM Resumen
                     UNION ALL
                     SELECT 'PiezometrosCuerda', 'Inoperativos',
-                           COUNT(CASE WHEN estado_piezometro = 0 THEN 1 END)
+                           COUNT(CASE WHEN estado_instrumentacion = 0 THEN 1 END)
                     FROM Resumen
                     UNION ALL
                     SELECT 'PiezometrosCuerda', 'Desactualizados',
@@ -403,7 +385,7 @@ class DashboardModel:
                 resultado_final.extend(cur.fetchall())
             else:
                 resultado_final.extend(DashboardModel._resumen_sin_detalle(
-                    cur, proyecto_id, id_componente, "piezometrocuerdas", "nombre_piezometro", "estado_piezometro", "PiezometrosCuerda"
+                    cur, proyecto_id, id_componente, "PIEZOMETROCUERDA", "PiezometrosCuerda"
                 ))
 
             # -----------------------------------------------------------
@@ -427,29 +409,31 @@ class DashboardModel:
                     ),
                     Resumen AS (
                         SELECT
-                            pm.estado_piezometro,
+                            i.estado_instrumentacion,
                             CASE
-                                WHEN pm.estado_piezometro = 1
+                                WHEN i.estado_instrumentacion = 1
                                     AND (
                                         ul.ultima_fecha IS NULL
                                         OR ul.ultima_fecha < DATEADD(DAY, -?, GETDATE())
                                     )
                                 THEN 1 ELSE 0
                             END AS es_desactualizado
-                        FROM piezometromanuales pm
-                        INNER JOIN instrumentacion i
-                            ON pm.nombre_piezometro = i.nombre_equipo
+                        FROM instrumentacion i
+                        INNER JOIN componentes c ON c.id_componente = i.id_componente
+                        LEFT JOIN piezometromanuales pmm
+                            ON pmm.nombre_piezometro = i.nombre_equipo
                         LEFT JOIN UltimaLectura ul
-                            ON ul.id_piezometro = pm.id_piezometro
-                        WHERE pm.id_proyecto = ?
-                        AND i.id_componente = ?
+                            ON ul.id_piezometro = pmm.id_piezometro
+                        WHERE c.id_proyecto = ?
+                          AND i.id_componente = ?
+                          AND i.tipo_equipo = 'PIEZOMETROMANUAL'
                     )
                     SELECT 'PiezometrosManual' AS tipo_equipo, 'Operativos' AS categoria,
-                        COUNT(CASE WHEN estado_piezometro = 1 THEN 1 END) AS total_equipos
+                        COUNT(CASE WHEN estado_instrumentacion = 1 THEN 1 END) AS total_equipos
                     FROM Resumen
                     UNION ALL
                     SELECT 'PiezometrosManual', 'Inoperativos',
-                        COUNT(CASE WHEN estado_piezometro = 0 THEN 1 END)
+                        COUNT(CASE WHEN estado_instrumentacion = 0 THEN 1 END)
                     FROM Resumen
                     UNION ALL
                     SELECT 'PiezometrosManual', 'Desactualizados',
@@ -460,7 +444,7 @@ class DashboardModel:
                 resultado_final.extend(cur.fetchall())
             else:
                 resultado_final.extend(DashboardModel._resumen_sin_detalle(
-                    cur, proyecto_id, id_componente, "piezometromanuales", "nombre_piezometro", "estado_piezometro", "PiezometrosManual"
+                    cur, proyecto_id, id_componente, "PIEZOMETROMANUAL", "PiezometrosManual"
                 ))
 
             # -----------------------------------------------------------
@@ -484,29 +468,31 @@ class DashboardModel:
                     ),
                     Resumen AS (
                         SELECT
-                            c.estado_celda,
+                            i.estado_instrumentacion,
                             CASE
-                                WHEN c.estado_celda = 1
+                                WHEN i.estado_instrumentacion = 1
                                      AND (
                                         ul.ultima_fecha IS NULL
                                         OR ul.ultima_fecha < DATEADD(DAY, -?, GETDATE())
                                      )
                                 THEN 1 ELSE 0
                             END AS es_desactualizado
-                        FROM celdas c
-                        INNER JOIN instrumentacion i
-                            ON c.nombre_celda = i.nombre_equipo
+                        FROM instrumentacion i
+                        INNER JOIN componentes c ON c.id_componente = i.id_componente
+                        LEFT JOIN celdas cel
+                            ON cel.nombre_celda = i.nombre_equipo
                         LEFT JOIN UltimaLectura ul
-                            ON ul.id_celda = c.id_celda
+                            ON ul.id_celda = cel.id_celda
                         WHERE c.id_proyecto = ?
-                        AND i.id_componente = ?
+                          AND i.id_componente = ?
+                          AND i.tipo_equipo = 'CELDA'
                     )
                     SELECT 'Celdas' AS tipo_equipo, 'Operativos' AS categoria,
-                           COUNT(CASE WHEN estado_celda = 1 THEN 1 END) AS total_equipos
+                           COUNT(CASE WHEN estado_instrumentacion = 1 THEN 1 END) AS total_equipos
                     FROM Resumen
                     UNION ALL
                     SELECT 'Celdas', 'Inoperativos',
-                           COUNT(CASE WHEN estado_celda = 0 THEN 1 END)
+                           COUNT(CASE WHEN estado_instrumentacion = 0 THEN 1 END)
                     FROM Resumen
                     UNION ALL
                     SELECT 'Celdas', 'Desactualizados',
@@ -517,7 +503,7 @@ class DashboardModel:
                 resultado_final.extend(cur.fetchall())
             else:
                 resultado_final.extend(DashboardModel._resumen_sin_detalle(
-                    cur, proyecto_id, id_componente, "celdas", "nombre_celda", "estado_celda", "Celdas"
+                    cur, proyecto_id, id_componente, "CELDA", "Celdas"
                 ))
 
             # -----------------------------------------------------------
@@ -541,29 +527,31 @@ class DashboardModel:
                     ),
                     Resumen AS (
                         SELECT
-                            pm.estado_pluviometro,
+                            i.estado_instrumentacion,
                             CASE
-                                WHEN pm.estado_pluviometro = 1
+                                WHEN i.estado_instrumentacion = 1
                                      AND (
                                         ul.ultima_fecha IS NULL
                                         OR ul.ultima_fecha < DATEADD(DAY, -?, GETDATE())
                                      )
                                 THEN 1 ELSE 0
                             END AS es_desactualizado
-                        FROM pluviometros pm
-                        INNER JOIN instrumentacion i
-                            ON pm.nombre_pluviometro = i.nombre_equipo
+                        FROM instrumentacion i
+                        INNER JOIN componentes c ON c.id_componente = i.id_componente
+                        LEFT JOIN pluviometros plv
+                            ON plv.nombre_pluviometro = i.nombre_equipo
                         LEFT JOIN UltimaLectura ul
-                            ON ul.id_pluviometro = pm.id_pluviometro
-                        WHERE pm.id_proyecto = ?
-                        AND i.id_componente = ?
+                            ON ul.id_pluviometro = plv.id_pluviometro
+                        WHERE c.id_proyecto = ?
+                          AND i.id_componente = ?
+                          AND i.tipo_equipo = 'PLUVIOMETRO'
                     )
                     SELECT 'Pluviometros' AS tipo_equipo, 'Operativos' AS categoria,
-                           COUNT(CASE WHEN estado_pluviometro = 1 THEN 1 END) AS total_equipos
+                           COUNT(CASE WHEN estado_instrumentacion = 1 THEN 1 END) AS total_equipos
                     FROM Resumen
                     UNION ALL
                     SELECT 'Pluviometros', 'Inoperativos',
-                           COUNT(CASE WHEN estado_pluviometro = 0 THEN 1 END)
+                           COUNT(CASE WHEN estado_instrumentacion = 0 THEN 1 END)
                     FROM Resumen
                     UNION ALL
                     SELECT 'Pluviometros', 'Desactualizados',
@@ -574,7 +562,7 @@ class DashboardModel:
                 resultado_final.extend(cur.fetchall())
             else:
                 resultado_final.extend(DashboardModel._resumen_sin_detalle(
-                    cur, proyecto_id, id_componente, "pluviometros", "nombre_pluviometro", "estado_pluviometro", "Pluviometros"
+                    cur, proyecto_id, id_componente, "PLUVIOMETRO", "Pluviometros"
                 ))
 
             # -----------------------------------------------------------
@@ -597,29 +585,31 @@ class DashboardModel:
                     ),
                     Resumen AS (
                         SELECT
-                            a.estado_acelerografo,
+                            i.estado_instrumentacion,
                             CASE
-                                WHEN a.estado_acelerografo = 1
+                                WHEN i.estado_instrumentacion = 1
                                      AND (
                                         ul.ultima_fecha IS NULL
                                         OR ul.ultima_fecha < DATEADD(DAY, -?, GETDATE())
                                      )
                                 THEN 1 ELSE 0
                             END AS es_desactualizado
-                        FROM acelerografos a
-                        INNER JOIN instrumentacion i
-                            ON a.nombre_acelerografo = i.nombre_equipo
+                        FROM instrumentacion i
+                        INNER JOIN componentes c ON c.id_componente = i.id_componente
+                        LEFT JOIN acelerografos ace
+                            ON ace.nombre_acelerografo = i.nombre_equipo
                         LEFT JOIN UltimaLectura ul
-                            ON ul.id_acelerografo = a.id_acelerografo
-                        WHERE a.id_proyecto = ?
-                        AND i.id_componente = ?
+                            ON ul.id_acelerografo = ace.id_acelerografo
+                        WHERE c.id_proyecto = ?
+                          AND i.id_componente = ?
+                          AND i.tipo_equipo = 'ACELEROGRAFO'
                     )
                     SELECT 'Acelerografos' AS tipo_equipo, 'Operativos' AS categoria,
-                           COUNT(CASE WHEN estado_acelerografo = 1 THEN 1 END) AS total_equipos
+                           COUNT(CASE WHEN estado_instrumentacion = 1 THEN 1 END) AS total_equipos
                     FROM Resumen
                     UNION ALL
                     SELECT 'Acelerografos', 'Inoperativos',
-                           COUNT(CASE WHEN estado_acelerografo = 0 THEN 1 END)
+                           COUNT(CASE WHEN estado_instrumentacion = 0 THEN 1 END)
                     FROM Resumen
                     UNION ALL
                     SELECT 'Acelerografos', 'Desactualizados',
@@ -630,7 +620,7 @@ class DashboardModel:
                 resultado_final.extend(cur.fetchall())
             else:
                 resultado_final.extend(DashboardModel._resumen_sin_detalle(
-                    cur, proyecto_id, id_componente, "acelerografos", "nombre_acelerografo", "estado_acelerografo", "Acelerografos"
+                    cur, proyecto_id, id_componente, "ACELEROGRAFO", "Acelerografos"
                 ))
             
             # -----------------------------------------------------------
@@ -654,29 +644,31 @@ class DashboardModel:
                     ),
                     Resumen AS (
                         SELECT
-                            t.estado_sondajetdr,
+                            i.estado_instrumentacion,
                             CASE
-                                WHEN t.estado_sondajetdr = 1
+                                WHEN i.estado_instrumentacion = 1
                                     AND (
                                         ul.ultima_fecha IS NULL
                                         OR ul.ultima_fecha < DATEADD(DAY, -?, GETDATE())
                                     )
                                 THEN 1 ELSE 0
                             END AS es_desactualizado
-                        FROM sondajestdr t
-                        INNER JOIN instrumentacion i
-                            ON t.nombre_sondajetdr = i.nombre_equipo
+                        FROM instrumentacion i
+                        INNER JOIN componentes c ON c.id_componente = i.id_componente
+                        LEFT JOIN sondajestdr tdr
+                            ON tdr.nombre_sondajetdr = i.nombre_equipo
                         LEFT JOIN UltimaLectura ul
-                            ON ul.id_sondajetdr = t.id_sondajetdr
-                        WHERE t.id_proyecto = ?
-                        AND i.id_componente = ?
+                            ON ul.id_sondajetdr = tdr.id_sondajetdr
+                        WHERE c.id_proyecto = ?
+                          AND i.id_componente = ?
+                          AND i.tipo_equipo = 'TDR'
                     )
                     SELECT 'SondajesTDR' AS tipo_equipo, 'Operativos' AS categoria,
-                           COUNT(CASE WHEN estado_sondajetdr = 1 THEN 1 END) AS total_equipos
+                           COUNT(CASE WHEN estado_instrumentacion = 1 THEN 1 END) AS total_equipos
                     FROM Resumen
                     UNION ALL
                     SELECT 'SondajesTDR', 'Inoperativos',
-                           COUNT(CASE WHEN estado_sondajetdr = 0 THEN 1 END)
+                           COUNT(CASE WHEN estado_instrumentacion = 0 THEN 1 END)
                     FROM Resumen
                     UNION ALL
                     SELECT 'SondajesTDR', 'Desactualizados',
@@ -687,7 +679,7 @@ class DashboardModel:
                 resultado_final.extend(cur.fetchall())
             else:
                 resultado_final.extend(DashboardModel._resumen_sin_detalle(
-                    cur, proyecto_id, id_componente, "sondajestdr", "nombre_sondajetdr", "estado_sondajetdr", "SondajesTDR"
+                    cur, proyecto_id, id_componente, "TDR", "SondajesTDR"
                 ))
 
             return resultado_final if resultado_final else None
