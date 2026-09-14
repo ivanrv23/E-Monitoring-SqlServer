@@ -145,7 +145,8 @@ class InclinometrosView:
                 inclinometromarcados = InclinometrosView.obtenerListaEquiposMarcados(lista, "Inclinómetros")
                 id_intrumentacion = inclinometromarcados[0][1][0][1]
                 id_inclinometro = InclinometroController.ctrlObtenerIdIinclinometro(id_intrumentacion)
-                umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(InclinometrosView.idproyecto, id_inclinometro, 'UDI', 'umbral_inclinometro')
+                tipografico_actual = combo_tipo_grafico.currentData()
+                umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(InclinometrosView.idproyecto, id_inclinometro, tipografico_actual, 'umbral_inclinometro')
                 if umbrales:
                     umbrales_inclinometro = [tupla for tupla in umbrales if tupla[2] == id_inclinometro]
                     combo_medidas = InclinometrosView.main.findChild(QComboBox, "combo_medida_inclinometros")
@@ -193,7 +194,7 @@ class InclinometrosView:
                     opcion1 = 'Posición Absoluta N'
                     opcion2 = 'Posición Absoluta E'
                     tipografico1 = "PAN"
-                    tipografico2 = "PAB"
+                    tipografico2 = "PAE"
                 elif tipo_grafico == 'CSAB':
                     opcion1 = 'Checksum A'
                     opcion2 = 'Checksum B'

@@ -2,224 +2,107 @@ import pyodbc
 from services.security.apis.conexiones.connection import Connection
 
 class UmbralModel:   
-    
+
     @staticmethod
-    def mdlObtenerUmbralesPersonalizados(proyectoid):
+    def mdlListarInstrumentosComponente(proyectoid, componente_id, tipo_equipo):
+        """Lista los instrumentos activos de un componente, opcionalmente filtrados por tipo"""
         conn = None
         try:
             conn = Connection.connectionDB()
-            # SQL Server: Sintaxis estándar
-            sql = "SELECT * FROM umbral_personalizado WHERE id_proyecto = ? ORDER BY rango_umbral ASC;"
             cur = conn.cursor()
-            cur.execute(sql, (proyectoid,))
-            rows = cur.fetchall()
-            
-            # Conversión explícita a lista de tuplas para el frontend
-            result = [tuple(row) for row in rows]
-            
-            if result:
-                return result
+            if componente_id == 0:
+                sql = """SELECT i.id_equipo, i.nombre_equipo, i.tipo_equipo 
+                        FROM instrumentacion i INNER JOIN componentes c ON i.id_componente = c.id_componente
+                        WHERE c.id_proyecto = ? AND i.estado_instrumentacion = 1 AND i.tipo_equipo = ?
+                        ORDER BY i.nombre_equipo;"""
+                cur.execute(sql, (proyectoid, tipo_equipo))
             else:
-                return None
+                sql = """SELECT id_equipo, nombre_equipo, tipo_equipo 
+                        FROM instrumentacion 
+                        WHERE id_componente = ? AND estado_instrumentacion = 1 AND tipo_equipo = ?
+                        ORDER BY nombre_equipo;"""
+                cur.execute(sql, (componente_id, tipo_equipo))
+            result = [tuple(row) for row in cur.fetchall()]
+            return result if result else None
         except Exception as e:
-            print("Error al obtener umbrales: " + str(e))
+            print("Error al listar instrumentos del componente:", e)
             return None
         finally:
             if conn:
                 conn.close()
-    
+
     @staticmethod
-    def mdlGuardarUmbralesPersonalizados(datos):
-        """Guarda múltiples umbrales personalizados"""
+    def mdlListarTiposInstrumentoComponente(componente_id):
+        """Lista los tipos de instrumento distintos presentes en un componente"""
         conn = None
-        # T-SQL: Insert estándar
-        sql = """INSERT INTO umbral_personalizado (
-                    id_proyecto, 
-                    condicion_umbral, 
-                    color_umbral, 
-                    riesgo_umbral, 
-                    rango_umbral, 
-                    acciones_umbral,
-                    nombre_umbral
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?);"""
+        sql = """SELECT DISTINCT tipo_equipo FROM instrumentacion 
+                WHERE id_componente = ? AND estado_instrumentacion = 1 ORDER BY tipo_equipo;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            # pyodbc maneja eficientemente executemany
-            cur.executemany(sql, datos)
-            conn.commit()
-            return True
+            cur.execute(sql, (componente_id,))
+            result = [row[0] for row in cur.fetchall()]
+            return result
         except Exception as e:
-            print("Error al guardar umbrales personalizados:", e)
-            return False
-        finally:
-            if conn:
-                conn.close()
-    
-    @staticmethod
-    def mdlObtenerNombresUmbrales(proyectoid):
-        """Obtiene nombres únicos de umbrales para un proyecto"""
-        conn = None
-        sql = "SELECT DISTINCT nombre_umbral FROM umbral_personalizado WHERE id_proyecto = ?;"
-        try:
-            conn = Connection.connectionDB()
-            cur = conn.cursor()
-            cur.execute(sql, (proyectoid,))
-            # row[0] accede al primer elemento de la fila pyodbc
-            return [row[0] for row in cur.fetchall()]
-        except Exception as e:
-            print("Error al obtener nombres de umbrales:", e)
+            print("Error al listar tipos de instrumento:", e)
             return []
-        finally:
-            if conn:
-                conn.close()
-    
-    @staticmethod
-    def mdlObtenerUmbralPorNombre(proyectoid, nombre_umbral):
-        """Obtiene todos los detalles de un umbral por su nombre"""
-        conn = None
-        sql = """SELECT * FROM umbral_personalizado 
-                 WHERE id_proyecto = ? AND nombre_umbral = ?;"""
-        try:
-            conn = Connection.connectionDB()
-            cur = conn.cursor()
-            cur.execute(sql, (proyectoid, nombre_umbral))
-            
-            # Obtener nombres de columnas y filas
-            if cur.description:
-                columns = [column[0] for column in cur.description]
-            else:
-                columns = []
-                
-            rows = cur.fetchall()
-            
-            if not rows:
-                return None
-            
-            # Agrupar detalles convirtiendo pyodbc.Row a dict
-            detalles = []
-            for row in rows:
-                detalles.append(dict(zip(columns, row)))
-            
-            return {
-                'nombre_umbral': nombre_umbral,
-                'detalles': detalles
-            }
-        except Exception as e:
-            print("Error al obtener umbral por nombre:", e)
-            return None
-        finally:
-            if conn:
-                conn.close()
-    
-    @staticmethod
-    def mdlEliminarUmbralPorNombre(proyectoid, nombre_umbral):
-        """Elimina todos los registros de un umbral por su nombre"""
-        conn = None
-        sql = "DELETE FROM umbral_personalizado WHERE id_proyecto = ? AND nombre_umbral = ?;"
-        try:
-            conn = Connection.connectionDB()
-            cur = conn.cursor()
-            cur.execute(sql, (proyectoid, nombre_umbral))
-            conn.commit()
-            return True
-        except Exception as e:
-            print("Error al eliminar umbral por nombre:", e)
-            return False
-        finally:
-            if conn:
-                conn.close()
-    
-    @staticmethod
-    def mdlEliminarFilaUmbral(id_fila):
-        """Elimina una fila específica de un umbral"""
-        conn = None
-        sql = "DELETE FROM umbral_personalizado WHERE id_umbral = ?;"
-        try:
-            conn = Connection.connectionDB()
-            cur = conn.cursor()
-            cur.execute(sql, (id_fila,))
-            conn.commit()
-            return True
-        except Exception as e:
-            print("Error al eliminar fila de umbral:", e)
-            return False
-        finally:
-            if conn:
-                conn.close()
-    
-    @staticmethod
-    def mdlActualizarFilaUmbral(id_fila, condicion, color, riesgo, rango, acciones):
-        """Actualiza una fila existente de un umbral"""
-        conn = None
-        sql = """UPDATE umbral_personalizado SET 
-                    condicion_umbral = ?,
-                    color_umbral = ?,
-                    riesgo_umbral = ?,
-                    rango_umbral = ?,
-                    acciones_umbral = ?
-                 WHERE id_umbral = ?;"""
-        try:
-            conn = Connection.connectionDB()
-            cur = conn.cursor()
-            cur.execute(sql, (condicion, color, riesgo, rango, acciones, id_fila))
-            conn.commit()
-            return True
-        except Exception as e:
-            print("Error al actualizar fila de umbral:", e)
-            return False
-        finally:
-            if conn:
-                conn.close()
-    
-    @staticmethod
-    def mdlActualizarNombreUmbral(proyectoid, nombre_original, nombre_nuevo):
-        """Actualiza el nombre de un umbral"""
-        conn = None
-        sql = """UPDATE umbral_personalizado 
-                 SET nombre_umbral = ? 
-                 WHERE id_proyecto = ? AND nombre_umbral = ?;"""
-        try:
-            conn = Connection.connectionDB()
-            cur = conn.cursor()
-            cur.execute(sql, (nombre_nuevo, proyectoid, nombre_original))
-            conn.commit()
-            return True
-        except Exception as e:
-            print("Error al actualizar nombre de umbral:", e)
-            return False
-        finally:
-            if conn:
-                conn.close()
-    
-    @staticmethod
-    def mdlGuardarFilaUmbral(proyectoid, nombre_umbral, condicion, color, riesgo, rango, acciones):
-        """Guarda una nueva fila en un umbral existente"""
-        conn = None
-        sql = """INSERT INTO umbral_personalizado (
-                    id_proyecto, 
-                    nombre_umbral,
-                    condicion_umbral, 
-                    color_umbral, 
-                    riesgo_umbral, 
-                    rango_umbral, 
-                    acciones_umbral
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?);"""
-        try:
-            conn = Connection.connectionDB()
-            cur = conn.cursor()
-            cur.execute(sql, (proyectoid, nombre_umbral, condicion, color, riesgo, rango, acciones))
-            conn.commit()
-            return True
-        except Exception as e:
-            print("Error al guardar fila de umbral:", e)
-            return False
         finally:
             if conn:
                 conn.close()
                     
     @staticmethod
-    def mdlGuardarUmbralesEquipos(proyectoid, componente_id, selected_id, data, tabla):
+    def mdlGuardarUmbralesEquipos(proyectoid, componente_id, tipografica, data, tipoequipo):
+        conn = None
+        # Validación de seguridad básica para inyección en nombre de tabla           
+        sql = f"""INSERT INTO umbral_general (id_proyecto, id_componente, condicion_umbral, color_umbral, 
+        riesgo_umbral, rango_umbral, acciones_umbral, tipo_umbral, tipo_equipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            
+            # Preparamos los parámetros para executemany para mayor eficiencia
+            params = []
+            for item in data:
+                params.append((proyectoid, componente_id, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'], tipografica, tipoequipo))
+            
+            cur.executemany(sql, params)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al registrar Umbral General:", e)
+            return False
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlGuardarUmbralesPersonalizados(proyectoid, equipo_id, tipografica, data, tipoequipo):
+        conn = None
+        # Validación de seguridad básica para inyección en nombre de tabla           
+        sql = f"""INSERT INTO umbral_personalizado (id_proyecto, id_equipo, condicion_umbral, color_umbral, 
+        riesgo_umbral, rango_umbral, acciones_umbral, tipo_umbral, tipo_equipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            
+            # Preparamos los parámetros para executemany para mayor eficiencia
+            params = []
+            for item in data:
+                params.append((proyectoid, equipo_id, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'], tipografica, tipoequipo))
+            
+            cur.executemany(sql, params)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al registrar Umbral Personalizado:", e)
+            return False
+        finally:
+            if conn:
+                conn.close()
+    
+
+    @staticmethod
+    def mdlGuardarUmbralesEquiposAntiguooooooooooooo(proyectoid, componente_id, tipografica, data, tabla):
         conn = None
         # Validación de seguridad básica para inyección en nombre de tabla
         if tabla not in ['umbral_inclinometro', 'umbral_celda', 'umbral_fisurometro', 'umbral_extensometro', 'umbral_prisma']: 
@@ -240,7 +123,7 @@ class UmbralModel:
             # Preparamos los parámetros para executemany para mayor eficiencia
             params = []
             for item in data:
-                params.append((proyectoid, componente_id, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'], selected_id))
+                params.append((proyectoid, componente_id, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'], tipografica))
             
             cur.executemany(sql, params)
             conn.commit()
@@ -251,19 +134,19 @@ class UmbralModel:
         finally:
             if conn:
                 conn.close()
-    
+
     @staticmethod
-    def mdlGuardarUmbralesPiezometros(proyectoid, idpiezometro, tipo, data, tipopiezo):
+    def mdlGuardarUmbralesPiezometros(proyectoid, componente_id, tipografica, data, tipoequipo):
         conn = None
-        sql = """INSERT INTO umbral_piezometro (id_proyecto, id_piezometro, condicion_umbral, color_umbral, riesgo_umbral,
-        rango_umbral, acciones_umbral, tipo_umbral, tipo_piezometro) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+        sql = """INSERT INTO umbral_general (id_proyecto, id_componente, condicion_umbral, color_umbral, 
+        riesgo_umbral, rango_umbral, acciones_umbral, tipo_umbral, tipo_equipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             
             params = []
             for item in data:
-                params.append((proyectoid, idpiezometro, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'], tipo, tipopiezo))
+                params.append((proyectoid, componente_id, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'], tipografica, tipoequipo))
             
             cur.executemany(sql, params)
             conn.commit()
@@ -276,13 +159,32 @@ class UmbralModel:
                 conn.close()
     
     @staticmethod
-    def mdlActualizarUmbralEquipos(umbral_id, nombre, color, riesgo, rango, acciones, tipo, tabla):
+    def mdlActualizarUmbralEquipos(umbral_id, condicion, color, riesgo, rango, acciones):
         conn = None
-        sql = f"""UPDATE {tabla} SET condicion_umbral = ?, color_umbral = ?, riesgo_umbral=?, rango_umbral = ?, acciones_umbral=?, tipo_umbral = ? WHERE id_umbral = ?;"""
+        sql = f"""UPDATE umbral_general SET condicion_umbral = ?, color_umbral = ?, riesgo_umbral=?, rango_umbral = ?, acciones_umbral=? WHERE id_umbral = ?;"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, (nombre, color, riesgo, rango, acciones, tipo, umbral_id))
+            cur.execute(sql, (condicion, color, riesgo, rango, acciones, umbral_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al actualizar Umbral:", e)
+            return False
+        finally:
+            if conn:
+                conn.close()
+
+
+    @staticmethod
+    def mdlActualizarUmbralPersonalizados(umbral_id, condicion, color, riesgo, rango, acciones):
+        conn = None
+        sql = f"""UPDATE umbral_personalizado SET condicion_umbral = ?, color_umbral = ?, 
+        riesgo_umbral=?, rango_umbral = ?, acciones_umbral=? WHERE id_umbral = ?;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (condicion, color, riesgo, rango, acciones, umbral_id))
             conn.commit()
             return True
         except Exception as e:
@@ -293,7 +195,7 @@ class UmbralModel:
                 conn.close()
     
     @staticmethod
-    def mdlGuardarUmbralesAcelerografo(proyectoid, componente_id, data):
+    def mdlGuardarUmbralesAcelerografos(proyectoid, componente_id, data):
         conn = None
         sql = """INSERT INTO umbral_acelerografo (id_proyecto, id_componente, condicion_umbral, riesgo_umbral, color_umbral,
         rango_umbral, magnitud_umbral, acciones_umbral, tipo_umbral) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"""
@@ -314,41 +216,102 @@ class UmbralModel:
         finally:
             if conn:
                 conn.close()
-    
+
+
     @staticmethod
-    def mdlActualizarUmbralAcelerografo(umbral_id, nombre,riesgo, color, distancia,magnitud,acciones):
+    def mdlGuardarUmbralesGeneralesAcelerografos(proyectoid, componente_id, tipografica, data, tipoequipo):
         conn = None
-        sql = """UPDATE umbral_acelerografo SET condicion_umbral = ?, riesgo_umbral = ?, color_umbral = ?, rango_umbral = ?,
-        magnitud_umbral = ?, acciones_umbral = ? WHERE id_umbral = ?;"""
+        # Validación de seguridad básica para inyección en nombre de tabla           
+        sql = f"""INSERT INTO umbral_general (id_proyecto, id_componente, condicion_umbral, color_umbral, 
+        riesgo_umbral, rango_umbral,  rango2_umbral, acciones_umbral, tipo_umbral, tipo_equipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, (nombre, riesgo, color, distancia, magnitud, acciones, umbral_id))
+            
+            # Preparamos los parámetros para executemany para mayor eficiencia
+            params = []
+            for item in data:
+                params.append((proyectoid, componente_id, item['nombre'], item['color'], item['riesgo'], item['distancia'], item['magnitud'], item['acciones'], tipografica, tipoequipo))
+            
+            cur.executemany(sql, params)
             conn.commit()
             return True
         except Exception as e:
-            print("Error al actualizar Umbral:", e)
+            print("Error al registrar Umbral General Acelerografo:", e)
             return False
         finally:
             if conn:
                 conn.close()
-    
+
+
     @staticmethod
-    def mdlObtenerUmbralesAjustes(proyectoid, componente_id, tipo, tabla):
+    def mdlGuardarUmbralesPersonalizadosAcelerografos(proyectoid, equipo_id, tipografica, data, tipoequipo):
+        conn = None
+        # Validación de seguridad básica para inyección en nombre de tabla           
+        sql = f"""INSERT INTO umbral_personalizado (id_proyecto, id_equipo, condicion_umbral, color_umbral, 
+        riesgo_umbral, rango_umbral,  rango2_umbral, acciones_umbral, tipo_umbral, tipo_equipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            
+            # Preparamos los parámetros para executemany para mayor eficiencia
+            params = []
+            for item in data:
+                params.append((proyectoid, equipo_id, item['nombre'], item['color'], item['riesgo'], item['distancia'], item['magnitud'], item['acciones'], tipografica, tipoequipo))
+            
+            cur.executemany(sql, params)
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al registrar Umbral Personalizado Acelerografo:", e)
+            return False
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlActualizarUmbralAcelerografo(umbral_id, nombre, riesgo, color, distancia, magnitud, acciones):
+        conn = None
+        sql = f"""UPDATE umbral_general SET condicion_umbral = ?, color_umbral = ?, riesgo_umbral=?, 
+        rango_umbral = ?, rango2_umbral = ?, acciones_umbral=? WHERE id_umbral = ?;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (nombre, color, riesgo, distancia, magnitud, acciones, umbral_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al actualizar Umbral General Acelerografo:", e)
+            return False
+        finally:
+            if conn:
+                conn.close()
+        
+    @staticmethod
+    def mdlActualizarUmbralPersonalizadoAcelerografo(umbral_id, nombre, riesgo, color, distancia, magnitud, acciones):
+        conn = None
+        sql = f"""UPDATE umbral_personalizado SET condicion_umbral = ?, color_umbral = ?, riesgo_umbral=?, 
+        rango_umbral = ?, rango2_umbral = ?, acciones_umbral=? WHERE id_umbral = ?;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (nombre, color, riesgo, distancia, magnitud, acciones, umbral_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al actualizar Umbral Personalizado Acelerografo:", e)
+            return False
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlObtenerUmbralesAjustes(proyectoid, componente_id, tipografica, tipoequipo):
         conn = None
         try:
             conn = Connection.connectionDB()
-            params = ()
-            if tabla == 'umbral_inclinometro':
-                sql = f"""SELECT * FROM {tabla} WHERE id_inclinometro = ? AND tipo_umbral = ? AND id_proyecto=? ORDER BY rango_umbral ASC;"""
-                params = (componente_id, tipo, proyectoid)
-            elif tabla=='umbral_celda':
-                sql = f"""SELECT * FROM {tabla} WHERE id_celda = ? AND tipo_umbral = ? AND id_proyecto = ? ORDER BY rango_umbral ASC;"""
-                params = (componente_id, tipo, proyectoid)
-            else:
-                sql = f"""SELECT * FROM {tabla} WHERE id_componente = ? AND tipo_umbral = ? AND id_proyecto = ? ORDER BY rango_umbral ASC;"""
-                params = (componente_id, tipo, proyectoid)
-            
+            sql = f"""SELECT * FROM umbral_general WHERE id_proyecto = ? AND id_componente = ? AND tipo_umbral = ? AND tipo_equipo =? ORDER BY rango_umbral ASC;"""
+            params = (proyectoid, componente_id, tipografica, tipoequipo)
             cur = conn.cursor()
             cur.execute(sql, params)
             
@@ -365,6 +328,31 @@ class UmbralModel:
         finally:
             if conn:
                 conn.close()
+
+    @staticmethod
+    def mdlObtenerUmbralesPersonalizados(idequipo, tipografica, tipoequipo):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            sql = f"""SELECT * FROM umbral_personalizado WHERE id_equipo = ? AND tipo_umbral = ? AND tipo_equipo =? ORDER BY rango_umbral ASC;"""
+            params = (idequipo, tipografica, tipoequipo)
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            
+            # Conversión explícita a tupla
+            result = [tuple(row) for row in cur.fetchall()]
+            
+            if result:
+                return result
+            else:
+                return None
+        except Exception as e:
+            print("Error en mdlObtenerUmbralesPersonalizados: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+
     
     @staticmethod
     def mdlObtenerUmbralesInstrumentacion(proyectoid, componente_id, tipo, tabla):
@@ -478,9 +466,9 @@ class UmbralModel:
                 conn.close()
                 
     @staticmethod
-    def mdlEliminarUmbralEquipos(umbral_id, tabla):
+    def mdlEliminarUmbralEquipos(umbral_id):
         conn = None
-        sql = f"""DELETE FROM {tabla} WHERE id_umbral = ?"""
+        sql = f"""DELETE FROM umbral_general WHERE id_umbral = ?"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -491,12 +479,32 @@ class UmbralModel:
             else:
                 return False
         except Exception as e:
-            print("Error al eliminar umbral prismas: " + str(e))
+            print("Error al eliminar umbral general: " + str(e))
             return False
         finally:
             if conn:
                 conn.close()
-    
+
+    @staticmethod
+    def mdlEliminarUmbralPersonalizados(umbral_id):
+        conn = None
+        sql = f"""DELETE FROM umbral_personalizado WHERE id_umbral = ?"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (umbral_id,))
+            conn.commit()
+            if cur.rowcount > 0:
+                return True
+            else:
+                return False
+        except Exception as e:
+            print("Error al eliminar umbral personalizado: " + str(e))
+            return False
+        finally:
+            if conn:
+                conn.close()
+
     @staticmethod
     def mdlEliminarUmbralAcelerografo(umbral_id):
         conn = None
