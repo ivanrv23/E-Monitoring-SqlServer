@@ -27,6 +27,8 @@ class InclinometrosView:
     estadochecklist = True
     estadoPagina = True
     timer_busqueda = None
+    umbral_activo_inclinometros = False   # <-- nuevo
+    umbrales_cache = None                  # <-- nuev
     
     def inicializarVistaInclinometros(main, proyectoid, proyectoname):
         InclinometrosView.main = main
@@ -134,24 +136,59 @@ class InclinometrosView:
 
     def graficarUmbralesInclinometros():
         combo_tipo_grafico = InclinometrosView.main.findChild(QComboBox, "combo_tipografico_inclinometros")
-        if combo_tipo_grafico.currentData()!='AI3D':        
+        if combo_tipo_grafico.currentData() != 'AI3D':
             widget_grafico = InclinometrosView.main.findChild(QWidget, "widget_grafica_inclinoizquierda")
             widget_grafico2 = InclinometrosView.main.findChild(QWidget, "widget_grafica_inclinoderecha")
             widgets = [widget_grafico, widget_grafico2]
             pintado = GraficarUmbrales.clean_on_widget(widgets, 'linea')
             if pintado is False:
-                treeWidget =  InclinometrosView.main.findChild(QTreeWidget, "tree_actual_inclinometros")
-                lista = EquiposInclinometros.obtener_todos_elementos_marcados(treeWidget)
-                inclinometromarcados = InclinometrosView.obtenerListaEquiposMarcados(lista, "Inclinómetros")
-                id_intrumentacion = inclinometromarcados[0][1][0][1]
-                id_inclinometro = InclinometroController.ctrlObtenerIdIinclinometro(id_intrumentacion)
-                tipografico_actual = combo_tipo_grafico.currentData()
-                umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(InclinometrosView.idproyecto, id_inclinometro, tipografico_actual, 'umbral_inclinometro')
-                if umbrales:
-                    umbrales_inclinometro = [tupla for tupla in umbrales if tupla[2] == id_inclinometro]
-                    combo_medidas = InclinometrosView.main.findChild(QComboBox, "combo_medida_inclinometros")
-                    unidad = combo_medidas.currentData()
-                    GraficarUmbrales.draw_on_widget(widgets, umbrales_inclinometro, unidad, 'x', 'linea')
+                InclinometrosView._dibujarUmbralesInclinometros(widgets, forzar_seleccion=True)
+            else:
+                InclinometrosView.umbral_activo_inclinometros = False
+                InclinometrosView.umbrales_cache = None
+
+    def _dibujarUmbralesInclinometros(widgets=None, forzar_seleccion=False):
+        combo_tipo_grafico = InclinometrosView.main.findChild(QComboBox, "combo_tipografico_inclinometros")
+        if combo_tipo_grafico.currentData() == 'AI3D':
+            return  # el 3D no soporta umbrales
+
+        if widgets is None:
+            widget_grafico = InclinometrosView.main.findChild(QWidget, "widget_grafica_inclinoizquierda")
+            widget_grafico2 = InclinometrosView.main.findChild(QWidget, "widget_grafica_inclinoderecha")
+            widgets = [widget_grafico, widget_grafico2]
+
+        tipografico_actual = combo_tipo_grafico.currentData()
+
+        # --- REUTILIZAR SELECCIÓN YA HECHA ---
+        if (not forzar_seleccion) and InclinometrosView.umbrales_cache is not None \
+                and InclinometrosView.umbrales_cache.get('tipo') == tipografico_actual:
+            umbrales = InclinometrosView.umbrales_cache['umbrales']
+            if umbrales:
+                combo_medidas = InclinometrosView.main.findChild(QComboBox, "combo_medida_inclinometros")
+                unidad = combo_medidas.currentData()
+                GraficarUmbrales.draw_on_widget(widgets, umbrales, unidad, 'x', 'linea')
+                InclinometrosView.umbral_activo_inclinometros = True
+            return
+        # --------------------------------------
+
+        treeWidget = InclinometrosView.main.findChild(QTreeWidget, "tree_actual_inclinometros")
+        lista = EquiposInclinometros.obtener_todos_elementos_marcados(treeWidget)
+        inclinometromarcados = InclinometrosView.obtenerListaEquiposMarcados(lista, "Inclinómetros")
+        if not inclinometromarcados:
+            return
+
+        componente, listainclinometros = inclinometromarcados[0]
+        idcompo = componente[1]
+
+        umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(
+            InclinometrosView.idproyecto, idcompo, tipografico_actual, 'INCLINOMETRO'
+        )
+        if umbrales:
+            InclinometrosView.umbrales_cache = {'tipo': tipografico_actual, 'umbrales': umbrales}
+            combo_medidas = InclinometrosView.main.findChild(QComboBox, "combo_medida_inclinometros")
+            unidad = combo_medidas.currentData()
+            GraficarUmbrales.draw_on_widget(widgets, umbrales, unidad, 'x', 'linea')
+            InclinometrosView.umbral_activo_inclinometros = True
     
     def guardarGraficoReporte(tree_actual, tiporeporte):
         if InclinometrosView.idproyecto:
@@ -364,6 +401,8 @@ class InclinometrosView:
             datos = getattr(InclinometroController, method_name)(InclinometrosView.idproyecto, inclinometromarcados, unidadmedida, azimuth, anguzz, rint)
             if datos:
                 plot_2d_in_widget(InclinometrosView.idproyecto, widget_inclinoizquierda, widget_inclinoderecha, datos, titulo1, titulo2, nombreeje1, nombreeje2, unidadmedida, grafico, totallecturas)
+                if InclinometrosView.umbral_activo_inclinometros:          # <-- nuevo
+                    InclinometrosView._dibujarUmbralesInclinometros()      # <-- nuevo
             else:
                 InclinometrosView.limpiarGraficaInclinometros()
                 mostrar_mensaje("Sin Datos", "No hay datos o no tiene fecha base.", "advertencia")
@@ -373,6 +412,7 @@ class InclinometrosView:
         widget_inclinoderecha = InclinometrosView.main.findChild(QWidget, "widget_grafica_inclinoderecha") 
         limpiar_layout(widget_inclinoizquierda)
         limpiar_layout(widget_inclinoderecha)
+        InclinometrosView.umbral_activo_inclinometros = False   # <-- nuevo
         
     def mostrarAnalisisProfundidad(treeWidget):
         lista = EquiposInclinometros.obtener_todos_elementos_marcados(treeWidget)
@@ -408,7 +448,7 @@ class InclinometrosView:
                 estadoeje, minejex, maxejex, xprimario, xsecundario, yprofundo = Personalizacion.dialogoConfiguracionEjesInclinometro(ejexmin, ejexmax, ejexprim, ejexsecu, interprofu, unidadmedida)
                 if estadoeje:
                     # guardar configuracion
-                    respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(InclinometrosView.idproyecto, "INCLINOMETROS", tipografico, minejex, maxejex, xprimario, xsecundario, yprofundo)
+                    respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(InclinometrosView.idproyecto, "INCLINOMETROS", tipografico, minejex, maxejex, xprimario, xsecundario, yprofundo, 0, 0)
                     if respuesta:
                         treeWidget = InclinometrosView.main.findChild(QTreeWidget, "tree_actual_inclinometros")
                         InclinometrosView.obtenerMostrarInclinometrosMarcados(treeWidget)
@@ -419,6 +459,8 @@ class InclinometrosView:
         InclinometrosView.idproyecto = proyecto_id
         InclinometrosView.nameproyecto = proyecto_name
         InclinometrosView.estadochecklist = True
+        InclinometrosView.umbral_activo_inclinometros = False   # <-- nuevo
+        InclinometrosView.umbrales_cache = None                  # <-- nuevo
         InclinometrosView.limpiarGraficaInclinometros()
         # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
         buscador_arbol = main.findChild(QLineEdit, "input_buscar_inclinometros")

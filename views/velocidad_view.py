@@ -295,7 +295,7 @@ class VelocidadView:
         widget_grafico = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")
         pintado = GraficarUmbrales.clean_on_widget(widget_grafico, 'color')
         if pintado is False:
-            VelocidadView._dibujarUmbralesVelocidad(widget_grafico)
+            VelocidadView._dibujarUmbralesVelocidad(widget_grafico, forzar_seleccion=True)
         else:
             # El usuario quitó los umbrales manualmente -> ya no se deben reponer
             VelocidadView.umbral_activo_velocidad = False
@@ -331,26 +331,14 @@ class VelocidadView:
         if lista:
             prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
             if len(prismasmarcados) > 0:
-                idcompo, c, umbrales = 0, 0, None
+                idcompo, umbrales = 0, None
                 for componente, listaprismas in prismasmarcados:
                     idcompo = componente[1]
-                    c += 1
-                if c == 1:
-                    umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(VelocidadView.idproyecto, idcompo, tipo, 'umbral_prisma')
-                else:
-                    validar = UmbralController.ctrlValidarUmbralesComponentes(VelocidadView.idproyecto, tipo, "umbral_prisma")
-                    cantidad, idcomponen = validar
-                    if cantidad > 0:
-                        if cantidad == 1:
-                            umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(VelocidadView.idproyecto, idcomponen, tipo, 'umbral_prisma')
-                        else:
-                            componentes = UmbralController.ctrlListarComponentesUmbrales(VelocidadView.idproyecto, tipo, "umbral_prisma")
-                            if componentes:
-                                codigoseleccionado = GraficarUmbrales.mostrarSeleccionUmbrales(componentes, "Umbral Prismas")
-                                if codigoseleccionado:
-                                    umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(VelocidadView.idproyecto, codigoseleccionado, tipo, "umbral_prisma")
+                    break
+                umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(VelocidadView.idproyecto, idcompo, tipo, 'PRISMAS')
+
                 if umbrales:
-                    VelocidadView.umbrales_cache = {'tipo': tipo, 'umbrales': umbrales}  # <-- guarda caché
+                    VelocidadView.umbrales_cache = {'tipo': tipo, 'umbrales': umbrales}
                     GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unidadmedida)
                     VelocidadView.umbral_activo_velocidad = True
     
@@ -746,10 +734,10 @@ class VelocidadView:
                 tipografico = tipo_grafico_desplazamiento.currentData()
                 infoeje = ConfiguracionController.ctrlObtenerConfiguracionEje(VelocidadView.idproyecto, "VELOCIDAD", tipografico)
                 if infoeje:
-                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rango_precipitacion, intervalo_precipitacion = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8], infoeje[9], infoeje[10]
+                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rangoprecipitacion, intervaloprecipitacion = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8], infoeje[9], infoeje[10]
                 else:
-                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rango_precipitacion, intervalo_precipitacion = 0, 0, 0, 0, 0, 0, 0
-                estadoeje, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, unidadmedida, rango_precipitacion, intervalo_precipitacion, unidadtiempo)
+                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rangoprecipitacion, intervaloprecipitacion = 0, 0, 0, 0, 0, 0, 0
+                estadoeje, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, unidadmedida, rangoprecipitacion, intervaloprecipitacion, unidadtiempo)
                 if estadoeje:
                     # guardar configuracion
                     respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(VelocidadView.idproyecto, "VELOCIDAD", tipografico, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion)

@@ -541,26 +541,6 @@ class UmbralView:
         # Añadir el nuevo ComboBox al layout principal
         main_layout.addWidget(component_combo_label)
         main_layout.addWidget(component_combo)
-
-        # Combo de Piezómetro, filtrado por componente
-        # piezometro_combo_label = QLabel("Seleccione Piezómetro:")
-        # piezometro_combo = QComboBox()
-        # main_layout.addWidget(piezometro_combo_label)
-        # main_layout.addWidget(piezometro_combo)
-
-        # def cargar_piezometros():
-        #     componente_id = component_combo.currentData()
-        #     piezometro_combo.clear()
-        #     instrumentos = UmbralController.ctrlListarInstrumentosComponente(proyectoid, componente_id, tipo)
-        #     if instrumentos:
-        #         for id_equipo, nombre_equipo, tipo_equipo in instrumentos:
-        #             piezometro_combo.addItem(nombre_equipo, userData=id_equipo)
-        #     else:
-        #         piezometro_combo.addItem("Sin piezómetros registrados", userData=None)
-
-        # component_combo.currentIndexChanged.connect(cargar_piezometros)
-        # cargar_piezometros()  # carga inicial
-    
         # Layout para el ComboBox y el botón
         combo_layout = QHBoxLayout()
         # ComboBox
@@ -579,7 +559,6 @@ class UmbralView:
         main_layout.addLayout(combo_layout)
         # Tabla
         table = QTableWidget(3, 5)  # 3 filas y 5 columnas
-        # table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", f"Rango ({medida})", "Acciones a realizar"])
         # Función para reiniciar la tabla
         def reset_table():
             nonlocal unidad
@@ -682,7 +661,6 @@ class UmbralView:
         # Conectar el cambio de opción en el ComboBox para cargar los umbrales
         combo.currentIndexChanged.connect(load_umbrales)
         component_combo.currentIndexChanged.connect(load_umbrales)
-        # piezometro_combo.currentIndexChanged.connect(load_umbrales)
         # Configurar las columnas iniciales
         load_umbrales()
         # Añadir la tabla al layout
@@ -728,9 +706,6 @@ class UmbralView:
             nonlocal unidad
             selected_option = combo.currentText()
             selected_id = options[selected_option]  # Obtener el ID correspondiente
-            if not component_combo.currentData():
-                mostrar_mensaje("Advertencia", "Debe seleccionar un piezómetro.", 'advertencia')
-                return
             selected_component_id = component_combo.currentData()  # Obtener el ID del piezómetro seleccionado
             if selected_id == "NF":
                 unimedida = 1

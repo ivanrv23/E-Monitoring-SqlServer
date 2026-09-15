@@ -26,6 +26,8 @@ class PiezometrosView:
     estadochecklist = True
     estadoPagina = True
     timer_busqueda = None
+    umbral_activo_piezometros = False   # <-- nuevo
+    umbrales_cache = None                # <-- nuevo
     cuerdafechainicial, cuerdafechafinal = MetodosGenerales.obtenerRangoFechas(365)
     manualfechainicial, manualfechafinal = MetodosGenerales.obtenerRangoFechas(365)
     
@@ -147,104 +149,79 @@ class PiezometrosView:
             graficarUmbralesPersonalizado(widget_grafico,unimedida,PiezometrosView.idproyecto)
             
     def graficarUmbralesPiezometros():
-        # validar si está pintado, despintar
         widget_grafico = PiezometrosView.main.findChild(QWidget, "widget_piezometros")
         pintado = GraficarUmbrales.clean_on_widget(widget_grafico, 'color')
         if pintado is False:
-            tree_widget = PiezometrosView.main.findChild(QTreeWidget, "tree_actual_piezometros")
-            lista = EquiposPiezometros.obtener_todos_elementos_marcados(tree_widget)
-            umbrales = None
-            combo_tipo_grafico = PiezometrosView.main.findChild(QWidget, "cb_tipo_graficas_piezometros")
-            tipo = combo_tipo_grafico.currentData()
-            if lista:
-                piezocuerdasmarcados, cotasmarcadas = PiezometrosView.obtenerListaPiezometrosMarcados(lista, "Piezómetros Cuerda Vibrante")
-                if len(piezocuerdasmarcados) > 0:
-                    if len(piezocuerdasmarcados) == 1:
-                        for grupo in piezocuerdasmarcados:
-                            for piezocu in grupo:
-                                nombrepie, idinstru, idpiezo = piezocu
-                        umbrales = UmbralController.ctrlObtenerUmbralesCodigoPiezometro(idpiezo, tipo, "PIEZOMETROCUERDA")
-                        if umbrales is None:
-                            validar = UmbralController.ctrlValidarUmbralesPiezometros(PiezometrosView.idproyecto, tipo, "PIEZOMETROCUERDA")
-                            cantidad, idpiezome = validar
-                            if cantidad > 0:
-                                if cantidad == 1:
-                                    umbrales = UmbralController.ctrlObtenerUmbralesCodigoPiezometro(idpiezome, tipo, "PIEZOMETROCUERDA")
-                                else:
-                                    # Traer lista de piezometros
-                                    piezomecuerdas = UmbralController.ctrlListarPiezometrosUmbrales(PiezometrosView.idproyecto, tipo, "PIEZOMETROCUERDA", "piezometrocuerdas")
-                                    if piezomecuerdas:
-                                        codigoseleccionado = GraficarUmbrales.mostrarSeleccionUmbrales(piezomecuerdas, "Umbral Piezómetros")
-                                        if codigoseleccionado:
-                                            umbrales = UmbralController.ctrlObtenerUmbralesCodigoPiezometro(codigoseleccionado, tipo, "PIEZOMETROCUERDA")
-                    else:
-                        # VALIDAR SI HAY VARIOS UMBRALES
-                        validar = UmbralController.ctrlValidarUmbralesPiezometros(PiezometrosView.idproyecto, tipo, "PIEZOMETROCUERDA")
-                        cantidad, idpiezome = validar
-                        if cantidad > 0:
-                            if cantidad == 1:
-                                umbrales = UmbralController.ctrlObtenerUmbralesCodigoPiezometro(idpiezome, tipo, "PIEZOMETROCUERDA")
-                            else:
-                                # Traer lista de piezometros
-                                piezomecuerdas = UmbralController.ctrlListarPiezometrosUmbrales(PiezometrosView.idproyecto, tipo, "PIEZOMETROCUERDA", "piezometrocuerdas")
-                                if piezomecuerdas:
-                                    codigoseleccionado = GraficarUmbrales.mostrarSeleccionUmbrales(piezomecuerdas, "Umbral Piezómetros")
-                                    if codigoseleccionado:
-                                        umbrales = UmbralController.ctrlObtenerUmbralesCodigoPiezometro(codigoseleccionado, tipo, "PIEZOMETROCUERDA")
-                else:
-                    piezomanualesmarcados, cotasmarcadas = PiezometrosView.obtenerListaPiezometrosMarcados(lista, "Piezómetros Casagrande")
-                    if len(piezomanualesmarcados) > 0:
-                        if len(piezomanualesmarcados) == 1:
-                            for grupo in piezomanualesmarcados:
-                                for piezocu in grupo:
-                                    nombrepie, idinstru, idpiezo = piezocu
-                            umbrales = UmbralController.ctrlObtenerUmbralesCodigoPiezometro(idpiezo, tipo, "PIEZOMETROMANUAL")
-                            if umbrales is None:
-                                validar = UmbralController.ctrlValidarUmbralesPiezometros(PiezometrosView.idproyecto, tipo, "PIEZOMETROMANUAL")
-                                cantidad, idpiezome = validar
-                                if cantidad > 0:
-                                    if cantidad == 1:
-                                        umbrales = UmbralController.ctrlObtenerUmbralesCodigoPiezometro(idpiezome, tipo, "PIEZOMETROMANUAL")
-                                    else:
-                                        # Traer lista de piezometros
-                                        piezomecuerdas = UmbralController.ctrlListarPiezometrosUmbrales(PiezometrosView.idproyecto, tipo, "PIEZOMETROMANUAL", "piezometromanuales")
-                                        if piezomecuerdas:
-                                            codigoseleccionado = GraficarUmbrales.mostrarSeleccionUmbrales(piezomecuerdas, "Umbral Piezómetros")
-                                            if codigoseleccionado:
-                                                umbrales = UmbralController.ctrlObtenerUmbralesCodigoPiezometro(codigoseleccionado, tipo, "PIEZOMETROMANUAL")
-                        else:
-                            # VALIDAR SI HAY VARIOS UMBRALES
-                            validar = UmbralController.ctrlValidarUmbralesPiezometros(PiezometrosView.idproyecto, tipo, "PIEZOMETROMANUAL")
-                            cantidad, idpiezome = validar
-                            if cantidad > 0:
-                                if cantidad == 1:
-                                    umbrales = UmbralController.ctrlObtenerUmbralesCodigoPiezometro(idpiezome, tipo, "PIEZOMETROMANUAL")
-                                else:
-                                    # Traer lista de piezometros
-                                    piezomecuerdas = UmbralController.ctrlListarPiezometrosUmbrales(PiezometrosView.idproyecto, tipo, "PIEZOMETROMANUAL", "piezometromanuales")
-                                    if piezomecuerdas:
-                                        codigoseleccionado = GraficarUmbrales.mostrarSeleccionUmbrales(piezomecuerdas, "Umbral Piezómetros")
-                                        if codigoseleccionado:
-                                            umbrales = UmbralController.ctrlObtenerUmbralesCodigoPiezometro(codigoseleccionado, tipo, "PIEZOMETROMANUAL")
-                if umbrales:
-                    combo_medidas = PiezometrosView.main.findChild(QComboBox, "combo_medida_piezometros")
-                    unidad = combo_medidas.currentData()
-                    if tipo == "NF":
-                        unimedida = 1
-                    elif tipo == "NI" or tipo == "NA":
-                        if unidad == 1:
-                            unimedida = 1
-                        elif unidad == 100:
-                            unimedida = 100
-                        else:
-                            unimedida = 1000
-                    elif tipo == "PB":
-                        unimedida = 1
-                    elif tipo == "FP":
-                        unimedida = 1
-                    else:
-                        unimedida = 1
-                    GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unimedida, 'y', 'color')
+            PiezometrosView._dibujarUmbralesPiezometros(widget_grafico, forzar_seleccion=True)
+        else:
+            # El usuario quitó el umbral manualmente -> no reponerlo
+            PiezometrosView.umbral_activo_piezometros = False
+            PiezometrosView.umbrales_cache = None
+
+    def _dibujarUmbralesPiezometros(widget_grafico=None, forzar_seleccion=False):
+        if widget_grafico is None:
+            widget_grafico = PiezometrosView.main.findChild(QWidget, "widget_piezometros")
+
+        tree_widget = PiezometrosView.main.findChild(QTreeWidget, "tree_actual_piezometros")
+        lista = EquiposPiezometros.obtener_todos_elementos_marcados(tree_widget)
+        if not lista:
+            return
+
+        combo_tipo_grafico = PiezometrosView.main.findChild(QComboBox, "cb_tipo_graficas_piezometros")
+        tipo = combo_tipo_grafico.currentData()
+
+        # Determinar qué tipo de piezómetro está marcado (cuerda tiene prioridad, igual que el resto de la vista)
+        piezocuerdasmarcados, _ = PiezometrosView.obtenerListaPiezometrosMarcados(lista, "Piezómetros Cuerda Vibrante")
+        if len(piezocuerdasmarcados) > 0:
+            marcados = piezocuerdasmarcados
+            tipoequipo_umbral = 'PIEZOMETROCUERDA'
+        else:
+            piezomanualesmarcados, _ = PiezometrosView.obtenerListaPiezometrosMarcados(lista, "Piezómetros Casagrande")
+            marcados = piezomanualesmarcados
+            tipoequipo_umbral = 'PIEZOMETROMANUAL'
+
+        if not marcados:
+            return
+
+        # --- REUTILIZAR SELECCIÓN YA HECHA ---
+        cache_key = (tipo, tipoequipo_umbral)
+        if (not forzar_seleccion) and PiezometrosView.umbrales_cache is not None \
+                and PiezometrosView.umbrales_cache.get('key') == cache_key:
+            umbrales = PiezometrosView.umbrales_cache['umbrales']
+            if umbrales:
+                unimedida = PiezometrosView._calcularUnimedidaUmbral(tipo)
+                GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unimedida, 'y', 'color')
+                PiezometrosView.umbral_activo_piezometros = True
+            return
+        # --------------------------------------
+
+        idcompo = 0
+        for region, piezometro in marcados:
+            idcompo = region[1]   # (nombrecomponente, idcomponente, idproyecto)
+            break
+
+        umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(
+            PiezometrosView.idproyecto, idcompo, tipo, tipoequipo_umbral
+        )
+        if umbrales:
+            PiezometrosView.umbrales_cache = {'key': cache_key, 'umbrales': umbrales}
+            unimedida = PiezometrosView._calcularUnimedidaUmbral(tipo)
+            GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unimedida, 'y', 'color')
+            PiezometrosView.umbral_activo_piezometros = True
+
+    def _calcularUnimedidaUmbral(tipo):
+        combo_medidas = PiezometrosView.main.findChild(QComboBox, "combo_medida_piezometros")
+        unidad = combo_medidas.currentData()
+        if tipo == "NF":
+            return 1
+        elif tipo in ("NI", "NA"):
+            return unidad
+        elif tipo == "PB":
+            return 1
+        elif tipo == "FP":
+            return 1
+        else:
+            return 1
     
     def checkProyectoActualPiezometros(parent_item, column):
         treeWidget =  PiezometrosView.main.findChild(QTreeWidget, "tree_actual_piezometros")
@@ -294,6 +271,8 @@ class PiezometrosView:
                 datos = PiezometroController.ctrlCalcularPiezometrosCuerda(PiezometrosView.idproyecto, piezocuerdasmarcados, PiezometrosView.cuerdafechainicial, PiezometrosView.cuerdafechafinal, filtrado, tipomedida)
                 if len(datos) > 0:
                     PiezometrosView.graficarPiezometrosCuerdaMarcados(lista, datos, cotasmarcadas, 11, 12, tipografico, tipomedida, tipotiempo)
+                    if PiezometrosView.umbral_activo_piezometros:          # <-- nuevo
+                        PiezometrosView._dibujarUmbralesPiezometros()      # <-- nuevo
                 else:
                     PiezometrosView.limpiarGraficaPiezometros()
             else:
@@ -302,10 +281,14 @@ class PiezometrosView:
                     datos = PiezometroController.ctrlCalcularPiezometrosCasaGrande(PiezometrosView.idproyecto, piezomanualesmarcados, PiezometrosView.manualfechainicial, PiezometrosView.manualfechafinal, filtrado, tipomedida)
                     if len(datos) > 0:
                         PiezometrosView.graficarPiezometrosManualMarcados(lista, datos, cotasmarcadas, 8, 9, tipografico, tipomedida, tipotiempo)
+                        if PiezometrosView.umbral_activo_piezometros:          # <-- nuevo
+                            PiezometrosView._dibujarUmbralesPiezometros()      # <-- nuevo
                 else:
                     terrenosmarcados = PiezometrosView.obtenerListaEquiposMarcados(lista, "Cotas de Terreno")
                     if len(terrenosmarcados) > 0:
                         PiezometrosView.graficarCotasTerrenoMarcados(lista, 0, 0, tipografico, tipomedida, tipotiempo)
+                        if PiezometrosView.umbral_activo_piezometros:          # <-- nuevo
+                            PiezometrosView._dibujarUmbralesPiezometros()      # <-- nuevo
                     else:
                         PiezometrosView.limpiarGraficaPiezometros()
         else:
@@ -527,6 +510,7 @@ class PiezometrosView:
     def limpiarGraficaPiezometros():
         widget_piezometros = PiezometrosView.main.findChild(QWidget, "widget_piezometros")
         limpiar_widget(widget_piezometros)
+        PiezometrosView.umbral_activo_piezometros = False
     
     def mostrarDialogoReportePiezometros(treeWidget, widget_grafico, combo_tipo_grafico, tiporeporte):
         if PiezometrosView.idproyecto:
@@ -606,6 +590,8 @@ class PiezometrosView:
                                 data = CalculosTendencias.ajustarCalculoSaltos(datos, equiposLimpieza, 0, indexcuerda)
                             # graficar
                             PiezometrosView.graficarPiezometrosCuerdaMarcados(lista, data, cotasmarcadas, 11, 12, tipografico, tipomedida, tipotiempo)
+                            if PiezometrosView.umbral_activo_piezometros:          # <-- nuevo
+                                PiezometrosView._dibujarUmbralesPiezometros()      # <-- nuevo
                     else:
                         datos = PiezometroController.ctrlCalcularPiezometrosCasaGrande(PiezometrosView.idproyecto, piezometrosmarcados, PiezometrosView.manualfechainicial, PiezometrosView.manualfechafinal, filtrado, tipomedida)
                         if len(datos) > 0:
@@ -617,7 +603,9 @@ class PiezometrosView:
                                 data = CalculosTendencias.ajustarCalculoSaltos(datos, equiposLimpieza, 0, indexmanual)
                             # graficar
                             PiezometrosView.graficarPiezometrosManualMarcados(lista, data, cotasmarcadas, 8, 9, tipografico, tipomedida, tipotiempo)
-    
+                            if PiezometrosView.umbral_activo_piezometros:          # <-- nuevo
+                                PiezometrosView._dibujarUmbralesPiezometros()      # <-- nuevo
+
     def mostrarModalTendencia(treeWidget):
         lista = EquiposPiezometros.obtener_todos_elementos_marcados(treeWidget)
         if lista:
@@ -644,10 +632,14 @@ class PiezometrosView:
                         datos = PiezometroController.ctrlCalcularPiezometrosCuerda(PiezometrosView.idproyecto, piezometrosmarcados, PiezometrosView.cuerdafechainicial, PiezometrosView.cuerdafechafinal, filtrado, tipomedida)
                         if len(datos) > 0:
                             PiezometrosView.graficarPiezometrosCuerdaMarcados(lista, datos, cotasmarcadas, 11, 12, tipografico, tipomedida, tipotiempo, regresion)
+                            if PiezometrosView.umbral_activo_piezometros:          # <-- nuevo
+                                PiezometrosView._dibujarUmbralesPiezometros()      # <-- nuevo
                     else:
                         datos = PiezometroController.ctrlCalcularPiezometrosCasaGrande(PiezometrosView.idproyecto, piezometrosmarcados, PiezometrosView.manualfechainicial, PiezometrosView.manualfechafinal, filtrado, tipomedida)
                         if len(datos) > 0:
                             PiezometrosView.graficarPiezometrosManualMarcados(lista, datos, cotasmarcadas, 8, 9, tipografico, tipomedida, tipotiempo, regresion)
+                            if PiezometrosView.umbral_activo_piezometros:          # <-- nuevo
+                                PiezometrosView._dibujarUmbralesPiezometros()      # <-- nuevo
     
     def mostrarModalConfiguracionEjes(treeWidget):
         lista = EquiposPiezometros.obtener_todos_elementos_marcados(treeWidget)
@@ -674,12 +666,12 @@ class PiezometrosView:
                 infoeje = ConfiguracionController.ctrlObtenerConfiguracionEje(PiezometrosView.idproyecto, "PIEZOMETROS", tipografico)
                 if infoeje:
                     ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8]
-                    rango_precipitacion = infoeje[9] if infoeje[9] else 100
-                    intervalo_precipitacion = infoeje[10] if infoeje[10] else 20
+                    rangoprecipitacion = infoeje[9] if infoeje[9] else 0
+                    intervaloprecipitacion = infoeje[10] if infoeje[10] else 0
                 else:
                     ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = 0, 0, 0, 0, 0
-                    rango_precipitacion, intervalo_precipitacion = 100, 20
-                estadoeje, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, tipomedida, rango_precipitacion, intervalo_precipitacion, unidadtiempo)
+                    rangoprecipitacion, intervaloprecipitacion = 0, 0
+                estadoeje, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, tipomedida, rangoprecipitacion, intervaloprecipitacion, unidadtiempo)
                 if estadoeje:
                     # guardar configuracion
                     respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(PiezometrosView.idproyecto, "PIEZOMETROS", tipografico, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion)
@@ -690,10 +682,14 @@ class PiezometrosView:
                             datos = PiezometroController.ctrlCalcularPiezometrosCuerda(PiezometrosView.idproyecto, piezometrosmarcados, PiezometrosView.cuerdafechainicial, PiezometrosView.cuerdafechafinal, filtrado, tipomedida)
                             if len(datos) > 0:
                                 PiezometrosView.graficarPiezometrosCuerdaMarcados(lista, datos, cotasmarcadas, 11, 12, tipografico, tipomedida, tipotiempo)
+                                if PiezometrosView.umbral_activo_piezometros:          # <-- nuevo
+                                    PiezometrosView._dibujarUmbralesPiezometros()      # <-- nuevo
                         else:
                             datos = PiezometroController.ctrlCalcularPiezometrosCasaGrande(PiezometrosView.idproyecto, piezometrosmarcados, PiezometrosView.manualfechainicial, PiezometrosView.manualfechafinal, filtrado, tipomedida)
                             if len(datos) > 0:
                                 PiezometrosView.graficarPiezometrosManualMarcados(lista, datos, cotasmarcadas, 8, 9, tipografico, tipomedida, tipotiempo)
+                                if PiezometrosView.umbral_activo_piezometros:          # <-- nuevo
+                                    PiezometrosView._dibujarUmbralesPiezometros()      # <-- nuevo
     
     def reiniciarVistaPiezometros(main, proyecto_id, proyecto_name):
         # reiniciar variables
@@ -701,6 +697,8 @@ class PiezometrosView:
         PiezometrosView.idproyecto = proyecto_id
         PiezometrosView.nameproyecto = proyecto_name
         PiezometrosView.estadochecklist = True
+        PiezometrosView.umbral_activo_piezometros = False   # <-- nuevo
+        PiezometrosView.umbrales_cache = None                # <-- nuevo
         PiezometrosView.limpiarGraficaPiezometros()
         # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
         buscador_arbol = main.findChild(QLineEdit, "input_buscar_piezometros")

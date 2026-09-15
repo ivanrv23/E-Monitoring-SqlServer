@@ -355,7 +355,7 @@ class UmbralModel:
 
     
     @staticmethod
-    def mdlObtenerUmbralesInstrumentacion(proyectoid, componente_id, tipo, tabla):
+    def mdlObtenerUmbralesInstrumentacion(proyectoid, componente_id, tipografica, tipoequipo):
         conn = None
         try:
             conn = Connection.connectionDB()
@@ -364,49 +364,28 @@ class UmbralModel:
             # ==========================================
             # 1. INTENTO PRINCIPAL: Buscar por componente específico
             # ==========================================
-            if tabla == 'umbral_inclinometro':
-                sql = f"""SELECT * FROM {tabla} WHERE id_inclinometro = ? AND tipo_umbral = ? AND id_proyecto=? ORDER BY rango_umbral ASC;"""
-                params = (componente_id, tipo, proyectoid)
-            elif tabla=='umbral_celda':
-                sql = f"""SELECT * FROM {tabla} WHERE id_celda = ? AND tipo_umbral = ? AND id_proyecto = ? ORDER BY rango_umbral ASC;"""
-                params = (componente_id, tipo, proyectoid)
-            else:
-                # Este es el bloque para PRISMAS (y otros genéricos)
-                sql = f"""SELECT * FROM {tabla} WHERE id_componente = ? AND tipo_umbral = ? AND id_proyecto = ? ORDER BY rango_umbral ASC;"""
-                params = (componente_id, tipo, proyectoid)
+            sql = f"""SELECT * FROM umbral_general WHERE id_componente = ? AND tipo_umbral = ? AND tipo_equipo = ? ORDER BY rango_umbral ASC;"""
+            params = (componente_id, tipografica, tipoequipo)
             
             cur.execute(sql, params)
             result = [tuple(row) for row in cur.fetchall()]
             
             # ==========================================
-            # 2. FALLBACK: Si no hay resultado y es PRISMA, buscar el GENERAL
+            # 2. FALLBACK: Si no hay resultado traer de todos
             # ==========================================
-            # Solo aplicamos el fallback si la tabla no es inclinómetro ni celda
-            # y si la consulta principal no trajo nada.
-            if not result and tabla not in ('umbral_inclinometro', 'umbral_celda'):
+            if not result:
                 
-                # Buscamos el ID del componente GENERAL del proyecto
+                # Buscamos el umbral TODOS 
                 sql_general = """
-                    SELECT id_componente 
-                    FROM componentes 
-                    WHERE id_proyecto = ? AND nombre_componente = 'GENERAL'
+                    SELECT * FROM umbral_general WHERE id_componente = 0 AND id_proyecto = ?
+                    AND tipo_umbral = ? AND tipo_equipo = ? ORDER BY rango_umbral ASC;
                 """
                 # Nota: Si usas estado_componente = 1 para activos, puedes agregarlo al WHERE
-                cur.execute(sql_general, (proyectoid,))
-                row_general = cur.fetchone()
+                cur.execute(sql_general, (proyectoid, tipografica, tipoequipo))
+                row_general = cur.fetchall()
                 
                 if row_general:
-                    id_general = row_general[0]
-                    
-                    # Optimización: Si el componente específico ya era el GENERAL, no volvemos a consultar
-                    if id_general != componente_id:
-                        sql_fallback = f"""
-                            SELECT * FROM {tabla} 
-                            WHERE id_componente = ? AND tipo_umbral = ? AND id_proyecto = ? 
-                            ORDER BY rango_umbral ASC;
-                        """
-                        cur.execute(sql_fallback, (id_general, tipo, proyectoid))
-                        result = [tuple(row) for row in cur.fetchall()]
+                    result = [tuple(row) for row in row_general]
             
             # Retornamos el resultado (ya sea el específico, el general, o None si no hay ninguno)
             if result:

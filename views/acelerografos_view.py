@@ -24,6 +24,8 @@ class AcelerografosView:
     nameproyecto = "SIN PROYECTO"
     estadochecklist = True
     estadoPagina = True
+    umbral_activo_acelerografos = False
+    umbrales_cache = None
     fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(365)
     fechaacelero = datetime.strptime(fechainicial, "%Y-%m-%d %H:%M:%S")
     solofechaacelero = str(fechaacelero.date())
@@ -144,7 +146,7 @@ class AcelerografosView:
                 if len(aceleromarcados) == 1:
                     for componente, listaacelero in aceleromarcados:
                         nombrecomponente, idcomponente, idproy = componente
-                    umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(AcelerografosView.idproyecto, idcomponente, tipo, 'umbral_acelerografo')
+                    umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(AcelerografosView.idproyecto, idcomponente, tipo, 'ACELEROGRAFO')
                     if umbrales:
                         GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, 1, sentido='y', tipo_pintado='color', tipo="ACELEROGRAFOS")
     

@@ -66,8 +66,8 @@ class UmbralController:
         umbral = UmbralModel.mdlObtenerUmbralesPersonalizados(idequipo, tipografica, tipoequipo)
         return umbral
     
-    def ctrlObtenerUmbralesInstrumentacion(proyectoid, componete_id, tipo, tabla):
-        umbral = UmbralModel.mdlObtenerUmbralesInstrumentacion(proyectoid, componete_id, tipo, tabla)
+    def ctrlObtenerUmbralesInstrumentacion(proyectoid, componente_id, tipografica, tipoequipo):
+        umbral = UmbralModel.mdlObtenerUmbralesInstrumentacion(proyectoid, componente_id, tipografica, tipoequipo)
         return umbral
     
     def ctrlObtenerPiezometroUmbrales(idpiezo, tipo, tipopiezo):

@@ -26,6 +26,8 @@ class CeldasView:
     estadochecklist = True
     estadoPagina = True
     timer_busqueda = None
+    umbral_activo_celdas = False   # <-- nuevo
+    umbrales_cache = None          # <-- nuevo
     fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(365)
     
     def inicializarVistaCeldas(main, proyectoid, proyectoname, fechaini, fechafin):
@@ -153,68 +155,52 @@ class CeldasView:
     def graficarUmbralesCeldas(widget_grafico, combograficoceldas, combo_medidas):
         pintado = GraficarUmbrales.clean_on_widget(widget_grafico, 'color')
         if pintado is False:
-            tree_actual =  CeldasView.main.findChild(QTreeWidget, "tree_actual_celdas")
-            lista = EquiposCeldas.obtener_todos_elementos_marcados(tree_actual)
-            if lista:
-                umbrales = None
-                tipo = combograficoceldas.currentData()
-                celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
-                if len(celdasmarcadas) > 0:
-                    if len(celdasmarcadas) == 1:
-                        for grupo in celdasmarcadas:
-                            for celdita in grupo:
-                                nombrepie, idinstru, idcelda = celdita
-                        umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(CeldasView.idproyecto, idcelda, tipo, "umbral_celda")
-                        if umbrales is None:
-                            validar = UmbralController.ctrlValidarUmbralesCeldas(CeldasView.idproyecto, tipo)
-                            cantidad, idceldita = validar
-                            if cantidad > 0:
-                                if cantidad == 1:
-                                    umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(CeldasView.idproyecto, idceldita, tipo, "umbral_celda")
-                                else:
-                                    # Traer lista de piezometros
-                                    celdaslista = UmbralController.ctrlListarCeldasUmbrales(CeldasView.idproyecto, tipo)
-                                    if celdaslista:
-                                        codigoseleccionado = GraficarUmbrales.mostrarSeleccionUmbrales(celdaslista, "Umbral Celdas")
-                                        if codigoseleccionado:
-                                            umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(CeldasView.idproyecto, codigoseleccionado, tipo, "umbral_celda")
-                    else:
-                        # VALIDAR SI HAY VARIOS UMBRALES
-                        validar = UmbralController.ctrlValidarUmbralesCeldas(CeldasView.idproyecto, tipo)
-                        cantidad, idceldita = validar
-                        if cantidad > 0:
-                            if cantidad == 1:
-                                umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(CeldasView.idproyecto, idceldita, tipo, "umbral_celda")
-                            else:
-                                # Traer lista de piezometros
-                                celdaslista = UmbralController.ctrlListarCeldasUmbrales(CeldasView.idproyecto, tipo)
-                                if celdaslista:
-                                    codigoseleccionado = GraficarUmbrales.mostrarSeleccionUmbrales(celdaslista, "Umbral Celdas")
-                                    if codigoseleccionado:
-                                        umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(CeldasView.idproyecto, codigoseleccionado, tipo, "umbral_celda")
-                    if umbrales:
-                        unidad = combo_medidas.currentData()
-                        if tipo == "VI":
-                            if unidad == 1:
-                                unimedida = 1
-                            elif unidad == 100:
-                                unimedida = 100
-                            else:
-                                unimedida = 1000
-                        elif tipo == "AC":
-                            unimedida = 1
-                        elif tipo == "AI" or tipo == "AA":
-                            if unidad == 1:
-                                unimedida = 1
-                            elif unidad == 100:
-                                unimedida = 100
-                            else:
-                                unimedida = 1000
-                        elif tipo == "AF":
-                            unimedida = 1
-                        else: # AT
-                            unimedida = 1
-                        GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unimedida)
+            CeldasView._dibujarUmbralesCeldas(widget_grafico, combograficoceldas, combo_medidas, forzar_seleccion=True)
+        else:
+            # El usuario quitó el umbral manualmente -> no reponerlo
+            CeldasView.umbral_activo_celdas = False
+            CeldasView.umbrales_cache = None
+
+    def _dibujarUmbralesCeldas(widget_grafico=None, combograficoceldas=None, combo_medidas=None, forzar_seleccion=False):
+        if widget_grafico is None:
+            widget_grafico = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
+        if combograficoceldas is None:
+            combograficoceldas = CeldasView.main.findChild(QComboBox, "cb_tipo_graficas_celdas")
+        if combo_medidas is None:
+            combo_medidas = CeldasView.main.findChild(QComboBox, "combo_medida_celdas")
+
+        tipo = combograficoceldas.currentData()
+        unidad = combo_medidas.currentData()
+        if tipo in ("VI", "AI", "AA"):
+            unimedida = unidad
+        else:  # AC, AF, AT
+            unimedida = 1
+
+        # --- REUTILIZAR SELECCIÓN YA HECHA (evita re-consultar cada vez) ---
+        if (not forzar_seleccion) and CeldasView.umbrales_cache is not None \
+                and CeldasView.umbrales_cache.get('tipo') == tipo:
+            umbrales = CeldasView.umbrales_cache['umbrales']
+            if umbrales:
+                GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unimedida)
+                CeldasView.umbral_activo_celdas = True
+            return
+        # --------------------------------------------------------------------
+
+        tree_actual = CeldasView.main.findChild(QTreeWidget, "tree_actual_celdas")
+        lista = EquiposCeldas.obtener_todos_elementos_marcados(tree_actual)
+        if lista:
+            celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
+            if len(celdasmarcadas) > 0:
+                idcompo = 0
+                for region, celda in celdasmarcadas:
+                    idcompo = region[1]
+                    break
+
+                umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(CeldasView.idproyecto, idcompo, tipo, 'CELDA')
+                if umbrales:
+                    CeldasView.umbrales_cache = {'tipo': tipo, 'umbrales': umbrales}
+                    GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unimedida)
+                    CeldasView.umbral_activo_celdas = True
     
     def checkProyectoActualCeldas(parent_item, column):
         treeWidget =  CeldasView.main.findChild(QTreeWidget, "tree_actual_celdas")
@@ -287,6 +273,8 @@ class CeldasView:
                 if len(datos) > 0:
                     idx_funda, idx_super = 6, 7
                     CeldasView.graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, unidadtiempo)
+                    if CeldasView.umbral_activo_celdas:          # <-- nuevo
+                        CeldasView._dibujarUmbralesCeldas()      # <-- nuevo
                 else:
                     CeldasView.limpiarGraficaCeldas()
             else:
@@ -408,6 +396,7 @@ class CeldasView:
     def limpiarGraficaCeldas():
         widget_celdas = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
         limpiar_widget(widget_celdas)
+        CeldasView.umbral_activo_celdas = False
 
     def graficarSoloPluviometro(lista, tipografico, unidadmedida, unidadtiempo, tendencias=None):
         widget_celdas = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
@@ -537,7 +526,9 @@ class CeldasView:
                         if data:
                             idx_funda, idx_super = 6, 7
                             CeldasView.graficarCeldasAsentamientoMarcadas(lista, data, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, unidadtiempo)
-    
+                            if CeldasView.umbral_activo_celdas:          # <-- nuevo
+                                CeldasView._dibujarUmbralesCeldas()      # <-- nuevo
+
     def mostrarModalTendencia(treeWidget):
         lista = EquiposCeldas.obtener_todos_elementos_marcados(treeWidget)
         if lista:
@@ -578,7 +569,8 @@ class CeldasView:
                     if len(datos) > 0:
                         idx_funda, idx_super = 6, 7
                         CeldasView.graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, unidadtiempo, regresion)
-    
+                        if CeldasView.umbral_activo_celdas:          # <-- nuevo
+                            CeldasView._dibujarUmbralesCeldas()      # <-- nuevo
     def mostrarModalConfiguracionEjes(treeWidget):
         lista = EquiposCeldas.obtener_todos_elementos_marcados(treeWidget)
         if lista:
@@ -597,12 +589,12 @@ class CeldasView:
                 infoeje = ConfiguracionController.ctrlObtenerConfiguracionEje(CeldasView.idproyecto, "CELDAS", tipografica)
                 if infoeje:
                     ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8]
-                    rango_precipitacion = infoeje[9] if infoeje[9] else 100
-                    intervalo_precipitacion = infoeje[10] if infoeje[10] else 20
+                    rangoprecipitacion = infoeje[9] if infoeje[9] else 0
+                    intervaloprecipitacion = infoeje[10] if infoeje[10] else 0
                 else:
                     ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = 0, 0, 0, 0, 0
-                    rango_precipitacion, intervalo_precipitacion = 100, 20
-                estadoeje, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, unidadmedida, rango_precipitacion, intervalo_precipitacion, unidadtiempo)
+                    rangoprecipitacion, intervaloprecipitacion = 0, 0
+                estadoeje, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, unidadmedida, rangoprecipitacion, intervaloprecipitacion, unidadtiempo)
                 if estadoeje:
                     # guardar configuracion
                     respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(CeldasView.idproyecto, "CELDAS", tipografica, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion)
@@ -634,7 +626,9 @@ class CeldasView:
                         if len(datos) > 0:
                             idx_funda, idx_super = 6, 7
                             CeldasView.graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, tipotiempo)
-    
+                            if CeldasView.umbral_activo_celdas:          # <-- nuevo
+                                CeldasView._dibujarUmbralesCeldas()      # <-- nuevo
+
     def actualizarVistaCeldas(fechaini, fechafin, filtro=False):
         CeldasView.fechainicial = fechaini
         CeldasView.fechafinal = fechafin       
@@ -648,6 +642,8 @@ class CeldasView:
         CeldasView.idproyecto = proyecto_id
         CeldasView.nameproyecto = proyecto_name
         CeldasView.estadochecklist = True
+        CeldasView.umbral_activo_celdas = False   # <-- nuevo
+        CeldasView.umbrales_cache = None          # <-- nuevo
         CeldasView.limpiarGraficaCeldas()
         # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
         buscador_arbol = main.findChild(QLineEdit, "input_buscar_celdas")

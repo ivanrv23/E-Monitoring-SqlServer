@@ -2313,13 +2313,13 @@ class AnalisisView:
                     unidadtiempo = 24
                 infoeje = ConfiguracionController.ctrlObtenerConfiguracionEje(AnalisisView.idproyecto, "ANALISIS", "IV")
                 if infoeje:
-                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8]
+                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rangoprecipitacion, intervaloprecipitacion = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8], infoeje[9], infoeje[10]
                 else:
-                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = 0, 0, 0, 0, 0
-                estadoeje, minejey, maxejey, primario, secundario, dias = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, unidadmedida, unidadtiempo)
+                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rangoprecipitacion, intervaloprecipitacion = 0, 0, 0, 0, 0, 0, 0
+                estadoeje, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, unidadmedida, rangoprecipitacion, intervaloprecipitacion, unidadtiempo)
                 if estadoeje:
                     # guardar configuracion
-                    respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(AnalisisView.idproyecto, "ANALISIS", "IV", minejey, maxejey, primario, secundario, dias)
+                    respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(AnalisisView.idproyecto, "ANALISIS", "IV", minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion)
                     if respuesta:
                         config = SoftwareConfiguracion.obtenerDataSoftware()
                         filtrado = config[16]
@@ -2360,13 +2360,13 @@ class AnalisisView:
                 tipografica = combovariaciones.currentData()
                 infoeje = ConfiguracionController.ctrlObtenerConfiguracionEje(AnalisisView.idproyecto, "ANALISIS", tipografica)
                 if infoeje:
-                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8]
+                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rangoprecipitacion, intervaloprecipitacion  = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8], infoeje[9], infoeje[10]
                 else:
-                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = 0, 0, 0, 0, 0
-                estadoeje, minejey, maxejey, primario, secundario, dias = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, 1, 1)
+                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rangoprecipitacion, intervaloprecipitacion  = 0, 0, 0, 0, 0, 0, 0
+                estadoeje, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rangoprecipitacion, intervaloprecipitacion)
                 if estadoeje:
                     # guardar configuracion
-                    respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(AnalisisView.idproyecto, "ANALISIS", tipografica, minejey, maxejey, primario, secundario, dias)
+                    respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(AnalisisView.idproyecto, "ANALISIS", tipografica, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion)
                     if respuesta:
                         AnalisisView.graficarVariacionesCoordenadas(prismasmarcados)
     
@@ -2379,13 +2379,13 @@ class AnalisisView:
             unidadtiempo = 1
             infoeje = ConfiguracionController.ctrlObtenerConfiguracionEje(AnalisisView.idproyecto, "ANALISIS", tipografico)
             if infoeje:
-                ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8]
+                ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rangoprecipitacion, intervaloprecipitacion  = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8], infoeje[9], infoeje[10]
             else:
-                ejeymin, ejeymax, ejeyprim, ejeysecu, interdias = 0, 0, 0, 0, 0
-            estadoeje, minejey, maxejey, primario, secundario, dias = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, unidad, unidadtiempo)
+                ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rangoprecipitacion, intervaloprecipitacion  = 0, 0, 0, 0, 0, 0, 0
+            estadoeje, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rangoprecipitacion, intervaloprecipitacion)
             if estadoeje:
                 # guardar configuracion
-                respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(AnalisisView.idproyecto, "ANALISIS", tipografico, minejey, maxejey, primario, secundario, dias)
+                respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(AnalisisView.idproyecto, "ANALISIS", tipografico, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion)
                 if respuesta:
                     treeWidget =  AnalisisView.main.findChild(QTreeWidget, "tree_actual_analisis")
                     AnalisisView.ValidarComportamientoPrismas(treeWidget)

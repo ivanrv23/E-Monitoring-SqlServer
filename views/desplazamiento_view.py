@@ -371,21 +371,23 @@ class DesplazamientoView:
                 idcompo, c, umbrales = 0, 0, None
                 for componente, listaprismas in prismasmarcados:
                     idcompo = componente[1]
-                    c += 1
-                if c == 1:
-                    umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(DesplazamientoView.idproyecto, idcompo, tipo, 'umbral_prisma')
-                else:
-                    validar = UmbralController.ctrlValidarUmbralesComponentes(DesplazamientoView.idproyecto, tipo, "umbral_prisma")
-                    cantidad, idcomponen = validar
-                    if cantidad > 0:
-                        if cantidad == 1:
-                            umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(DesplazamientoView.idproyecto, idcomponen, tipo, 'umbral_prisma')
-                        else:
-                            componentes = UmbralController.ctrlListarComponentesUmbrales(DesplazamientoView.idproyecto, tipo, "umbral_prisma")
-                            if componentes:
-                                codigoseleccionado = GraficarUmbrales.mostrarSeleccionUmbrales(componentes, "Umbral Prismas")
-                                if codigoseleccionado:
-                                    umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(DesplazamientoView.idproyecto, codigoseleccionado, tipo, "umbral_prisma")
+                    break
+                umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(DesplazamientoView.idproyecto, idcompo, tipo, 'PRISMAS')
+
+                # if c == 1:
+                #     umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(idcompo, tipo, 'PRISMAS')
+                # else:
+                #     validar = UmbralController.ctrlValidarUmbralesComponentes(DesplazamientoView.idproyecto, tipo, "umbral_prisma")
+                #     cantidad, idcomponen = validar
+                #     if cantidad > 0:
+                #         if cantidad == 1:
+                #             umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(idcomponen, tipo, 'PRISMAS')
+                #         else:
+                #             componentes = UmbralController.ctrlListarComponentesUmbrales(DesplazamientoView.idproyecto, tipo, "umbral_prisma")
+                #             if componentes:
+                #                 codigoseleccionado = GraficarUmbrales.mostrarSeleccionUmbrales(componentes, "Umbral Prismas")
+                #                 if codigoseleccionado:
+                #                     umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(codigoseleccionado, tipo, 'PRISMAS')
                 if umbrales:
                     DesplazamientoView.umbrales_cache = {'tipo': tipo, 'umbrales': umbrales}
                     GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unidad)
@@ -788,10 +790,10 @@ class DesplazamientoView:
                 tipografico = tipo_grafico_desplazamiento.currentData()
                 infoeje = ConfiguracionController.ctrlObtenerConfiguracionEje(DesplazamientoView.idproyecto, "DESPLAZAMIENTO", tipografico)
                 if infoeje:
-                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rango_precipitacion, intervalo_precipitacion = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8], infoeje[9], infoeje[10]
+                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rangoprecipitacion, intervaloprecipitacion = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8], infoeje[9], infoeje[10]
                 else:
-                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rango_precipitacion, intervalo_precipitacion = 0, 0, 0, 0, 0, 0, 0
-                estadoeje, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, unidadmedida, rango_precipitacion, intervalo_precipitacion, unidadtiempo)
+                    ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rangoprecipitacion, intervaloprecipitacion = 0, 0, 0, 0, 0, 0, 0
+                estadoeje, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion = Personalizacion.dialogoConfiguracionEjes(ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, unidadmedida, rangoprecipitacion, intervaloprecipitacion, unidadtiempo)
                 if estadoeje:
                     # guardar configuracion
                     respuesta = ConfiguracionController.ctrlActualizarConfiguracionEjes(DesplazamientoView.idproyecto, "DESPLAZAMIENTO", tipografico, minejey, maxejey, primario, secundario, dias, rango_precipitacion, intervalo_precipitacion)
