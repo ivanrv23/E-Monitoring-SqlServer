@@ -1509,12 +1509,12 @@ class SubirPiezometros:
             parent.setExpanded(True)
             for fechas in listafechas:
                 item = QTreeWidgetItem(parent)
-                item.setText(0, fechas[0])
+                item.setText(0, str(fechas[0]))
                 item.setText(1, "fecha")
                 item.setCheckState(0, Qt.Unchecked)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
                 if fechamarcada:
-                    if fechas[0] == fechamarcada:
+                    if str(fechas[0]) == str(fechamarcada):
                         item.setCheckState(0, Qt.Checked)
         def marcadoDesmarcadoCheckbox(parent_item, column):
             TreeCheckbox.validarMarcadoUnicoCheckbox(parent_item, column)

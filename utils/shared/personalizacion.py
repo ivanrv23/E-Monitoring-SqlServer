@@ -7,6 +7,7 @@ from datetime import datetime, date, time
 from utils.common.rutasarchivos import resource_path
 from utils.common.metodosGenerales import MetodosGenerales
 from controllers.ConfiguracionController import ConfiguracionController
+from modules.datos.equiposVisor import EquiposVisor
 
 class TimeWheel(QListWidget):
     def __init__(self, limit, parent=None):
@@ -2321,12 +2322,13 @@ class Personalizacion:
             )
 
             if tree_referencia is not None:
-                Personalizacion.aplicarPreferenciasArbol(tree_referencia, preferencias)
+                EquiposVisor.aplicar_marcado_predeterminado(
+                    tree_referencia,
+                    preferencias,
+                    fn_refrescar if fn_refrescar is not None else lambda: None
+                )
 
             dialogo.accept()
-
-            if fn_refrescar is not None:
-                fn_refrescar()
 
         def editar_plantilla():
             items = tree_plantillas.selectedItems()
