@@ -92,7 +92,7 @@ ADD
   [rango_precipitacion] FLOAT DEFAULT ((0)),
   [intervalo_precipitacion] FLOAT DEFAULT ((0));
   
------ generar alter de la tala umbral_prismas ?????
+----- EJECUTAR TABLA
 CREATE TABLE [dbemonitoring].[dbo].[umbral_general] (
     [id_umbral]        INT IDENTITY(1,1) NOT NULL,
     [id_proyecto]      INT NOT NULL,
@@ -113,8 +113,41 @@ CREATE TABLE [dbemonitoring].[dbo].[umbral_general] (
         FOREIGN KEY ([id_proyecto])
         REFERENCES [dbemonitoring].[dbo].[proyectos] ([id_proyecto])
 );
+---- LUEGO MIGRAR
+SET IDENTITY_INSERT [dbo].[umbral_general] ON;
+
+INSERT INTO [dbo].[umbral_general] (
+    [id_umbral],
+    [id_proyecto],
+    [id_componente],
+    [condicion_umbral],
+    [color_umbral],
+    [riesgo_umbral],
+    [rango_umbral],
+    [rango2_umbral],
+    [acciones_umbral],
+    [tipo_umbral],
+    [tipo_equipo]
+)
+SELECT
+    [id_umbral],
+    [id_proyecto],
+    [id_componente],
+    [condicion_umbral],
+    [color_umbral],
+    [riesgo_umbral],
+    [rango_umbral],
+    0,              -- rango2_umbral no existía, valor por defecto
+    [acciones_umbral],
+    [tipo_umbral],
+    'PRISMAS'        -- tipo_equipo: todos los registros migrados son de prisma
+FROM [dbo].[umbral_prisma];
+
+SET IDENTITY_INSERT [dbo].[umbral_general] OFF;
+GO
 
 
+=====================================================================================
 CREATE TABLE [umbral_personalizado] (
   [id_umbral] INT IDENTITY(1,1) NOT NULL,
   [id_proyecto] INT NOT NULL,
