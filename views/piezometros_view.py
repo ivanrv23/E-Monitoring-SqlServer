@@ -123,8 +123,6 @@ class PiezometrosView:
             btn_guardar_grafico_reporte.clicked.connect(lambda: PiezometrosView.mostrarDialogoReportePiezometros(tree_actual_piezometros, widget_grafico, combo_tipografico, "Anexos"))
             btnReporteGeneral = main.findChild(QPushButton, "btn_imagen_piezometros")
             btnReporteGeneral.clicked.connect(lambda: PiezometrosView.mostrarDialogoReportePiezometros(tree_actual_piezometros, widget_grafico, combo_tipografico, "General"))
-            btnAplicarUmbralPersonalizado = main.findChild(QPushButton, "btn_umbral_personalizado_P")
-            btnAplicarUmbralPersonalizado.clicked.connect(PiezometrosView.graficarUmbralesPersonalizado)
             PiezometrosView.estadoPagina = False
     
     @staticmethod

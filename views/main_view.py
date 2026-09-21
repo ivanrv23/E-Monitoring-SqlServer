@@ -314,10 +314,7 @@ class MainView:
             btn_estratos_inclinometro= MainView.main_window.findChild(QPushButton, "btn_estratos_inclinometro")
             cargarIcono(btn_estratos_inclinometro, ListaIconos.ICONOS["estrato"]) 
             btn_umbral_inclinometro= MainView.main_window.findChild(QPushButton, "btn_umbrales_inclinometro")
-            cargarIcono(btn_umbral_inclinometro, ListaIconos.ICONOS["umbral"]) 
-            #UMBRAL PERSONALIZADO
-            btn_umbral_Inclinometros_personalizado= MainView.main_window.findChild(QPushButton, "btn_umbral_personalizado_I")
-            cargarIcono(btn_umbral_Inclinometros_personalizado, ListaIconos.ICONOS["umbral2"])
+            cargarIcono(btn_umbral_inclinometro, ListaIconos.ICONOS["umbral"])
             ############################## BOTONES PIEZÓMETROS #############################
             btn_refrescar_vista_piezometros = MainView.main_window.findChild(QPushButton, "btn_refrescar_vista_piezometros")
             cargarIcono(btn_refrescar_vista_piezometros, ListaIconos.ICONOS["refrescar_general"])
@@ -340,11 +337,7 @@ class MainView:
             btn_limpieza_piezometro = MainView.main_window.findChild(QPushButton, "btn_limpieza_piezometros")
             cargarIcono(btn_limpieza_piezometro, ListaIconos.ICONOS["limpieza"])
             btn_umbral_piezometro = MainView.main_window.findChild(QPushButton, "btn_umbral_piezometro")
-            cargarIcono(btn_umbral_piezometro, ListaIconos.ICONOS["umbral"]) 
-            #UMBRAL PERSONALIZADO
-            btn_umbral_piezometros_personalizado= MainView.main_window.findChild(QPushButton, "btn_umbral_personalizado_P")
-            cargarIcono(btn_umbral_piezometros_personalizado, ListaIconos.ICONOS["umbral2"])
-
+            cargarIcono(btn_umbral_piezometro, ListaIconos.ICONOS["umbral"])
             ############################## BOTONES CELDAS #############################
             btn_refrescar_vista_celdas = MainView.main_window.findChild(QPushButton, "btn_refrescar_celdas")
             cargarIcono(btn_refrescar_vista_celdas, ListaIconos.ICONOS["refrescar_general"])
@@ -368,10 +361,6 @@ class MainView:
             cargarIcono(btn_limpieza_celdas, ListaIconos.ICONOS["limpieza"])
             btn_umbral_celda = MainView.main_window.findChild(QPushButton, "btn_umbral_celda")
             cargarIcono(btn_umbral_celda, ListaIconos.ICONOS["umbral"])
-            #UMBRAL PERSONALIZADO
-            btn_umbral_celdas_personalizado= MainView.main_window.findChild(QPushButton, "btn_umbral_personalizado_C")
-            cargarIcono(btn_umbral_celdas_personalizado, ListaIconos.ICONOS["umbral2"])
-            
             ############################## BOTONES ACELEROGRAFOS #############################
             btn_refrescar_vista_acelerografos = MainView.main_window.findChild(QPushButton, "btn_refrescar_vista_acelerografos")
             cargarIcono(btn_refrescar_vista_acelerografos, ListaIconos.ICONOS["refrescar_general"])

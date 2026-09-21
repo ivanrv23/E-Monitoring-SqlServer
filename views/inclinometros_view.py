@@ -111,49 +111,9 @@ class InclinometrosView:
             btn_guardar_grafico_reporte.clicked.connect(lambda: InclinometrosView.guardarGraficoReporte(tree_actual_inclinometros, "Anexos"))
             btnReporteGeneral = main.findChild(QPushButton, "btn_imagen_inclinometros")
             btnReporteGeneral.clicked.connect(lambda: InclinometrosView.guardarGraficoReporte(tree_actual_inclinometros, "General"))
-            # btnAplicarUmbralPersonalizado = main.findChild(QPushButton, "btn_umbral_personalizado_I")
-            # btnAplicarUmbralPersonalizado.clicked.connect(InclinometrosView.pintarUmbralesPersonalizado)
  
             InclinometrosView.estadoPagina = False
-        
-    def pintarUmbralesPersonalizado():
-        print (InclinometrosView.idproyecto)
-        if not InclinometrosView.idproyecto:
-            return
-        combo_tipo_grafico = InclinometrosView.main.findChild(QComboBox, "combo_tipografico_inclinometros")
-        if combo_tipo_grafico.currentData() == 'AI3D':
-            return  # el 3D no soporta umbrales
-        print (combo_tipo_grafico)
-
-        treeWidget = InclinometrosView.main.findChild(QTreeWidget, "tree_actual_inclinometros")
-        lista = EquiposInclinometros.obtener_todos_elementos_marcados(treeWidget)
-        if not lista:
-            return
-        print (lista)
-        inclinometromarcados = InclinometrosView.obtenerListaEquiposMarcados(lista, "Inclinómetros")
-        if len(inclinometromarcados) != 1:
-            return
-
-        componente, listainclinometros = inclinometromarcados[0]
-        print (inclinometromarcados)
-        if not listainclinometros:
-            return
-        idinstru = listainclinometros[0][1]   # <-- idinstru, corregido
-        # Traer el idequipo desde base de datos 
-        idequipo = InstrumentacionController.ctrlObtenerIdequipoInstrumentacion(idinstru)
-        if not idequipo:
-            return
-        tipografico = combo_tipo_grafico.currentData()
-
-        combo_medidas = InclinometrosView.main.findChild(QComboBox, "combo_medida_inclinometros")
-        unidad = combo_medidas.currentData()
-        widget_grafico = InclinometrosView.main.findChild(QWidget, "widget_grafica_inclinoizquierda")
-        widget_grafico2 = InclinometrosView.main.findChild(QWidget, "widget_grafica_inclinoderecha")
-        widgets = [widget_grafico, widget_grafico2]
-
-        graficarUmbralesPersonalizado(widgets, unidad, InclinometrosView.idproyecto, idequipo, tipografico, 'INCLINOMETRO', 'x', 'linea')
-
-
+    
     def graficarUmbralesInclinometros():
         combo_tipo_grafico = InclinometrosView.main.findChild(QComboBox, "combo_tipografico_inclinometros")
         if combo_tipo_grafico.currentData() == 'AI3D':
