@@ -165,32 +165,6 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
 
         canvas.draw()
 
-        start_idx = page * items_per_page
-        end_idx = start_idx + items_per_page
-        current_fechas = unique_fechas[start_idx:end_idx]
-        formatted_dates = [fecha.strftime('%d/%m/%Y') for fecha in current_fechas]
-        # Agregar el label inicial al principio de la leyenda
-        all_handles = []
-        all_labels = []
-        activas = len(unique_fechas)
-        ocultas = total - activas
-        total_handle = plt.Line2D([0], [0], color='w', label=f'Total: {total}', linestyle='None')
-        activa_handle = plt.Line2D([0], [0], color='w', label=f'Activas: {activas}', linestyle='None')
-        oculta_handle = plt.Line2D([0], [0], color='w', label=f'Ocultas: {ocultas}', linestyle='None')
-        all_handles.append(total_handle)
-        all_handles.append(activa_handle)
-        all_handles.append(oculta_handle)
-        all_labels.append(f'Total: {total}')
-        all_labels.append(f'Activas: {activas}')
-        all_labels.append(f'Ocultas: {ocultas}')
-        date_handles = [plt.Line2D([0], [0], color=colores[i], lw=3) for i in range(len(current_fechas))]
-        all_handles.extend(date_handles)
-        all_labels.extend(formatted_dates)
-        ax_legend.legend(all_handles, all_labels, loc="center left", prop={'size': leyendazise},
-                        bbox_to_anchor=(1, 0.5), bbox_transform=main_axis.transAxes)
-        canvas.draw()
-
-
     # Crear botones de paginación con nombres únicos y símbolos de triángulo
     if total_pages > 1:
         prev_button1 = QPushButton("◀")  # Triángulo hacia la izquierda
