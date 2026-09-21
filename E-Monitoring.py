@@ -130,7 +130,7 @@ class MyApp:
     
     def _procesar_datos_sync(self, payload: dict):
         print(f"Datos recibidos de {payload['instrumento']}: {payload['filas']} filas")
-   
+    
     def show_interfaz_principal(self):
         from views.principal import Principal
         Principal.show_main_view()

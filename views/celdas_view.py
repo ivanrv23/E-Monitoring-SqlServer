@@ -124,8 +124,6 @@ class CeldasView:
             btnReporteGeneral.clicked.connect(lambda: CeldasView.mostrarDialogoReporteCeldas(tree_actual_celdas, widget_grafico, combograficoceldas, "General"))
             btn_umbral_celda = main.findChild(QPushButton, "btn_umbral_celda")
             btn_umbral_celda.clicked.connect(CeldasView.graficarUmbralesCeldas)
-            btnAplicarUmbralPersonalizado = main.findChild(QPushButton, "btn_umbral_personalizado_C")
-            btnAplicarUmbralPersonalizado.clicked.connect(CeldasView.graficarUmbralesPersonalizado)
             CeldasView.estadoPagina = False
     
     @staticmethod
