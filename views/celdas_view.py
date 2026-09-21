@@ -28,6 +28,8 @@ class CeldasView:
     timer_busqueda = None
     umbral_activo_celdas = False   # <-- nuevo
     umbrales_cache = None          # <-- nuevo
+    umbral_modo = None              # <-- AGREGAR
+    umbral_general_componente = None  # <-- AGREGAR
     fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(365)
     
     def inicializarVistaCeldas(main, proyectoid, proyectoname, fechaini, fechafin):
@@ -121,86 +123,219 @@ class CeldasView:
             btnReporteGeneral = main.findChild(QPushButton, "btn_imagen_celdas")
             btnReporteGeneral.clicked.connect(lambda: CeldasView.mostrarDialogoReporteCeldas(tree_actual_celdas, widget_grafico, combograficoceldas, "General"))
             btn_umbral_celda = main.findChild(QPushButton, "btn_umbral_celda")
-            btn_umbral_celda.clicked.connect(lambda: CeldasView.graficarUmbralesCeldas(widget_grafico, combograficoceldas, combo_medidas))
+            btn_umbral_celda.clicked.connect(CeldasView.graficarUmbralesCeldas)
             btnAplicarUmbralPersonalizado = main.findChild(QPushButton, "btn_umbral_personalizado_C")
-            btnAplicarUmbralPersonalizado.clicked.connect(lambda: CeldasView.graficarUmbralesPersonalizado(widget_grafico,combo_medidas,combograficoceldas))
+            btnAplicarUmbralPersonalizado.clicked.connect(CeldasView.graficarUmbralesPersonalizado)
             CeldasView.estadoPagina = False
     
-    def graficarUmbralesPersonalizado(widget_grafico,combo_medidas,combograficoceldas):
-        if CeldasView.idproyecto:
-            unidad = combo_medidas.currentData()
-            tipo = combograficoceldas.currentData()
-            if tipo == "VI":
-                if unidad == 1:
-                    unimedida = 1
-                elif unidad == 100:
-                    unimedida = 100
-                else:
-                    unimedida = 1000
-            elif tipo == "AC":
-                unimedida = 1
-            elif tipo == "AI" or tipo == "AA":
-                if unidad == 1:
-                    unimedida = 1
-                elif unidad == 100:
-                    unimedida = 100
-                else:
-                    unimedida = 1000
-            elif tipo == "AF":
-                unimedida = 1
-            else: # AT
-                unimedida = 1
-            graficarUmbralesPersonalizado(widget_grafico,unimedida,CeldasView.idproyecto)
+    @staticmethod
+    def graficarUmbralesPersonalizado():
+        if not CeldasView.idproyecto:
+            return
+        
+        tree_widget = CeldasView.main.findChild(QTreeWidget, "tree_actual_celdas")
+        lista = EquiposCeldas.obtener_todos_elementos_marcados(tree_widget)
+        if not lista:
+            return
+
+        celdasmarcadas, _ = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
+        if len(celdasmarcadas) != 1:
+            return
+
+        region, celda = celdasmarcadas[0]
+        try:
+            idequipo = int(celda[2])
+        except Exception:
+            idequipo = celda[2]
+
+        combo_tipo_grafico = CeldasView.main.findChild(QComboBox, "cb_tipo_graficas_celdas")
+        tipo = combo_tipo_grafico.currentData()
+        combo_medidas = CeldasView.main.findChild(QComboBox, "combo_medida_celdas")
+        unidad = combo_medidas.currentData()
+        widget_grafico = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
+        
+        unimedida = CeldasView._calcularUnimedidaUmbral(tipo, unidad)
+
+        graficarUmbralesPersonalizado(
+            widget_grafico, unimedida,
+            CeldasView.idproyecto, idequipo, tipo, 'CELDA'
+        )
+
+    @staticmethod
+    def _calcularUnimedidaUmbral(tipo, unidad):
+        """Calcula la unidad de medida según tipo de gráfico y unidad seleccionada"""
+        if tipo in ("VI", "AI", "AA"):
+            return unidad  # m, cm o mm
+        else:  # AC, AF, AT
+            return 1
             
-    def graficarUmbralesCeldas(widget_grafico, combograficoceldas, combo_medidas):
+    @staticmethod
+    def graficarUmbralesCeldas():
+        widget_grafico = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
+
+        # Toggle real
         pintado = GraficarUmbrales.clean_on_widget(widget_grafico, 'color')
-        if pintado is False:
-            CeldasView._dibujarUmbralesCeldas(widget_grafico, combograficoceldas, combo_medidas, forzar_seleccion=True)
-        else:
-            # El usuario quitó el umbral manualmente -> no reponerlo
+        if pintado:
+            CeldasView.umbral_modo = None
+            CeldasView.umbral_general_componente = None
             CeldasView.umbral_activo_celdas = False
             CeldasView.umbrales_cache = None
+            return
 
-    def _dibujarUmbralesCeldas(widget_grafico=None, combograficoceldas=None, combo_medidas=None, forzar_seleccion=False):
+        tree_widget = CeldasView.main.findChild(QTreeWidget, "tree_actual_celdas")
+        lista = EquiposCeldas.obtener_todos_elementos_marcados(tree_widget)
+        if not lista:
+            return
+        
+        celdasmarcadas, _ = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
+        if not celdasmarcadas:
+            return
+
+        combo_tipo = CeldasView.main.findChild(QComboBox, "cb_tipo_graficas_celdas")
+        tipo = combo_tipo.currentData()
+
+        opciones = UmbralController.ctrlListarUmbralesGeneralesDisponibles(
+            CeldasView.idproyecto, tipo, 'CELDA')
+        if not opciones:
+            mostrar_mensaje("Umbrales", "No hay umbrales generales configurados.", "advertencia")
+            return
+
+        if len(opciones) == 1:
+            idcompo = opciones[0][0]
+        else:
+            estado, idcompo = Personalizacion.dialogoSeleccionUmbralGeneral(opciones)
+            if not estado or idcompo is None:
+                return
+
+        CeldasView.umbral_general_componente = idcompo
+        CeldasView.umbral_modo = "GENERAL"
+        CeldasView._dibujarUmbralesGenerales(lista)
+
+    @staticmethod
+    def _dibujarUmbralesGenerales(lista=None):
+        widget_grafico = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
+        GraficarUmbrales.clean_on_widget(widget_grafico, 'color')
+
+        if lista is None:
+            tree_widget = CeldasView.main.findChild(QTreeWidget, "tree_actual_celdas")
+            lista = EquiposCeldas.obtener_todos_elementos_marcados(tree_widget)
+        
+        celdasmarcadas, _ = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
+        if not celdasmarcadas:
+            return
+
+        combo_tipo = CeldasView.main.findChild(QComboBox, "cb_tipo_graficas_celdas")
+        tipo = combo_tipo.currentData()
+        combo_medidas = CeldasView.main.findChild(QComboBox, "combo_medida_celdas")
+        unidad = combo_medidas.currentData()
+        
+        idcompo = CeldasView.umbral_general_componente
+        if idcompo is None:
+            idcompo = celdasmarcadas[0][0][1]
+
+        umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(
+            CeldasView.idproyecto, idcompo, tipo, 'CELDA')
+        if not umbrales:
+            CeldasView.umbral_modo = None
+            CeldasView.umbral_activo_celdas = False
+            return
+
+        unimedida = CeldasView._calcularUnimedidaUmbral(tipo, unidad)
+        GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unimedida, 'y', 'color')
+        CeldasView.umbral_activo_celdas = True
+
+    @staticmethod
+    def _dibujarUmbralesCeldas(widget_grafico=None, forzar_seleccion=False):
         if widget_grafico is None:
             widget_grafico = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
-        if combograficoceldas is None:
-            combograficoceldas = CeldasView.main.findChild(QComboBox, "cb_tipo_graficas_celdas")
-        if combo_medidas is None:
-            combo_medidas = CeldasView.main.findChild(QComboBox, "combo_medida_celdas")
-
-        tipo = combograficoceldas.currentData()
-        unidad = combo_medidas.currentData()
-        if tipo in ("VI", "AI", "AA"):
-            unimedida = unidad
-        else:  # AC, AF, AT
-            unimedida = 1
-
-        # --- REUTILIZAR SELECCIÓN YA HECHA (evita re-consultar cada vez) ---
-        if (not forzar_seleccion) and CeldasView.umbrales_cache is not None \
-                and CeldasView.umbrales_cache.get('tipo') == tipo:
-            umbrales = CeldasView.umbrales_cache['umbrales']
-            if umbrales:
-                GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unimedida)
-                CeldasView.umbral_activo_celdas = True
-            return
-        # --------------------------------------------------------------------
 
         tree_actual = CeldasView.main.findChild(QTreeWidget, "tree_actual_celdas")
         lista = EquiposCeldas.obtener_todos_elementos_marcados(tree_actual)
-        if lista:
-            celdasmarcadas, cotasmarcadas = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
-            if len(celdasmarcadas) > 0:
-                idcompo = 0
-                for region, celda in celdasmarcadas:
-                    idcompo = region[1]
-                    break
+        if not lista:
+            return
 
-                umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(CeldasView.idproyecto, idcompo, tipo, 'CELDA')
-                if umbrales:
-                    CeldasView.umbrales_cache = {'tipo': tipo, 'umbrales': umbrales}
-                    GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unimedida)
-                    CeldasView.umbral_activo_celdas = True
+        combo_tipo_grafico = CeldasView.main.findChild(QComboBox, "cb_tipo_graficas_celdas")
+        tipo = combo_tipo_grafico.currentData()
+        combo_medidas = CeldasView.main.findChild(QComboBox, "combo_medida_celdas")
+        unidad = combo_medidas.currentData()
+
+        celdasmarcadas, _ = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
+        if not celdasmarcadas:
+            return
+
+        # --- REUTILIZAR SELECCIÓN YA HECHA ---
+        cache_key = (tipo, unidad)
+        if (not forzar_seleccion) and CeldasView.umbrales_cache is not None \
+                and CeldasView.umbrales_cache.get('key') == cache_key:
+            umbrales = CeldasView.umbrales_cache['umbrales']
+            if umbrales:
+                unimedida = CeldasView._calcularUnimedidaUmbral(tipo, unidad)
+                GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unimedida, 'y', 'color')
+                CeldasView.umbral_activo_celdas = True
+            return
+        # --------------------------------------
+
+        idcompo = celdasmarcadas[0][0][1]
+
+        umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(
+            CeldasView.idproyecto, idcompo, tipo, 'CELDA'
+        )
+        if umbrales:
+            CeldasView.umbrales_cache = {'key': cache_key, 'umbrales': umbrales}
+            unimedida = CeldasView._calcularUnimedidaUmbral(tipo, unidad)
+            GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unimedida, 'y', 'color')
+            CeldasView.umbral_activo_celdas = True
+
+    @staticmethod
+    def _repintarUmbrales(lista):
+        if CeldasView.umbral_modo == "GENERAL":
+            CeldasView._dibujarUmbralesGenerales(lista)
+        else:
+            # None o "PERSONALIZADO": intentar personalizado primero
+            pintado = CeldasView._aplicarUmbralPersonalizado(lista)
+            if not pintado:
+                celdasmarcadas, _ = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
+                if len(celdasmarcadas) > 1:
+                    CeldasView._dibujarUmbralesGenerales(lista)
+
+    @staticmethod
+    def _aplicarUmbralPersonalizado(lista):
+        widget_grafico = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
+        GraficarUmbrales.clean_on_widget(widget_grafico, 'color')
+
+        celdasmarcadas, _ = CeldasView.obtenerListaCeldasMarcadas(lista, "Celdas de Asentamiento")
+
+        if len(celdasmarcadas) != 1:
+            CeldasView.umbral_activo_celdas = False
+            CeldasView.umbral_modo = None
+            return False
+
+        combo_tipo = CeldasView.main.findChild(QComboBox, "cb_tipo_graficas_celdas")
+        tipo = combo_tipo.currentData()
+        combo_medidas = CeldasView.main.findChild(QComboBox, "combo_medida_celdas")
+        unidad = combo_medidas.currentData()
+
+        region, celda = celdasmarcadas[0]
+        try:
+            idequipo = int(celda[2])
+        except Exception:
+            idequipo = celda[2]
+
+        unimedida = CeldasView._calcularUnimedidaUmbral(tipo, unidad)
+
+        pintado = graficarUmbralesPersonalizado(
+            widget_grafico, unimedida, CeldasView.idproyecto, idequipo,
+            tipo, 'CELDA', 'y', 'color', silencioso=True
+        )
+
+        if pintado:
+            CeldasView.umbral_activo_celdas = True
+            CeldasView.umbral_modo = "PERSONALIZADO"
+            return True
+
+        CeldasView.umbral_activo_celdas = False
+        CeldasView.umbral_modo = None
+        return False
     
     def checkProyectoActualCeldas(parent_item, column):
         treeWidget =  CeldasView.main.findChild(QTreeWidget, "tree_actual_celdas")
@@ -273,16 +408,11 @@ class CeldasView:
                 if len(datos) > 0:
                     idx_funda, idx_super = 6, 7
                     CeldasView.graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, unidadtiempo)
-                    if CeldasView.umbral_activo_celdas:          # <-- nuevo
-                        CeldasView._dibujarUmbralesCeldas()      # <-- nuevo
+                    CeldasView._repintarUmbrales(lista)
                 else:
                     CeldasView.limpiarGraficaCeldas()
             else:
-                pluviometrosmarcados = CeldasView.obtenerListaAuxiliaresMarcados(lista, "Pluviómetros")
-                if len(pluviometrosmarcados) == 1:
-                    CeldasView.graficarSoloPluviometro(lista, tipografica, unidadmedida, unidadtiempo)
-                else:
-                    CeldasView.limpiarGraficaCeldas()
+                CeldasView.limpiarGraficaCeldas()
         else:
             CeldasView.limpiarGraficaCeldas()
     
@@ -397,12 +527,15 @@ class CeldasView:
         widget_celdas = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
         limpiar_widget(widget_celdas)
         CeldasView.umbral_activo_celdas = False
+        CeldasView.umbral_modo = None
+        CeldasView.umbral_general_componente = None
+        CeldasView.umbrales_cache = None
 
     def graficarSoloPluviometro(lista, tipografico, unidadmedida, unidadtiempo, tendencias=None):
         widget_celdas = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
         labeltendencia = CeldasView.main.findChild(QLabel, "label_tendencia_celdas")
 
-        pluviometrosmarcados = CeldasView.obtenerListaAuxiliaresMarcados(lista, "Pluviómetros")
+        pluviometrosmarcados = CeldasView.obtenerListaEquiposMarcados(lista, "Pluviómetros")
         datapluvio = PluviometroController.ctrlObtenerPluviometros(
             CeldasView.idproyecto, pluviometrosmarcados,
             CeldasView.fechainicial, CeldasView.fechafinal
@@ -643,6 +776,8 @@ class CeldasView:
         CeldasView.nameproyecto = proyecto_name
         CeldasView.estadochecklist = True
         CeldasView.umbral_activo_celdas = False   # <-- nuevo
+        CeldasView.umbral_modo = None
+        CeldasView.umbral_general_componente = None
         CeldasView.umbrales_cache = None          # <-- nuevo
         CeldasView.limpiarGraficaCeldas()
         # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO

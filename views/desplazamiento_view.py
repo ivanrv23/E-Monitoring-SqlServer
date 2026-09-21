@@ -19,6 +19,7 @@ from controllers.UmbralController import UmbralController
 from utils.shared.graficarUmbrales import GraficarUmbrales
 from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
 from controllers.InterfazController import InterfazController
+from utils.common.alertas import mostrar_mensaje
 
 from PySide6.QtCore import QThread, Signal, QTimer
 
@@ -82,6 +83,8 @@ class DesplazamientoView:
     worker = None
     umbral_activo_desplazamiento = False   # <-- nuevo
     umbrales_cache = None
+    umbral_modo = None
+    umbral_general_componente = None
     tendencia_cache_desplazamiento = None
     _workers_anteriores = []   # Mantener referencias vivas hasta que terminen
     timer_consulta = None
@@ -334,64 +337,88 @@ class DesplazamientoView:
     #         unidad = combo_medidas.currentData()
     #         graficarUmbralesPersonalizado(widget_grafico,unidad,DesplazamientoView.idproyecto)
             
+    @staticmethod
     def graficarUmbralesDesplazamiento():
         widget_grafico = DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento")
+        
+        # Toggle real: limpiar solo umbrales
         pintado = GraficarUmbrales.clean_on_widget(widget_grafico, 'color')
-        if pintado is False:
-            DesplazamientoView._dibujarUmbralesDesplazamiento(widget_grafico, forzar_seleccion=True)
-        else:
-            # El usuario quitó los umbrales manualmente -> no se deben reponer
+        if pintado:
+            DesplazamientoView.umbral_modo = None
+            DesplazamientoView.umbral_general_componente = None
             DesplazamientoView.umbral_activo_desplazamiento = False
             DesplazamientoView.umbrales_cache = None
+            return
 
-    def _dibujarUmbralesDesplazamiento(widget_grafico=None, forzar_seleccion=False):
-        if widget_grafico is None:
-            widget_grafico = DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento")
+        tree_actual = DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+        lista = EquiposDesplazamiento.obtener_todos_elementos_marcados(tree_actual)
+        if not lista:
+            return
+
+        prismasmarcados = DesplazamientoView.obtenerListaEquiposMarcados(lista, "Prismas")
+        if not prismasmarcados:
+            return
+
+        combo_tipo_grafico = DesplazamientoView.main.findChild(QWidget, "combo_tipos_desplazamiento")
+        tipo = combo_tipo_grafico.currentData()
+
+        # ✅ OBTENER OPCIONES DISPONIBLES (igual que piezómetros)
+        opciones = UmbralController.ctrlListarUmbralesGeneralesDisponibles(
+            DesplazamientoView.idproyecto, tipo, 'PRISMAS')
+        
+        if not opciones:
+            mostrar_mensaje("Umbrales", "No hay umbrales generales configurados.", "advertencia")
+            return
+
+        # ✅ SI HAY UNA SOLA OPCIÓN, USARLA DIRECTAMENTE
+        if len(opciones) == 1:
+            idcompo = opciones[0][0]
+        else:
+            # ✅ SI HAY VARIAS, MOSTRAR DIÁLOGO DE SELECCIÓN
+            estado, idcompo = Personalizacion.dialogoSeleccionUmbralGeneral(opciones)
+            if not estado or idcompo is None:
+                return
+
+        # ✅ GUARDAR LA SELECCIÓN
+        DesplazamientoView.umbral_general_componente = idcompo
+        DesplazamientoView.umbral_modo = "GENERAL"
+        DesplazamientoView._dibujarUmbralesGenerales(prismasmarcados)
+
+    @staticmethod
+    def _dibujarUmbralesGenerales(prismasmarcados=None):
+        """Redibuja umbrales generales usando la selección ya guardada"""
+        widget_grafico = DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento")
+        GraficarUmbrales.clean_on_widget(widget_grafico, 'color')
+
+        if prismasmarcados is None:
+            tree_actual = DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+            lista = EquiposDesplazamiento.obtener_todos_elementos_marcados(tree_actual)
+            prismasmarcados = DesplazamientoView.obtenerListaEquiposMarcados(lista, "Prismas")
+        
+        if not prismasmarcados:
+            return
 
         combo_tipo_grafico = DesplazamientoView.main.findChild(QWidget, "combo_tipos_desplazamiento")
         tipo = combo_tipo_grafico.currentData()
         combo_medidas = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza")
         unidad = combo_medidas.currentData()
 
-        # --- REUTILIZAR SELECCIÓN YA HECHA (evita reabrir el diálogo cada vez) ---
-        if (not forzar_seleccion) and DesplazamientoView.umbrales_cache is not None \
-                and DesplazamientoView.umbrales_cache.get('tipo') == tipo:
-            umbrales = DesplazamientoView.umbrales_cache['umbrales']
-            if umbrales:
-                GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unidad)
-                DesplazamientoView.umbral_activo_desplazamiento = True
+        # ✅ USAR EL COMPONENTE GUARDADO (o el primero si no hay guardado)
+        idcompo = DesplazamientoView.umbral_general_componente
+        if idcompo is None:
+            componente, _ = prismasmarcados[0]
+            idcompo = componente[1]
+
+        umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(
+            DesplazamientoView.idproyecto, idcompo, tipo, 'PRISMAS')
+        
+        if not umbrales:
+            DesplazamientoView.umbral_modo = None
+            DesplazamientoView.umbral_activo_desplazamiento = False
             return
-        # -------------------------------------------------------------------------
 
-        tree_actual = DesplazamientoView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-        lista = EquiposDesplazamiento.obtener_todos_elementos_marcados(tree_actual)
-        if lista:
-            prismasmarcados = DesplazamientoView.obtenerListaEquiposMarcados(lista, "Prismas")
-            if len(prismasmarcados) > 0:
-                idcompo, c, umbrales = 0, 0, None
-                for componente, listaprismas in prismasmarcados:
-                    idcompo = componente[1]
-                    break
-                umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(DesplazamientoView.idproyecto, idcompo, tipo, 'PRISMAS')
-
-                # if c == 1:
-                #     umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(idcompo, tipo, 'PRISMAS')
-                # else:
-                #     validar = UmbralController.ctrlValidarUmbralesComponentes(DesplazamientoView.idproyecto, tipo, "umbral_prisma")
-                #     cantidad, idcomponen = validar
-                #     if cantidad > 0:
-                #         if cantidad == 1:
-                #             umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(idcomponen, tipo, 'PRISMAS')
-                #         else:
-                #             componentes = UmbralController.ctrlListarComponentesUmbrales(DesplazamientoView.idproyecto, tipo, "umbral_prisma")
-                #             if componentes:
-                #                 codigoseleccionado = GraficarUmbrales.mostrarSeleccionUmbrales(componentes, "Umbral Prismas")
-                #                 if codigoseleccionado:
-                #                     umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(codigoseleccionado, tipo, 'PRISMAS')
-                if umbrales:
-                    DesplazamientoView.umbrales_cache = {'tipo': tipo, 'umbrales': umbrales}
-                    GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unidad)
-                    DesplazamientoView.umbral_activo_desplazamiento = True
+        GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unidad)
+        DesplazamientoView.umbral_activo_desplazamiento = True
         
     def checkProyectoActualDesplazamiento(parent_item, column):
         def callback_refresco():
@@ -544,8 +571,12 @@ class DesplazamientoView:
         DesplazamientoView.datos_memoria = datos
         if len(datos) > 0:
             DesplazamientoView.graficarPrismasDesplazamiento(lista, datos, tipografico, tipomedida, tipotiempo, DesplazamientoView.tendencia_cache_desplazamiento)
+            
+            # ✅ REPINTAR UMBRALES SI ESTABAN ACTIVOS
             if DesplazamientoView.umbral_activo_desplazamiento:
-                DesplazamientoView._dibujarUmbralesDesplazamiento()
+                if DesplazamientoView.umbral_modo == "GENERAL":
+                    prismasmarcados = DesplazamientoView.obtenerListaEquiposMarcados(lista, "Prismas")
+                    DesplazamientoView._dibujarUmbralesGenerales(prismasmarcados)
         else:
             DesplazamientoView.limpiarGraficaDesplazamiento()
         DesplazamientoView.main.unsetCursor()
@@ -844,6 +875,8 @@ class DesplazamientoView:
         DesplazamientoView.estadochecklist = True
         DesplazamientoView.umbral_activo_desplazamiento = False
         DesplazamientoView.umbrales_cache = None
+        DesplazamientoView.umbral_modo = None
+        DesplazamientoView.umbral_general_componente = None
         DesplazamientoView.tendencia_cache_desplazamiento = None
         treeWidget = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
         EquiposDesplazamiento.inicializar_lista_equipos(treeWidget, proyecto_id, proyecto_name)

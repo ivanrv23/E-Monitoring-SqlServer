@@ -30,3 +30,31 @@ class InstrumentacionModel:
         finally:
             if conn:
                 conn.close()
+
+    @staticmethod
+    def mdlObtenerIdequipoInstrumentacion(idintrumentacion):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            # La sintaxis SQL es compatible con T-SQL (SQL Server)
+            # Se mantienen los placeholders '?' soportados por pyodbc
+            sql = """SELECT id_equipo FROM instrumentacion WHERE id_instrumentacion = ? ;"""
+            
+            cur = conn.cursor()
+            cur.execute(sql, (idintrumentacion, ))
+            
+            rows = cur.fetchone()
+            
+            results = rows [0]
+            
+            if results:
+                return results
+            else:
+                return None
+                
+        except Exception as e:
+            print("Error al obtener idequipo:", e)
+            return None  
+        finally:
+            if conn:
+                conn.close()
