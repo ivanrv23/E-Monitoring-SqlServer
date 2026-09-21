@@ -87,6 +87,7 @@ ADD CONSTRAINT UQ_preferencias_plantilla UNIQUE (id_proyecto, modulo, nombre_pla
 GO
 
 ----------------------------------------------------------------------------------------
+=====================================================================================
 ALTER TABLE [ejes]
 ADD 
   [rango_precipitacion] FLOAT DEFAULT ((0)),
@@ -147,7 +148,6 @@ SET IDENTITY_INSERT [dbo].[umbral_general] OFF;
 GO
 
 
-=====================================================================================
 CREATE TABLE [umbral_personalizado] (
   [id_umbral] INT IDENTITY(1,1) NOT NULL,
   [id_proyecto] INT NOT NULL,
@@ -167,87 +167,3 @@ CREATE TABLE [umbral_personalizado] (
         FOREIGN KEY ([id_proyecto])
         REFERENCES [dbemonitoring].[dbo].[proyectos] ([id_proyecto])
 );
-
-
--- 1. Agregar columnas nuevas permitiendo NULL temporalmente
-ALTER TABLE [umbral_personalizado]
-ADD
-    [id_equipo] INT NULL,
-    [rango2_umbral] FLOAT NULL,
-    [tipo_umbral] VARCHAR(100) NULL,
-    [tipo_equipo] VARCHAR(100) NULL;
-GO
-
-
--- 2. Asignar valores a los registros existentes
--- AJUSTAR ESTOS VALORES SEGÚN TU LÓGICA DE NEGOCIO
-UPDATE [umbral_personalizado]
-SET
-    [id_equipo] = 0,
-    [rango2_umbral] = 0,
-    [tipo_umbral] = '',
-    [tipo_equipo] = '';
-GO
-
-
--- 3. Cambiar las columnas a NOT NULL
-ALTER TABLE [umbral_personalizado]
-ALTER COLUMN [id_proyecto] INT NOT NULL;
-GO
-
-ALTER TABLE [umbral_personalizado]
-ALTER COLUMN [id_equipo] INT NOT NULL;
-GO
-
-ALTER TABLE [umbral_personalizado]
-ALTER COLUMN [condicion_umbral] VARCHAR(255) NULL;
-GO
-
-ALTER TABLE [umbral_personalizado]
-ALTER COLUMN [color_umbral] VARCHAR(50) NOT NULL;
-GO
-
-ALTER TABLE [umbral_personalizado]
-ALTER COLUMN [riesgo_umbral] VARCHAR(255) NULL;
-GO
-
-ALTER TABLE [umbral_personalizado]
-ALTER COLUMN [rango_umbral] FLOAT NOT NULL;
-GO
-
-ALTER TABLE [umbral_personalizado]
-ALTER COLUMN [rango2_umbral] FLOAT NOT NULL;
-GO
-
-ALTER TABLE [umbral_personalizado]
-ALTER COLUMN [acciones_umbral] VARCHAR(MAX) NULL;
-GO
-
-ALTER TABLE [umbral_personalizado]
-ALTER COLUMN [tipo_umbral] VARCHAR(100) NOT NULL;
-GO
-
-ALTER TABLE [umbral_personalizado]
-ALTER COLUMN [tipo_equipo] VARCHAR(100) NOT NULL;
-GO
-
-
--- 4. Agregar el DEFAULT para rango2_umbral
-ALTER TABLE [umbral_personalizado]
-ADD CONSTRAINT [DF_umbral_personalizado_rango2]
-    DEFAULT (0) FOR [rango2_umbral];
-GO
-
-
--- 5. Eliminar columna antigua
-ALTER TABLE [umbral_personalizado]
-DROP COLUMN [nombre_umbral];
-GO
-
-
--- 6. Agregar FK de proyectos
-ALTER TABLE [umbral_personalizado]
-ADD CONSTRAINT [FK_umbral_personalizado_proyectos]
-    FOREIGN KEY ([id_proyecto])
-    REFERENCES [dbemonitoring].[dbo].[proyectos] ([id_proyecto]);
-GO
