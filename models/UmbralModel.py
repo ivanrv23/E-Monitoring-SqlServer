@@ -49,6 +49,27 @@ class UmbralModel:
         finally:
             if conn:
                 conn.close()
+
+    @staticmethod
+    def mdlListarUmbralesGeneralesDisponibles(idproyecto, tipografica, tipoequipo):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            sql = """SELECT DISTINCT u.id_componente,
+                            COALESCE(c.nombre_componente, 'TODOS') AS nombre
+                    FROM umbral_general u
+                    LEFT JOIN componentes c ON u.id_componente = c.id_componente
+                    WHERE u.id_proyecto = ? AND u.tipo_umbral = ? AND u.tipo_equipo = ?
+                    ORDER BY nombre;"""
+            cur = conn.cursor()
+            cur.execute(sql, (idproyecto, tipografica, tipoequipo))
+            result = [tuple(row) for row in cur.fetchall()]
+            return result if result else None
+        except Exception as e:
+            print("Error al listar umbrales generales: " + str(e))
+            return None
+        finally:
+            if conn: conn.close()
                     
     @staticmethod
     def mdlGuardarUmbralesEquipos(proyectoid, componente_id, tipografica, data, tipoequipo):
@@ -61,11 +82,9 @@ class UmbralModel:
             cur = conn.cursor()
             
             # Preparamos los parámetros para executemany para mayor eficiencia
-            params = []
-            for item in data:
-                params.append((proyectoid, componente_id, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'], tipografica, tipoequipo))
-            
-            cur.executemany(sql, params)
+            params = [proyectoid, componente_id, data['condicion'], data['color'], data['riesgo'], data['rango'], data['acciones'], tipografica, tipoequipo]
+           
+            cur.execute(sql, params)
             conn.commit()
             return True
         except Exception as e:
@@ -77,6 +96,7 @@ class UmbralModel:
     
     @staticmethod
     def mdlGuardarUmbralesPersonalizados(proyectoid, equipo_id, tipografica, data, tipoequipo):
+        print(proyectoid, equipo_id, tipografica, data, tipoequipo)
         conn = None
         # Validación de seguridad básica para inyección en nombre de tabla           
         sql = f"""INSERT INTO umbral_personalizado (id_proyecto, id_equipo, condicion_umbral, color_umbral, 
@@ -86,11 +106,9 @@ class UmbralModel:
             cur = conn.cursor()
             
             # Preparamos los parámetros para executemany para mayor eficiencia
-            params = []
-            for item in data:
-                params.append((proyectoid, equipo_id, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'], tipografica, tipoequipo))
-            
-            cur.executemany(sql, params)
+            params = [proyectoid, equipo_id, data['condicion'], data['color'], data['riesgo'], data['rango'], data['acciones'], tipografica, tipoequipo]
+           
+            cur.execute(sql, params)
             conn.commit()
             return True
         except Exception as e:

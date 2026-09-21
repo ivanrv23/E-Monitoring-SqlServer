@@ -2,7 +2,7 @@ from PySide6.QtGui import QPalette
 from PySide6.QtCore import Qt, QDateTime, QDate, QTime, Signal
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QTreeWidgetItem, QColorDialog, QLabel, QDateEdit, QTimeEdit, QPushButton,
-    QTreeWidget, QFrame, QComboBox, QSpinBox, QWidget, QHBoxLayout, QDoubleSpinBox, QCheckBox, QCalendarWidget, QListWidget, QLineEdit)
+    QTreeWidget, QFrame, QComboBox, QSpinBox, QWidget, QHBoxLayout, QDoubleSpinBox, QCheckBox, QCalendarWidget, QListWidget, QListWidgetItem, QLineEdit)
 from datetime import datetime, date, time 
 from utils.common.rutasarchivos import resource_path
 from utils.common.metodosGenerales import MetodosGenerales
@@ -199,6 +199,40 @@ class Personalizacion:
     estaeje, rangoxmin, rangoxmax, interxprim, interxsecu, interyprofu = False, 0, 0, 0, 0, 0
     ejexmintdr, ejexmaxtdr, xpritdr, xsecutdr = 0, 0, 0, 0
     ejeymintdr, ejeymaxtdr, ypritdr, ysecutdr, estadotdrejey = 0, 0, 0, 0, False
+
+    @staticmethod
+    def dialogoSeleccionUmbralGeneral(opciones):
+        """
+        opciones: lista de tuplas (id_componente, nombre_componente)
+        return: (estado: bool, id_componente_elegido: int|None)
+        """
+        dialog = QDialog()
+        dialog.setWindowTitle("Seleccionar Umbral General")
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Seleccione el componente cuyo umbral desea aplicar:"))
+
+        lista = QListWidget()
+        for idcompo, nombre in opciones:
+            item = QListWidgetItem(nombre)
+            item.setData(Qt.UserRole, idcompo)
+            lista.addItem(item)
+        lista.setCurrentRow(0)
+        layout.addWidget(lista)
+
+        botones = QHBoxLayout()
+        btn_ok = QPushButton("Aplicar")
+        btn_cancel = QPushButton("Cancelar")
+        botones.addWidget(btn_ok)
+        botones.addWidget(btn_cancel)
+        layout.addLayout(botones)
+        dialog.setLayout(layout)
+
+        btn_ok.clicked.connect(dialog.accept)
+        btn_cancel.clicked.connect(dialog.reject)
+
+        if dialog.exec() == QDialog.Accepted and lista.currentItem():
+            return True, lista.currentItem().data(Qt.UserRole)
+        return False, None
     
     @staticmethod
     def dialogoFiltroFechas(fechainicial, fechafinal):

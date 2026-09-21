@@ -17,6 +17,8 @@ from modules.acelerografos.graficarArchivos import procesar_graficos_acelerograf
 from modules.acelerografos.graficarArchivos import generar_csvs_para_fecha
 from utils.shared.graficarUmbrales import GraficarUmbrales
 from controllers.UmbralController import UmbralController
+from utils.common.alertas import mostrar_mensaje
+from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
 
 class AcelerografosView:
     main = None
@@ -26,6 +28,8 @@ class AcelerografosView:
     estadoPagina = True
     umbral_activo_acelerografos = False
     umbrales_cache = None
+    umbral_modo = None
+    umbral_general_componente = None
     fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(365)
     fechaacelero = datetime.strptime(fechainicial, "%Y-%m-%d %H:%M:%S")
     solofechaacelero = str(fechaacelero.date())
@@ -97,7 +101,13 @@ class AcelerografosView:
             btngenerarcsv = main.findChild(QPushButton, "btn_generar_csv")
             btngenerarcsv.clicked.connect(lambda:AcelerografosView.generar_csv(tree_actual))
             btnUmbralAcelero = main.findChild(QPushButton, "btn_umbral_acelerografo")
-            btnUmbralAcelero.clicked.connect(lambda: AcelerografosView.graficarUmbralesAcelerografos(widget_grafico))
+            btnUmbralAcelero.clicked.connect(AcelerografosView.graficarUmbralesAcelerografos)
+            
+            # BOTÓN UMBRAL PERSONALIZADO - CON VALIDACIÓN
+            btnAplicarUmbralPersonalizado = main.findChild(QPushButton, "btn_umbral_personalizado_A")
+            if btnAplicarUmbralPersonalizado:
+                btnAplicarUmbralPersonalizado.clicked.connect(AcelerografosView.pintarUmbralesPersonalizado)
+            
             AcelerografosView.estadoPagina = False
     
     def generar_csv(tree_actual):
@@ -132,24 +142,187 @@ class AcelerografosView:
                     hora_fin = fechainicial.strftime("%H:%M:%S")
                 generar_csvs_para_fecha(AcelerografosView.idproyecto, idacelerografo, tipografica, añodia, horario, unidadg)
 
+    @staticmethod
+    def _calcularUnimedidaUmbral(tipo):
+        """Calcula la unidad de medida según tipo de gráfico"""
+        return 1
 
-    def graficarUmbralesAcelerografos(widget_grafico):
+    # ========== UMBRALES PERSONALIZADOS (BOTÓN MANUAL) ==========
+    @staticmethod
+    def pintarUmbralesPersonalizado():
+        """Botón manual para aplicar umbral personalizado"""
+        if not AcelerografosView.idproyecto:
+            return
+        
+        combo_tipo_grafico = AcelerografosView.main.findChild(QComboBox, "cb_tipo_grafico_acelerografos")
+        tipo = combo_tipo_grafico.currentData()
+        
+        treeWidget = AcelerografosView.main.findChild(QTreeWidget, "tree_actual_acelerografos")
+        lista = EquiposAcelerografos.obtener_todos_elementos_marcados(treeWidget)
+        if not lista:
+            return
+        
+        aceleromarcados = AcelerografosView.obtenerListaEquiposMarcados(lista, "Acelerógrafos")
+        if len(aceleromarcados) != 1:
+            mostrar_mensaje("Umbrales Personalizados", 
+                        "Debe seleccionar exactamente un acelerógrafo.", 
+                        "advertencia")
+            return
+
+        componente, lista_acelero = aceleromarcados[0]
+        if not lista_acelero:
+            return
+            
+        try:
+            idequipo = int(lista_acelero[0][2])
+        except Exception:
+            idequipo = lista_acelero[0][2]
+
+        widget_grafico = AcelerografosView.main.findChild(QWidget, "widget_acelerografos")
+        unimedida = AcelerografosView._calcularUnimedidaUmbral(tipo)
+
+        # Llamar SIN silencioso (muestra el diálogo)
+        pintado = graficarUmbralesPersonalizado(
+            widget_grafico, unimedida,
+            AcelerografosView.idproyecto, idequipo, tipo, 'ACELEROGRAFO',
+            'y', 'color'
+        )
+        
+        if pintado:
+            AcelerografosView.umbral_modo = "PERSONALIZADO"
+            AcelerografosView.umbral_activo_acelerografos = True
+
+    # ========== UMBRALES GENERALES ==========
+    @staticmethod
+    def graficarUmbralesAcelerografos():
+        widget_grafico = AcelerografosView.main.findChild(QWidget, "widget_acelerografos")
+
+        # Toggle real
         pintado = GraficarUmbrales.clean_on_widget(widget_grafico, 'color', tipo="ACELEROGRAFOS")
-        if pintado is False:
-            tree_actual =  AcelerografosView.main.findChild(QTreeWidget, "tree_actual_acelerografos")
-            lista = EquiposAcelerografos.obtener_todos_elementos_marcados(tree_actual)
-            if lista:
-                umbrales = None
-                comboAcelerografosGrafico = AcelerografosView.main.findChild(QComboBox, "cb_tipo_grafico_acelerografos")
-                tipo = comboAcelerografosGrafico.currentData()
-                aceleromarcados = AcelerografosView.obtenerListaEquiposMarcados(lista, "Acelerógrafos")
-                if len(aceleromarcados) == 1:
-                    for componente, listaacelero in aceleromarcados:
-                        nombrecomponente, idcomponente, idproy = componente
-                    umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(AcelerografosView.idproyecto, idcomponente, tipo, 'ACELEROGRAFO')
-                    if umbrales:
-                        GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, 1, sentido='y', tipo_pintado='color', tipo="ACELEROGRAFOS")
-    
+        if pintado:
+            AcelerografosView.umbral_modo = None
+            AcelerografosView.umbral_general_componente = None
+            AcelerografosView.umbral_activo_acelerografos = False
+            AcelerografosView.umbrales_cache = None
+            return
+
+        tree_widget = AcelerografosView.main.findChild(QTreeWidget, "tree_actual_acelerografos")
+        lista = EquiposAcelerografos.obtener_todos_elementos_marcados(tree_widget)
+        if not lista:
+            return
+
+        aceleromarcados = AcelerografosView.obtenerListaEquiposMarcados(lista, "Acelerógrafos")
+        if not aceleromarcados:
+            return
+
+        combo_tipo = AcelerografosView.main.findChild(QComboBox, "cb_tipo_grafico_acelerografos")
+        tipo = combo_tipo.currentData()
+
+        opciones = UmbralController.ctrlListarUmbralesGeneralesDisponibles(
+            AcelerografosView.idproyecto, tipo, 'ACELEROGRAFO')
+        if not opciones:
+            mostrar_mensaje("Umbrales", "No hay umbrales generales configurados.", "advertencia")
+            return
+
+        # Seleccionar componente
+        if len(opciones) == 1:
+            idcompo = opciones[0][0]
+        else:
+            estado, idcompo = Personalizacion.dialogoSeleccionUmbralGeneral(opciones)
+            if not estado or idcompo is None:
+                return
+
+        # GUARDAR la selección
+        AcelerografosView.umbral_general_componente = idcompo
+        AcelerografosView.umbral_modo = "GENERAL"
+        AcelerografosView._dibujarUmbralesGenerales(aceleromarcados)
+
+    @staticmethod
+    def _dibujarUmbralesGenerales(aceleromarcados=None):
+        """Redibuja umbrales generales usando la selección ya guardada"""
+        widget_grafico = AcelerografosView.main.findChild(QWidget, "widget_acelerografos")
+        GraficarUmbrales.clean_on_widget(widget_grafico, 'color', tipo="ACELEROGRAFOS")
+        
+        if aceleromarcados is None:
+            tree_widget = AcelerografosView.main.findChild(QTreeWidget, "tree_actual_acelerografos")
+            lista = EquiposAcelerografos.obtener_todos_elementos_marcados(tree_widget)
+            aceleromarcados = AcelerografosView.obtenerListaEquiposMarcados(lista, "Acelerógrafos")
+        
+        if not aceleromarcados:
+            return
+
+        combo_tipo = AcelerografosView.main.findChild(QComboBox, "cb_tipo_grafico_acelerografos")
+        tipo = combo_tipo.currentData()
+        
+        idcompo = AcelerografosView.umbral_general_componente
+        if idcompo is None:
+            componente, _ = aceleromarcados[0]
+            idcompo = componente[1]
+        
+        umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(
+            AcelerografosView.idproyecto, idcompo, tipo, 'ACELEROGRAFO')
+        
+        if not umbrales:
+            AcelerografosView.umbral_modo = None
+            AcelerografosView.umbral_activo_acelerografos = False
+            return
+
+        unimedida = AcelerografosView._calcularUnimedidaUmbral(tipo)
+        GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unimedida, 'y', 'color', tipo="ACELEROGRAFOS")
+        AcelerografosView.umbral_activo_acelerografos = True
+
+    @staticmethod
+    def _aplicarUmbralPersonalizado(aceleromarcados):
+        """Intenta aplicar umbral personalizado si hay exactamente 1 acelerógrafo (automático/silencioso)"""
+        widget_grafico = AcelerografosView.main.findChild(QWidget, "widget_acelerografos")
+
+        if len(aceleromarcados) != 1:
+            AcelerografosView.umbral_activo_acelerografos = False
+            AcelerografosView.umbral_modo = None
+            return False
+
+        componente, lista_acelero = aceleromarcados[0]
+        if not lista_acelero:
+            AcelerografosView.umbral_activo_acelerografos = False
+            AcelerografosView.umbral_modo = None
+            return False
+            
+        try:
+            idequipo = int(lista_acelero[0][2])
+        except Exception:
+            idequipo = lista_acelero[0][2]
+
+        combo_tipo = AcelerografosView.main.findChild(QComboBox, "cb_tipo_grafico_acelerografos")
+        tipo = combo_tipo.currentData()
+        unimedida = AcelerografosView._calcularUnimedidaUmbral(tipo)
+
+        # LLAMAR CON silencioso=True (automático, sin diálogo)
+        pintado = graficarUmbralesPersonalizado(
+            widget_grafico, unimedida, AcelerografosView.idproyecto, idequipo,
+            tipo, 'ACELEROGRAFO', 'y', 'color', silencioso=True
+        )
+
+        if pintado:
+            AcelerografosView.umbral_activo_acelerografos = True
+            AcelerografosView.umbral_modo = "PERSONALIZADO"
+            return True
+
+        AcelerografosView.umbral_activo_acelerografos = False
+        AcelerografosView.umbral_modo = None
+        return False
+
+    @staticmethod
+    def _repintarUmbrales(aceleromarcados):
+        """Repinta umbrales después de redibujar el gráfico"""
+        if AcelerografosView.umbral_modo == "GENERAL":
+            AcelerografosView._dibujarUmbralesGenerales(aceleromarcados)
+        else:
+            # Intentar personalizado primero
+            pintado = AcelerografosView._aplicarUmbralPersonalizado(aceleromarcados)
+            # Si falla y hay más de 1, fallback a general
+            if not pintado and len(aceleromarcados) > 1:
+                AcelerografosView._dibujarUmbralesGenerales(aceleromarcados)
+
     def checkProyectoActualAcelerografos(parent_item, column):
         treeWidget =  AcelerografosView.main.findChild(QTreeWidget, "tree_actual_acelerografos")
         EquiposAcelerografos.validarMarcadoCheckbox(parent_item, column, treeWidget, lambda: AcelerografosView.obtenerMostrarAcelerografosMarcados(treeWidget))
@@ -206,6 +379,9 @@ class AcelerografosView:
         tipografica = comboAcelerografos_grafico.currentData()
         widget_acelerografos = AcelerografosView.main.findChild(QWidget, "widget_acelerografos")
         AcelerografosView.limpiarGraficaAcelerografos()
+        
+        graficado_exitoso = False
+        
         if tipografica == "AMA": # Magnitud
             config = SoftwareConfiguracion.obtenerDataSoftware()
             filtrado = config[16]
@@ -213,22 +389,27 @@ class AcelerografosView:
                 datos = AcelerografoController.ctrlObtenerMagnitud(AcelerografosView.idproyecto, aceleromarcados)
             else:
                 datos = AcelerografoController.ctrlObtenerMagnitudFechas(AcelerografosView.idproyecto, aceleromarcados, AcelerografosView.fechainicial, AcelerografosView.fechafinal)
+            
             if len(datos) > 0:
                 if filtrado == 0:
                     procesar_grafica_acelerografos(widget_acelerografos, AcelerografosView.idproyecto, datos)
                 else:
                     procesar_grafica_acelerografos(widget_acelerografos, AcelerografosView.idproyecto, datos, AcelerografosView.fechainicial, AcelerografosView.fechafinal)
-        else: # ACELERACION
+                graficado_exitoso = True
+                
+        else: # ACELERACION, VELOCIDAD, DESPLAZAMIENTO
             idacelerografo = None
             nombre_acelerografo = None
             unidadg, graficatipo = False, tipografica
             if tipografica == "AAG":
                 unidadg = True
                 graficatipo = "AAC"
+            
             for componente, listaacelero in aceleromarcados:
                 for acelero in listaacelero:
                     idacelerografo = acelero[2]
                     nombre_acelerografo = acelero[0]
+            
             if idacelerografo:
                 fechafinal = datetime.strptime(AcelerografosView.acelerografofecha, "%Y-%m-%d")
                 año = fechafinal.year
@@ -236,11 +417,24 @@ class AcelerografosView:
                 añodia = (año, dia_del_anio)
                 hora_inicio = AcelerografosView.horainicial
                 hora_fin = AcelerografosView.horafinal
-                procesar_graficos_acelerografos(widget_acelerografos, graficatipo, AcelerografosView.idproyecto, idacelerografo, nombre_acelerografo, unidadg, añodia, hora_inicio, hora_fin)
+                
+                procesar_graficos_acelerografos(widget_acelerografos, graficatipo, AcelerografosView.idproyecto, 
+                                            idacelerografo, nombre_acelerografo, unidadg, añodia, 
+                                            hora_inicio, hora_fin)
+                graficado_exitoso = True
+        
+        # REPINTAR UMBRALES (igual que inclinómetros)
+        if graficado_exitoso:
+            AcelerografosView._repintarUmbrales(aceleromarcados)
     
     def limpiarGraficaAcelerografos():
         widget_acelerografos = AcelerografosView.main.findChild(QWidget, "widget_acelerografos")
         limpiar_widget(widget_acelerografos)
+        GraficarUmbrales.clean_on_widget(widget_acelerografos, 'color', tipo="ACELEROGRAFOS")
+        AcelerografosView.umbral_activo_acelerografos = False
+        AcelerografosView.umbral_modo = None
+        AcelerografosView.umbral_general_componente = None
+        AcelerografosView.umbrales_cache = None
     
     def mostrarDialogoReporteAcelerografos(treeWidget, widget_grafico, tiporeporte):
         if AcelerografosView.idproyecto:
@@ -270,7 +464,12 @@ class AcelerografosView:
         AcelerografosView.idproyecto = proyecto_id
         AcelerografosView.nameproyecto = proyecto_name
         AcelerografosView.estadochecklist = True
+        AcelerografosView.umbral_activo_acelerografos = False
+        AcelerografosView.umbral_modo = None
+        AcelerografosView.umbral_general_componente = None
+        AcelerografosView.umbrales_cache = None
         AcelerografosView.limpiarGraficaAcelerografos()
+        
         # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
         buscador_arbol = main.findChild(QLineEdit, "input_buscar_acelerografos")
         if buscador_arbol is not None:
@@ -306,4 +505,3 @@ class AcelerografosView:
                 botonvoz.setEnabled(False)
                 hilo_asistente = threading.Thread(target=AsistenteVoz.analizarAcelerografos, args=(AcelerografosView.idproyecto, aceleromarcados, AcelerografosView.fechainicial, AcelerografosView.fechafinal, botonvoz))
                 hilo_asistente.start()
-    

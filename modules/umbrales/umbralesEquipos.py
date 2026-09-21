@@ -3110,7 +3110,7 @@ class UmbralView:
         # Conectar el cambio de opción en el ComboBox para cargar los umbrales
         combo.currentIndexChanged.connect(load_umbrales)
         component_combo.currentIndexChanged.connect(load_umbrales)
-        # piezometro_combo.currentIndexChanged.connect(load_umbrales)
+        piezometro_combo.currentIndexChanged.connect(load_umbrales)
         # Configurar las columnas iniciales
         load_umbrales()
         # Añadir la tabla al layout

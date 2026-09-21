@@ -7,7 +7,7 @@ class UmbralController:
         for item in data:
             umbral_id = item['id']
             if umbral_id is None or umbral_id == 0:
-                success = UmbralModel.mdlGuardarUmbralesEquipos(proyectoid, componente_id, tipografica, [item], tipoequipo)
+                success = UmbralModel.mdlGuardarUmbralesEquipos(proyectoid, componente_id, tipografica, item, tipoequipo)
             else:
                 success = UmbralModel.mdlActualizarUmbralEquipos(umbral_id, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'])
             if not success:
@@ -18,7 +18,7 @@ class UmbralController:
         for item in data:
             umbral_id = item['id']
             if umbral_id is None or umbral_id == 0:
-                success = UmbralModel.mdlGuardarUmbralesPersonalizados(proyectoid, equipo_id, tipografica, [item], tipoequipo)
+                success = UmbralModel.mdlGuardarUmbralesPersonalizados(proyectoid, equipo_id, tipografica, item, tipoequipo)
             else:
                 success = UmbralModel.mdlActualizarUmbralPersonalizados(umbral_id, item['condicion'], item['color'], item['riesgo'], item['rango'], item['acciones'])
             if not success:
@@ -46,6 +46,9 @@ class UmbralController:
             if not success:
                 return False
         return True
+    
+    def ctrlListarUmbralesGeneralesDisponibles(idproyecto, tipografica, tipoequipo):
+        return UmbralModel.mdlListarUmbralesGeneralesDisponibles(idproyecto, tipografica, tipoequipo)
 
     def ctrlGuardarUmbralesPersonalizadosAcelerografos(proyectoid, equipo_id, tipografica, data, tipoequipo):
         for item in data:
