@@ -1853,6 +1853,19 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                     </widget>
                    </item>
                    <item>
+                    <widget class="QComboBox" name="combo_tipos_desplazamiento">
+                     <property name="minimumSize">
+                      <size>
+                       <width>150</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                     <property name="toolTip">
+                      <string>Tipos de Gráfica</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
                     <widget class="QComboBox" name="combo_medida_desplaza">
                      <property name="minimumSize">
                       <size>
@@ -1959,19 +1972,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                       </size>
                      </property>
                     </spacer>
-                   </item>
-                   <item>
-                    <widget class="QComboBox" name="combo_tipos_desplazamiento">
-                     <property name="minimumSize">
-                      <size>
-                       <width>150</width>
-                       <height>0</height>
-                      </size>
-                     </property>
-                     <property name="toolTip">
-                      <string>Tipos de Gráfica</string>
-                     </property>
-                    </widget>
                    </item>
                    <item>
                     <widget class="QPushButton" name="btn_exportar_desplazamiento">
@@ -2279,6 +2279,19 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                     </widget>
                    </item>
                    <item>
+                    <widget class="QComboBox" name="combo_tipos_velocidad">
+                     <property name="minimumSize">
+                      <size>
+                       <width>140</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                     <property name="toolTip">
+                      <string>Tipo de Gráfica</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
                     <widget class="QComboBox" name="combo_medida_velocidad">
                      <property name="minimumSize">
                       <size>
@@ -2372,19 +2385,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                       </size>
                      </property>
                     </spacer>
-                   </item>
-                   <item>
-                    <widget class="QComboBox" name="combo_tipos_velocidad">
-                     <property name="minimumSize">
-                      <size>
-                       <width>140</width>
-                       <height>0</height>
-                      </size>
-                     </property>
-                     <property name="toolTip">
-                      <string>Tipo de Gráfica</string>
-                     </property>
-                    </widget>
                    </item>
                    <item>
                     <widget class="QPushButton" name="btn_exportar_velocidad">
@@ -2681,8 +2681,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>964</width>
-                <height>38</height>
+                <width>852</width>
+                <height>22</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_24">
@@ -2918,8 +2918,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>964</width>
-                <height>624</height>
+                <width>455</width>
+                <height>532</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,1">
@@ -3075,8 +3075,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>964</width>
-                <height>38</height>
+                <width>682</width>
+                <height>22</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_8">
@@ -3296,8 +3296,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>964</width>
-                <height>624</height>
+                <width>82</width>
+                <height>16</height>
                </rect>
               </property>
              </widget>
@@ -3454,8 +3454,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>964</width>
-                <height>38</height>
+                <width>812</width>
+                <height>22</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_10">
@@ -3698,8 +3698,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>964</width>
-                <height>624</height>
+                <width>82</width>
+                <height>16</height>
                </rect>
               </property>
              </widget>
@@ -3857,7 +3857,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <x>0</x>
                 <y>0</y>
                 <width>478</width>
-                <height>28</height>
+                <height>22</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_14">
@@ -4026,8 +4026,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>98</width>
-                <height>28</height>
+                <width>82</width>
+                <height>16</height>
                </rect>
               </property>
              </widget>
@@ -4185,7 +4185,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <x>0</x>
                 <y>0</y>
                 <width>427</width>
-                <height>28</height>
+                <height>22</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_16">
@@ -4343,8 +4343,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>98</width>
-                <height>28</height>
+                <width>82</width>
+                <height>16</height>
                </rect>
               </property>
              </widget>
@@ -4502,7 +4502,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <x>0</x>
                 <y>0</y>
                 <width>352</width>
-                <height>28</height>
+                <height>22</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_19">
@@ -4648,7 +4648,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>98</width>
+                   <width>80</width>
                    <height>74</height>
                   </rect>
                  </property>
@@ -4823,7 +4823,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>98</width>
+                   <width>80</width>
                    <height>74</height>
                   </rect>
                  </property>
@@ -5001,7 +5001,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>98</width>
+                   <width>80</width>
                    <height>88</height>
                   </rect>
                  </property>
@@ -5273,7 +5273,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>98</width>
+                   <width>80</width>
                    <height>88</height>
                   </rect>
                  </property>
@@ -5514,7 +5514,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>98</width>
+                   <width>80</width>
                    <height>74</height>
                   </rect>
                  </property>
@@ -5729,8 +5729,8 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                          <rect>
                           <x>0</x>
                           <y>0</y>
-                          <width>305</width>
-                          <height>28</height>
+                          <width>335</width>
+                          <height>32</height>
                          </rect>
                         </property>
                         <layout class="QHBoxLayout" name="horizontalLayout_26">
@@ -5906,7 +5906,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                           <x>0</x>
                           <y>0</y>
                           <width>286</width>
-                          <height>28</height>
+                          <height>34</height>
                          </rect>
                         </property>
                         <layout class="QHBoxLayout" name="horizontalLayout_27">
@@ -6063,7 +6063,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>98</width>
+                   <width>80</width>
                    <height>76</height>
                   </rect>
                  </property>
@@ -6379,7 +6379,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>98</width>
+                <width>82</width>
                 <height>64</height>
                </rect>
               </property>
@@ -6693,7 +6693,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 <x>0</x>
                 <y>0</y>
                 <width>488</width>
-                <height>28</height>
+                <height>22</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_29">
@@ -6883,7 +6883,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>279</width>
+                       <width>280</width>
                        <height>449</height>
                       </rect>
                      </property>
@@ -7761,7 +7761,7 @@ El reporte mensual elaborado por la Jefatura de Geotecnia esta alineado a la RES
                           <rect>
                            <x>0</x>
                            <y>0</y>
-                           <width>208</width>
+                           <width>209</width>
                            <height>393</height>
                           </rect>
                          </property>
@@ -8514,7 +8514,7 @@ El reporte mensual elaborado por la Jefatura de Geotecnia esta alineado a la RES
                           <rect>
                            <x>0</x>
                            <y>0</y>
-                           <width>208</width>
+                           <width>209</width>
                            <height>264</height>
                           </rect>
                          </property>
@@ -8684,7 +8684,7 @@ El reporte mensual elaborado por la Jefatura de Geotecnia esta alineado a la RES
                       <x>0</x>
                       <y>0</y>
                       <width>120</width>
-                      <height>28</height>
+                      <height>20</height>
                      </rect>
                     </property>
                     <layout class="QHBoxLayout" name="horizontalLayout_32">
@@ -9041,7 +9041,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>69</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9073,7 +9073,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>69</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9105,7 +9105,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>69</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9137,7 +9137,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>69</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9169,7 +9169,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>69</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9201,7 +9201,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>69</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9233,7 +9233,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>69</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9265,7 +9265,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>69</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9297,7 +9297,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>69</width>
                   <height>66</height>
                  </rect>
                 </property>
@@ -9329,7 +9329,7 @@ QLineEdit:disabled {
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>98</width>
+                  <width>69</width>
                   <height>66</height>
                  </rect>
                 </property>
