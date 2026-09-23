@@ -351,8 +351,7 @@ def _crear_texto_info(texto, fuente, leyendazise):
     """Entrada de texto simple (sin ícono, no clickeable) para Total/Activas/Ocultas."""
     return TextArea(texto, textprops=dict(size=leyendazise, family=fuente, weight='bold'))
 
-def construir_leyenda_flujo(ax, canvas, figure, widget, lineas, barras_pluviometro,
-                             fuente, leyendazise, lineas_principales=None):
+def construir_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro, fuente, leyendazise):
     canvas.draw()
     renderer = canvas.get_renderer()
 
@@ -393,11 +392,7 @@ def construir_leyenda_flujo(ax, canvas, figure, widget, lineas, barras_pluviomet
         filas_idx.append(fila_actual)
 
     entradas_info = []
-    mapa_toggle = {}
-    hitbox_entries = []
     filas_boxes = []
-
-    # --- Ya NO se agrega la fila de Total aquí, ahora vive en la toolbar ---
 
     for fila in filas_idx:
         cajas = []
@@ -415,23 +410,6 @@ def construir_leyenda_flujo(ax, canvas, figure, widget, lineas, barras_pluviomet
             entradas_info.append({'icono': icono_da, 'texto': texto_area,
                                   'handle': handle, 'visuales': visuales})
 
-            texto_obj = texto_area.get_children()[0]
-            texto_obj.set_picker(True)
-
-            visible_actual = handle.get_visible() if hasattr(handle, 'get_visible') else True
-            if not visible_actual:
-                artista_pick.set_alpha(0.3)
-                texto_obj.set_alpha(0.3)
-
-            cajas_entrada.append(HPacker(children=[icono_da, texto_area], align="center", pad=0, sep=SEP_ICONO_TEXTO))
-            asociados = getattr(handle, '_asociados', [])
-
-            grupo_visual = [artista_pick, texto_obj]
-            mapa_toggle[artista_pick] = (handle, asociados, grupo_visual)
-            mapa_toggle[texto_obj] = (handle, asociados, grupo_visual)
-
-            hitbox_entries.append((icono_da, texto_area, handle, asociados, grupo_visual))
-
         filas_boxes.append(HPacker(children=cajas, align="center", pad=0, sep=SEP_ENTRADAS))
 
     leyenda_box = VPacker(children=filas_boxes, align="center", pad=2, sep=6)
@@ -440,7 +418,6 @@ def construir_leyenda_flujo(ax, canvas, figure, widget, lineas, barras_pluviomet
                                  frameon=False, pad=0, borderpad=0)
     ax.add_artist(anchored)
     return anchored, entradas_info
-
 
 def actualizar_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro,
                              fuente, leyendazise, left=0.10, right=0.90):
@@ -513,7 +490,6 @@ def procesar_click_leyenda(ax, canvas, event):
             canvas.draw_idle()
             return True
     return False
-    return anchored, mapa_toggle, hitbox_entries
 
 
 def configurar_evento_leyenda_flujo(canvas, mapa_toggle, on_toggle_callback=None):
@@ -1225,72 +1201,8 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     btn_add_evento.toggled.connect(on_toggle_add_evento)
     # ----------------------------------
     def actualizar_leyenda():
-        actualizar_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro, fuente, leyendazise)
-        try:
-            if hasattr(ax, '_leyenda_flujo') and ax._leyenda_flujo is not None:
-                ax._leyenda_flujo.remove()
-
-            if SUAVIZADO_ESTADO:
-                for line in lineas:
-                    if hasattr(line, '_estilo_puro'):
-                        line.set_linestyle(line._estilo_puro)
-                        line.set_alpha(1.0)
-
-            anchored, mapa_toggle, hitbox_entries = construir_leyenda_flujo(
-                ax, canvas, figure, widget, lineas, barras_pluviometro, fuente, leyendazise,
-                lineas_principales=lineas_principales
-            )
-            ax._leyenda_flujo = anchored
-            configurar_evento_leyenda_flujo(canvas, mapa_toggle, on_toggle_callback=actualizar_leyenda)
-            ax._leyenda_hitbox_entries = hitbox_entries
-
-            if SUAVIZADO_ESTADO:
-                for line in lineas:
-                    if hasattr(line, '_estilo_puro') and line.get_visible():
-                        line.set_linestyle('none')
-                        line.set_alpha(0)
-
-            renderer = canvas.get_renderer()
-            canvas.draw()
-
-            fig_bbox = figure.bbox
-            leyenda_bbox = anchored.get_window_extent(renderer)
-            legend_height = leyenda_bbox.height / fig_bbox.height
-            padding = 0.06
-
-            TOP_MARGIN_FIJO = 0.92
-            MIN_ALTO_GRAFICA = 0.25
-            MAX_BOTTOM = 1 - MIN_ALTO_GRAFICA - 0.05
-
-            top_margin = TOP_MARGIN_FIJO
-            bottom_margin = min(0.12 + legend_height + padding, MAX_BOTTOM)
-
-            if bottom_margin >= top_margin:
-                bottom_margin = MAX_BOTTOM
-                top_margin = MIN_ALTO_GRAFICA + 0.05
-
-            figure.subplots_adjust(bottom=bottom_margin, top=top_margin, left=0.1, right=0.90)
-            canvas.draw()
-
-            xlabel_bbox = ax.xaxis.label.get_window_extent(renderer=renderer)
-            xlabel_bottom = xlabel_bbox.transformed(ax.transAxes.inverted()).y0
-            anchored.set_bbox_to_anchor((0.5, xlabel_bottom), ax.transAxes)
-            canvas.draw()
-            renderer_final = canvas.get_renderer()
-            lista_hitboxes = []
-            for icono_da, texto_area, handle, asociados, grupo_visual in ax._leyenda_hitbox_entries:
-                try:
-                    bbox_icono = icono_da.get_window_extent(renderer_final)
-                    bbox_texto = texto_area.get_window_extent(renderer_final)
-                    bbox_total = Bbox.union([bbox_icono, bbox_texto])
-                    lista_hitboxes.append((bbox_total, handle, asociados, grupo_visual))
-                except Exception:
-                    pass
-            ax._leyenda_hitboxes = lista_hitboxes
-            canvas.draw_idle()
-        except Exception as e:
-            figure.subplots_adjust(bottom=0.30, top=0.85, left=0.1, right=0.90)
-            canvas.draw()
+        actualizar_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro,
+                                fuente, leyendazise)
 
 
     def on_resize(event):
@@ -1442,20 +1354,6 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     def on_click(event):
         if procesar_click_leyenda(ax, canvas, event):
             return
-        # --- NUEVO: hit-testing manual sobre la leyenda personalizada ---
-        hitboxes = getattr(ax, '_leyenda_hitboxes', None)
-        if hitboxes and event.x is not None and event.y is not None:
-            for bbox, handle, asociados, grupo_visual in hitboxes:
-                if bbox.contains(event.x, event.y):
-                    nuevo_estado = not handle.get_visible()
-                    handle.set_visible(nuevo_estado)
-                    for obj in asociados:
-                        obj.set_visible(nuevo_estado)
-                    alpha_visual = 1.0 if nuevo_estado else 0.3
-                    for art in grupo_visual:
-                        art.set_alpha(alpha_visual)
-                    actualizar_leyenda()
-                    return
         # --- CASO A: CREAR NUEVO EVENTO ---
         if btn_add_evento.isChecked():
             if event.button == 1 and event.inaxes == ax:
@@ -2225,73 +2123,8 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
     btn_add_evento.toggled.connect(on_toggle_add_evento)
     # =========================================================================
     def actualizar_leyenda():
-        actualizar_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro, fuente, leyendazise)
-        try:
-            if hasattr(ax, '_leyenda_flujo') and ax._leyenda_flujo is not None:
-                ax._leyenda_flujo.remove()
-
-            if SUAVIZADO_ESTADO:
-                for line in lineas:
-                    if hasattr(line, '_estilo_puro'):
-                        line.set_linestyle(line._estilo_puro)
-                        line.set_alpha(1.0)
-
-            anchored, mapa_toggle, hitbox_entries = construir_leyenda_flujo(
-                ax, canvas, figure, widget, lineas, barras_pluviometro, fuente, leyendazise,
-                lineas_principales=lineas_principales
-            )
-            ax._leyenda_flujo = anchored
-            configurar_evento_leyenda_flujo(canvas, mapa_toggle, on_toggle_callback=actualizar_leyenda)
-            ax._leyenda_hitbox_entries = hitbox_entries
-
-            if SUAVIZADO_ESTADO:
-                for line in lineas:
-                    if hasattr(line, '_estilo_puro') and line.get_visible():
-                        line.set_linestyle('none')
-                        line.set_alpha(0)
-
-            renderer = canvas.get_renderer()
-            canvas.draw()
-
-            fig_bbox = figure.bbox
-            leyenda_bbox = anchored.get_window_extent(renderer)
-            legend_height = leyenda_bbox.height / fig_bbox.height
-            padding = 0.06
-
-            TOP_MARGIN_FIJO = 0.92
-            MIN_ALTO_GRAFICA = 0.25
-            MAX_BOTTOM = 1 - MIN_ALTO_GRAFICA - 0.05
-
-            top_margin = TOP_MARGIN_FIJO
-            bottom_margin = min(0.12 + legend_height + padding, MAX_BOTTOM)
-
-            if bottom_margin >= top_margin:
-                bottom_margin = MAX_BOTTOM
-                top_margin = MIN_ALTO_GRAFICA + 0.05
-
-            figure.subplots_adjust(bottom=bottom_margin, top=top_margin, left=0.1, right=0.90)
-            canvas.draw()
-
-            xlabel_bbox = ax.xaxis.label.get_window_extent(renderer=renderer)
-            xlabel_bottom = xlabel_bbox.transformed(ax.transAxes.inverted()).y0
-            anchored.set_bbox_to_anchor((0.5, xlabel_bottom), ax.transAxes)
-            canvas.draw()
-
-            renderer_final = canvas.get_renderer()
-            lista_hitboxes = []
-            for icono_da, texto_area, handle, asociados, grupo_visual in ax._leyenda_hitbox_entries:
-                try:
-                    bbox_icono = icono_da.get_window_extent(renderer_final)
-                    bbox_texto = texto_area.get_window_extent(renderer_final)
-                    bbox_total = Bbox.union([bbox_icono, bbox_texto])
-                    lista_hitboxes.append((bbox_total, handle, asociados, grupo_visual))
-                except Exception:
-                    pass
-            ax._leyenda_hitboxes = lista_hitboxes
-            canvas.draw_idle()
-        except Exception as e:
-            figure.subplots_adjust(bottom=0.30, top=0.85, left=0.1, right=0.90)
-            canvas.draw()
+        actualizar_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro,
+                                 fuente, leyendazise)
 
     def on_resize(event):
         actualizar_leyenda()
@@ -2443,21 +2276,6 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
     def on_click(event):
         if procesar_click_leyenda(ax, canvas, event):
             return
-        # --- NUEVO: hit-testing manual sobre la leyenda personalizada ---
-        hitboxes = getattr(ax, '_leyenda_hitboxes', None)
-        if hitboxes and event.x is not None and event.y is not None:
-            for bbox, handle, asociados, grupo_visual in hitboxes:
-                if bbox.contains(event.x, event.y):
-                    nuevo_estado = not handle.get_visible()
-                    handle.set_visible(nuevo_estado)
-                    for obj in asociados:
-                        obj.set_visible(nuevo_estado)
-                    alpha_visual = 1.0 if nuevo_estado else 0.3
-                    for art in grupo_visual:
-                        art.set_alpha(alpha_visual)
-                    actualizar_leyenda()
-                    return
-
         if event.button != 1: return
         # =====================================================================
         # CASO A: CREAR EVENTO
