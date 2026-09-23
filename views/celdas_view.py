@@ -30,6 +30,7 @@ class CeldasView:
     umbrales_cache = None          # <-- nuevo
     umbral_modo = None              # <-- AGREGAR
     umbral_general_componente = None  # <-- AGREGAR
+    tendencia_activa = None
     fechainicial, fechafinal = MetodosGenerales.obtenerRangoFechas(365)
     
     def inicializarVistaCeldas(main, proyectoid, proyectoname, fechaini, fechafin):
@@ -405,7 +406,7 @@ class CeldasView:
                     datos = CeldaController.ctrlObtenerAsentamientoTemperatura(CeldasView.idproyecto, celdasmarcadas, CeldasView.fechainicial, CeldasView.fechafinal, filtrado)
                 if len(datos) > 0:
                     idx_funda, idx_super = 6, 7
-                    CeldasView.graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, unidadtiempo)
+                    CeldasView.graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, unidadtiempo, CeldasView.tendencia_activa)
                     CeldasView._repintarUmbrales(lista)
                 else:
                     CeldasView.limpiarGraficaCeldas()
@@ -528,6 +529,7 @@ class CeldasView:
         CeldasView.umbral_modo = None
         CeldasView.umbral_general_componente = None
         CeldasView.umbrales_cache = None
+        CeldasView.tendencia_activa = None
 
     def graficarSoloPluviometro(lista, tipografico, unidadmedida, unidadtiempo, tendencias=None):
         widget_celdas = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
@@ -656,9 +658,9 @@ class CeldasView:
                         # graficar
                         if data:
                             idx_funda, idx_super = 6, 7
-                            CeldasView.graficarCeldasAsentamientoMarcadas(lista, data, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, unidadtiempo)
+                            CeldasView.graficarCeldasAsentamientoMarcadas(lista, data, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, unidadtiempo, CeldasView.tendencia_activa)
                             if CeldasView.umbral_activo_celdas:          # <-- nuevo
-                                CeldasView._dibujarUmbralesCeldas()      # <-- nuevo
+                                CeldasView._repintarUmbrales(lista)      # <-- nuevo
 
     def mostrarModalTendencia(treeWidget):
         lista = EquiposCeldas.obtener_todos_elementos_marcados(treeWidget)
@@ -667,6 +669,7 @@ class CeldasView:
             if len(celdasmarcadas) > 0:
                 regresion = Personalizacion.dialogoFiltroRegresionPiezometrosCeldas(celdasmarcadas, "CELDAS")
                 if len(regresion) > 0:
+                    CeldasView.tendencia_activa = regresion
                     combotipografico = CeldasView.main.findChild(QComboBox, "cb_tipo_graficas_celdas")
                     tipografica = combotipografico.currentData()
                     combotipovelocidad = CeldasView.main.findChild(QComboBox, "cb_tipo_calculo_velocidad_celda")
@@ -701,7 +704,7 @@ class CeldasView:
                         idx_funda, idx_super = 6, 7
                         CeldasView.graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, unidadtiempo, regresion)
                         if CeldasView.umbral_activo_celdas:          # <-- nuevo
-                            CeldasView._dibujarUmbralesCeldas()      # <-- nuevo
+                            CeldasView._repintarUmbrales(lista)      # <-- nuevo
     def mostrarModalConfiguracionEjes(treeWidget):
         lista = EquiposCeldas.obtener_todos_elementos_marcados(treeWidget)
         if lista:
@@ -756,9 +759,9 @@ class CeldasView:
                             datos = CeldaController.ctrlObtenerAsentamientoTemperatura(CeldasView.idproyecto, celdasmarcadas, CeldasView.fechainicial, CeldasView.fechafinal, filtrado)
                         if len(datos) > 0:
                             idx_funda, idx_super = 6, 7
-                            CeldasView.graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, tipotiempo)
+                            CeldasView.graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, tipotiempo, CeldasView.tendencia_activa)
                             if CeldasView.umbral_activo_celdas:          # <-- nuevo
-                                CeldasView._dibujarUmbralesCeldas()      # <-- nuevo
+                                CeldasView._repintarUmbrales(lista)     # <-- nuevo
 
     def actualizarVistaCeldas(fechaini, fechafin, filtro=False):
         CeldasView.fechainicial = fechaini
@@ -777,6 +780,7 @@ class CeldasView:
         CeldasView.umbral_modo = None
         CeldasView.umbral_general_componente = None
         CeldasView.umbrales_cache = None          # <-- nuevo
+        CeldasView.tendencia_activa = None
         CeldasView.limpiarGraficaCeldas()
         # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
         buscador_arbol = main.findChild(QLineEdit, "input_buscar_celdas")

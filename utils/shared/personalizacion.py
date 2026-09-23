@@ -976,17 +976,16 @@ class Personalizacion:
         Personalizacion.checkboxes_marcados = 0
         Personalizacion.spincomboscreados = []
         Personalizacion.equiposelegidos = []
+        
         loader = QUiLoader()        
         ui_file_path = resource_path("ui/filtrotendencias.ui")
         ui_file = loader.load(ui_file_path, None)
+        
         dialogo = QDialog()
         dialogo.setWindowTitle("Configuración de Tendencias")
-        dialogo.setFixedSize(460, 650)
-        dialogo.setStyleSheet("background-color: #fcfcfc;")
+
         layout = QVBoxLayout()
         layout.addWidget(ui_file)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(10)
         dialogo.setLayout(layout)
         # Acceso a los botones
         checkTodosEquipos = dialogo.findChild(QCheckBox, "check_all_prismas")
@@ -997,27 +996,27 @@ class Personalizacion:
 
         # --- ESTILO DEL CHECKBOX "Seleccionar todos" ---
         checkTodosEquipos.setStyleSheet("""
-            QCheckBox { 
-                color: #2c3e50; 
-                font-size: 11px; 
-                font-weight: bold; 
-                spacing: 6px;
-            }
-            QCheckBox::indicator { 
-                width: 10px; 
-                height: 10px; 
-                border-radius: 2px;
-                border: 1.5px solid #95a5a6;
-                background-color: white;
-            }
-            QCheckBox::indicator:hover {
-                border-color: #3498db;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #2c3e50;
-                border-color: #2c3e50;
-            }
-        """)
+                    QCheckBox { 
+                        color: #2c3e50; 
+                        font-size: 11px; 
+                        font-weight: bold; 
+                        spacing: 6px;
+                    }
+                    QCheckBox::indicator { 
+                        width: 10px; 
+                        height: 10px; 
+                        border-radius: 2px;
+                        border: 1.5px solid #95a5a6;
+                        background-color: white;
+                    }
+                    QCheckBox::indicator:hover {
+                        border-color: #3498db;
+                    }
+                    QCheckBox::indicator:checked {
+                        background-color: #2c3e50;
+                        border-color: #2c3e50;
+                    }
+                """)
 
         # --- ESTILO DEL ÁRBOL (igual que en Prismas) ---
         treeEquiposRegresion.setHeaderHidden(False)

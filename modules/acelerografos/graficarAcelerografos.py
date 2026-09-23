@@ -12,6 +12,10 @@ from utils.common.alertas import mostrar_mensaje
 from controllers.ConfiguracionController import ConfiguracionController
 from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 from controllers.AcelerografoController import AcelerografoController
+from matplotlib.transforms import Bbox
+from utils.shared.graficaDesplazamientoVelocidad import construir_leyenda_flujo, configurar_evento_leyenda_flujo
+from PySide6.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel)
+
 
 def limpiar_widget(widget):
     # Configurar el layout y limpiar el anterior
@@ -88,11 +92,20 @@ def procesar_grafica_acelerografos(widget, idproyecto, data, fecha_inicio=None, 
     toolbar_layout = QHBoxLayout()
     widget.toolbar = CustomToolbar(canvas, widget)
     toolbar_layout.addWidget(widget.toolbar)
+    label_total_puntos = QLabel("Total: 0")
+    label_total_puntos.setStyleSheet("font-size: 12px; margin-left: 8px; font-weight: bold; color: #333;")
+    toolbar_layout.addWidget(label_total_puntos)
+    widget.label_total_puntos = label_total_puntos
     layout.addLayout(toolbar_layout)
     
     # Graficar puntos de colores según la magnitud y el color
+        # Graficar puntos de colores según la magnitud y el color
     umbralesleyenda = []
+    lineas_principales = []
+    puntos_por_componente = []
+
     for idcompo, datos in df.groupby('id_componente'):
+        nombre_acel = str(datos['nombre_acelerografo'].iloc[0])   # <-- NUEVO
         umbrales = AcelerografoController.ctrlObtenerUmbralesAcelerografoComponente(idproyecto, idcompo, "AMA")
         if umbrales:
             umbralesleyenda = umbrales
@@ -104,7 +117,6 @@ def procesar_grafica_acelerografos(widget, idproyecto, data, fecha_inicio=None, 
                         color = umbral[4]
                         break
                 colores.append(color)
-            ax.scatter(datos['fecha_hora'], datos['magnitud'], label=colores, color=colores, s=50, alpha=0.7)
         else:
             colores = []
             for magni, dista in zip(datos['magnitud'], datos['distancia']):
@@ -116,7 +128,18 @@ def procesar_grafica_acelerografos(widget, idproyecto, data, fecha_inicio=None, 
                 elif magni > 7 and dista < 100:
                     color = "red"
                 colores.append(color)
-            ax.scatter(datos['fecha_hora'], datos['magnitud'], label=colores, color=colores, s=50, alpha=0.7)
+
+        # --- CAMBIO: ya no pasamos label=colores, y guardamos el scatter ---
+        scatter_obj = ax.scatter(datos['fecha_hora'], datos['magnitud'],
+                                  color=colores, s=50, alpha=0.7, label='_nolegend_')
+
+        # --- NUEVO: proxy invisible que representa a este acelerógrafo en la leyenda ---
+        proxy, = ax.plot([], [], linestyle='none', marker='o', color='dimgray',
+                          label=nombre_acel, alpha=0)
+        proxy._asociados = [scatter_obj]   # al ocultar el proxy, se oculta el scatter real
+        lineas_principales.append(proxy)
+
+        puntos_por_componente.append((proxy, scatter_obj, len(datos)))
     # Configuración de ejes y etiquetas
     
     ax.set_title('Magnitud de Acelerógrafos', fontsize=titulozise)
@@ -179,42 +202,144 @@ def procesar_grafica_acelerografos(widget, idproyecto, data, fecha_inicio=None, 
             else:
                 avisolabels = True
     # Leyenda para los diferentes niveles de alerta por color
-    if umbralesleyenda:
-        custom_legend = []
-        if len(umbralesleyenda) < 4:
-            for umbral in umbralesleyenda:
-                custom_legend.append(plt.Line2D([0], [0], marker='o', color='w', label=f'{umbral[3]} (M>{umbral[7]} y dentro {umbral[6]} Km)', markerfacecolor=umbral[4], markersize=10))
-            custom_legend.append(plt.Line2D([0], [0], marker='o', color='w', label=f'Sin Alerta (M<{umbralesleyenda[0][7]} o mayor {umbralesleyenda[-1][6]} Km)', markerfacecolor='gray', markersize=10))
-        else:
-            custom_legend = [
-                plt.Line2D([0], [0], marker='o', color='w', label=f'Alerta 1 (M>{7} y dentro 200 Km)', markerfacecolor='red', markersize=10),
-                plt.Line2D([0], [0], marker='o', color='w', label=f'Alerta 2 (M>{6}  y dentro 200 Km)', markerfacecolor='orange', markersize=10),
-                plt.Line2D([0], [0], marker='o', color='w', label=f'Alerta 3 (M>{5} y dentro 100 Km)', markerfacecolor='green', markersize=10),
-                plt.Line2D([0], [0], marker='o', color='w', label=f'Sin Alerta (M<{5} o mayor 200 Km)', markerfacecolor='gray', markersize=10)
-            ]
-    else:
-        custom_legend = [
-            plt.Line2D([0], [0], marker='o', color='w', label=f'Alerta 1 (M>{7} y dentro 200 Km)', markerfacecolor='red', markersize=10),
-            plt.Line2D([0], [0], marker='o', color='w', label=f'Alerta 2 (M>{6}  y dentro 200 Km)', markerfacecolor='orange', markersize=10),
-            plt.Line2D([0], [0], marker='o', color='w', label=f'Alerta 3 (M>{5} y dentro 100 Km)', markerfacecolor='green', markersize=10),
-            plt.Line2D([0], [0], marker='o', color='w', label=f'Sin Alerta (M<{5} o mayor 200 Km)', markerfacecolor='gray', markersize=10)
-        ]
-    
-    renderer = canvas.get_renderer()
-    canvas.draw()
+        # =====================================================================
+    # NUEVO: dibuja la leyenda de niveles de alerta (fija) + la leyenda de
+    # acelerógrafos clickeable con Total/Activas/Ocultas, y ajusta márgenes.
+    # =====================================================================
+    def actualizar_leyenda():
+        try:
+            actualizar_contador_puntos()
+            # --- Leyenda de niveles de alerta (fija, informativa) ---
+            if hasattr(ax, '_leyenda_alerta') and ax._leyenda_alerta is not None:
+                ax._leyenda_alerta.remove()
 
-    # Obtener la posición del eje x en coordenadas de la figura
-    xlabel_bbox = ax.xaxis.label.get_window_extent(renderer=renderer)
-    xlabel_bottom = xlabel_bbox.transformed(ax.transAxes.inverted()).y0
+            if umbralesleyenda:
+                custom_legend = []
+                if len(umbralesleyenda) < 4:
+                    for umbral in umbralesleyenda:
+                        custom_legend.append(plt.Line2D(
+                            [0], [0], marker='o', color='w',
+                            label=f'{umbral[3]} (M>{umbral[7]} y dentro {umbral[6]} Km)',
+                            markerfacecolor=umbral[4], markersize=10))
+                    custom_legend.append(plt.Line2D(
+                        [0], [0], marker='o', color='w',
+                        label=f'Sin Alerta (M<{umbralesleyenda[0][7]} o mayor {umbralesleyenda[-1][6]} Km)',
+                        markerfacecolor='gray', markersize=10))
+                else:
+                    custom_legend = [
+                        plt.Line2D([0], [0], marker='o', color='w', label='Alerta 1 (M>7 y dentro 200 Km)', markerfacecolor='red', markersize=10),
+                        plt.Line2D([0], [0], marker='o', color='w', label='Alerta 2 (M>6 y dentro 200 Km)', markerfacecolor='orange', markersize=10),
+                        plt.Line2D([0], [0], marker='o', color='w', label='Alerta 3 (M>5 y dentro 100 Km)', markerfacecolor='green', markersize=10),
+                        plt.Line2D([0], [0], marker='o', color='w', label='Sin Alerta (M<5 o mayor 200 Km)', markerfacecolor='gray', markersize=10),
+                    ]
+            else:
+                custom_legend = [
+                    plt.Line2D([0], [0], marker='o', color='w', label='Alerta 1 (M>7 y dentro 200 Km)', markerfacecolor='red', markersize=10),
+                    plt.Line2D([0], [0], marker='o', color='w', label='Alerta 2 (M>6 y dentro 200 Km)', markerfacecolor='orange', markersize=10),
+                    plt.Line2D([0], [0], marker='o', color='w', label='Alerta 3 (M>5 y dentro 100 Km)', markerfacecolor='green', markersize=10),
+                    plt.Line2D([0], [0], marker='o', color='w', label='Sin Alerta (M<5 o mayor 200 Km)', markerfacecolor='gray', markersize=10),
+                ]
 
-    # Ajustar la posición de la leyenda en función del tamaño de la pantalla
-    if widget.height() < 600:
-        bbox_to_anchor = (0.5, xlabel_bottom - 0.15)
-    else:
-        bbox_to_anchor = (0.5, xlabel_bottom - 0.1)
-    ax.legend(handles=custom_legend, loc='upper center', bbox_to_anchor=bbox_to_anchor, ncol=4, frameon=False, fontsize=leyendazise)
-    figure.subplots_adjust(left=0.08, right=0.95, top=0.95, bottom=0.35)
-    canvas.draw()
+            canvas.draw()
+            renderer = canvas.get_renderer()
+            xlabel_bbox = ax.xaxis.label.get_window_extent(renderer=renderer)
+            xlabel_bottom = xlabel_bbox.transformed(ax.transAxes.inverted()).y0
+
+            offset_alerta = xlabel_bottom - (0.15 if widget.height() < 600 else 0.10)
+
+            leyenda_alerta = ax.legend(handles=custom_legend, loc='upper center',
+                                        bbox_to_anchor=(0.5, offset_alerta), ncol=4,
+                                        frameon=False, fontsize=leyendazise)
+            ax.add_artist(leyenda_alerta)
+            ax._leyenda_alerta = leyenda_alerta
+
+            canvas.draw()
+            alerta_bbox = leyenda_alerta.get_window_extent(renderer)
+            fig_bbox = figure.bbox
+            alerta_height = alerta_bbox.height / fig_bbox.height
+            alerta_bottom_axes = alerta_bbox.transformed(ax.transAxes.inverted()).y0
+
+            # --- Leyenda de acelerógrafos (clickeable + Total/Activas/Ocultas) ---
+            if hasattr(ax, '_leyenda_flujo') and ax._leyenda_flujo is not None:
+                ax._leyenda_flujo.remove()
+
+            anchored, mapa_toggle, hitbox_entries = construir_leyenda_flujo(
+                ax, canvas, figure, widget, lineas_principales, None, fuente, leyendazise,
+                lineas_principales=lineas_principales
+            )
+            anchored.set_bbox_to_anchor((0.5, alerta_bottom_axes - 0.02), ax.transAxes)
+            ax._leyenda_flujo = anchored
+            configurar_evento_leyenda_flujo(canvas, mapa_toggle, on_toggle_callback=actualizar_leyenda)
+            ax._leyenda_hitbox_entries = hitbox_entries
+
+            canvas.draw()
+            flujo_bbox = anchored.get_window_extent(renderer)
+            flujo_height = flujo_bbox.height / fig_bbox.height
+
+            # --- Ajustar márgenes para que quepan ambas leyendas ---
+            padding = 0.06
+            TOP_MARGIN_FIJO = 0.92
+            MIN_ALTO_GRAFICA = 0.25
+            MAX_BOTTOM = 1 - MIN_ALTO_GRAFICA - 0.05
+
+            top_margin = TOP_MARGIN_FIJO
+            bottom_margin = min(0.12 + alerta_height + flujo_height + padding, MAX_BOTTOM)
+            if bottom_margin >= top_margin:
+                bottom_margin = MAX_BOTTOM
+                top_margin = MIN_ALTO_GRAFICA + 0.05
+
+            figure.subplots_adjust(left=0.08, right=0.95, top=top_margin, bottom=bottom_margin)
+            canvas.draw()
+
+            # --- Recalcular hitboxes para el click manual sobre la leyenda ---
+            renderer_final = canvas.get_renderer()
+            lista_hitboxes = []
+            for icono_da, texto_area, handle, asociados, grupo_visual in ax._leyenda_hitbox_entries:
+                try:
+                    bbox_icono = icono_da.get_window_extent(renderer_final)
+                    bbox_texto = texto_area.get_window_extent(renderer_final)
+                    bbox_total = Bbox.union([bbox_icono, bbox_texto])
+                    lista_hitboxes.append((bbox_total, handle, asociados, grupo_visual))
+                except Exception:
+                    pass
+            ax._leyenda_hitboxes = lista_hitboxes
+            canvas.draw_idle()
+        except Exception:
+            figure.subplots_adjust(left=0.08, right=0.95, top=0.85, bottom=0.35)
+            canvas.draw()
+
+    def actualizar_contador_puntos():
+        # puntos_por_componente aún no existe en este scope si se define antes del bucle;
+        # como ya se llenó en el bucle de arriba, se puede usar directamente aquí.
+        total_visible = sum(
+            cantidad for proxy, scatter_obj, cantidad in puntos_por_componente
+            if proxy.get_visible()
+        )
+        widget.label_total_puntos.setText(f"Total: {total_visible}")
+
+    def on_resize(event):
+        actualizar_leyenda()
+
+    def on_click(event):
+        # Hit-testing manual sobre la leyenda de acelerógrafos (respaldo del pick_event)
+        hitboxes = getattr(ax, '_leyenda_hitboxes', None)
+        if hitboxes and event.x is not None and event.y is not None:
+            for bbox, handle, asociados, grupo_visual in hitboxes:
+                if bbox.contains(event.x, event.y):
+                    nuevo_estado = not handle.get_visible()
+                    handle.set_visible(nuevo_estado)
+                    for obj in asociados:
+                        obj.set_visible(nuevo_estado)
+                    alpha_visual = 1.0 if nuevo_estado else 0.3
+                    for art in grupo_visual:
+                        art.set_alpha(alpha_visual)
+                    actualizar_leyenda()
+                    return
+
+    canvas.mpl_connect('resize_event', on_resize)
+    canvas.mpl_connect('button_press_event', on_click)
+
+    actualizar_leyenda()
     canvas.draw_idle()
     plt.close(figure)
     if avisolabels:

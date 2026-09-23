@@ -1155,7 +1155,7 @@ class CargarDataFormatosPrismasThread(QThread):
         self.ubicacion_texto = ubicacion_texto
 
     def run(self):
-        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        resultado = {"ok": False, "mensaje": "Data duplicada..", "color": "red"}
         try:
             respuesta, equipos, erroneos = SubirPrismas.registrarDataPrismas(self.idproyecto, self.ubicacion_texto)
             if respuesta:
@@ -1175,7 +1175,7 @@ class CargarDataFormatosPrismasThread(QThread):
                     resultado["mensaje"] = "Error al registrar el equipo en la zona."
             else:
                 if erroneos:
-                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+                    resultado["mensaje"] = f"Error en el formato de los archivos: {erroneos}"
         except ValueError as e:
             resultado["mensaje"] = str(e)
         except Exception:

@@ -1679,7 +1679,7 @@ class CargarPiezometrosCuerdaThread(QThread):
         self.tipo = tipo
 
     def run(self):
-        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        resultado = {"ok": False, "mensaje": "Data duplicada.", "color": "red"}
         try:
             if self.tipo == "FORMATO":
                 respuesta, equipos, erroneos = SubirPiezometros.registrarDataPiezometrosCuerda(
@@ -1723,7 +1723,7 @@ class CargarPiezometrosCuerdaThread(QThread):
                 resultado["equipos_data"] = equipos_data
             else:
                 if erroneos:
-                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+                    resultado["mensaje"] = f"Error en el formato de los archivos: {erroneos}"
 
         except ValueError as e:
             resultado["mensaje"] = str(e)
@@ -1743,7 +1743,7 @@ class CargarPiezometrosCasagrandeThread(QThread):
         self.idcompo = idcompo
 
     def run(self):
-        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        resultado = {"ok": False, "mensaje": "Data duplicada.", "color": "red"}
         try:
             respuesta, equipos, erroneos = SubirPiezometros.registrarDataPiezometrosManuales(
                 self.idproyecto, self.ubicacion_texto, self.idcompo
@@ -1782,7 +1782,7 @@ class CargarPiezometrosCasagrandeThread(QThread):
                 resultado["equipos_data"] = equipos_data
             else:
                 if erroneos:
-                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+                    resultado["mensaje"] = f"Error en el formato de los archivos: {erroneos}"
 
         except ValueError as e:
             resultado["mensaje"] = str(e)

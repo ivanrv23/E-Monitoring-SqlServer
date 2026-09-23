@@ -150,6 +150,20 @@ def _x_a_numerico(x_data, tiempo):
     else:
         return x_arr.astype(float)
 
+def etiqueta_tiempo(tiempo):
+    """Devuelve el nombre del eje X según la unidad de tiempo seleccionada."""
+    return {"FECHA": "Fecha", "DIA": "Día", "HORA": "Hora"}.get(tiempo, "Fecha")
+
+
+def formatear_x_inspector(valor_x, tiempo):
+    """Formatea el valor X del inspector según la unidad de tiempo."""
+    if tiempo == "FECHA":
+        return mdates.num2date(valor_x).replace(tzinfo=None).strftime('%d/%m/%Y %H:%M')
+    elif tiempo == "HORA":
+        return f"{valor_x:.2f} h"
+    else:  # DIA
+        return f"{valor_x:.2f} d"
+    
 def plot_linea_suavizada(ax, x_data, y_data, tiempo, activo=False, **kwargs):
     marker = kwargs.pop('marker', None)
     markersize = kwargs.pop('markersize', 6)
@@ -244,8 +258,12 @@ def _medir_ancho_texto(ax, texto, fontsize, fuente, renderer):
     obj.remove()
     return ancho
 
+def _crear_texto_info(texto, fuente, leyendazise):
+    """Entrada de texto simple (sin ícono, no clickeable) para Total/Activas/Ocultas."""
+    return TextArea(texto, textprops=dict(size=leyendazise, family=fuente, weight='bold'))
 
-def construir_leyenda_flujo(ax, canvas, figure, widget, lineas, barras_pluviometro, fuente, leyendazise):
+def construir_leyenda_flujo(ax, canvas, figure, widget, lineas, barras_pluviometro,
+                             fuente, leyendazise, lineas_principales=None):
     canvas.draw()
     renderer = canvas.get_renderer()
 
@@ -284,8 +302,11 @@ def construir_leyenda_flujo(ax, canvas, figure, widget, lineas, barras_pluviomet
         filas_idx.append(fila_actual)
 
     mapa_toggle = {}
-    hitbox_entries = []  # <--- NUEVO: para hit-testing manual
+    hitbox_entries = []
     filas_boxes = []
+
+    # --- Ya NO se agrega la fila de Total aquí, ahora vive en la toolbar ---
+
     for fila in filas_idx:
         cajas_entrada = []
         for i in fila:
@@ -296,6 +317,11 @@ def construir_leyenda_flujo(ax, canvas, figure, widget, lineas, barras_pluviomet
             texto_obj = texto_area.get_children()[0]
             texto_obj.set_picker(True)
 
+            visible_actual = handle.get_visible() if hasattr(handle, 'get_visible') else True
+            if not visible_actual:
+                artista_pick.set_alpha(0.3)
+                texto_obj.set_alpha(0.3)
+
             cajas_entrada.append(HPacker(children=[icono_da, texto_area], align="center", pad=0, sep=SEP_ICONO_TEXTO))
             asociados = getattr(handle, '_asociados', [])
 
@@ -303,7 +329,6 @@ def construir_leyenda_flujo(ax, canvas, figure, widget, lineas, barras_pluviomet
             mapa_toggle[artista_pick] = (handle, asociados, grupo_visual)
             mapa_toggle[texto_obj] = (handle, asociados, grupo_visual)
 
-            # --- NUEVO: guardamos referencias para calcular hitboxes después ---
             hitbox_entries.append((icono_da, texto_area, handle, asociados, grupo_visual))
 
         filas_boxes.append(HPacker(children=cajas_entrada, align="center", pad=0, sep=SEP_ENTRADAS))
@@ -316,7 +341,8 @@ def construir_leyenda_flujo(ax, canvas, figure, widget, lineas, barras_pluviomet
     ax.add_artist(anchored)
     return anchored, mapa_toggle, hitbox_entries
 
-def configurar_evento_leyenda_flujo(canvas, mapa_toggle):
+
+def configurar_evento_leyenda_flujo(canvas, mapa_toggle, on_toggle_callback=None):
     def on_pick(event):
         artista = event.artist
         if artista not in mapa_toggle:
@@ -327,42 +353,54 @@ def configurar_evento_leyenda_flujo(canvas, mapa_toggle):
         for obj in asociados:
             obj.set_visible(nuevo_estado)
 
-        # Atenuar/reactivar TANTO el ícono como el texto de esa entrada
         alpha_visual = 1.0 if nuevo_estado else 0.3
         for artista_grupo in grupo_visual:
             artista_grupo.set_alpha(alpha_visual)
 
-        canvas.draw_idle()
+        if on_toggle_callback:
+            on_toggle_callback()
+        else:
+            canvas.draw_idle()
 
     if hasattr(canvas, '_leyenda_gid'):
         canvas.mpl_disconnect(canvas._leyenda_gid)
     canvas._leyenda_gid = canvas.mpl_connect('pick_event', on_pick)
 
-def configurar_evento_leyenda(canvas, legend, handles):
+def configurar_evento_leyenda(canvas, legend, handles, on_toggle_callback=None, offset=0):
     """
     Configura click-to-toggle en una leyenda estándar de matplotlib (ax.legend()).
-    Al hacer click (en el ícono O en el texto) oculta/muestra tanto la entrada
-    de la leyenda como la línea/barra correspondiente en la GRÁFICA.
-    Soporta Line2D, BarContainer y Patch (precipitación).
+    `offset`: cuántas entradas iniciales de la leyenda NO son clickeables
+              (por ejemplo, las de Total/Activas/Ocultas).
+    `on_toggle_callback`: si se pasa (normalmente `actualizar_leyenda`), se llama
+              después de cada click para reconstruir la leyenda y refrescar contadores.
     """
-    leg_handles = getattr(legend, 'legend_handles', None) or legend.legendHandles
-    leg_texts = legend.get_texts()
+    leg_handles_full = getattr(legend, 'legend_handles', None) or legend.legendHandles
+    leg_texts_full = legend.get_texts()
+
+    leg_handles = leg_handles_full[offset:]
+    leg_texts = leg_texts_full[offset:]
 
     mapa_toggle = {}
     for leg_handle, leg_text, orig_handle in zip(leg_handles, leg_texts, handles):
         leg_handle.set_picker(10)
         leg_text.set_picker(True)
-        # Guardamos el trío completo bajo AMBAS claves (ícono y texto)
         mapa_toggle[leg_handle] = (orig_handle, leg_handle, leg_text)
         mapa_toggle[leg_text] = (orig_handle, leg_handle, leg_text)
+
+        # --- NUEVO: si la línea real ya estaba oculta, la entrada nace en plomo ---
+        visible_actual = orig_handle.get_visible() if hasattr(orig_handle, 'get_visible') else True
+        if not visible_actual:
+            leg_handle.set_alpha(0.3)
+            leg_text.set_alpha(0.3)
+        # ---------------------------------------------------------------------------
 
     def _set_visible_generico(artista, estado):
         if hasattr(artista, 'set_visible'):
             artista.set_visible(estado)
-        if hasattr(artista, 'patches'):  # BarContainer
+        if hasattr(artista, 'patches'):
             for patch in artista.patches:
                 patch.set_visible(estado)
-        if hasattr(artista, '_asociados'):  # capas del suavizado bezier
+        if hasattr(artista, '_asociados'):
             for obj in artista._asociados:
                 obj.set_visible(estado)
 
@@ -380,21 +418,19 @@ def configurar_evento_leyenda(canvas, legend, handles):
             estado_actual = True
 
         nuevo_estado = not estado_actual
-
-        # 1) Ocultar/mostrar en la GRÁFICA
         _set_visible_generico(orig_handle, nuevo_estado)
 
-        # 2) Atenuar/reactivar la entrada de la LEYENDA (ícono + texto)
-        alpha_visual = 1.0 if nuevo_estado else 0.3
-        leg_handle.set_alpha(alpha_visual)
-        leg_text.set_alpha(alpha_visual)
-
-        canvas.draw_idle()
+        if on_toggle_callback:
+            on_toggle_callback()   # reconstruye leyenda -> recalcula Total/Activas/Ocultas
+        else:
+            alpha_visual = 1.0 if nuevo_estado else 0.3
+            leg_handle.set_alpha(alpha_visual)
+            leg_text.set_alpha(alpha_visual)
+            canvas.draw_idle()
 
     if hasattr(canvas, '_leyenda_gid'):
         canvas.mpl_disconnect(canvas._leyenda_gid)
     canvas._leyenda_gid = canvas.mpl_connect('pick_event', on_pick)
-
 class ModalDialog(QDialog):
     def __init__(self, parent, label, date, reading):  # Añadir parent
         super().__init__(parent, Qt.Window)  # Usar Qt.Window
@@ -669,6 +705,11 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     toolbar_layout.setContentsMargins(0, 0, 0, 0)
     widget.toolbar = CustomToolbar(canvas, widget)
     toolbar_layout.addWidget(widget.toolbar)
+    # --- NUEVO: Total de equipos, justo al lado del ícono de guardar ---
+    total_equipos = df['Instrumento'].nunique()
+    label_total = QLabel(f"Total: {total_equipos}")
+    label_total.setStyleSheet("font-size: 12px; margin-left: 8px; font-weight: bold; color: #333;")
+    toolbar_layout.addWidget(label_total)
     check_inspector = QCheckBox("Inspector de Datos")
     check_inspector.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
     check_inspector.setChecked(bool(widget.property("estado_inspector")))
@@ -776,6 +817,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                     ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
 
     lineas = []
+    lineas_principales = []
     lblecuacion_rcuadrado = ""
     prismasmodulo = {"DESPLAZAMIENTO", "VELOCIDAD", "ANALISIS"}
     equipotipo = 1 if modulo in prismasmodulo else 0
@@ -817,6 +859,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                     linewidth=grosorlinea, label=nombreequipo
                 )
         lineas.append(linea)
+        lineas_principales.append(linea)
         # El resto del bucle (tendencias, etc.) NO cambia
 
         if equipostendencia:
@@ -1036,14 +1079,12 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         line.set_alpha(1.0)
 
             anchored, mapa_toggle, hitbox_entries = construir_leyenda_flujo(
-            ax, canvas, figure, widget, lineas, barras_pluviometro, fuente, leyendazise
+                ax, canvas, figure, widget, lineas, barras_pluviometro, fuente, leyendazise,
+                lineas_principales=lineas_principales
             )
             ax._leyenda_flujo = anchored
-            configurar_evento_leyenda_flujo(canvas, mapa_toggle)  # se deja como respaldo
+            configurar_evento_leyenda_flujo(canvas, mapa_toggle, on_toggle_callback=actualizar_leyenda)
             ax._leyenda_hitbox_entries = hitbox_entries
-            
-            ax._leyenda_flujo = anchored
-            configurar_evento_leyenda_flujo(canvas, mapa_toggle)
 
             if SUAVIZADO_ESTADO:
                 for line in lineas:
@@ -1227,8 +1268,8 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
             annot.set_ha(ha)
             annot.set_va(va)
             
-            str_fecha = mdates.num2date(fecha_num).replace(tzinfo=None).strftime('%d/%m/%Y %H:%M') if tiempo == "FECHA" else f"{fecha_num:.2f}"
-            annot.set_text(f"{label_equipo}\nFecha: {str_fecha}\nLectura: {lectura_val:.3f}")
+            str_x = formatear_x_inspector(fecha_num, tiempo)
+            annot.set_text(f"{label_equipo}\n{etiqueta_tiempo(tiempo)}: {str_x}\nLectura: {lectura_val:.3f}")
             annot.set_fontsize(9)
             annot.set_color('#333333')
             annot.set_visible(True)
@@ -1253,7 +1294,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                     alpha_visual = 1.0 if nuevo_estado else 0.3
                     for art in grupo_visual:
                         art.set_alpha(alpha_visual)
-                    canvas.draw_idle()
+                    actualizar_leyenda()
                     return
         # --- CASO A: CREAR NUEVO EVENTO ---
         if btn_add_evento.isChecked():
@@ -1542,6 +1583,11 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
     toolbar_layout.setContentsMargins(0, 0, 0, 0)
     widget.toolbar = CustomToolbar(canvas, widget)
     toolbar_layout.addWidget(widget.toolbar)
+    # --- NUEVO: Total de equipos, justo al lado del ícono de guardar ---
+    total_equipos = df['Instrumento'].nunique() if data else 0
+    label_total = QLabel(f"Total: {total_equipos}")
+    label_total.setStyleSheet("font-size: 12px; margin-left: 8px; font-weight: bold; color: #333;")
+    toolbar_layout.addWidget(label_total)
     check_inspector = QCheckBox("Inspector de Datos")
     check_inspector.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
     check_inspector.setChecked(bool(widget.property("estado_inspector")))
@@ -1614,7 +1660,6 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     ax2.set_yticks(ticks)
                     ax2.axhline(y=0, color='cyan', linestyle='-', linewidth=2, alpha=0.5)
                     ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
-                    barras_pluviometro = mpatches.Patch(color='cyan', alpha=0.5)
         else:
             if pluviometro_data:
                 idpluvio = str(pluviometro_data[0][0])
@@ -1647,41 +1692,41 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     ticks = generar_ticks_precipitacion (rango_max_lluvia, intervalo_lluvia)
                     ax2.set_yticks(ticks)
                 ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
-                barras_pluviometro = mpatches.Patch(color='cyan', alpha=0.5)
                 
-    else:
-            if pluviometro_data:
-                idpluvio = str(pluviometro_data[0][0])
-                estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idpluvio, 0)
-                df_pluviometro = pd.DataFrame(pluviometro_data, columns=['Codigo', 'Fecha', 'Lectura'])
-                df_pluviometro['Fecha'] = pd.to_datetime(df_pluviometro['Fecha'])
-                ax2 = ax.twinx()
-                diferencia = df_pluviometro['Fecha'].max() - df_pluviometro['Fecha'].min()
-                totaldias = diferencia.days
-                ancho = 0.8
-                if totaldias > 0:
-                    if totaldias < 100:
-                        ancho = totaldias / 100
-                    else:
-                        ancho = totaldias / 200
-                if estilo:
-                    if posicionlluvia == 0:
-                        ax2.set_ylim(int(estilo[3]), 0)
-                    else:
-                        ax2.set_ylim(0, int(estilo[3]))
-                    barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color=estilo[5], width=ancho, label="Precipitación")
-                    ticks = generar_ticks_precipitacion (int(estilo[3]), int(estilo[4]))
-                    ax2.set_yticks(ticks)
-                else:
-                    if posicionlluvia == 0:
-                        ax2.set_ylim(rango_max_lluvia, 0)
-                    else:
-                        ax2.set_ylim(0, rango_max_lluvia)
-                    barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color='cyan', width=ancho, alpha=0.5, label="Precipitación")
-                ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
+    # else:
+    #         if pluviometro_data:
+    #             idpluvio = str(pluviometro_data[0][0])
+    #             estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idpluvio, 0)
+    #             df_pluviometro = pd.DataFrame(pluviometro_data, columns=['Codigo', 'Fecha', 'Lectura'])
+    #             df_pluviometro['Fecha'] = pd.to_datetime(df_pluviometro['Fecha'])
+    #             ax2 = ax.twinx()
+    #             diferencia = df_pluviometro['Fecha'].max() - df_pluviometro['Fecha'].min()
+    #             totaldias = diferencia.days
+    #             ancho = 0.8
+    #             if totaldias > 0:
+    #                 if totaldias < 100:
+    #                     ancho = totaldias / 100
+    #                 else:
+    #                     ancho = totaldias / 200
+    #             if estilo:
+    #                 if posicionlluvia == 0:
+    #                     ax2.set_ylim(int(estilo[3]), 0)
+    #                 else:
+    #                     ax2.set_ylim(0, int(estilo[3]))
+    #                 barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color=estilo[5], width=ancho, label="Precipitación")
+    #                 ticks = generar_ticks_precipitacion (int(estilo[3]), int(estilo[4]))
+    #                 ax2.set_yticks(ticks)
+    #             else:
+    #                 if posicionlluvia == 0:
+    #                     ax2.set_ylim(rango_max_lluvia, 0)
+    #                 else:
+    #                     ax2.set_ylim(0, rango_max_lluvia)
+    #                 barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color='cyan', width=ancho, alpha=0.5, label="Precipitación")
+    #             ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
 
     # Graficar datos
     lineas = []
+    lineas_principales = []
     lblecuacion_rcuadrado = ""
     if data:
         for idinstrumento, datos_equipo in df.groupby('Instrumento'):
@@ -1713,6 +1758,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                         label=nombreequipo
                     )
             lineas.append(linea)
+            lineas_principales.append(linea)
 
             # graficar cota piezometrica
             if tipo == "NF":
@@ -2044,10 +2090,11 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                         line.set_alpha(1.0)
 
             anchored, mapa_toggle, hitbox_entries = construir_leyenda_flujo(
-                ax, canvas, figure, widget, lineas, barras_pluviometro, fuente, leyendazise
+                ax, canvas, figure, widget, lineas, barras_pluviometro, fuente, leyendazise,
+                lineas_principales=lineas_principales
             )
             ax._leyenda_flujo = anchored
-            configurar_evento_leyenda_flujo(canvas, mapa_toggle)
+            configurar_evento_leyenda_flujo(canvas, mapa_toggle, on_toggle_callback=actualizar_leyenda)
             ax._leyenda_hitbox_entries = hitbox_entries
 
             if SUAVIZADO_ESTADO:
@@ -2233,8 +2280,8 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
             annot.set_ha(ha)
             annot.set_va(va)
             
-            str_fecha = mdates.num2date(fecha_num).replace(tzinfo=None).strftime('%d/%m/%Y %H:%M') if tiempo == "FECHA" else f"{fecha_num:.2f}"
-            annot.set_text(f"{label_equipo}\nFecha: {str_fecha}\nLectura: {lectura_val:.3f}")
+            str_x = formatear_x_inspector(fecha_num, tiempo)
+            annot.set_text(f"{label_equipo}\n{etiqueta_tiempo(tiempo)}: {str_x}\nLectura: {lectura_val:.3f}")
             annot.set_fontsize(9)
             annot.set_color('#333333')
             annot.set_visible(True)
@@ -2259,7 +2306,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     alpha_visual = 1.0 if nuevo_estado else 0.3
                     for art in grupo_visual:
                         art.set_alpha(alpha_visual)
-                    canvas.draw_idle()
+                    actualizar_leyenda()
                     return
 
         if event.button != 1: return
@@ -2732,15 +2779,8 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
             annot.set_va(va)
             
             # Formato de Texto Profesional
-            if tiempo == "FECHA":
-                fecha_obj = mdates.num2date(fecha_num).replace(tzinfo=None)
-                str_fecha = fecha_obj.strftime('%d/%m/%Y %H:%M') # Sin segundos para limpieza visual
-            else:
-                str_fecha = f"{fecha_num:.2f}"
-            
-            # Uso de HTML-like styling (limitado en mpl) o formato limpio
-            # Texto oscuro (#333) sobre fondo blanco para legibilidad
-            text = f"{label_equipo}\nFecha: {str_fecha}\nLectura: {lectura_val:.3f}"
+            str_x = formatear_x_inspector(fecha_num, tiempo)
+            text = f"{label_equipo}\n{etiqueta_tiempo(tiempo)}: {str_x}\nLectura: {lectura_val:.3f}"
             annot.set_text(text)
             
             # Estilo de fuente

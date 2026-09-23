@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QVBoxLayout, QSizePolicy, QPushButton, QHBoxLayout, QCheckBox)
+from PySide6.QtWidgets import (QVBoxLayout, QSizePolicy, QPushButton, QHBoxLayout, QCheckBox, QLabel)
 from matplotlib.colors import TABLEAU_COLORS
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from utils.common.customToolbar import CustomToolbar 
@@ -10,6 +10,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 from controllers.ConfiguracionController import ConfiguracionController
+
 
 
 # Subclase de NavigationToolbar para desactivar el texto de coordenadas
@@ -112,6 +113,11 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
     items_per_page = 15
     total_pages = (len(unique_fechas) + items_per_page - 1) // items_per_page
 
+    page_label1 = QLabel("")
+    page_label1.setStyleSheet("font-size: 12px; font-weight: bold; margin: 0 6px;")
+    page_label2 = QLabel("")
+    page_label2.setStyleSheet("font-size: 12px; font-weight: bold; margin: 0 6px;")
+
     def update_legend(page, ax_legend, main_axis, canvas, lines_list):
         start_idx = page * items_per_page
         end_idx = start_idx + items_per_page
@@ -169,23 +175,27 @@ def plot_2d_in_widget(idproyecto, widget1, widget2, datos, titulo1, titulo2, nom
     if total_pages > 1:
         prev_button1 = QPushButton("◀")  # Triángulo hacia la izquierda
         next_button1 = QPushButton("▶")  # Triángulo hacia la derecha
+        page_label1.setText(f"Pág. 1/{total_pages}")
 
         def on_prev_button1():
             nonlocal current_page1
             if current_page1 > 0:
                 current_page1 -= 1
                 update_legend(current_page1, ax_legend1, ax1, canvas1, lines1)  # Pasar ax1 como main_axis
+                page_label1.setText(f"Pág. {current_page1 + 1}/{total_pages}")
 
         def on_next_button1():
             nonlocal current_page1
             if current_page1 < total_pages - 1:
                 current_page1 += 1
                 update_legend(current_page1, ax_legend1, ax1, canvas1, lines1)  # Pasar ax1 como main_axis
+                page_label1.setText(f"Pág. {current_page1 + 1}/{total_pages}")
 
         prev_button1.clicked.connect(on_prev_button1)
         next_button1.clicked.connect(on_next_button1)
 
         toolbar_layout1.addWidget(prev_button1)
+        toolbar_layout1.addWidget(page_label1)
         toolbar_layout1.addWidget(next_button1)
 
     main_layout1.addWidget(canvas1)
