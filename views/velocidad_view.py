@@ -617,6 +617,11 @@ class VelocidadView:
         else:
             VelocidadView.quitarTendencia(treeWidget)
 
+    @staticmethod
+    def _dibujarUmbralesVelocidad():
+        """Repinta los umbrales activos tras redibujar la gráfica."""
+        if VelocidadView.umbral_activo_velocidad and VelocidadView.umbral_modo == "GENERAL":
+            VelocidadView._dibujarUmbralesGenerales()
 
     @staticmethod
     def quitarTendencia(treeWidget):

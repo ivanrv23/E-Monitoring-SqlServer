@@ -605,57 +605,54 @@ class UmbralView:
             selected_option = combo.currentText()
             selected_id = options[selected_option]  # Obtener el ID correspondiente del tipo
             selected_component_id = component_combo.currentData()  # Obtener el ID del piezómetro seleccionado
-            if selected_component_id:
-                if selected_id == "NF":
+            if selected_id == "NF":
+                unimedida = 1
+                medida = "msnm"
+            elif selected_id == "NI" or selected_id == "NA":
+                if unidad == 1:
                     unimedida = 1
-                    medida = "msnm"
-                elif selected_id == "NI" or selected_id == "NA":
-                    if unidad == 1:
-                        unimedida = 1
-                        medida = "m"
-                    elif unidad == 100:
-                        unimedida = 100
-                        medida = "cm"
-                    else:
-                        unimedida = 1000
-                        medida = "mm"
-                elif selected_id == "PB":
-                    unimedida = 1
-                    medida = "B"
-                elif selected_id == "FP":
-                    unimedida = 1
-                    medida = "Hz"
+                    medida = "m"
+                elif unidad == 100:
+                    unimedida = 100
+                    medida = "cm"
                 else:
-                    unimedida = 1
-                    medida = "°C"
-                umbrales = UmbralController.ctrlObtenerUmbralesAjustes(proyectoid, selected_component_id, selected_id, tipo)
-                if umbrales:
-                    table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", f"Rango ({medida})", "Acciones a realizar"])
-                    table.setRowCount(len(umbrales))
-                    for row, umbral in enumerate(umbrales):
-                        # Condición
-                        condicion_item = QTableWidgetItem(umbral[3])  # Asumiendo que la condición está en la posición 2
-                        condicion_item.setData(Qt.UserRole, umbral[0])  # Guardar el ID del umbral en el item
-                        table.setItem(row, 0, condicion_item)
-                        # Botón de color
-                        color_button = QPushButton()
-                        color_button.setStyleSheet(f"background-color: {umbral[4]};")  # Asumiendo que el color está en la posición 3
-                        color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
-                        table.setCellWidget(row, 1, color_button)
-                        # Riesgo
-                        riesgo_item = QTableWidgetItem(umbral[5])  # Asumiendo que el riesgo está en la posición 4
-                        table.setItem(row, 2, riesgo_item)
-                        # Rango (DoubleSpinBox)
-                        double_spinbox = QDoubleSpinBox()
-                        double_spinbox.setRange(-1e9, 1e9)  # Rango grande
-                        double_spinbox.setDecimals(5)  # Hasta 5 decimales
-                        double_spinbox.setValue(umbral[6] * unimedida) # Asumiendo que el rango está en la posición 5
-                        table.setCellWidget(row, 3, double_spinbox)
-                        # Acciones a realizar
-                        acciones_item = QTableWidgetItem(umbral[8])  # Asumiendo que las acciones están en la posición 6
-                        table.setItem(row, 4, acciones_item)
-                else:
-                    reset_table()
+                    unimedida = 1000
+                    medida = "mm"
+            elif selected_id == "PB":
+                unimedida = 1
+                medida = "B"
+            elif selected_id == "FP":
+                unimedida = 1
+                medida = "Hz"
+            else:
+                unimedida = 1
+                medida = "°C"
+            umbrales = UmbralController.ctrlObtenerUmbralesAjustes(proyectoid, selected_component_id, selected_id, tipo)
+            if umbrales:
+                table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", f"Rango ({medida})", "Acciones a realizar"])
+                table.setRowCount(len(umbrales))
+                for row, umbral in enumerate(umbrales):
+                    # Condición
+                    condicion_item = QTableWidgetItem(umbral[3])  # Asumiendo que la condición está en la posición 2
+                    condicion_item.setData(Qt.UserRole, umbral[0])  # Guardar el ID del umbral en el item
+                    table.setItem(row, 0, condicion_item)
+                    # Botón de color
+                    color_button = QPushButton()
+                    color_button.setStyleSheet(f"background-color: {umbral[4]};")  # Asumiendo que el color está en la posición 3
+                    color_button.clicked.connect(lambda *args, btn=color_button: MetodosGenerales.cambiarColorBoton(btn))
+                    table.setCellWidget(row, 1, color_button)
+                    # Riesgo
+                    riesgo_item = QTableWidgetItem(umbral[5])  # Asumiendo que el riesgo está en la posición 4
+                    table.setItem(row, 2, riesgo_item)
+                    # Rango (DoubleSpinBox)
+                    double_spinbox = QDoubleSpinBox()
+                    double_spinbox.setRange(-1e9, 1e9)  # Rango grande
+                    double_spinbox.setDecimals(5)  # Hasta 5 decimales
+                    double_spinbox.setValue(umbral[6] * unimedida) # Asumiendo que el rango está en la posición 5
+                    table.setCellWidget(row, 3, double_spinbox)
+                    # Acciones a realizar
+                    acciones_item = QTableWidgetItem(umbral[8])  # Asumiendo que las acciones están en la posición 6
+                    table.setItem(row, 4, acciones_item)
             else:
                 reset_table()
         # Conectar el cambio de opción en el ComboBox para cargar los umbrales

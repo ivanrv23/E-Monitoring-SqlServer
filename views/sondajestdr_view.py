@@ -291,7 +291,6 @@ class SondajetdrView:
 
     @staticmethod
     def _repintarUmbrales(sondajetdrmarcados):
-        print("repintar")
         """Repinta umbrales después de redibujar el gráfico"""
         if SondajetdrView.umbral_modo == "GENERAL":
             SondajetdrView._dibujarUmbralesGenerales(sondajetdrmarcados)

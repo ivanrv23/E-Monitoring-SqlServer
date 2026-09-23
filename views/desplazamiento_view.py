@@ -708,6 +708,12 @@ class DesplazamientoView:
         else:
             # El usuario desmarcó el check -> quitar la tendencia actual
             DesplazamientoView.quitarTendencia(treeWidget)
+
+    @staticmethod
+    def _dibujarUmbralesDesplazamiento():
+        """Repinta los umbrales activos tras redibujar la gráfica."""
+        if DesplazamientoView.umbral_activo_desplazamiento and DesplazamientoView.umbral_modo == "GENERAL":
+            DesplazamientoView._dibujarUmbralesGenerales()
     
     def mostrarModalTendencia(treeWidget):
         lista = EquiposDesplazamiento.obtener_todos_elementos_marcados(treeWidget)
