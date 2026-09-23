@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import textwrap
-from PySide6.QtWidgets import (QVBoxLayout, QSizePolicy,QPushButton,QHBoxLayout, QCheckBox)
+from PySide6.QtWidgets import (QVBoxLayout, QSizePolicy,QPushButton,QHBoxLayout, QCheckBox, QLabel)
 from matplotlib.colors import TABLEAU_COLORS
 from PySide6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -201,11 +201,15 @@ def plot_3d_in_widget(idproyecto, datos, titulo, nombreejex, nombreejey, widget,
             linea3d, = ax.plot(subset["D_A"], subset["D_B"], subset["Profundidad"], color=colores[i], linewidth=grosorlinea)
             mapa_lineas_3d[fecha] = linea3d
 
+    page_label = QLabel("")
+    page_label.setStyleSheet("font-size: 12px; font-weight: bold; margin: 0 6px;")
+
     def update_legend(page):
         start_idx = page * items_per_page
         end_idx = start_idx + items_per_page
         current_fechas = unique_fechas[start_idx:end_idx]
         formatted_dates = [fecha.strftime('%d/%m/%Y') for fecha in current_fechas]
+        page_label.setText(f"Pág. {page + 1}/{total_pages}")
 
         activas = sum(1 for linea in mapa_lineas_3d.values() if linea.get_visible())
         ocultas = total - activas
@@ -273,7 +277,9 @@ def plot_3d_in_widget(idproyecto, datos, titulo, nombreejex, nombreejey, widget,
         next_button.clicked.connect(on_next_button)
 
         toolbar_layout.addWidget(prev_button)
+        toolbar_layout.addWidget(page_label)
         toolbar_layout.addWidget(next_button)
+
 
     main_layout.addWidget(canvas)
     main_layout.addLayout(toolbar_layout)

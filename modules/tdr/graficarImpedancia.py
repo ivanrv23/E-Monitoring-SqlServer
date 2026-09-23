@@ -138,6 +138,7 @@ class GraficarImpedancia:
         
         # Graficar datos
         lineas = []
+        lineas_fechas = []
         for fecha_lectura, datos_grupo in df.groupby('Fecha_Lectura'):
             datos_grupo = datos_grupo.sort_values(by='Profundidad')
             if vertices == 1:
@@ -145,6 +146,7 @@ class GraficarImpedancia:
             else:
                 linea, = ax.plot(datos_grupo[valores_x], datos_grupo[valores_y], label=f'{fecha_lectura.date()}', linewidth=grosorlinea)
             lineas.append(linea)
+            lineas_fechas.append(linea)
         
         # Graficar fallas
         if len(fallas) > 0:
@@ -289,12 +291,25 @@ class GraficarImpedancia:
             if total_filas_leyenda == 0: return
             inicio = pagina_actual * equipos_por_pagina
             fin = min(inicio + equipos_por_pagina, filas_totales)
-            handles_pagina = leyenda_elementos[inicio:fin]
-            labels_pagina = leyenda_labels[inicio:fin]
-            legend = ax.legend(handles_pagina, labels_pagina, loc=leyenda_posicion,
+            handles_pagina = list(leyenda_elementos[inicio:fin])
+            labels_pagina = list(leyenda_labels[inicio:fin])
+
+            # --- NUEVO: fila de Total / Activas / Ocultas (visible en TODAS las páginas) ---
+            total = len(lineas_fechas)
+            activas = sum(1 for l in lineas_fechas if l.get_visible())
+            ocultas = total - activas
+            total_handle = plt.Line2D([0], [0], color='w', label=f'Total: {total}', linestyle='None')
+            activa_handle = plt.Line2D([0], [0], color='w', label=f'Activas: {activas}', linestyle='None')
+            oculta_handle = plt.Line2D([0], [0], color='w', label=f'Ocultas: {ocultas}', linestyle='None')
+            handles_pagina_final = [total_handle, activa_handle, oculta_handle] + handles_pagina
+            labels_pagina_final = [f'Total: {total}', f'Activas: {activas}', f'Ocultas: {ocultas}'] + labels_pagina
+            # ---------------------------------------------------------------------------------
+
+            legend = ax.legend(handles_pagina_final, labels_pagina_final, loc=leyenda_posicion,
                                 bbox_to_anchor=leyenda_bbox, ncol=leyenda_ncol,
                                 frameon=False, prop={'size': leyendazise})
-            configurar_evento_leyenda(canvas, legend, handles_pagina)
+            configurar_evento_leyenda(canvas, legend, handles_pagina,
+                                       on_toggle_callback=actualizar_leyenda, offset=3)
             figure.subplots_adjust(**ajuste_margenes)
             canvas.draw_idle()
 

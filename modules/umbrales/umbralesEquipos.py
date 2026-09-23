@@ -1155,7 +1155,7 @@ class UmbralView:
                 table = None
             if tipografica == "AMA":
                 table = QTableWidget(3, 6)
-                table.setHorizontalHeaderLabels(["Nombre", "Color", "Riesgo", "Distancia (km)", "Magnitud (M)", "Acciones a Realizar"])
+                table.setHorizontalHeaderLabels(["Nombre", "Color", "Riesgo", "Magnitud (M)", "Distancia (km)", "Acciones a Realizar"])
             else:
                 table = QTableWidget(3, 5)
                 if tipografica == "AAC":
@@ -1188,12 +1188,12 @@ class UmbralView:
                     # Riesgo
                     riesgo_item = QTableWidgetItem("")
                     table.setItem(row, 2, riesgo_item)
-                    # Distancia (DoubleSpinBox)
-                    double_spinbox = QDoubleSpinBox()
-                    double_spinbox.setRange(-1e9, 1e9)  # Rango grande
-                    double_spinbox.setDecimals(5)  # Hasta 5 decimales
-                    table.setCellWidget(row, 3, double_spinbox)
                     # Magnitud (DoubleSpinBox)
+                    double_spinbox1 = QDoubleSpinBox()
+                    double_spinbox1.setRange(-1e9, 1e9)  # Rango grande
+                    double_spinbox1.setDecimals(5)  # Hasta 5 decimales
+                    table.setCellWidget(row, 3, double_spinbox1)
+                    # Distancia (DoubleSpinBox)
                     double_spinbox = QDoubleSpinBox()
                     double_spinbox.setRange(-1e9, 1e9)  # Rango grande
                     double_spinbox.setDecimals(5)  # Hasta 5 decimales
@@ -1244,18 +1244,18 @@ class UmbralView:
                         # Riesgo
                         riesgo_item = QTableWidgetItem(umbral[5])  # Asumiendo que el riesgo
                         table.setItem(row, 2, riesgo_item)
-                        # Distancia (DoubleSpinBox)
-                        distancia_spinbox = QDoubleSpinBox()
-                        distancia_spinbox.setRange(0, 1e9)  # Rango grande
-                        distancia_spinbox.setDecimals(5)  # Hasta 5 decimales
-                        distancia_spinbox.setValue(umbral[6])
-                        table.setCellWidget(row, 3, distancia_spinbox)
                         # Magnitud (DoubleSpinBox)
                         magnitud_spinbox = QDoubleSpinBox()
                         magnitud_spinbox.setRange(0, 1e9)  # Rango grande
                         magnitud_spinbox.setDecimals(5)  # Hasta 5 decimales
-                        magnitud_spinbox.setValue(umbral[7])  
+                        magnitud_spinbox.setValue(umbral[6])  
                         table.setCellWidget(row, 4, magnitud_spinbox)
+                        # Distancia (DoubleSpinBox)
+                        distancia_spinbox = QDoubleSpinBox()
+                        distancia_spinbox.setRange(0, 1e9)  # Rango grande
+                        distancia_spinbox.setDecimals(5)  # Hasta 5 decimales
+                        distancia_spinbox.setValue(umbral[7])
+                        table.setCellWidget(row, 3, distancia_spinbox)
                         # Acciones a Realizar
                         acciones_item = QTableWidgetItem(umbral[8]) 
                         table.setItem(row, 5, acciones_item)
@@ -1319,16 +1319,16 @@ class UmbralView:
                 # Riesgo
                 riesgo_item = QTableWidgetItem("")
                 table.setItem(row_count, 2, riesgo_item)
-                # Distancia
-                distancia = QDoubleSpinBox()
-                distancia.setRange(0, 1e9)
-                distancia.setDecimals(5)
-                table.setCellWidget(row_count, 3, distancia)
                 # Magnitud
                 magnitud = QDoubleSpinBox()
                 magnitud.setRange(0, 1e9)
                 magnitud.setDecimals(5)
-                table.setCellWidget(row_count, 4, magnitud)
+                table.setCellWidget(row_count, 3, magnitud)
+                # Distancia
+                distancia = QDoubleSpinBox()
+                distancia.setRange(0, 1e9)
+                distancia.setDecimals(5)
+                table.setCellWidget(row_count, 4, distancia)
                 # Acciones
                 acciones_item = QTableWidgetItem("")
                 table.setItem(row_count, 5, acciones_item)
@@ -1363,8 +1363,8 @@ class UmbralView:
             if tipografica == "AMA":
                 for row in range(table.rowCount()):
                     nombre_item = table.item(row, 0)
-                    distancia_item = table.cellWidget(row, 3)
-                    magnitud_item = table.cellWidget(row, 4)
+                    magnitud_item = table.cellWidget(row, 3)
+                    distancia_item = table.cellWidget(row, 4)
                     riesgo_item = table.item(row, 2)
                     acciones_item = table.item(row, 5)
                     if nombre_item and nombre_item.text() and distancia_item and magnitud_item and riesgo_item and acciones_item:
@@ -1701,24 +1701,24 @@ class UmbralView:
     def retornarArregloTipo(tipo):
         if tipo == 'PRISMAS':
             options = {
-                "Desplazamiento Acum. 3D": "3DA",
-                "Desplazamiento Incr. 3D": "3DI",
-                "Desplazamiento Acum. 2D": "2DA",
-                "Desplazamiento Incr. 2D": "2DI",
-                "Desplazamiento Acum. SD": "SDA",
-                "Desplazamiento Incr. SD": "SDI",
-                "Desplazamiento Acum. L": "DLA",
-                "Desplazamiento Incr. L": "DLI",
-                "Desplazamiento Acum. T": "DTA",
-                "Desplazamiento Incr. T": "DTI",
-                "Desplazamiento Acum. H": "DHA",
-                "Desplazamiento Incr. H": "DHI",
-                "Desplazamiento Acum. N": "DNA",
-                "Desplazamiento Incr. N": "DNI",
-                "Desplazamiento Acum. E": "DEA",
-                "Desplazamiento Incr. E": "DEI",
-                "Desplazamiento Acum. Z": "DZA",
-                "Desplazamiento Incr. Z": "DZI",
+                "Desplaz. Acumulado 3D": "3DA",
+                "Desplaz. Incremental 3D": "3DI",
+                "Desplaz. Acumulado 2D": "2DA",
+                "Desplaz. Incremental 2D": "2DI",
+                "Desplaz. Acumulado SD": "SDA",
+                "Desplaz. Incremental SD": "SDI",
+                "Desplaz. Acumulado Longitudinal": "DLA",
+                "Desplaz. Incremental Longitudinal": "DLI",
+                "Desplaz. Acumulado Transversal": "DTA",
+                "Desplaz. Incremental Transversal": "DTI",
+                "Desplaz. Acumulado Altura": "DHA",
+                "Desplaz. Incremental Altura": "DHI",
+                "Desplaz. Acumulado Norte": "DNA",
+                "Desplaz. Incremental Norte": "DNI",
+                "Desplaz. Acumulado Este": "DEA",
+                "Desplaz. Incremental Este": "DEI",
+                "Desplaz. Acumulado Cota": "DZA",
+                "Desplaz. Incremental Cota": "DZI",
                 "Velocidad Incremental 3D": "VI3D",
                 "Velocidad Acumulada 3D": "VA3D",
                 "Velocidad Incremental 2D": "VI2D",

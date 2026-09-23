@@ -31,6 +31,7 @@ class PiezometrosView:
     umbral_modo = None
     umbral_general_componente = None
     umbrales_cache = None                # <-- nuevo
+    tendencia_activa = None
     cuerdafechainicial, cuerdafechafinal = MetodosGenerales.obtenerRangoFechas(365)
     manualfechainicial, manualfechafinal = MetodosGenerales.obtenerRangoFechas(365)
     
@@ -385,7 +386,7 @@ class PiezometrosView:
             if len(piezocuerdasmarcados) > 0:
                 datos = PiezometroController.ctrlCalcularPiezometrosCuerda(PiezometrosView.idproyecto, piezocuerdasmarcados, PiezometrosView.cuerdafechainicial, PiezometrosView.cuerdafechafinal, filtrado, tipomedida)
                 if len(datos) > 0:
-                    PiezometrosView.graficarPiezometrosCuerdaMarcados(lista, datos, cotasmarcadas, 11, 12, tipografico, tipomedida, tipotiempo)
+                    PiezometrosView.graficarPiezometrosCuerdaMarcados(lista, datos, cotasmarcadas, 11, 12, tipografico, tipomedida, tipotiempo, PiezometrosView.tendencia_activa)
                     PiezometrosView._repintarUmbrales(lista)
                 else:
                     PiezometrosView.limpiarGraficaPiezometros()
@@ -394,7 +395,7 @@ class PiezometrosView:
                 if len(piezomanualesmarcados) > 0:
                     datos = PiezometroController.ctrlCalcularPiezometrosCasaGrande(PiezometrosView.idproyecto, piezomanualesmarcados, PiezometrosView.manualfechainicial, PiezometrosView.manualfechafinal, filtrado, tipomedida)
                     if len(datos) > 0:
-                        PiezometrosView.graficarPiezometrosManualMarcados(lista, datos, cotasmarcadas, 8, 9, tipografico, tipomedida, tipotiempo)
+                        PiezometrosView.graficarPiezometrosManualMarcados(lista, datos, cotasmarcadas, 8, 9, tipografico, tipomedida, tipotiempo, PiezometrosView.tendencia_activa)
                         PiezometrosView._repintarUmbrales(lista)
                 else:
                     terrenosmarcados = PiezometrosView.obtenerListaEquiposMarcados(lista, "Cotas de Terreno")
@@ -640,6 +641,7 @@ class PiezometrosView:
         PiezometrosView.umbral_modo = None
         PiezometrosView.umbral_general_componente = None
         PiezometrosView.umbrales_cache = None
+        PiezometrosView.tendencia_activa = None
     
     def mostrarDialogoReportePiezometros(treeWidget, widget_grafico, combo_tipo_grafico, tiporeporte):
         if PiezometrosView.idproyecto:
@@ -747,6 +749,7 @@ class PiezometrosView:
             if piezometrosmarcados and tipopiezo:
                 regresion = Personalizacion.dialogoFiltroRegresionPiezometrosCeldas(piezometrosmarcados, "PIEZÓMETROS")
                 if len(regresion) > 0:
+                    PiezometrosView.tendencia_activa = regresion
                     tipo_grafico = PiezometrosView.main.findChild(QComboBox, "cb_tipo_graficas_piezometros")
                     tipografico = tipo_grafico.currentData()
                     combotipomedida = PiezometrosView.main.findChild(QComboBox, "combo_medida_piezometros")
@@ -824,6 +827,7 @@ class PiezometrosView:
         PiezometrosView.umbral_modo = None
         PiezometrosView.umbral_general_componente = None   
         PiezometrosView.umbrales_cache = None                # <-- nuevo
+        PiezometrosView.tendencia_activa = None
         PiezometrosView.limpiarGraficaPiezometros()
         # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
         buscador_arbol = main.findChild(QLineEdit, "input_buscar_piezometros")

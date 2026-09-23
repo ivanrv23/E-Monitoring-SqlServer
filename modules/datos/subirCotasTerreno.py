@@ -631,7 +631,7 @@ class CargarCotasTerrenoThread(QThread):
         self.idcompo = idcompo
 
     def run(self):
-        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        resultado = {"ok": False, "mensaje": "Data duplicada.", "color": "red"}
         try:
             respuesta, equipos, erroneos = SubirCotasTerreno.registrarFormatoDataCotasTerreno(
                 self.proyectoid, self.ubicacion_texto, self.idcompo
@@ -662,7 +662,7 @@ class CargarCotasTerrenoThread(QThread):
                 resultado["equipos_data"] = equipos_data
             else:
                 if erroneos:
-                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+                    resultado["mensaje"] = f"Error en el formato de los archivos: {erroneos}"
 
         except ValueError as e:
             resultado["mensaje"] = str(e)

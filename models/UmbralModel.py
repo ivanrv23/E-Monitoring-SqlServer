@@ -249,7 +249,7 @@ class UmbralModel:
             # Preparamos los parámetros para executemany para mayor eficiencia
             params = []
             for item in data:
-                params.append((proyectoid, componente_id, item['nombre'], item['color'], item['riesgo'], item['distancia'], item['magnitud'], item['acciones'], tipografica, tipoequipo))
+                params.append((proyectoid, componente_id, item['nombre'], item['color'], item['riesgo'], item['magnitud'], item['distancia'], item['acciones'], tipografica, tipoequipo))
             
             cur.executemany(sql, params)
             conn.commit()
@@ -295,7 +295,7 @@ class UmbralModel:
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
-            cur.execute(sql, (nombre, color, riesgo, distancia, magnitud, acciones, umbral_id))
+            cur.execute(sql, (nombre, color, riesgo, magnitud, distancia, acciones, umbral_id))
             conn.commit()
             return True
         except Exception as e:

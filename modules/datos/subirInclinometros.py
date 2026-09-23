@@ -768,7 +768,7 @@ class CargarInclinometrosThread(QThread):
         self.idinclinometro = idinclinometro
 
     def run(self):
-        resultado = {"ok": False, "mensaje": "No se guardó la data.", "color": "red"}
+        resultado = {"ok": False, "mensaje": "Data duplicada.", "color": "red"}
         try:
             respuesta, erroneos = SubirInclinometros.registrarDataInclinometro(
                 self.tipo_inclinometro, self.ubicacion_texto, self.proyectoid, self.idinclinometro
@@ -786,7 +786,7 @@ class CargarInclinometrosThread(QThread):
                 resultado["data"] = data
             else:
                 if erroneos:
-                    resultado["mensaje"] = f"Error en los archivos: {erroneos}"
+                    resultado["mensaje"] = f"Error en el formato de los archivos: {erroneos}"
         except ValueError as e:
             resultado["mensaje"] = str(e)
         except Exception:
