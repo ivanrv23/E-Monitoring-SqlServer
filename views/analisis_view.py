@@ -941,7 +941,7 @@ class AnalisisView:
             else:
                 labelejex = "Horas"
                 idx_fecha = 4
-                idx_lectura = 5
+                idx_lectura = 6
             if tipoescala == "SEL":
                 titulografica = "Inversa de la Velocidad"
             elif tipoescala == "ESL":
@@ -2166,7 +2166,7 @@ class AnalisisView:
                     else:
                         labelejex = "Horas"
                         idx_fecha = 4
-                        idx_lectura = 5
+                        idx_lectura = 6
                     if tipoescala == "SEL":
                         titulografica = "Inversa de la Velocidad"
                     elif tipoescala == "ESL":
@@ -2244,7 +2244,7 @@ class AnalisisView:
                     else:
                         labelejex = "Horas"
                         idx_fecha = 4
-                        idx_lectura = 5
+                        idx_lectura = 6
                     if tipoescala == "SEL":
                         titulografica = "Inversa de la Velocidad"
                     elif tipoescala == "ESL":
