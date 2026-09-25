@@ -1354,7 +1354,7 @@ class DatosModel:
         # hora_prisma es DATETIME
         sql = f"""WITH cte_prisma AS (
             SELECT p.nombre_prisma, p.hora_prisma, ROUND(p.este_target, 3) AS este_target,
-                ROUND(p.norte_target, 3) AS norte_target, ROUND(p.elevacion_target, 3) AS elevacion_target, p.distancia_prisma,
+                ROUND(p.norte_target, 3) AS norte_target, ROUND(p.elevacion_target, 3) AS elevacion_target, p.distancia_prisma, p.angulo_horizontal, p.angulo_vertical,
                 FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS norte_inicial,
                 FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS este_inicial,
                 FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS elevacion_inicial,
@@ -1372,7 +1372,7 @@ class DatosModel:
             AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         )
         SELECT nombre_prisma, CAST(hora_prisma AS DATE) AS fecha, CAST(hora_prisma AS TIME) AS hora, este_target,
-            norte_target, elevacion_target, distancia_prisma,
+            norte_target, elevacion_target, distancia_prisma, angulo_horizontal, angulo_vertical,
             CASE
                 WHEN row_num = 1 THEN 0
                 ELSE 
@@ -1426,7 +1426,7 @@ class DatosModel:
         params = [idzona] + [tipoequipo] + [prisma] + [fechaini] + [fechafin]
         sql = f"""WITH cte_prisma AS (
             SELECT p.nombre_prisma, p.hora_prisma, ROUND(p.este_target, 3) AS este_target,
-                ROUND(p.norte_target, 3) AS norte_target, ROUND(p.elevacion_target, 3) AS elevacion_target, p.distancia_prisma,
+                ROUND(p.norte_target, 3) AS norte_target, ROUND(p.elevacion_target, 3) AS elevacion_target, p.distancia_prisma, p.angulo_horizontal, p.angulo_vertical,
                 FIRST_VALUE(p.norte_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS norte_inicial,
                 FIRST_VALUE(p.este_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS este_inicial,
                 FIRST_VALUE(p.elevacion_target) OVER (PARTITION BY p.nombre_prisma ORDER BY p.hora_prisma) AS elevacion_inicial,
@@ -1443,7 +1443,7 @@ class DatosModel:
             AND (p.grupo_puntos = co.nombre_componente OR p.grupo_puntos IS NULL OR p.grupo_puntos = '')
         ),
         cte_distancias AS (
-            SELECT nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target, distancia_prisma, tiempo_inicial,
+            SELECT nombre_prisma, hora_prisma, este_target, norte_target, elevacion_target, distancia_prisma, angulo_horizontal, angulo_vertical, tiempo_inicial,
                 CASE 
                     WHEN row_num = 1 THEN 0 
                     ELSE 
@@ -1465,7 +1465,7 @@ class DatosModel:
             CAST(hora_prisma AS DATE) AS fecha, 
             CAST(hora_prisma AS TIME) AS hora, 
             este_target,
-            norte_target, elevacion_target, distancia_prisma, DI3D, DA3D,
+            norte_target, elevacion_target, distancia_prisma, angulo_horizontal, angulo_vertical, DI3D, DA3D,
             CASE 
                 WHEN row_num = 1 THEN 0
                 ELSE 

@@ -8954,7 +8954,7 @@ QLineEdit:disabled {
               <item>
                <widget class="QPushButton" name="btn_nuevo_usuario">
                 <property name="toolTip">
-                 <string>Exportar Tabla</string>
+                 <string>Agregar Usuario</string>
                 </property>
                 <property name="text">
                  <string/>

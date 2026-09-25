@@ -7,13 +7,14 @@ from controllers.DatosController import DatosController
 
 # Clase CustomTableModel
 class CustomTableModel(QAbstractTableModel):
-    def __init__(self, data, headers, page_size=100, columna_color=None, parent=None):
+    def __init__(self, data, headers, page_size=100, columna_color=None, decimales=2, parent=None):
         super().__init__(parent)
         self._data = data
         self._headers = headers
         self.page_size = page_size
         self.current_page = 0  # Página actual
         self.columna_color = columna_color
+        self.decimales = decimales
         
         # Definir columnas numéricas por tipo de datos
         self.columnas_numericas = self._identificar_columnas_numericas(headers)
@@ -40,32 +41,18 @@ class CustomTableModel(QAbstractTableModel):
     
     def _formatear_numero(self, valor, col_index):
         """
-        Formatea un número con decimales específicos según el tipo de columna
+        Formatea un número usando la cantidad de decimales configurada
+        (config[14] or 2), igual para todas las columnas numéricas.
         """
         if valor is None or valor == '':
             return ''
-        
+
         try:
             num = float(valor)
-            header = self._headers[col_index].lower()
-            
-            # Definir decimales según tipo de dato
-            if any(x in header for x in ['este', 'norte']):
-                decimales = 4  # Coordenadas UTM: 4 decimales
-            elif any(x in header for x in ['elevación', 'cota', 'profundidad', 'nivel']):
-                decimales = 3  # Elevaciones: 3 decimales
-            elif any(x in header for x in ['di3d', 'da3d', 'desplazamiento']):
-                decimales = 2  # Desplazamientos: 2 decimales
-            elif any(x in header for x in ['vi3d', 'va3d', 'velocidad']):
-                decimales = 2  # Velocidades: 2 decimales
-            else:
-                decimales = 2  # Por defecto: 2 decimales
-            
-            return f"{num:.{decimales}f}"
-                    
+            return f"{num:.{self.decimales}f}"
         except (ValueError, TypeError):
             return str(valor)
-
+        
     def rowCount(self, parent=QModelIndex()):
         if not self._data:
             return 0
@@ -168,7 +155,11 @@ class VistaDatos:
     def construirTablaEquipo(main, tabla, tipo, resultado):
         """Aplica el resultado a la tabla. SIEMPRE debe correr en el hilo principal (GUI thread)."""
         if resultado:
-            VistaDatos.llenarTabla(tabla, resultado['headers'], resultado['data'], main, tipo, resultado.get('columnacolor', 0))
+            VistaDatos.llenarTabla(
+                tabla, resultado['headers'], resultado['data'], main, tipo,
+                resultado.get('columnacolor', 0),
+                resultado.get('decimales', 2)
+            )
             for col in resultado.get('hidden', []):
                 tabla.setColumnHidden(col, True)
         else:
@@ -186,7 +177,7 @@ class VistaDatos:
                 "", "Prisma", "Fecha Hora", "Este (m)", "Norte (m)", "Elevación (msnm)", "Distancia Inclinada (m)", "DI3D (cm)",
                 "DA3D (cm)", "VI3D (cm/dia)", "VA3D (cm/dia)", "A. Horizontal", "A. Vertical", "Estado", ""
             ]
-            return {'headers': headers, 'data': dataprismasunido, 'columnacolor': 13, 'hidden': [0, 14]}
+            return {'headers': headers, 'data': dataprismasunido, 'columnacolor': 13, 'hidden': [0, 14], 'decimales': decimales}
         return None
 
     def datos_tabla_inclinometros(proyecto_id, idzona, equipos, decimales):
@@ -197,7 +188,7 @@ class VistaDatos:
                 "", "Inclinómetro", "Tipo Equipo", "Fecha Hora", "Profundidad (m)", "Face A+ (m)", "Face A- (m)",
                 "Face B+ (m)", "Face B- (m)", "Este (m)", "Norte (m)", "Elevación (msnm)", ""
             ]
-            return {'headers': headers, 'data': inclinometros, 'columnacolor': 0, 'hidden': [0, 12]}
+            return {'headers': headers, 'data': inclinometros, 'columnacolor': 0, 'hidden': [0, 12], 'decimales': decimales}
         return None
 
     def datos_tabla_piezometros_cuerda(proyecto_id, idzona, equipos, decimales):
@@ -208,7 +199,7 @@ class VistaDatos:
                 "", "Piezómetro", "Fecha Hora", "Frecuencia", "Temperatura (°C)", "Presión", "MCA", "Instalación", "Nivel Agua",
                 "Este (m)", "Norte (m)", "Superficie (msnm)", "Fundación (msnm)", "Estado", "Observación", "", ""
             ]
-            return {'headers': headers, 'data': piezometros, 'columnacolor': 13, 'hidden': [0, 15, 16]}
+            return {'headers': headers, 'data': piezometros, 'columnacolor': 13, 'hidden': [0, 15, 16], 'decimales': decimales}
         return None
 
     def datos_tabla_piezometros_manual(proyecto_id, idzona, equipos, decimales):
@@ -219,7 +210,7 @@ class VistaDatos:
                 "", "Piezómetro", "Fecha Hora", "Nivel Piezómetrico (m)", "Profundidad (m)", "Superficie (msnm)", "Nivel Agua (msnm)",
                 "Stick Up (m)", "Este (m)", "Norte (m)", "Fondo (msnm)", "Fundación (msnm)", "Estado", "Observación", "", ""
             ]
-            return {'headers': headers, 'data': piezometros, 'columnacolor': 12, 'hidden': [0, 14, 15]}
+            return {'headers': headers, 'data': piezometros, 'columnacolor': 12, 'hidden': [0, 14, 15], 'decimales': decimales}
         return None
 
     def datos_tabla_pluviometros(proyecto_id, idzona, equipos, decimales):
@@ -229,7 +220,7 @@ class VistaDatos:
             headers = [
                 "", "Pluviómetro", "Fecha Hora", "Precipitación (mm)", "Este (m)", "Norte (m)", "Elevación (msnm)", "Observación", "Estado", ""
             ]
-            return {'headers': headers, 'data': pluviometros, 'columnacolor': 0, 'hidden': [0, 9]}
+            return {'headers': headers, 'data': pluviometros, 'columnacolor': 0, 'hidden': [0, 9], 'decimales': decimales}
         return None
 
     def datos_tabla_cotas_terreno(proyecto_id, idzona, equipos, decimales):
@@ -237,7 +228,7 @@ class VistaDatos:
         terrenos = DatosController.ctrlObtenerCotasTerreno(proyecto_id, idzona, cotas, decimales)
         if terrenos:
             headers = ["", "Nombre Cota", "Fecha Hora", "Cota (msnm)", "Observación", "Estado", ""]
-            return {'headers': headers, 'data': terrenos, 'columnacolor': 0, 'hidden': [0, 6]}
+            return {'headers': headers, 'data': terrenos, 'columnacolor': 0, 'hidden': [0, 6], 'decimales': decimales}
         return None
 
     def datos_tabla_celdas_asentamiento(proyecto_id, idzona, equipos, decimales):
@@ -249,7 +240,7 @@ class VistaDatos:
                 "Desplazamiento (m)", "Cota (msnm)", "Instalación (msnm)", "Rango", "Este (m)", "Norte (m)",
                 "Fundación (msnm)", "Superficie (msnm)", "Estado", "Observación", ""
             ]
-            return {'headers': headers, 'data': celdas, 'columnacolor': 14, 'hidden': [0, 16]}
+            return {'headers': headers, 'data': celdas, 'columnacolor': 14, 'hidden': [0, 16], 'decimales': decimales}
         return None
 
     def datos_tabla_acelerografos(proyecto_id, idzona, equipos, decimales):
@@ -260,7 +251,7 @@ class VistaDatos:
                 "", "Acelerógrafo", "Fecha Hora", "Magnitud", "Distancia (Km)",
                 "Este (m)", "Norte (m)", "Elevación (msnm)", "Observacion", "Estado", ""
             ]
-            return {'headers': headers, 'data': acelerografos, 'columnacolor': 9, 'hidden': [0, 10]}
+            return {'headers': headers, 'data': acelerografos, 'columnacolor': 9, 'hidden': [0, 10], 'decimales': decimales}
         return None
 
     def datos_tabla_sondajestdr(proyecto_id, idzona, equipos, decimales):
@@ -271,7 +262,7 @@ class VistaDatos:
                 "", "TDR", "Fecha y Hora", "Profundidad (m)", "Impedancia", "Este (m)", "Norte (m)",
                 "Elevación (msnm)", "Observación", ""
             ]
-            return {'headers': headers, 'data': sondajestdr, 'columnacolor': 0, 'hidden': [0, 9]}
+            return {'headers': headers, 'data': sondajestdr, 'columnacolor': 0, 'hidden': [0, 9], 'decimales': decimales}
         return None
 
     def datos_tabla_equipos_adicionales(proyecto_id, idzona, equipos, decimales):
@@ -281,10 +272,10 @@ class VistaDatos:
             headers = [
                 "", "Equipo", "Tipo Equipo", "Este (m)", "Norte (m)", "Elevación (msnm)", "Descripción", ""
             ]
-            return {'headers': headers, 'data': equiposdata, 'columnacolor': 0, 'hidden': [0, 7]}
+            return {'headers': headers, 'data': equiposdata, 'columnacolor': 0, 'hidden': [0, 7], 'decimales': decimales}
         return None
     
-    def llenarTabla(tabla, headers, data, main, tipo, columnacolor=0):
+    def llenarTabla(tabla, headers, data, main, tipo, columnacolor=0, decimales=2):
         # Limpiar selecciones antes de cambiar el modelo
         tabla.clearSelection()
         tabla.setSortingEnabled(False)
@@ -297,7 +288,7 @@ class VistaDatos:
             header.setSortIndicatorShown(False)
 
         # Crear y configurar el nuevo modelo
-        model = CustomTableModel(data, headers, columna_color=columnacolor)
+        model = CustomTableModel(data, headers, columna_color=columnacolor, decimales=decimales)
         proxy_model = QSortFilterProxyModel()
         proxy_model.setSourceModel(model)
         proxy_model.setSortCaseSensitivity(Qt.CaseInsensitive)

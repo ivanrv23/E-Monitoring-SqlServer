@@ -263,6 +263,8 @@ class AnalisisView:
     idcomponente_elipse_actual = None
     nombreprisma_elipse_actual = None
     tipoprisma_elipse_actual = None
+    tendencias_iv = None            # <- NUEVO
+    tendencias_iv_firma = None      # <- NUEVO
 
     def inicializarVistaAnalisis(main, proyectoid, proyectoname, fechaini, fechafin):
         AnalisisView.main = main
@@ -874,6 +876,22 @@ class AnalisisView:
             elif tipografico == "RE":
                 AnalisisView.limpiarGraficaBarras()
 
+    def _firmaPrismas(prismasmarcados):
+        return frozenset(
+            (componente[1], prisma[0])
+            for componente, listaprismas in prismasmarcados
+            for prisma in listaprismas
+        )
+
+    def obtenerTendenciasVigentes(prismasmarcados):
+        """Devuelve la tendencia guardada solo si siguen marcados los mismos prismas."""
+        if (AnalisisView.tendencias_iv
+                and AnalisisView.tendencias_iv_firma == AnalisisView._firmaPrismas(prismasmarcados)):
+            return AnalisisView.tendencias_iv
+        AnalisisView.tendencias_iv = None
+        AnalisisView.tendencias_iv_firma = None
+        return None
+
     def obtenerListaEquiposMarcados(lista, tipolista):
         equiposmarcados = []
         for region, instrumentos in lista.items():
@@ -959,7 +977,8 @@ class AnalisisView:
             datos = AnalisisController.ctrlCalcularDatosGrafica(AnalisisView.idproyecto, prismasmarcados, AnalisisView.fechainicial, AnalisisView.fechafinal, tipografico, filtrado, unidadmedida)
             if len(datos) > 0:
                 labeltendencia = AnalisisView.main.findChild(QLabel, "label_tendencia_analisis")
-                modulo, pluviometros, tendencias = "ANALISIS", None, None
+                modulo, pluviometros = "ANALISIS", None
+                tendencias = AnalisisView.obtenerTendenciasVigentes(prismasmarcados)
                 if filtrado == 0:
                     procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala, AnalisisView.fechainicial, AnalisisView.fechafinal)
                 else:
@@ -2190,7 +2209,8 @@ class AnalisisView:
                         elif metodoLimpieza == 'Ajustar Gráfico':
                             data = CalculosTendencias.ajustarCalculoSaltos(datos, prismasLimpieza, 1, idx_lectura)
                         labeltendencia = AnalisisView.main.findChild(QLabel, "label_tendencia_analisis")
-                        modulo, pluviometros, tendencias = "ANALISIS", None, None
+                        modulo, pluviometros = "ANALISIS", None
+                        tendencias = AnalisisView.obtenerTendenciasVigentes(prismasmarcados)
                         if filtrado == 0:
                             procesar_grafica(widget_analisis, labeltendencia, data, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala, AnalisisView.fechainicial, AnalisisView.fechafinal)
                         else:
@@ -2203,6 +2223,8 @@ class AnalisisView:
             if len(prismasmarcados) > 0:
                 regresion = Personalizacion.dialogoFiltroRegresionPrismas(prismasmarcados)
                 if len(regresion) > 0:
+                    AnalisisView.tendencias_iv = regresion                                  # NUEVO
+                    AnalisisView.tendencias_iv_firma = AnalisisView._firmaPrismas(prismasmarcados)  # NUEVO
                     config = SoftwareConfiguracion.obtenerDataSoftware()
                     filtrado = config[16]
                     combotiempos = AnalisisView.main.findChild(QComboBox, "combo_tiempo_analisis")
@@ -2345,7 +2367,8 @@ class AnalisisView:
                         datos = AnalisisController.ctrlCalcularDatosGrafica(AnalisisView.idproyecto, prismasmarcados, AnalisisView.fechainicial, AnalisisView.fechafinal, tipografico, filtrado, unidadmedida)
                         if len(datos) > 0:
                             labeltendencia = AnalisisView.main.findChild(QLabel, "label_tendencia_analisis")
-                            modulo, pluviometros, tendencias = "ANALISIS", None, None
+                            modulo, pluviometros = "ANALISIS", None
+                            tendencias = AnalisisView.obtenerTendenciasVigentes(prismasmarcados)
                             if filtrado == 0:
                                 procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, tiempomedida, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala, AnalisisView.fechainicial, AnalisisView.fechafinal)
                             else:
@@ -2416,6 +2439,8 @@ class AnalisisView:
         AnalisisView.idcomponente_elipse_actual = None
         AnalisisView.nombreprisma_elipse_actual = None
         AnalisisView.tipoprisma_elipse_actual = None
+        AnalisisView.tendencias_iv = None          # NUEVO
+        AnalisisView.tendencias_iv_firma = None    # NUEVO
         AnalisisView.limpiarGraficasAnalisis()
         
         # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO

@@ -435,11 +435,11 @@ class ExportarData():
                     hoja.title = nameprisma
                 else:
                     hoja = libro.create_sheet(title=nameprisma)
-                # Configurar la hoja (común para todas)
-                ExportarData.configurarCabeceraHojaPrismas(hoja, proyectoname, nameprisma, logo)
-                # Insertar datos en la tabla comenzando desde la fila 11
-                for fila in prismasdata:
-                    hoja.append(fila)
+                # La cabecera escribe los datos reales desde la fila 8
+                ExportarData.configurarCabeceraHojaPrismas(
+                    hoja, proyectoname, nameprisma, logo,
+                    datos=[list(fila) for fila in prismasdata]
+                )
                 cont += 1
         rutaexcel = resource_path("resources/workspace/dataequipos.xlsx")
         libro.save(rutaexcel)
@@ -453,22 +453,50 @@ class ExportarData():
                 mostrar_mensaje("Data Exportada", f"El Excel se ha guardado en: {archivo_destino}", "informacion")
             except Exception as e:  # Captura cualquier excepción
                 mostrar_mensaje("Error al Exportar", f"No se pudo guardar el Excel: {str(e)}", "advertencia")
+    def _num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return v  # si viene como 2° 55' 53'' se deja como texto
+    def _aplicar_borde(hoja, rango, borde):
+        """Aplica un borde tanto a rangos combinados (ej. 'A8:B8') como a celdas sueltas (ej. 'A8')."""
+        if ":" in rango:
+            for fila_celdas in hoja[rango]:
+                for celda in fila_celdas:
+                    celda.border = borde
+        else:
+            hoja[rango].border = borde
     
-    def configurarCabeceraHojaPrismas(hoja, proyectoname, nameprisma, logo):
-        # Definir colores, bordes, y otros atributos comunes
-        color_fondo = PatternFill(start_color="3C3C3C", end_color="3C3C3C", fill_type="solid")
-        borde_negro = Border(
-            left=Side(style="thin", color="000000"),
-            right=Side(style="thin", color="000000"),
-            top=Side(style="thin", color="000000"),
-            bottom=Side(style="thin", color="000000"),
-        )
-        # Ajustar el ancho de las columnas (A hasta K)
-        for col in range(1, 12):
-            hoja.column_dimensions[chr(64 + col)].width = 20
-        # Ajustar el alto de las filas 1 a 4 para el logo
+    def configurarCabeceraHojaPrismas(hoja, proyectoname, nameprisma, logo, datos=None):
+        from openpyxl.styles import PatternFill, Border, Side, Font, Alignment
+
+        config = SoftwareConfiguracion.obtenerDataSoftware()
+        decimales = config[14] or 2
+
+        # ---- Estilos comunes ----
+        color_fondo = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
+        lado = Side(style="thin", color="000000")
+        borde_negro = Border(left=lado, right=lado, top=lado, bottom=lado)
+        fuente_blanca = Font(size=11, bold=True, color="FFFFFF")
+        centro = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        lado_blanco = Side(style="thin", color="FFFFFF")
+        borde_blanco = Border(left=lado_blanco, right=lado_blanco, top=lado_blanco, bottom=lado_blanco)
+
+        # ---- Ancho de columnas (A hasta M) ----
+        anchos = {
+            "A": 20, "B": 14, "C": 14, "D": 16, "E": 16, "F": 18,
+            "G": 22, "H": 18, "I": 18, "J": 14, "K": 14, "L": 14, "M": 14,
+        }
+        for letra, ancho in anchos.items():
+            hoja.column_dimensions[letra].width = ancho
+
+        # ---- Alto de filas ----
         for row in range(1, 5):
             hoja.row_dimensions[row].height = 25
+        hoja.row_dimensions[5].height = 10
+        hoja.row_dimensions[6].height = 22
+        hoja.row_dimensions[7].height = 20
+
         # ---- LOGO (A1:A4) ----
         if logo:
             imagen_stream = MetodosGenerales.convertirBlobImagen(logo)
@@ -476,57 +504,98 @@ class ExportarData():
         else:
             ui_file_path = resource_path("resources/logo.png")
             imagen = ExcelImage(ui_file_path)
-        # Tamaño cuadrado 3.5 cm x 3.5 cm
         imagen.width = 132
         imagen.height = 132
         imagen.anchor = "A1"
         hoja.merge_cells("A1:A4")
         hoja.add_image(imagen)
-        # ---- TÍTULO (B1:K4) ----
-        hoja.merge_cells("B1:K4")
+
+        # ---- TÍTULO (B1:M2) ----
+        hoja.merge_cells("B1:M2")
         celda_titulo = hoja["B1"]
-        celda_titulo.value = f"MONITOREO DE HITOS TOPOGRÁFICOS - {proyectoname.upper()}"
-        celda_titulo.font = Font(size=18, bold=True)
-        celda_titulo.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        # ---- SUBTÍTULO (ahora en A6:K7) ----
-        hoja.merge_cells("A6:K7")
-        celda_subtitulo = hoja["A6"]
-        celda_subtitulo.value = f"Hito Topográfico: {nameprisma}"
-        celda_subtitulo.font = Font(size=16, bold=True, color="FFFFFF")
-        celda_subtitulo.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        celda_subtitulo.fill = color_fondo
-        # ---- BORDES para las celdas fusionadas ----
-        for rango in ["A1:A4", "B1:K4", "A6:K7",
-                    "A9:C9", "D9:G9", "H9:I9", "J9:K9"]:
+        celda_titulo.value = f"DATOS PRISMAS - {proyectoname.upper()}"
+        celda_titulo.font = Font(size=16, bold=True)
+        celda_titulo.alignment = centro
+
+        # ---- NOTAS (B3:M3 y B4:M4) ----
+        hoja.merge_cells("B3:M3")
+        nota1 = hoja["B3"]
+        nota1.value = ("* Los datos no debe contener fórmulas y el Formato de fecha: "
+                        "día/mes/año completo (15/01/2020). El formato de hora: hh:mm:ss")
+        nota1.font = Font(size=9, bold=True)
+        # nota1.alignment = centro
+
+        hoja.merge_cells("B4:M4")
+        nota2 = hoja["B4"]
+        nota2.value = ("* Las coordenadas son obligatorias, los otros datos puede ir con ceros (0). "
+                        "Si se tienen ángulos es preferible ingresar solo numéricos: "
+                        "(2° 55' 53'') o (2.931).")
+        nota2.font = Font(size=9, bold=True)
+        # nota2.alignment = centro
+
+        # ---- Bordes del bloque superior ----
+        for rango in ["A1:A4", "B1:M2", "B3:M3", "B4:M4"]:
             for fila_celdas in hoja[rango]:
                 for celda in fila_celdas:
                     celda.border = borde_negro
-        # ---- CABECERAS DE GRUPO (ahora en fila 9) ----
+
+        # ---- CABECERAS DE GRUPO (fila 6) ----
         cabeceras = [
-            ("A9:C9", "Datos"),
-            ("D9:G9", "Coordenadas"),
-            ("H9:I9", "Desplazamiento (m)"),
-            ("J9:K9", "Velocidad (cm/día)"),
+            ("A6:I6", "Datos de Monitoreo"),
+            ("J6:K6", "Desplazamiento (cm)"),
+            ("L6:M6", "Velocidad (cm/día)"),
         ]
         for rango, texto in cabeceras:
             hoja.merge_cells(rango)
             celda = hoja[rango.split(":")[0]]
             celda.value = texto
-            celda.font = Font(size=14, bold=True, color="FFFFFF")
+            celda.font = Font(size=12, bold=True, color="FFFFFF")
             celda.alignment = Alignment(horizontal="center", vertical="center")
-            celda.fill = color_fondo
-        # ---- ENCABEZADOS DETALLADOS (ahora en fila 10) ----
+            for fila_celdas in hoja[rango]:
+                for c in fila_celdas:
+                    c.fill = color_fondo
+                    c.border = borde_blanco
+
+        # ---- ENCABEZADOS DETALLADOS (fila 7) ----
         encabezados = [
-            "Hito", "Fecha", "Hora", "Este", "Norte", "Elevación",
-            "Distancia", "Incremental", "Acumulado", "Incremental", "Acumulado"
+            "Hito", "Fecha", "Hora", "Este (m)", "Norte (m)", "Elevación (msnm)",
+            "Distancia Inclinada (m)", "Ángulo Horizontal", "Ángulo Vertical",
+            "Incremental", "Acumulado", "Incremental", "Acumulado",
         ]
         for col, encabezado in enumerate(encabezados, 1):
-            celda = hoja.cell(row=10, column=col, value=encabezado)
-            celda.font = Font(bold=True, color="FFFFFF")
-            celda.alignment = Alignment(horizontal="center", vertical="center")
+            celda = hoja.cell(row=7, column=col, value=encabezado)
+            celda.font = fuente_blanca
+            celda.alignment = centro
             celda.fill = color_fondo
-            celda.border = borde_negro
-    
+            celda.border = borde_blanco
+
+        # Determinar qué filas escribir
+        if datos and len(datos) > 0:  # ← Verificación más robusta
+            filas = datos
+        else:
+            filas = [
+                ["HITO1", "01/12/2020", "00:00:00"] + [0] * 10,
+                ["HITO1", "15/12/2020", "00:00:00"] + [0] * 10,
+            ]
+
+        # Columnas numéricas: 4=Este, 5=Norte, 6=Elevación, 7=Distancia,
+        # 8=Ángulo H, 9=Ángulo V, 10-13=Desplazamiento/Velocidad (Incremental/Acumulado)
+        COLUMNAS_NUMERICAS = set(range(4, 14))
+
+        alineacion_datos = Alignment(horizontal="center", vertical="center")
+        for i, fila in enumerate(filas, start=8):
+            for col, valor in enumerate(fila, 1):
+                if col in COLUMNAS_NUMERICAS:
+                    valor_num = ExportarData._num(valor)
+                    if isinstance(valor_num, (int, float)):
+                        valor = round(valor_num, decimales)
+                    # si no se pudo convertir (p.ej. ángulo en texto tipo 2° 55' 53''),
+                    # se deja el valor original sin tocar
+                celda = hoja.cell(row=i, column=col, value=valor)
+                celda.alignment = alineacion_datos
+                celda.border = borde_negro
+
+
     def exportarZipInclinometros(idproyecto, nameproyecto, idzona, inclinometrosmarcados):
         zip_filename = resource_path("resources/workspace/zipequipos.zip")
         try:
@@ -580,9 +649,16 @@ class ExportarData():
         writer.writerow(["Zone", infoinclino[1]])
         writer.writerow(["Borehole", infoinclino[2]])
         writer.writerow(["Probe Serial", infoinclino[3]])
-        fechaorig, hora = infoinclino[5].split(" ")
-        fecha_obj = datetime.strptime(fechaorig, "%Y-%m-%d")
+
+        valor_fecha = infoinclino[5]
+        if isinstance(valor_fecha, datetime):
+            fecha_obj = valor_fecha
+            hora = valor_fecha.strftime("%H:%M:%S")
+        else:
+            fechaorig, hora = str(valor_fecha).split(" ")
+            fecha_obj = datetime.strptime(fechaorig, "%Y-%m-%d")
         fecha = fecha_obj.strftime("%m/%d/%Y")
+
         writer.writerow(["Reading Date(m/d/y)", fecha, hora])
         writer.writerow(["Depth", infoinclino[6]])
         writer.writerow(["Interval", "0.5"])
@@ -602,16 +678,23 @@ class ExportarData():
         writer.writerow([f"PROJECT  :{nombreproyecto}"])
         writer.writerow([f"ZONE     :{infoinclino[1]}"])
         writer.writerow([f"HOLE NO. :{infoinclino[2]}"])
-        fechaorig, hora = infoinclino[5].split(" ")
-        fecha_obj = datetime.strptime(fechaorig, "%Y-%m-%d")
+
+        valor_fecha = infoinclino[5]
+        if isinstance(valor_fecha, datetime):
+            fecha_obj = valor_fecha
+            hora = valor_fecha.strftime("%H:%M:%S")
+        else:
+            fechaorig, hora = str(valor_fecha).split(" ")
+            fecha_obj = datetime.strptime(fechaorig, "%Y-%m-%d")
         fecha = fecha_obj.strftime("%m/%d/%y")
+
         writer.writerow([f"DATE     :{fecha}"])
         writer.writerow([f"TIME     :{hora}"])
         writer.writerow([f"PROBE NO.:{infoinclino[3]}"])
         writer.writerow([f"COORD.   :({infoinclino[7]}, {infoinclino[8]}, {infoinclino[9]})"])
         writer.writerow([f"#READINGS:"])
         writer.writerow(["FLEVEL", "A+", "A-", "B+", "B-"])
-    
+
     def exportarExcelPiezometros(tipo, idproyecto, nameproyecto, idzona, piezometrosmarcados, fechaini, fechafin):
         respuesta = EmpresaConfiguracion.obtenerDataEmpresa()
         logo = respuesta[4]
@@ -632,42 +715,54 @@ class ExportarData():
                     hoja = libro.create_sheet(title=namepiezo)
                 # Configurar la hoja (común para todas)
                 if tipo == "Automatizado":
-                    ExportarData.configurarCabeceraHojaPiezometroCuerda(hoja, infopiezo, nameproyecto, namepiezo, logo)
+                    ExportarData.configurarCabeceraHojaPiezometroCuerda(hoja, infopiezo, nameproyecto, namepiezo, logo, datospiezo[0])
                 else:
-                    ExportarData.configurarCabeceraHojaPiezometroManual(hoja, infopiezo, nameproyecto, namepiezo, logo)
-                # Insertar datos en la tabla comenzando desde la fila 12
+                    ExportarData.configurarCabeceraHojaPiezometroManual(hoja, infopiezo, nameproyecto, namepiezo, logo, datospiezo[0])
+                # Insertar datos en la tabla
                 for fila in datospiezo:
-                    hoja.append(list(fila))
+                    if tipo == "Manual":
+                        fecha, hora, nivpiezo, profundidad, elevacion, cotapiezo, nivelvertical, observacion = fila
+                        filaordenada = [fecha, hora, nivpiezo, observacion, profundidad, elevacion, cotapiezo, nivelvertical]
+                        hoja.append(filaordenada)
+                    else:
+                        fecha, hora, frecuencia, temperatura, presion, mca, cotapiezo, observacion, elevacion = fila
+                        filaordenada = [fecha, hora, frecuencia, temperatura, presion, mca, observacion, cotapiezo, elevacion]
+                        hoja.append(filaordenada)
                 cont += 1
         rutaexcel = resource_path("resources/workspace/dataequipos.xlsx")
         libro.save(rutaexcel)
         archivo_destino, _ = QFileDialog.getSaveFileName(None, "Guardar Excel en", "Piezometros", "Archivos de Excel (*.xlsx);;Todos los archivos (*)")
         if archivo_destino:
-            # Asegurarse de que el archivo tenga la extensión .xlsx
             if not archivo_destino.lower().endswith('.xlsx'):
                 archivo_destino += '.xlsx'
             try:
                 shutil.copy(rutaexcel, archivo_destino)
                 mostrar_mensaje("Data Exportada", f"El Excel se ha guardado en: {archivo_destino}", "informacion")
-            except Exception as e:  # Captura cualquier excepción
+            except Exception as e:
                 mostrar_mensaje("Error al Exportar", f"No se pudo guardar el Excel: {str(e)}", "advertencia")
     
-    def configurarCabeceraHojaPiezometroCuerda(hoja, infopiezo, proyectoname, namepiezo, logo):
-        # Definir colores, bordes, y otros atributos comunes
-        color_fondo = PatternFill(start_color="3C3C3C", end_color="3C3C3C", fill_type="solid")
+    def configurarCabeceraHojaPiezometroCuerda(hoja, infopiezo, proyectoname, namepiezo, logo, primerregistro=None):
+        from openpyxl.styles import PatternFill, Border, Side, Font, Alignment
+
+        color_fondo = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
         borde_negro = Border(
             left=Side(style="thin", color="000000"),
             right=Side(style="thin", color="000000"),
             top=Side(style="thin", color="000000"),
             bottom=Side(style="thin", color="000000"),
         )
-        # Ajustar el ancho de las columnas para mejor presentación
-        for col in range(1, 10):  # 9 columnas de ancho
+        borde_blanco = Border(
+            left=Side(style="thin", color="FFFFFF"),
+            right=Side(style="thin", color="FFFFFF"),
+            top=Side(style="thin", color="FFFFFF"),
+            bottom=Side(style="thin", color="FFFFFF"),
+        )
+        # Ancho de columnas
+        for col in range(1, 10):
             hoja.column_dimensions[chr(64 + col)].width = 20
-        # Ajustar el alto de las filas de 1 a 5 para el área de la imagen
         for row in range(1, 5):
             hoja.row_dimensions[row].height = 25
-        # Ruta de la imagen
+        # Logo
         if logo:
             imagen_stream = MetodosGenerales.convertirBlobImagen(logo)
             imagen = ExcelImage(imagen_stream)
@@ -679,14 +774,27 @@ class ExportarData():
         imagen.anchor = "A1"
         hoja.merge_cells("A1:A4")
         hoja.add_image(imagen)
-        # Agregar el título
-        hoja.merge_cells("B1:I4")
+
+        # Título
+        hoja.merge_cells("B1:I2")
         celda_titulo = hoja["B1"]
-        celda_titulo.value = f"MONITOREO DE PIEZÓMETROS CUERDA VIBRANTE - {proyectoname.upper()}"
-        celda_titulo.font = Font(size=18, bold=True)
+        celda_titulo.value = "FORMATO DE DATOS - PIEZÓMETROS CUERDA VIBRANTE"
+        celda_titulo.font = Font(size=16, bold=True)
         celda_titulo.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        # Agregar el subtítuloS
-        cabeceraGeneral = [("A6:C7", "DATOS DEL SENSOR"), ("D6:F7", "DATOS DE INSTALACIÓN"), ("G6:I7", "DATOS DE CALIBRACIÓN")]
+
+        # Notas
+        hoja.merge_cells("B3:I3")
+        nota1 = hoja["B3"]
+        nota1.value = "* Los datos no debe contener fórmulas y el Formato de fecha: día/mes/año completo (15/01/2020)."
+        nota1.font = Font(size=9, bold=True)
+
+        hoja.merge_cells("B4:I4")
+        nota2 = hoja["B4"]
+        nota2.value = "* El formato de hora: hh:mm:ss"
+        nota2.font = Font(size=9, bold=True)
+
+        # Cabeceras de bloque (fila 6-7)
+        cabeceraGeneral = [("A6:B7", "DATOS DEL SENSOR"), ("C6:E7", "DATOS DE INSTALACIÓN"), ("F6:I7", "DATOS DE CALIBRACIÓN")]
         for rango, texto in cabeceraGeneral:
             hoja.merge_cells(rango)
             celda = hoja[rango.split(":")[0]]
@@ -694,60 +802,117 @@ class ExportarData():
             celda.font = Font(size=14, bold=True, color="FFFFFF")
             celda.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
             celda.fill = color_fondo
-        # Definir datos generales
-        datosceldas = [("A8", "Nombre:"), ("A9", "Componente:"), ("A10", "Marca/Modelo:"), ("A11", "Serie:"),
-                    ("F8", infopiezo[7]), ("F9", infopiezo[8]), ("F10", infopiezo[5]), ("F11", infopiezo[6]),
-                    ("G8", "C.F.:"), ("G9", "T.K.:"), ("G10", "Inclinación:"), ("G11", "Azimuth:")]
-        datoscombinados = [("B8:C8", namepiezo), ("B9:C9", infopiezo[24]), ("B10:C10", ""), ("B11:C11", infopiezo[4]),
-                        ("D8:E8", "Cota Instalación (m.s.n.m):"), ("D9:E9", "Cota Fundación (m.s.n.m):"),
-                        ("D10:E10", "Coordenada Este:"), ("D11:E11", "Coordenada Norte:"), ("H8:I8", infopiezo[11]),
-                        ("H9:I9", infopiezo[12]), ("H10:I10", infopiezo[9]), ("H11:I11", infopiezo[10])]
+
+        def val(idx, default=0):
+            return infopiezo[idx] if len(infopiezo) > idx else default
+
+        # --- Bloque SENSOR (A:B, filas 8-13) ---
+        datosceldas = [
+            ("A8", "Nombre:"), ("A9", "Serie:"), ("A10", "Coordenada Este:"),
+            ("A11", "Coordenada Norte:"), ("A12", "Cota Instalación (m.s.n.m):"), ("A13", "Cota Fundación (m.s.n.m):"),
+        ]
+        valoressensor = [
+            ("B8", namepiezo), ("B9", val(4)), ("B10", val(9)),
+            ("B11", val(10)), ("B12", val(11)), ("B13", val(12)),
+        ]
+
+        # --- Bloque INSTALACIÓN ---
+        datosinstalacion = [
+            ("C8:D8", "Cota de Superficie Actual (m.s.n.m):"), ("C9:D9", "Inclinación:"),
+            ("C10:D10", "Azimuth:"), ("C11:D11", "C.F.:"), ("C12:D12", "T.K.:"), ("C13:D13", "Frecuencia Inicial (Dg):"),
+        ]
+        cota_superficie_actual = primerregistro[8] if primerregistro is not None and len(primerregistro) > 8 else 0
+        valoresinstalacion = [
+            ("E8", cota_superficie_actual),
+            ("E9", val(5)), ("E10", val(6)), ("E11", val(7)), ("E12", val(8)),
+            ("E13", val(16, 0)),
+        ]
+
+        # --- Bloque CALIBRACIÓN ---
+        # Etiquetas: solo columna F (sin combinar)
+        datoscalibracion = [
+            ("F8", "Temperatura Inicial (°C):"), ("F9", "Presión Inicial:"), ("F10", "Factor de Conversión:"),
+            ("F11", "Constante A:"), ("F12", "Constante B:"), ("F13", "Constante C:"),
+        ]
+        # Valores: combinados en G:I
+        valorescalibracion = [
+            ("G8:I8", val(26, 0)), ("G9:I9", val(27, 0)), ("G10:I10", val(28, 0)),
+            ("G11:I11", val(29, 0)), ("G12:I12", val(30, 0)), ("G13:I13", val(31, 0)),
+        ]
+
+        # Escribir labels (fondo negro, texto blanco)
         for rango, texto in datosceldas:
             celda = hoja[rango]
             celda.value = texto
-            if rango.startswith("F"):
-                celda.alignment = Alignment(horizontal="center", vertical="center")
-            else:
-                celda.font = Font(bold=True, color="FFFFFF")
-                celda.fill = color_fondo
-        for rango, texto in datoscombinados:
-            hoja.merge_cells(rango)
+            celda.font = Font(bold=True, color="FFFFFF")
+            celda.fill = color_fondo
+
+        # Escribir valores del bloque SENSOR (fondo BLANCO)
+        for rango, texto in valoressensor:
+            celda = hoja[rango]
+            celda.value = texto
+            celda.alignment = Alignment(horizontal="center", vertical="center")
+
+        # Escribir labels de INSTALACIÓN y CALIBRACIÓN (fondo negro)
+        for rango, texto in datosinstalacion + datoscalibracion:
+            if ":" in rango:
+                hoja.merge_cells(rango)
             celda = hoja[rango.split(":")[0]]
             celda.value = texto
-            if rango.startswith("D") or rango.startswith("E"):
-                celda.font = Font(bold=True, color="FFFFFF")
-                celda.fill = color_fondo
-            else:
-                celda.alignment = Alignment(horizontal="center", vertical="center")
-        # Agregar bordes a las celdas fusionadas
-        rangosceldas = ["A1:A4", "B1:I4", "A6:C7", "D6:F7", "G6:I7", "A8:I11"]
-        for rango in rangosceldas:
+            celda.font = Font(bold=True, color="FFFFFF")
+            celda.fill = color_fondo
+
+        # Escribir valores INSTALACIÓN y CALIBRACIÓN (fondo BLANCO)
+        for rango, texto in valoresinstalacion + valorescalibracion:
+            if ":" in rango:
+                hoja.merge_cells(rango)
+            celda = hoja[rango.split(":")[0]]
+            celda.value = texto
+            celda.alignment = Alignment(horizontal="center", vertical="center")
+
+        # --- Bordes NEGROS: bloque superior (logo, título, notas) y celdas de VALORES (fondo blanco) ---
+        rangosceldas_negro = ["A1:A4", "B1:I2", "B3:I3", "B4:I4", "B8:B13", "E8:E13", "G8:I13"]
+        for rango in rangosceldas_negro:
             for fila_celdas in hoja[rango]:
                 for celda in fila_celdas:
                     celda.border = borde_negro
-        # Fila de encabezados detallados
-        encabezados = ["Fecha", "Hora", f"Frecuencia ({infopiezo[16]})", "Temperatura (°C)", f"Presión ({infopiezo[16]})", "mca (m)", "Cota Piezométrica", "Observación", "Cota Superficie"]
+
+        # --- Bordes BLANCOS: cabeceras de bloque y celdas de LABELS (fondo negro) ---
+        rangosceldas_blanco = ["A6:B7", "C6:E7", "F6:I7", "A8:A13", "C8:D13", "F8:F13"]
+        for rango in rangosceldas_blanco:
+            for fila_celdas in hoja[rango]:
+                for celda in fila_celdas:
+                    celda.border = borde_blanco
+
+        # Fila de encabezados detallados -> fila 14 (fondo negro, texto blanco, borde blanco)
+        encabezados = ["Fecha", "Hora", f"Frecuencia ({val(16, '')})", "Temperatura (°C)", "Presión (kPa)",
+                    "mca (m)", "Observación", "Cota Piezométrica", "Cota Superficie"]
         for col, encabezado in enumerate(encabezados, 1):
-            hoja[chr(64 + col) + "13"].value = encabezado
-            celda = hoja[chr(64 + col) + "13"]
+            celda = hoja.cell(row=14, column=col, value=encabezado)
             celda.font = Font(bold=True, color="FFFFFF")
             celda.alignment = Alignment(horizontal="center", vertical="center")
             celda.fill = color_fondo
-            celda.border = borde_negro
-    
-    def configurarCabeceraHojaPiezometroManual(hoja, infopiezo, proyectoname, namepiezo, logo):
+            celda.border = borde_blanco
+
+    def configurarCabeceraHojaPiezometroManual(hoja, infopiezo, proyectoname, namepiezo, logo, primerregistro=None):
         # Definir colores, bordes, y otros atributos comunes
-        color_fondo = PatternFill(start_color="3C3C3C", end_color="3C3C3C", fill_type="solid")
+        color_fondo = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
         borde_negro = Border(
             left=Side(style="thin", color="000000"),
             right=Side(style="thin", color="000000"),
             top=Side(style="thin", color="000000"),
             bottom=Side(style="thin", color="000000"),
         )
-        # Ajustar el ancho de las columnas para mejor presentación
-        for col in range(1, 11):  # 10 columnas de ancho
-            hoja.column_dimensions[chr(64 + col)].width = 20
-        # Ajustar el alto de las filas de 1 a 5 para el área de la imagen
+        borde_blanco = Border(
+            left=Side(style="thin", color="FFFFFF"),
+            right=Side(style="thin", color="FFFFFF"),
+            top=Side(style="thin", color="FFFFFF"),
+            bottom=Side(style="thin", color="FFFFFF"),
+        )
+        # Ajustar el ancho de las columnas para mejor presentación (ahora A-H, 8 columnas)
+        for col in range(1, 9):
+            hoja.column_dimensions[chr(64 + col)].width = 22
+        # Ajustar el alto de las filas de 1 a 4 para el área de la imagen
         for row in range(1, 5):
             hoja.row_dimensions[row].height = 25
         # Ruta de la imagen
@@ -762,62 +927,97 @@ class ExportarData():
         imagen.anchor = "A1"
         hoja.merge_cells("A1:A4")
         hoja.add_image(imagen)
+
         # Agregar el título
-        hoja.merge_cells("B1:H4")
+        hoja.merge_cells("B1:H4")          # antes: B1:D4
         celda_titulo = hoja["B1"]
         celda_titulo.value = f"MONITOREO DE PIEZÓMETROS CASAGRANDE - {proyectoname.upper()}"
         celda_titulo.font = Font(size=18, bold=True)
         celda_titulo.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        # Agregar el subtítuloS
-        cabeceraGeneral = [("A7:C8", "DATOS DEL EQUIPO"), ("D7:H8", "DATOS DE INSTALACIÓN")]
-        for rango, texto in cabeceraGeneral:
-            hoja.merge_cells(rango)
-            celda = hoja[rango.split(":")[0]]
-            celda.value = texto
-            celda.font = Font(size=14, bold=True, color="FFFFFF")
-            celda.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-            celda.fill = color_fondo
-        # Definir datos generales
-        datosceldas = [("A9", "Nombre:"), ("A10", "Código:"), ("A11", "Tipo:"), ("A12", "Ubicación:"),
-                    ("F9", infopiezo[6]), ("F10", infopiezo[7]), ("F11", infopiezo[4]), ("F12", infopiezo[5]),
-                    ("G9", "Inclinación:"), ("G10", "Azimuth:"), ("G11", "Stick Up (m):"), ("G12", "Comentario:"),
-                    ("H9", infopiezo[8]), ("H10", infopiezo[9]), ("H11", infopiezo[10]), ("H12", infopiezo[11])]
-        datoscombinados = [("B9:C9", namepiezo), ("B10:C10", infopiezo[3]), ("B11:C11", ""), ("B12:C12", infopiezo[14]),
-                        ("D9:E9", "Cota Fondo Pozo (m.s.n.m):"), ("D10:E10", "Cota Fundación (m.s.n.m):"),
-                        ("D11:E11", "Coordenada Este:"), ("D12:E12", "Coordenada Norte:")]
-        for rango, texto in datosceldas:
-            celda = hoja[rango]
-            celda.value = texto
-            if rango.startswith("F") or rango.startswith("H"):
-                celda.alignment = Alignment(horizontal="center", vertical="center")
-            else:
-                celda.font = Font(bold=True, color="FFFFFF")
-                celda.fill = color_fondo
-        for rango, texto in datoscombinados:
-            hoja.merge_cells(rango)
-            celda = hoja[rango.split(":")[0]]
-            celda.value = texto
-            if rango.startswith("D") or rango.startswith("E"):
-                celda.font = Font(bold=True, color="FFFFFF")
-                celda.fill = color_fondo
-            else:
-                celda.alignment = Alignment(horizontal="center", vertical="center")
-        # Agregar bordes a las celdas fusionadas
-        rangosceldas = ["A1:D4", "E1:H4", "A7:D8", "E7:H8", "A9:H12"]
-        for rango in rangosceldas:
+
+        # Notas — combinadas en toda la fila (A:H)
+        hoja.merge_cells("A5:H5")          # antes: A5:D5
+        nota1 = hoja["A5"]
+        nota1.value = "* Los datos no debe contener fórmulas y el Formato de fecha: día/mes/año completo"
+        nota1.font = Font(size=9, bold=True)
+
+        hoja.merge_cells("A6:H6")          # antes: A6:D6
+        nota2 = hoja["A6"]
+        nota2.value = "* El formato de hora: hh:mm:ss"
+        nota2.font = Font(size=9, bold=True)
+
+        # Fila 7 — combinada como separador (vacía)
+        hoja.merge_cells("A7:H7")          # antes: A7:D7
+
+        # Encabezado "DATOS DEL EQUIPO" (bloque único, filas 8-9)
+        hoja.merge_cells("A8:H9")          # antes: A8:D9
+        celda_bloque = hoja["A8"]
+        celda_bloque.value = "DATOS DEL EQUIPO"
+        celda_bloque.font = Font(size=14, bold=True, color="FFFFFF")
+        celda_bloque.alignment = Alignment(horizontal="center", vertical="center")
+        celda_bloque.fill = color_fondo
+
+        cota_superficie_actual = primerregistro[4] if primerregistro is not None and len(primerregistro) > 4 else 0
+
+        campos = [
+            ("Nombre:", namepiezo),
+            ("Código:", infopiezo[3]),
+            ("Cota Fondo Pozo (m.s.n.m):", infopiezo[6]),
+            ("Cota Fundación (m.s.n.m):", infopiezo[7]),
+            ("Coordenada Este (m):", infopiezo[4]),
+            ("Coordenada Norte (m):", infopiezo[5]),
+            ("Cota de Superficie Actual (m.s.n.m):", cota_superficie_actual),
+            ("Inclinación:", infopiezo[8]),
+            ("Azimuth:", infopiezo[9]),
+            ("Stick Up (m):", infopiezo[10]),
+            ("Comentario:", infopiezo[11]),
+        ]
+        fila_inicio = 10
+        for i, (etiqueta, valor) in enumerate(campos):
+            fila = fila_inicio + i
+            hoja.merge_cells(f"A{fila}:B{fila}")
+            celda_lbl = hoja[f"A{fila}"]
+            celda_lbl.value = etiqueta
+            celda_lbl.font = Font(bold=True, color="FFFFFF")
+            celda_lbl.fill = color_fondo
+            celda_lbl.alignment = Alignment(horizontal="center", vertical="center")
+
+            # Valor combinado en C:D:E:F:G:H
+            hoja.merge_cells(f"C{fila}:H{fila}")
+            celda_val = hoja[f"C{fila}"]
+            celda_val.value = valor
+            celda_val.alignment = Alignment(horizontal="center", vertical="center")
+
+        # Bordes
+        fila_fin_datos = fila_inicio + len(campos) - 1  # fila 20
+        # --- Bordes NEGROS...
+        rangosceldas_negro = ["A1:A4", "B1:H4", "A5:H5", "A6:H6", "A7:H7"] + \
+            [f"C{f}:H{f}" for f in range(fila_inicio, fila_fin_datos + 1)]
+
+        # --- Bordes BLANCOS...
+        rangosceldas_blanco = ["A8:H9"] + \
+            [f"A{f}:B{f}" for f in range(fila_inicio, fila_fin_datos + 1)]
+
+        for rango in rangosceldas_negro:
             for fila_celdas in hoja[rango]:
                 for celda in fila_celdas:
                     celda.border = borde_negro
-        # Fila de encabezados detallados
-        encabezados = ["Fecha", "Hora", "Niv. Piezométrico (m)", "Profundidad (m)", "Elevación (m.s.n.m)", "Cota Piezométrica", "Nivel Vertical (m)", "Observación"]
+        for rango in rangosceldas_blanco:
+            for fila_celdas in hoja[rango]:
+                for celda in fila_celdas:
+                    celda.border = borde_blanco
+
+        # Fila de encabezados detallados (justo después del bloque, sin espacio)
+        fila_headers = fila_fin_datos + 1
+        encabezados = ["Fecha", "Hora", "Nivel Piezométrico (m)", "Observación",
+                    "Profundidad (m)", "Elevación (m.s.n.m)", "Cota Piezométrica", "Nivel Vertical (m)"]
         for col, encabezado in enumerate(encabezados, 1):
-            hoja[chr(64 + col) + "14"].value = encabezado
-            celda = hoja[chr(64 + col) + "14"]
+            celda = hoja.cell(row=fila_headers, column=col, value=encabezado)
             celda.font = Font(bold=True, color="FFFFFF")
             celda.alignment = Alignment(horizontal="center", vertical="center")
             celda.fill = color_fondo
-            celda.border = borde_negro
-    
+            celda.border = borde_blanco
+
     def exportarExcelPluviometros(idproyecto, nameproyecto, idzona, pluviometrosmarcados):
         respuesta = EmpresaConfiguracion.obtenerDataEmpresa()
         logo = respuesta[4]
@@ -853,12 +1053,18 @@ class ExportarData():
     
     def configurarCabeceraHojaPluviometro(hoja, infopluvio, proyectoname, namepluvio, logo):
         # Definir colores, bordes, y otros atributos comunes
-        color_fondo = PatternFill(start_color="3C3C3C", end_color="3C3C3C", fill_type="solid")
+        color_fondo = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
         borde_negro = Border(
             left=Side(style="thin", color="000000"),
             right=Side(style="thin", color="000000"),
             top=Side(style="thin", color="000000"),
             bottom=Side(style="thin", color="000000"),
+        )
+        borde_blanco = Border(
+            left=Side(style="thin", color="FFFFFF"),
+            right=Side(style="thin", color="FFFFFF"),
+            top=Side(style="thin", color="FFFFFF"),
+            bottom=Side(style="thin", color="FFFFFF"),
         )
         # Ajustar el ancho de las columnas para mejor presentación
         for col in range(1, 5):  # 4 columnas de ancho
@@ -884,23 +1090,36 @@ class ExportarData():
         celda_titulo.value = f"MONITOREO DE PLUVIÓMETROS - {proyectoname.upper()}"
         celda_titulo.font = Font(size=18, bold=True)
         celda_titulo.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        # Agregar el subtítuloS
-        rango, texto = "A6:D7", "DATOS DEL EQUIPO"
+
+        # Notas (fila 5 y 6)
+        hoja.merge_cells("A5:D5")
+        nota1 = hoja["A5"]
+        nota1.value = "* Los datos no debe contener fórmulas y el Formato de fecha: día/mes/año completo."
+        nota1.font = Font(size=9, bold=True)
+
+        hoja.merge_cells("A6:D6")
+        nota2 = hoja["A6"]
+        nota2.value = "* El formato de hora: hh:mm:ss"
+        nota2.font = Font(size=9, bold=True)
+
+        # Agregar el subtítulo (ahora en fila 8-9, tras las notas)
+        rango, texto = "A8:D9", "DATOS DEL EQUIPO"
         hoja.merge_cells(rango)
         celda = hoja[rango.split(":")[0]]
         celda.value = texto
         celda.font = Font(size=14, bold=True, color="FFFFFF")
         celda.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         celda.fill = color_fondo
-        # Definir datos generales
-        datosceldas = [("A8", "Nombre:"), ("A9", "Código:"), ("A10", "Este:"),
-                    ("C8", "Norte:"), ("C9", "Elevación:"), ("C10", "Comentario:")]
-        datoscombinados = [("B8", namepluvio), ("B9", infopluvio[3]), ("B10", infopluvio[4]),
-                        ("D8", infopluvio[5]), ("D9", infopluvio[6]), ("D10", infopluvio[7])]
+
+        # Definir datos generales (corridos 2 filas: 10, 11, 12)
+        datosceldas = [("A10", "Nombre:"), ("A11", "Código:"), ("A12", "Este:"),
+                    ("C10", "Norte:"), ("C11", "Elevación:"), ("C12", "Comentario:")]
+        datoscombinados = [("B10", namepluvio), ("B11", infopluvio[3]), ("B12", infopluvio[4]),
+                        ("D10", infopluvio[5]), ("D11", infopluvio[6]), ("D12", infopluvio[7])]
         for rango, texto in datosceldas:
             celda = hoja[rango]
             celda.value = texto
-            celda.border = borde_negro
+            celda.border = borde_blanco
             celda.alignment = Alignment(horizontal="center", vertical="center")
             celda.font = Font(bold=True, color="FFFFFF")
             celda.fill = color_fondo
@@ -910,20 +1129,28 @@ class ExportarData():
             celda.value = texto
             celda.border = borde_negro
             celda.alignment = Alignment(horizontal="left")
-        # Agregar bordes a las celdas fusionadas
-        for rango in ["A1:D4", "A6:D7"]:
+
+        # Bordes de bloques con fondo blanco (logo, título, notas)
+        for rango in ["A1:D4", "A5:D5", "A6:D6"]:
             for fila_celdas in hoja[rango]:
                 for celda in fila_celdas:
                     celda.border = borde_negro
-        # Fila de encabezados detallados
+        # Bordes de bloques con fondo negro
+        for rango in ["A8:D9"]:
+            for fila_celdas in hoja[rango]:
+                for celda in fila_celdas:
+                    celda.border = borde_blanco
+
+        # Fila de encabezados detallados, pegada justo debajo de "Datos del equipo" (fila 13)
+        fila_headers = 13
         encabezados = ["Fecha", "Hora", "Precipitación (mm)", "Observación"]
         for col, encabezado in enumerate(encabezados, 1):
-            hoja[chr(64 + col) + "12"].value = encabezado
-            celda = hoja[chr(64 + col) + "12"]
+            celda = hoja[chr(64 + col) + str(fila_headers)]
+            celda.value = encabezado
             celda.font = Font(bold=True, color="FFFFFF")
             celda.alignment = Alignment(horizontal="center", vertical="center")
             celda.fill = color_fondo
-            celda.border = borde_negro
+            celda.border = borde_blanco
     
     def exportarExcelCeldasAsentamiento(idproyecto, nameproyecto, idzona, celdasmarcadas, fechaini, fechafin):
         respuesta = EmpresaConfiguracion.obtenerDataEmpresa()
@@ -943,7 +1170,10 @@ class ExportarData():
                 ExportarData.configurarCabeceraHojaCeldaAsentamiento(hoja, infocelda, nameproyecto, namecelda, logo)
                 # Insertar datos en la tabla comenzando desde la fila 12
                 for fila in datoscelda:
-                    hoja.append(list(fila))
+                    # fila viene como: Fecha, Hora, FrecDigits, FrecHz, Temperatura, Desplazamiento, Cota, Superficie, Observación
+                    fecha, hora, frecdigits, frechz, temperatura, desplazamiento, cota, superficie, observacion = fila
+                    filaordenada = [fecha, hora, frecdigits, frechz, temperatura, desplazamiento, observacion, cota, superficie]
+                    hoja.append(filaordenada)
                 cont += 1
         rutaexcel = resource_path("resources/workspace/dataequipos.xlsx")
         libro.save(rutaexcel)
@@ -957,15 +1187,21 @@ class ExportarData():
                 mostrar_mensaje("Data Exportada", f"El Excel se ha guardado en: {archivo_destino}", "informacion")
             except Exception as e:  # Captura cualquier excepción
                 mostrar_mensaje("Error al Exportar", f"No se pudo guardar el Excel: {str(e)}", "advertencia")
-    
+
     def configurarCabeceraHojaCeldaAsentamiento(hoja, infocelda, proyectoname, namecelda, logo):
         # Definir colores, bordes, y otros atributos comunes
-        color_fondo = PatternFill(start_color="3C3C3C", end_color="3C3C3C", fill_type="solid")
+        color_fondo = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
         borde_negro = Border(
             left=Side(style="thin", color="000000"),
             right=Side(style="thin", color="000000"),
             top=Side(style="thin", color="000000"),
             bottom=Side(style="thin", color="000000"),
+        )
+        borde_blanco = Border(
+            left=Side(style="thin", color="FFFFFF"),
+            right=Side(style="thin", color="FFFFFF"),
+            top=Side(style="thin", color="FFFFFF"),
+            bottom=Side(style="thin", color="FFFFFF"),
         )
         # Ajustar el ancho de las columnas para mejor presentación
         for col in range(1, 11):  # 10 columnas de ancho
@@ -985,14 +1221,16 @@ class ExportarData():
         imagen.anchor = "A1"
         hoja.merge_cells("A1:A4")
         hoja.add_image(imagen)
+
         # Agregar el título
         hoja.merge_cells("B1:I4")
         celda_titulo = hoja["B1"]
         celda_titulo.value = f"MONITOREO DE CELDAS DE ASENTAMIENTO - {proyectoname.upper()}"
         celda_titulo.font = Font(size=18, bold=True)
         celda_titulo.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        # Agregar el subtítuloS
-        cabeceraGeneral = [("A7:C8", "DATOS DEL SENSOR"), ("D7:G8", "DATOS DE INSTALACIÓN"), ("H7:I8", "DATOS DE CALIBRACIÓN")]
+
+        # Agregar el subtítulo (2 bloques: SENSOR e INSTALACIÓN) - fila 6-7, sin espacio extra
+        cabeceraGeneral = [("A6:C7", "DATOS DEL SENSOR"), ("D6:I7", "DATOS DE INSTALACIÓN")]
         for rango, texto in cabeceraGeneral:
             hoja.merge_cells(rango)
             celda = hoja[rango.split(":")[0]]
@@ -1000,22 +1238,31 @@ class ExportarData():
             celda.font = Font(size=14, bold=True, color="FFFFFF")
             celda.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
             celda.fill = color_fondo
-        # Definir datos generales
-        datosceldas = [("A9", "Nombre:"), ("A10", "Marca:"), ("A11", "Modelo:"), ("A12", "Serie:"),
-                    ("H9", "C.F.:"), ("H10", "T.K.:"), ("H11", "Temperatura:"), ("H12", "Rango:"), ("I9", infocelda[13]),
-                    ("I10", infocelda[14]), ("I11", infocelda[12]), ("I12", infocelda[6])]
-        datoscombinados = [("B9:C9", namecelda), ("B10:C10", infocelda[3]), ("B11:C11", infocelda[4]), ("B12:C12", infocelda[5]),
-                        ("D9:E9", "Cota Instalación (m.s.n.m):"), ("D10:E10", "Cota Fundación (m.s.n.m):"),
-                        ("D11:E11", "Coordenada Este:"), ("D12:E12", "Coordenada Norte:"),
-                        ("F9:G9", infocelda[9]), ("F10:G10", infocelda[10]), ("F11:G11", infocelda[7]), ("F12:G12", infocelda[8])]
+
+        # Definir datos generales (bloque de 6 filas: 8 a 13)
+        datosceldas = [
+            ("A8", "Nombre:"), ("A9", "Marca:"), ("A10", "Modelo:"),
+            ("A11", "Serie:"), ("A12", "C.F.:"), ("A13", "T.K.:"),
+        ]
+        datoscombinados = [
+            ("B8:C8", namecelda), ("B9:C9", infocelda[3]), ("B10:C10", infocelda[4]),
+            ("B11:C11", infocelda[5]), ("B12:C12", infocelda[13]), ("B13:C13", infocelda[14]),
+            ("D8:E8", "Cota Instalación (m.s.n.m):"),
+            ("D9:E9", "Cota Fundación (m.s.n.m):"),
+            ("D10:E10", "Coordenada Este (m):"),
+            ("D11:E11", "Coordenada Norte (m):"),
+            ("D12:E12", "Cota de Superficie Actual (m.s.n.m):"),
+            ("D13:E13", "Rango (m):"),
+            ("F8:I8", infocelda[9]), ("F9:I9", infocelda[10]),
+            ("F10:I10", infocelda[7]), ("F11:I11", infocelda[8]),
+            ("F12:I12", infocelda[15]),  # TODO: ajusta el índice real de "Cota de Superficie Actual"
+            ("F13:I13", infocelda[6]),
+        ]
         for rango, texto in datosceldas:
             celda = hoja[rango]
             celda.value = texto
-            if rango.startswith("F") or rango.startswith("I"):
-                celda.alignment = Alignment(horizontal="center", vertical="center")
-            else:
-                celda.font = Font(bold=True, color="FFFFFF")
-                celda.fill = color_fondo
+            celda.font = Font(bold=True, color="FFFFFF")
+            celda.fill = color_fondo
         for rango, texto in datoscombinados:
             hoja.merge_cells(rango)
             celda = hoja[rango.split(":")[0]]
@@ -1025,21 +1272,31 @@ class ExportarData():
                 celda.fill = color_fondo
             else:
                 celda.alignment = Alignment(horizontal="center", vertical="center")
-        # Agregar bordes a las celdas fusionadas
-        rangosceldas = ["A1:A4", "B1:I4", "A7:C8", "D7:G8", "H7:I8", "A9:I12"]
-        for rango in rangosceldas:
-            for fila_celdas in hoja[rango]:
-                for celda in fila_celdas:
-                    celda.border = borde_negro
-        # Fila de encabezados detallados
-        encabezados = ["Fecha", "Hora", "Frecuencia (Digits)", "Frecuencia (Hz)", "Temperatura (°C)", "Desplazamiento (m)", "Cota (m.s.n.m)", "Superficie (m.s.n.m)", "Observación"]
+
+        # --- Bordes NEGROS: bloque superior (logo, título) y celdas de VALORES (fondo blanco) ---
+        rangosceldas_negro = ["A1:A4", "B1:I4"] + \
+            [f"B{f}:C{f}" for f in range(8, 14)] + \
+            [f"F{f}:I{f}" for f in range(8, 14)]
+        for rango in rangosceldas_negro:
+            ExportarData._aplicar_borde(hoja, rango, borde_negro)
+
+        # --- Bordes BLANCOS: subtítulos y celdas de ETIQUETAS (fondo negro) ---
+        rangosceldas_blanco = ["A6:C7", "D6:I7"] + \
+            [f"A{f}" for f in range(8, 14)] + \
+            [f"D{f}:E{f}" for f in range(8, 14)]
+        for rango in rangosceldas_blanco:
+            ExportarData._aplicar_borde(hoja, rango, borde_blanco)
+
+        # Fila de encabezados detallados (fila 14, pegada al bloque de datos, sin espacio)
+        encabezados = ["Fecha", "Hora", "Frecuencia (Digits)", "Frecuencia (Hz)", "Temperatura (°C)",
+                    "Desplazamiento (m)", "Observación", "Cota (m.s.n.m)", "Superficie (m.s.n.m)"]
         for col, encabezado in enumerate(encabezados, 1):
-            hoja[chr(64 + col) + "14"].value = encabezado
             celda = hoja[chr(64 + col) + "14"]
+            celda.value = encabezado
             celda.font = Font(bold=True, color="FFFFFF")
             celda.alignment = Alignment(horizontal="center", vertical="center")
             celda.fill = color_fondo
-            celda.border = borde_negro
+            celda.border = borde_blanco
     
     def exportarExcelAcelerografos(idproyecto, nameproyecto, idzona, acelerografosmarcados, fechaini, fechafin):
         respuesta = EmpresaConfiguracion.obtenerDataEmpresa()
@@ -1076,20 +1333,31 @@ class ExportarData():
     
     def configurarCabeceraHojaAcelerografo(hoja, infoacelero, proyectoname, namepluvio, logo):
         # Definir colores, bordes, y otros atributos comunes
-        color_fondo = PatternFill(start_color="3C3C3C", end_color="3C3C3C", fill_type="solid")
+        color_fondo = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
         borde_negro = Border(
             left=Side(style="thin", color="000000"),
             right=Side(style="thin", color="000000"),
             top=Side(style="thin", color="000000"),
             bottom=Side(style="thin", color="000000"),
         )
-        # Ajustar el ancho de las columnas para mejor presentación
-        for col in range(1, 6):  # 5 columnas de ancho
-            hoja.column_dimensions[chr(64 + col)].width = 20
-        # Ajustar el alto de las filas de 1 a 5 para el área de la imagen
+        borde_blanco = Border(
+            left=Side(style="thin", color="FFFFFF"),
+            right=Side(style="thin", color="FFFFFF"),
+            top=Side(style="thin", color="FFFFFF"),
+            bottom=Side(style="thin", color="FFFFFF"),
+        )
+        centro = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        # Ajustar el ancho de las columnas (A-E)
+        anchos = {"A": 16, "B": 16, "C": 18, "D": 18, "E": 18}
+        for col, ancho in anchos.items():
+            hoja.column_dimensions[col].width = ancho
+
+        # Alto de filas para el logo
         for row in range(1, 5):
             hoja.row_dimensions[row].height = 25
-        # Ruta de la imagen
+
+        # --- LOGO (A1:A4) ---
         if logo:
             imagen_stream = MetodosGenerales.convertirBlobImagen(logo)
             imagen = ExcelImage(imagen_stream)
@@ -1101,54 +1369,96 @@ class ExportarData():
         imagen.anchor = "A1"
         hoja.merge_cells("A1:A4")
         hoja.add_image(imagen)
-        # Agregar el título
-        hoja.merge_cells("B1:E4")
+
+        # --- TÍTULO (B1:E3) ---
+        hoja.merge_cells("B1:E3")
         celda_titulo = hoja["B1"]
-        celda_titulo.value = f"MONITOREO DE ACELERÓGRAFOS - {proyectoname.upper()}"
-        celda_titulo.font = Font(size=18, bold=True)
-        celda_titulo.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        # Agregar el subtítuloS
-        rango, texto = "A6:E7", "DATOS DEL EQUIPO"
-        hoja.merge_cells(rango)
-        celda = hoja[rango.split(":")[0]]
-        celda.value = texto
-        celda.font = Font(size=14, bold=True, color="FFFFFF")
-        celda.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        celda.fill = color_fondo
-        # Definir datos generales
-        datosceldas = [("A8", "Nombre:"), ("A9", "Este:"), ("C8", "Norte:"), ("C9", "Elevación:"),
-                       ("B8", namepluvio), ("B9", infoacelero[3])]
-        datoscombinados = [("D8:E8", infoacelero[4]), ("D9:E9", infoacelero[5])]
+        celda_titulo.value = "FORMATO DE DATOS - ACELERÓGRAFOS"
+        celda_titulo.font = Font(size=16, bold=True)
+        celda_titulo.alignment = centro
+
+        # --- NOTAS (fila 5 y 6) ---
+        hoja.merge_cells("A5:E5")
+        nota1 = hoja["A5"]
+        nota1.value = "* Los datos no debe contener fórmulas y el Formato de fecha: día/mes/año completo (15/01/2020)."
+        nota1.font = Font(size=9, bold=True)
+
+        hoja.merge_cells("A6:E6")
+        nota2 = hoja["A6"]
+        nota2.value = "* El formato de hora: hh:mm:ss"
+        nota2.font = Font(size=9, bold=True)
+
+        # --- BLOQUE "DATOS DEL EQUIPO" (fila 8:9) ---
+        hoja.merge_cells("A8:E9")
+        celda_bloque = hoja["A8"]
+        celda_bloque.value = "DATOS DEL EQUIPO"
+        celda_bloque.font = Font(size=14, bold=True, color="FFFFFF")
+        celda_bloque.alignment = centro
+        celda_bloque.fill = color_fondo
+
+        def val(idx, default=0):
+            return infoacelero[idx] if len(infoacelero) > idx else default
+
+        # --- Fila 10: Nombre / Norte ---
+        datosceldas = [
+            ("A10:B10", "Nombre:"),
+            ("D10:D10", "Norte (m):"),
+        ]
+        valores = [
+            ("C10:C10", namepluvio),
+            ("E10:E10", val(5, 0)),   # Norte
+        ]
+
+        # --- Fila 11: Este / Elevación ---
+        datosceldas += [
+            ("A11:B11", "Este (m):"),
+            ("D11:D11", "Elevación (msnm):"),
+        ]
+        valores += [
+            ("C11:C11", val(4, 0)),   # Este
+            ("E11:E11", val(6, 0)),   # Elevación
+        ]
+
+        # Escribir labels (fondo negro, texto blanco)
         for rango, texto in datosceldas:
-            celda = hoja[rango]
-            celda.value = texto
-            celda.border = borde_negro
-            if rango.startswith("B"):
-                celda.alignment = Alignment(horizontal="left")
-            else:
-                celda.alignment = Alignment(horizontal="center", vertical="center")
-                celda.font = Font(bold=True, color="FFFFFF")
-                celda.fill = color_fondo
-        for rango, texto in datoscombinados:
             hoja.merge_cells(rango)
             celda = hoja[rango.split(":")[0]]
             celda.value = texto
-            celda.alignment = Alignment(horizontal="center", vertical="center")
-        # Agregar bordes a las celdas fusionadas
-        for rango in ["A1:A4", "B1:E4", "A6:E7", "D8:E8", "D9:E9"]:
+            celda.font = Font(bold=True, color="FFFFFF")
+            celda.fill = color_fondo
+            celda.alignment = centro
+
+        # Escribir valores (fondo BLANCO)
+        for rango, texto in valores:
+            if ":" in rango:
+                hoja.merge_cells(rango)
+            celda = hoja[rango.split(":")[0]]
+            celda.value = texto
+            celda.alignment = centro
+
+        # --- Bordes NEGROS: bloque superior (logo, título, notas) + celdas de VALORES (fondo blanco) ---
+        rangosceldas_negro = ["A1:A4", "B1:E3", "A5:E5", "A6:E6", "C10:C10", "E10:E10", "C11:C11", "E11:E11"]
+        for rango in rangosceldas_negro:
             for fila_celdas in hoja[rango]:
                 for celda in fila_celdas:
                     celda.border = borde_negro
-        # Fila de encabezados detallados
+
+        # --- Bordes BLANCOS: cabecera de bloque + celdas de LABELS (fondo negro) ---
+        rangosceldas_blanco = ["A8:E9", "A10:B10", "D10:D10", "A11:B11", "D11:D11"]
+        for rango in rangosceldas_blanco:
+            for fila_celdas in hoja[rango]:
+                for celda in fila_celdas:
+                    celda.border = borde_blanco
+
+        # --- Encabezados de la tabla (fila 12) ---
         encabezados = ["Fecha", "Hora", "Magnitud", "Distancia (Km)", "Observación"]
         for col, encabezado in enumerate(encabezados, 1):
-            hoja[chr(64 + col) + "11"].value = encabezado
-            celda = hoja[chr(64 + col) + "11"]
+            celda = hoja.cell(row=12, column=col, value=encabezado)
             celda.font = Font(bold=True, color="FFFFFF")
-            celda.alignment = Alignment(horizontal="center", vertical="center")
+            celda.alignment = centro
             celda.fill = color_fondo
-            celda.border = borde_negro
-    
+            celda.border = borde_blanco
+
     def exportarZipSondajesTDR(idproyecto, nameproyecto, idzona, sondajesmarcados):
         zip_filename = resource_path("resources/workspace/zipequipos.zip")
         try:
@@ -1195,12 +1505,18 @@ class ExportarData():
     
     def configurarCabeceraHojaSondajetdr(hoja, infotdr, proyectoname, nametdr, logo):
         # Definir colores, bordes, y otros atributos comunes
-        color_fondo = PatternFill(start_color="3C3C3C", end_color="3C3C3C", fill_type="solid")
+        color_fondo = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
         borde_negro = Border(
             left=Side(style="thin", color="000000"),
             right=Side(style="thin", color="000000"),
             top=Side(style="thin", color="000000"),
             bottom=Side(style="thin", color="000000"),
+        )
+        borde_blanco = Border(
+            left=Side(style="thin", color="FFFFFF"),
+            right=Side(style="thin", color="FFFFFF"),
+            top=Side(style="thin", color="FFFFFF"),
+            bottom=Side(style="thin", color="FFFFFF"),
         )
         # Ajustar el ancho de las columnas para mejor presentación
         for col in range(1, 6):  # 5 columnas de ancho
@@ -1226,24 +1542,36 @@ class ExportarData():
         celda_titulo.value = f"MONITOREO DE EQUIPOS TDR - {proyectoname.upper()}"
         celda_titulo.font = Font(size=18, bold=True)
         celda_titulo.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        # Agregar el subtítuloS
-        rango, texto = "A6:E7", "DATOS DEL EQUIPO"
+
+        # Notas (fila 5 y 6)
+        hoja.merge_cells("A5:E5")
+        nota1 = hoja["A5"]
+        nota1.value = "* Los datos no debe contener fórmulas y el Formato de fecha: día/mes/año completo."
+        nota1.font = Font(size=9, bold=True)
+
+        hoja.merge_cells("A6:E6")
+        nota2 = hoja["A6"]
+        nota2.value = "* El formato de hora: hh:mm:ss"
+        nota2.font = Font(size=9, bold=True)
+
+        # Agregar el subtítulo — empieza en la fila 8
+        rango, texto = "A8:E8", "DATOS DEL EQUIPO"
         hoja.merge_cells(rango)
         celda = hoja[rango.split(":")[0]]
         celda.value = texto
         celda.font = Font(size=14, bold=True, color="FFFFFF")
         celda.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         celda.fill = color_fondo
-        # Definir datos generales
-        datosceldas = [("A8", "Nombre:"), ("A9", "Este:"), ("A10", "Norte:"), ("A11", "Elevación:"),
-                       ("B8", nametdr), ("B9", infotdr[2]), ("B10", infotdr[3]), ("B11", infotdr[4]),
-                       ("C8", "Profundidad:"), ("C9", "Inclinación:"), ("C10", "Azimuth:"), ("C11", "Comentario:")]
-        datoscombinados = [("D8:E8", infotdr[5]), ("D9:E9", infotdr[6]),
-                           ("D10:E10", infotdr[7]), ("D11:E11", infotdr[8])]
+
+        # Definir datos generales (filas 9 a 12, justo debajo del subtítulo)
+        datosceldas = [("A9", "Nombre:"), ("A10", "Este:"), ("A11", "Norte:"), ("A12", "Elevación:"),
+                    ("B9", nametdr), ("B10", infotdr[2]), ("B11", infotdr[3]), ("B12", infotdr[4]),
+                    ("C9", "Profundidad:"), ("C10", "Inclinación:"), ("C11", "Azimuth:"), ("C12", "Comentario:")]
+        datoscombinados = [("D9:E9", infotdr[5]), ("D10:E10", infotdr[6]),
+                        ("D11:E11", infotdr[7]), ("D12:E12", infotdr[8])]
         for rango, texto in datosceldas:
             celda = hoja[rango]
             celda.value = texto
-            celda.border = borde_negro
             if rango.startswith("B"):
                 celda.alignment = Alignment(horizontal="left")
             else:
@@ -1255,21 +1583,31 @@ class ExportarData():
             celda = hoja[rango.split(":")[0]]
             celda.value = texto
             celda.alignment = Alignment(horizontal="center", vertical="center")
-        # Agregar bordes a las celdas fusionadas
-        for rango in ["A1:A4", "B1:E4", "A6:E7", "D8:E8", "D9:E9", "D10:E10", "D11:E11"]:
-            for fila_celdas in hoja[rango]:
-                for celda in fila_celdas:
-                    celda.border = borde_negro
-        # Fila de encabezados detallados
+
+        # --- Bordes NEGROS: bloque superior (logo, título, notas) y celdas de VALORES (fondo blanco) ---
+        rangosceldas_negro = ["A1:A4", "B1:E4", "A5:E5", "A6:E6",
+                            "B9", "B10", "B11", "B12",
+                            "D9:E9", "D10:E10", "D11:E11", "D12:E12"]
+        for rango in rangosceldas_negro:
+            ExportarData._aplicar_borde(hoja, rango, borde_negro)
+
+        # --- Bordes BLANCOS: subtítulo y celdas de ETIQUETAS (fondo negro) ---
+        rangosceldas_blanco = ["A8:E8", "A9", "A10", "A11", "A12", "C9", "C10", "C11", "C12"]
+        for rango in rangosceldas_blanco:
+            ExportarData._aplicar_borde(hoja, rango, borde_blanco)
+
+        # Fila de encabezados detallados (fila 13, pegada al bloque de datos, sin espacio)
+        fila_headers = 13
         encabezados = ["Fecha", "Hora", "Profundidad (m)", "Impedancia", "Observación"]
         for col, encabezado in enumerate(encabezados, 1):
-            hoja[chr(64 + col) + "13"].value = encabezado
-            celda = hoja[chr(64 + col) + "13"]
+            celda = hoja[chr(64 + col) + str(fila_headers)]
+            celda.value = encabezado
             celda.font = Font(bold=True, color="FFFFFF")
             celda.alignment = Alignment(horizontal="center", vertical="center")
             celda.fill = color_fondo
-            celda.border = borde_negro
-    
+            celda.border = borde_blanco
+
+
     def exportarExcelCotasTerreno(idproyecto, nameproyecto, idzona, terrenosmarcados):
         respuesta = EmpresaConfiguracion.obtenerDataEmpresa()
         logo = respuesta[4]
@@ -1302,22 +1640,33 @@ class ExportarData():
             except Exception as e:  # Captura cualquier excepción
                 mostrar_mensaje("Error al Exportar", f"No se pudo guardar el Excel: {str(e)}", "advertencia")
     
-    def configurarCabeceraHojaCotaTerreno(hoja, proyectoname, namepluvio, logo):
+    def configurarCabeceraHojaCotaTerreno(hoja, proyectoname, namecota, logo, comentario=""):
         # Definir colores, bordes, y otros atributos comunes
-        color_fondo = PatternFill(start_color="3C3C3C", end_color="3C3C3C", fill_type="solid")
+        color_fondo = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
         borde_negro = Border(
             left=Side(style="thin", color="000000"),
             right=Side(style="thin", color="000000"),
             top=Side(style="thin", color="000000"),
             bottom=Side(style="thin", color="000000"),
         )
-        # Ajustar el ancho de las columnas para mejor presentación
-        for col in range(1, 5):  # 4 columnas de ancho
-            hoja.column_dimensions[chr(64 + col)].width = 20
-        # Ajustar el alto de las filas de 1 a 5 para el área de la imagen
+        borde_blanco = Border(
+            left=Side(style="thin", color="FFFFFF"),
+            right=Side(style="thin", color="FFFFFF"),
+            top=Side(style="thin", color="FFFFFF"),
+            bottom=Side(style="thin", color="FFFFFF"),
+        )
+        centro = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        # Ajustar el ancho de las columnas
+        anchos = {"A": 20, "B": 16, "C": 22, "D": 22}
+        for col, ancho in anchos.items():
+            hoja.column_dimensions[col].width = ancho
+
+        # Alto de filas para el logo
         for row in range(1, 5):
             hoja.row_dimensions[row].height = 25
-        # Ruta de la imagen
+
+        # --- LOGO (A1:A4) ---
         if logo:
             imagen_stream = MetodosGenerales.convertirBlobImagen(logo)
             imagen = ExcelImage(imagen_stream)
@@ -1329,27 +1678,82 @@ class ExportarData():
         imagen.anchor = "A1"
         hoja.merge_cells("A1:A4")
         hoja.add_image(imagen)
-        # Agregar el título
+
+        # --- TÍTULO (B1:D4) ---
         hoja.merge_cells("B1:D4")
         celda_titulo = hoja["B1"]
-        celda_titulo.value = f"DATA DE COTA DE TERRENO - {proyectoname.upper()}"
-        celda_titulo.font = Font(size=18, bold=True)
-        celda_titulo.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        # Agregar bordes a las celdas fusionadas
-        for rango in ["A1:D4", "A6:D6"]:
+        celda_titulo.value = f"FORMATO DE DATOS - {proyectoname.upper() if proyectoname else 'COTAS DE TERRENO'}"
+        celda_titulo.font = Font(size=16, bold=True)
+        celda_titulo.alignment = centro
+
+        # --- NOTAS (fila 5 y 6) ---
+        hoja.merge_cells("A5:D5")
+        nota1 = hoja["A5"]
+        nota1.value = "* Los datos no debe contener fórmulas y el Formato de fecha: día/mes/año completo."
+        nota1.font = Font(size=9, bold=True)
+
+        hoja.merge_cells("A6:D6")
+        nota2 = hoja["A6"]
+        nota2.value = "* El formato de hora: hh:mm:ss"
+        nota2.font = Font(size=9, bold=True)
+
+        # --- BLOQUE "DATOS DEL TERRENO" (fila 8) ---
+        hoja.merge_cells("A8:D8")
+        celda_bloque = hoja["A8"]
+        celda_bloque.value = "DATOS DEL TERRENO"
+        celda_bloque.font = Font(size=13, bold=True, color="FFFFFF")
+        celda_bloque.alignment = centro
+        celda_bloque.fill = color_fondo
+
+        # --- Nombre (fila 9) ---
+        hoja.merge_cells("A9:B9")
+        celda_lbl = hoja["A9"]
+        celda_lbl.value = "Nombre:"
+        celda_lbl.font = Font(bold=True, color="FFFFFF")
+        celda_lbl.fill = color_fondo
+        celda_lbl.alignment = centro
+
+        hoja.merge_cells("C9:D9")
+        celda_val = hoja["C9"]
+        celda_val.value = namecota
+        celda_val.alignment = centro
+
+        # --- Comentario (fila 10) ---
+        hoja.merge_cells("A10:B10")
+        celda_lbl2 = hoja["A10"]
+        celda_lbl2.value = "Comentario:"
+        celda_lbl2.font = Font(bold=True, color="FFFFFF")
+        celda_lbl2.fill = color_fondo
+        celda_lbl2.alignment = centro
+
+        hoja.merge_cells("C10:D10")
+        celda_val2 = hoja["C10"]
+        celda_val2.value = comentario
+        celda_val2.alignment = centro
+
+        # --- Bordes NEGROS: bloque superior (logo, título, notas) y celdas de VALORES (fondo blanco) ---
+        rangosceldas_negro = ["A1:A4", "B1:D4", "A5:D5", "A6:D6", "C9:D9", "C10:D10"]
+        for rango in rangosceldas_negro:
             for fila_celdas in hoja[rango]:
                 for celda in fila_celdas:
                     celda.border = borde_negro
-        # Fila de encabezados detallados
+
+        # --- Bordes BLANCOS: bloque "DATOS DEL TERRENO" y celdas de ETIQUETAS (fondo negro) ---
+        rangosceldas_blanco = ["A8:D8", "A9:B9", "A10:B10"]
+        for rango in rangosceldas_blanco:
+            for fila_celdas in hoja[rango]:
+                for celda in fila_celdas:
+                    celda.border = borde_blanco
+
+        # --- Encabezados de la tabla (fila 11) ---
         encabezados = ["Fecha", "Hora", "Cota (msnm)", "Observación"]
         for col, encabezado in enumerate(encabezados, 1):
-            hoja[chr(64 + col) + "6"].value = encabezado
-            celda = hoja[chr(64 + col) + "6"]
+            celda = hoja.cell(row=11, column=col, value=encabezado)
             celda.font = Font(bold=True, color="FFFFFF")
-            celda.alignment = Alignment(horizontal="center", vertical="center")
+            celda.alignment = centro
             celda.fill = color_fondo
-            celda.border = borde_negro
-    
+            celda.border = borde_blanco
+
     def descargarFormatoExcel(tipo):
         if tipo == "prisma":
             rutaexcel = resource_path("resources/formatos/FormatoPrismas.xlsx")
