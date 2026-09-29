@@ -227,3 +227,13 @@ class InterfazController:
     @staticmethod
     def ctrlRenombrarPlantilla(idproyecto, modulo, nombre_actual, nombre_nuevo):
         return InterfazModel.mdlRenombrarPlantilla(idproyecto, modulo, nombre_actual, nombre_nuevo)
+
+    @staticmethod
+    def ctrlActualizarPlantilla(idproyecto, modulo, id_plantilla, nuevo_nombre, equipos):
+        if not equipos:
+            return False
+        if not InterfazModel.mdlEliminarPlantilla(idproyecto, modulo, id_plantilla):
+            return False
+        return InterfazModel.mdlGuardarPlantillaNombrada(
+            idproyecto, modulo, nuevo_nombre, equipos, len(equipos)
+        )

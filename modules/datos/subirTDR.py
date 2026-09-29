@@ -380,12 +380,13 @@ class SubirTDR:
     
     def registrarFormatoDataTDR(proyectoid, ubicacion, idcomponente):
         erroneos = []
-        data = []
         equipos = []
         respuesta = False
         encabezado = ['Fecha', 'Hora', 'Profundidad (m)', 'Impedancia', 'Observación']
         archivos = ubicacion.split("\n")
+        print("ARCHIVOS")
         for file_name in archivos:
+            data = []
             file_name = file_name.strip()
             if not file_name or not file_name.endswith('.xlsx'):
                 continue
@@ -411,6 +412,7 @@ class SubirTDR:
                     continue
                 idsondaje = None
                 respu, info = TDRController.ctrlComprobarExisteNombreTDR(proyectoid, nombretdr)
+                print("EXISTE TDR", respu)
                 if respu:
                     idsondaje = info[0]
                 else:
@@ -458,61 +460,43 @@ class SubirTDR:
                             profundo = 1
                     data_tdr = [nombretdr, coordeste, coordnorte, superficie, azimuth, inclinacion, profundo, idcomponente]
                     respues = TDRController.ctrlRegistrarFormatoEquipoTDR(proyectoid, data_tdr)
+                    print("guardado tdr", respues)
                     if respues:
                         idsondaje = respues
                 if idsondaje is not None:
+                    print("Iniciando lecturas")
                     df = pd.read_excel(file_name, header=None, skiprows=14, engine='openpyxl')
                     df.columns = ['fecha', 'hora', 'profundidad', 'impedancia', 'observacion']
+                    print("Leyendo columnas", df.columns)
                     # Obtener la primera fila de 'fecha' y 'hora'
                     df['fecha'] = pd.to_datetime(df['fecha'], errors='coerce')
-                    df['hora'] = pd.to_datetime(df['hora'], errors='coerce').dt.time
-                    # Obtener la primera fila de 'fecha' y 'hora' formateadas
+                    df['hora'] = df['hora'].apply(MetodosGenerales.normalizar_hora)   # ya queda como string 'HH:MM:SS'
+                    df = df.dropna(subset=['fecha', 'profundidad', 'impedancia']).reset_index(drop=True)
+                    if df.empty:
+                        erroneos.append(file_name.split("/")[-1])
+                        continue
+
                     primera_fecha = df.at[0, 'fecha'].strftime('%Y-%m-%d')
-                    primera_hora = df.at[0, 'hora'].strftime('%H:%M:%S')
-                    fechahora = primera_fecha + " " + primera_hora
+                    primera_hora = df.at[0, 'hora']          # ya es string
+                    fechahora = f"{primera_fecha} {primera_hora}"
                     tabla = f"sondajetdr_detalle{proyectoid}"
                     existefecha = TDRController.ctrlComprobarExisteFechaTDR(tabla, idsondaje, fechahora)
+                    print("existe fecha", existefecha)
                     if existefecha is False:
                         for _, row in df.iterrows():
-                            fecha = row['fecha']
+                            fecha = row['fecha'].strftime('%Y-%m-%d')
                             hora = row['hora']
-                            profundidad = row['profundidad']
-                            impedancia = row['impedancia']
-                            observacion = row['observacion']
-                            if pd.isna(fecha) or pd.isna(profundidad) or pd.isna(impedancia):
-                                continue
-                            # Manejo de la columna 'fecha'
-                            if isinstance(fecha, (pd.Timestamp, datetime)):
-                                fecha = fecha.date()  # Convertir a date
-                                fecha = fecha.strftime('%Y-%m-%d')
-                            elif isinstance(fecha, str):
-                                fecha = MetodosGenerales.validarFormatoFecha(fecha)
-                                if fecha is None:
-                                    continue
-                            else:
-                                continue
-                            # Manejo de la columna 'hora'
-                            if isinstance(hora, (pd.Timestamp, datetime)):
-                                hora = hora.time()
-                                hora = hora.strftime('%H:%M:%S')
-                            elif isinstance(hora, time):
-                                hora = hora.strftime('%H:%M:%S')
-                            elif isinstance(hora, str):
-                                hora = MetodosGenerales.validarFormatoHora(hora) or "00:00:00"
-                            else:
-                                hora = "00:00:00"
                             try:
-                                profundidad = float(profundidad)
+                                profundidad = float(row['profundidad'])
+                                impedancia = float(row['impedancia'])
                             except (ValueError, TypeError):
                                 continue
-                            try:
-                                impedancia = float(impedancia)
-                            except (ValueError, TypeError):
-                                continue
-                            observa = "" if pd.isna(observacion) else str(observacion).strip()
+                            observa = "" if pd.isna(row['observacion']) else str(row['observacion']).strip()
                             data.append((idsondaje, fecha, hora, profundidad, impedancia, observa))
+
                         if data:
                             respon = TDRController.ctrlGuardarDataSondajesTDR(proyectoid, data)
+                            print("Data guardada", respon)
                             if respon:
                                 equipos.append(idsondaje)
                                 respuesta = True
@@ -524,7 +508,9 @@ class SubirTDR:
                         erroneos.append(file_name.split("/")[-1])
                 else:
                     erroneos.append(file_name.split("/")[-1])
-            except Exception:
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
                 erroneos.append(file_name.split("/")[-1])
         return respuesta, equipos, erroneos
     

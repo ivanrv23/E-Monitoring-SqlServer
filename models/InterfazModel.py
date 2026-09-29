@@ -1028,3 +1028,63 @@ class InterfazModel:
         finally:
             if conn:
                 conn.close()
+
+    @staticmethod
+    def mdlActualizarPlantilla(idproyecto, modulo_base, id_plantilla, nuevo_nombre, lista_preferencias):
+        """
+        Actualiza nombre y equipos de una plantilla conservando su id y fecha de creación.
+        Todo en una sola transacción: si algo falla, no se pierde nada.
+        """
+        conn = None
+        try:
+            if not lista_preferencias:
+                return False
+
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+
+            # Validar que el nombre no lo use OTRA plantilla
+            cur.execute(
+                """SELECT COUNT(*) FROM preferencias_marcado
+                   WHERE id_proyecto = ? AND modulo = ? AND nombre_plantilla = ?
+                   AND id_preferencia <> ?""",
+                (idproyecto, modulo_base, nuevo_nombre, id_plantilla)
+            )
+            if cur.fetchone()[0] > 0:
+                print("Error mdlActualizarPlantilla: ya existe una plantilla con ese nombre")
+                return False
+
+            # Actualizar maestro (no se toca fecha_registro)
+            cur.execute(
+                """UPDATE preferencias_marcado
+                   SET nombre_plantilla = ?, cantidad_equipos = ?
+                   WHERE id_preferencia = ? AND id_proyecto = ? AND modulo = ?""",
+                (nuevo_nombre, len(lista_preferencias), id_plantilla, idproyecto, modulo_base)
+            )
+            if cur.rowcount == 0:
+                conn.rollback()
+                return False
+
+            # Reemplazar detalle
+            cur.execute(
+                "DELETE FROM preferencias_marcado_detalle WHERE id_preferencia = ?",
+                (id_plantilla,)
+            )
+            for id_comp, id_inst in lista_preferencias:
+                cur.execute(
+                    """INSERT INTO preferencias_marcado_detalle
+                       (id_preferencia, id_componente, id_instrumentacion)
+                       VALUES (?, ?, ?)""",
+                    (id_plantilla, id_comp, id_inst)
+                )
+
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error mdlActualizarPlantilla:", e)
+            if conn:
+                conn.rollback()
+            return False
+        finally:
+            if conn:
+                conn.close()

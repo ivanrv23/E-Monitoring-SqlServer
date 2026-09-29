@@ -284,21 +284,60 @@ class SubirCeldas:
     
     def registrarFormatoDataCeldas(proyectoid, ubicacion, idcomponente):
         erroneos = []
-        data = []
         equipos = []
         respuesta = False
-        encabezado = ['Fecha', 'Hora', 'Frecuencia (Digits)', 'Frecuencia (Hz)', 'Temperatura (°C)', 'Desplazamiento (m)', 'Observación']
+        
         archivos = ubicacion.split("\n")
+        
         for file_name in archivos:
             file_name = file_name.strip()
             if not file_name or not file_name.endswith('.xlsx'):
                 continue
+            
+            data = []
+            
             try:
+                print(f"Iniciando Lectura de Encabezado Celdas: {file_name}")
                 df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=13, engine='openpyxl')
-                encabezados_archivo = [str(col).strip() for col in df_header.iloc[0, :len(encabezado)]]
-                if encabezados_archivo != encabezado:
+                encabezados_archivo = [str(col).strip() for col in df_header.iloc[0]]
+                
+                print(f"Encabezados encontrados: {encabezados_archivo}")
+
+                posiciones = {}
+                faltantes = []
+                
+                # Se agregó 'Asentamiento (m)' y 'Asentamiento' a las equivalencias
+                mapeo_columnas = {
+                    'Fecha': ['Fecha'],
+                    'Hora': ['Hora'],
+                    'Frecuencia_Digits': ['Frecuencia (Digits)', 'Frecuencia (digits)', 'Frecuencia (Dg)', 'Frecuencia Digits', 'Frecuen'],
+                    'Frecuencia_Hz': ['Frecuencia (Hz)', 'Frecuencia (hz)', 'Frecuencia Hz', 'Frecuencia'],
+                    'Temperatura': ['Temperatura (°C)', 'Temperatura', 'Temp'],
+                    'Desplazamiento': ['Desplazamiento (m)', 'Desplazamiento', 'Desplaza', 'Desplazamiento (mm)', 'Asentamiento (m)', 'Asentamiento'],
+                    'Observación': ['Observación', 'Observacion', 'Observaciones']
+                }
+                
+                for key, variantes in mapeo_columnas.items():
+                    encontrada = False
+                    for variante in variantes:
+                        if variante in encabezados_archivo:
+                            posiciones[key] = encabezados_archivo.index(variante)
+                            encontrada = True
+                            break
+                    if not encontrada:
+                        if key == 'Observación':
+                            posiciones[key] = None
+                        else:
+                            faltantes.append(key)
+
+                print(f"Posiciones encontradas: {posiciones}")
+                print(f"Columnas faltantes: {faltantes}")
+
+                if faltantes:
+                    print(f"Archivo inválido por columnas faltantes: {faltantes}")
                     erroneos.append(file_name.split("/")[-1])
                     continue
+
                 wb = load_workbook(file_name, data_only=True)
                 hoja = wb.active
                 nombrecelda = hoja["B8"].value
@@ -314,13 +353,18 @@ class SubirCeldas:
                 superficie = hoja["F12"].value
                 rangocelda = hoja["F13"].value
                 wb.close()
-                if pd.isna(nombrecelda) or proyectoid == 0 or not idcomponente:
+                
+                if nombrecelda is None or str(nombrecelda).strip() == "" or pd.isna(nombrecelda) or proyectoid == 0 or not idcomponente:
+                    print("Datos básicos inválidos (Falta nombre de la celda en B8, proyecto o componente)")
                     erroneos.append(file_name.split("/")[-1])
                     continue
+                
                 idcelda = None
                 respu, info = CeldaController.ctrlComprobarExisteNombreCelda(proyectoid, nombrecelda)
+                
                 if respu:
                     idcelda = info[0]
+                    print(f"Celda existente: {nombrecelda}")
                     celda_data = {
                         "marca_celda": marcacelda,
                         "modelo_celda": modelocelda,
@@ -333,54 +377,21 @@ class SubirCeldas:
                         "tk_celda": tk,
                         "idcelda": idcelda,
                     }
-                    if float(coordeste)!=0 and float(coordnorte)!=0:
-                        # Llamar al método para guardar en la base de datos
+                    if coordeste and coordnorte and float(coordeste) != 0 and float(coordnorte) != 0:
                         rpt = CeldaController.ctrlActualizarCeldaExcel(celda_data)
                 else:
+                    print(f"Creando nueva Celda de Asentamiento: {nombrecelda}")
                     if pd.isna(superficie):
+                        print("Superficie es NA, saltando archivo")
                         continue
-                    if pd.isna(coordnorte):
-                        coordnorte = 0
-                    else:
-                        try:
-                            coordnorte = float(coordnorte)
-                        except ValueError:
-                            coordnorte = 0
-                    if pd.isna(coordeste):
-                        coordeste = 0
-                    else:
-                        try:
-                            coordeste = float(coordeste)
-                        except ValueError:
-                            coordeste = 0
-                    if pd.isna(instalacion):
-                        instalacion = 0
-                    else:
-                        try:
-                            instalacion = float(instalacion)
-                        except ValueError:
-                            instalacion = 0
-                    if pd.isna(fundacion):
-                        fundacion = 0
-                    else:
-                        try:
-                            fundacion = float(fundacion)
-                        except ValueError:
-                            fundacion = 0
-                    if pd.isna(cf):
-                        cf = 0
-                    else:
-                        try:
-                            cf = float(cf)
-                        except ValueError:
-                            cf = 0
-                    if pd.isna(tk):
-                        tk = 0
-                    else:
-                        try:
-                            tk = float(tk)
-                        except ValueError:
-                            tk = 0
+                        
+                    coordnorte = float(coordnorte) if not pd.isna(coordnorte) and coordnorte is not None else 0
+                    coordeste = float(coordeste) if not pd.isna(coordeste) and coordeste is not None else 0
+                    instalacion = float(instalacion) if not pd.isna(instalacion) and instalacion is not None else 0
+                    fundacion = float(fundacion) if not pd.isna(fundacion) and fundacion is not None else 0
+                    cf = float(cf) if not pd.isna(cf) and cf is not None else 0
+                    tk = float(tk) if not pd.isna(tk) and tk is not None else 0
+                    
                     datoscelda = {
                         "proyecto": proyectoid,
                         "nombre_celda": nombrecelda,
@@ -401,61 +412,101 @@ class SubirCeldas:
                     respues = CeldaController.ctrlRegistrarCeldaFormato(idcomponente, datoscelda)
                     if respues:
                         idcelda = respues
+                        print(f"Nueva celda creada con ID: {idcelda}")
+
                 if idcelda is not None:
-                    df = pd.read_excel(file_name, header=None, skiprows=14, engine='openpyxl')
-                    df.columns = ['fecha', 'hora', 'frecuen', 'frecuencia', 'temperatura', 'desplaza', 'observacion']
+                    print("Leyendo datos del archivo (skiprows=14)")
+                    df_full = pd.read_excel(file_name, header=None, skiprows=14, engine='openpyxl')
+                    
+                    max_col = max([v for v in posiciones.values() if v is not None])
+                    if df_full.shape[1] <= max_col:
+                        print("Error: El archivo no tiene suficientes columnas para la data.")
+                        erroneos.append(file_name.split("/")[-1])
+                        continue
+                    
+                    df_dict = {
+                        'fecha':             df_full.iloc[:, posiciones['Fecha']],
+                        'hora':              df_full.iloc[:, posiciones['Hora']],
+                        'frecuen_digits':    df_full.iloc[:, posiciones['Frecuencia_Digits']],
+                        'frecuencia_hz':     df_full.iloc[:, posiciones['Frecuencia_Hz']],
+                        'temperatura':       df_full.iloc[:, posiciones['Temperatura']],
+                        'desplaza':          df_full.iloc[:, posiciones['Desplazamiento']],
+                    }
+                    
+                    if posiciones['Observación'] is not None:
+                        df_dict['observacion'] = df_full.iloc[:, posiciones['Observación']]
+                    else:
+                        df_dict['observacion'] = ""
+                        
+                    df = pd.DataFrame(df_dict)
+                    print(f"DataFrame creado con {len(df)} filas")
+                    
+                    filas_procesadas = 0
                     for _, row in df.iterrows():
                         fecha = row['fecha']
                         hora = row['hora']
                         desplaza = row['desplaza']
                         observacion = row['observacion']
+                        
                         if pd.isna(fecha) or pd.isna(desplaza):
                             continue
-                        # Manejo de la columna 'fecha'
+                        
                         if isinstance(fecha, (pd.Timestamp, datetime)):
-                            fecha = fecha.date()  # Convertir a date
-                            fecha = fecha.strftime('%Y-%m-%d')
+                            fecha = fecha.date().strftime('%Y-%m-%d')
                         elif isinstance(fecha, str):
                             fecha = MetodosGenerales.validarFormatoFecha(fecha)
-                            if fecha is None:
-                                continue
+                            if fecha is None: continue
                         else:
                             continue
-                        # Manejo de la columna 'hora'
+                            
                         if isinstance(hora, (pd.Timestamp, datetime)):
-                            hora = hora.time()
-                            hora = hora.strftime('%H:%M:%S')
+                            hora = hora.time().strftime('%H:%M:%S')
                         elif isinstance(hora, time):
                             hora = hora.strftime('%H:%M:%S')
                         elif isinstance(hora, str):
                             hora = MetodosGenerales.validarFormatoHora(hora) or "00:00:00"
                         else:
                             hora = "00:00:00"
+                            
                         try:
                             desplaza = float(desplaza)
                         except (ValueError, TypeError):
                             continue
-                        frecuen = float(row['frecuen']) if not pd.isna(row['frecuen']) else 0
-                        frecu = float(row['frecuencia']) if not pd.isna(row['frecuencia']) else 0
+                            
+                        frecuen = float(row['frecuen_digits']) if not pd.isna(row['frecuen_digits']) else 0
+                        frecu = float(row['frecuencia_hz']) if not pd.isna(row['frecuencia_hz']) else 0
                         tempe = float(row['temperatura']) if not pd.isna(row['temperatura']) else 0
                         observa = "" if pd.isna(observacion) else str(observacion).strip()
+                        
                         data.append((idcelda, fecha, hora, frecuen, frecu, tempe, desplaza, observa))
+                        filas_procesadas += 1
+                        
+                    print(f"Filas procesadas: {filas_procesadas}")
+                    
                     if data:
                         respon = CeldaController.ctrlRegistrarDataCelda(proyectoid, data)
-                        print("respon", respon)
                         if respon:
                             equipos.append(idcelda)
                             respuesta = True
+                            print("Data guardada exitosamente en BD.")
                         else:
+                            print("Error al ejecutar guardado en base de datos.")
                             erroneos.append(file_name.split("/")[-1])
                     else:
+                        print("No hay data válida para guardar.")
                         erroneos.append(file_name.split("/")[-1])
                 else:
+                    print("Error: idcelda es None.")
                     erroneos.append(file_name.split("/")[-1])
-            except Exception:
+            except Exception as e:
+                print(f"Excepción en Celdas: {type(e).__name__}: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 erroneos.append(file_name.split("/")[-1])
+                
+        print(f"Proceso finalizado. Respuesta: {respuesta}, Equipos: {equipos}, Erróneos: {erroneos}")
         return respuesta, equipos, erroneos
-    
+
     def registrarDataExcelCeldas(proyectoid, ubicacion, idcomponente):
         erroneos = []
         data = []

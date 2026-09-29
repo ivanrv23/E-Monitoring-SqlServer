@@ -1,4 +1,5 @@
 import re
+import pandas as pd
 import os
 import pytz
 import numpy as np
@@ -411,3 +412,35 @@ class MetodosGenerales:
         except Exception as e:
             print(f"Error en exportacion: {str(e)}")
             QMessageBox.critical(None, "Error", f"No se pudo realizar la exportacion: {str(e)}")
+
+    def normalizar_hora(valor):
+        """Convierte cualquier formato de hora de Excel a 'HH:MM:SS'."""
+        if valor is None or pd.isna(valor):
+            return "00:00:00"
+
+        # datetime.time (lo más común en Excel)
+        if isinstance(valor, time):
+            return valor.strftime('%H:%M:%S')
+
+        # datetime / Timestamp
+        if isinstance(valor, (pd.Timestamp, datetime)):
+            return valor.strftime('%H:%M:%S')
+
+        # Número (Excel guarda horas como fracción de día: 0.5 = 12:00)
+        if isinstance(valor, (int, float)):
+            segundos = int(round(float(valor) * 86400)) % 86400
+            h, resto = divmod(segundos, 3600)
+            m, s = divmod(resto, 60)
+            return f"{h:02d}:{m:02d}:{s:02d}"
+
+        # Texto
+        if isinstance(valor, str):
+            valor = valor.strip()
+            for fmt in ('%H:%M:%S', '%H:%M', '%I:%M:%S %p', '%I:%M %p'):
+                try:
+                    return datetime.strptime(valor, fmt).strftime('%H:%M:%S')
+                except ValueError:
+                    continue
+            return "00:00:00"
+
+        return "00:00:00"

@@ -647,20 +647,49 @@ class SubirPrismas:
         data = []
         equipos = []
         respuesta = False
-        encabezado = ['Hito', 'Fecha', 'Hora', 'Este (m)', 'Norte (m)', 'Elevación (msnm)', 'Distancia Inclinada (m)', 'Ángulo Horizontal', 'Ángulo Vertical']
+        encabezado = ['Hito', 'Fecha', 'Hora', 'Este (m)', 'Norte (m)', 'Elevación (msnm)',
+                    'Distancia Inclinada (m)', 'Ángulo Horizontal', 'Ángulo Vertical']
         archivos = ubicacion.split("\n")
         for file_name in archivos:
             file_name = file_name.strip()
             if not file_name or not file_name.endswith('.xlsx'):
                 continue
             try:
+                # 1) Leer el encabezado COMPLETO, sin recortar a las primeras N columnas
                 df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=6, engine='openpyxl')
-                encabezados_archivo = [str(col).strip() for col in df_header.iloc[0, :len(encabezado)]]
-                if encabezados_archivo != encabezado:
+                encabezados_archivo = [str(col).strip() for col in df_header.iloc[0]]
+
+                # 2) Ubicar la posición real de cada columna requerida, por nombre
+                posiciones = {}
+                faltantes = []
+                for col in encabezado:
+                    if col in encabezados_archivo:
+                        posiciones[col] = encabezados_archivo.index(col)
+                    else:
+                        faltantes.append(col)
+
+                # 3) Si falta alguna columna obligatoria, el archivo es inválido.
+                #    Las columnas adicionales simplemente se ignoran (no están en `encabezado`).
+                if faltantes:
                     erroneos.append(file_name.split("/")[-1])
                     continue
-                df = pd.read_excel(file_name, header=None, skiprows=7, engine='openpyxl')
-                df.columns = ['nombre', 'fecha', 'hora', 'este', 'norte', 'elevacion', 'distancia', 'horizontal', 'vertical']
+
+                # 4) Leer toda la data y quedarnos solo con las columnas que nos interesan,
+                #    usando la posición real de cada una (sin importar el orden ni las extra)
+                df_full = pd.read_excel(file_name, header=None, skiprows=7, engine='openpyxl')
+
+                df = pd.DataFrame({
+                    'nombre':     df_full.iloc[:, posiciones['Hito']],
+                    'fecha':      df_full.iloc[:, posiciones['Fecha']],
+                    'hora':       df_full.iloc[:, posiciones['Hora']],
+                    'este':       df_full.iloc[:, posiciones['Este (m)']],
+                    'norte':      df_full.iloc[:, posiciones['Norte (m)']],
+                    'elevacion':  df_full.iloc[:, posiciones['Elevación (msnm)']],
+                    'distancia':  df_full.iloc[:, posiciones['Distancia Inclinada (m)']],
+                    'horizontal': df_full.iloc[:, posiciones['Ángulo Horizontal']],
+                    'vertical':   df_full.iloc[:, posiciones['Ángulo Vertical']],
+                })
+
                 for _, row in df.iterrows():
                     nombre = str(row['nombre']).strip()
                     fecha = row['fecha']
@@ -672,7 +701,7 @@ class SubirPrismas:
                         continue
                     # Manejo de la columna 'fecha'
                     if isinstance(fecha, (pd.Timestamp, datetime)):
-                        fecha = fecha.date()  # Convertir a date
+                        fecha = fecha.date()
                         fecha = fecha.strftime('%Y-%m-%d')
                     elif isinstance(fecha, str):
                         fecha = MetodosGenerales.validarFormatoFecha(fecha)

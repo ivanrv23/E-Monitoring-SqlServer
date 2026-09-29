@@ -447,7 +447,7 @@
       <widget class="QComboBox" name="combo_unidad_frecuencia">
        <item>
         <property name="text">
-         <string>Dg</string>
+         <string>digits</string>
         </property>
        </item>
        <item>

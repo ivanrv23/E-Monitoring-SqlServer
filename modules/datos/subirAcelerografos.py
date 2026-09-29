@@ -285,117 +285,195 @@ class SubirAcelerografos:
     
     def registrarFormatoDataAcelerografo(proyectoid, ubicacion, idcomponente):
         erroneos = []
-        data = []
         equipos = []
         respuesta = False
-        encabezado = ['Fecha', 'Hora', 'Magnitud', 'Distancia (Km)', 'Observación']
+        
         archivos = ubicacion.split("\n")
+        
         for file_name in archivos:
             file_name = file_name.strip()
             if not file_name or not file_name.endswith('.xlsx'):
                 continue
+            
+            data = []
+            
             try:
+                print(f"Iniciando Lectura de Encabezado Acelerógrafo: {file_name}")
                 df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=11, engine='openpyxl')
-                encabezados_archivo = [str(col).strip() for col in df_header.iloc[0, :len(encabezado)]]
-                if encabezados_archivo != encabezado:
+                encabezados_archivo = [str(col).strip() for col in df_header.iloc[0]]
+                
+                print(f"Encabezados encontrados: {encabezados_archivo}")
+
+                posiciones = {}
+                faltantes = []
+                
+                mapeo_columnas = {
+                    'Fecha': ['Fecha'],
+                    'Hora': ['Hora'],
+                    'Magnitud': ['Magnitud', 'Magnitud (Mw)', 'Magnitud (M)'],
+                    'Distancia': ['Distancia (Km)', 'Distancia (km)', 'Distancia'],
+                    'Observación': ['Observación', 'Observacion', 'Observaciones']
+                }
+                
+                for key, variantes in mapeo_columnas.items():
+                    encontrada = False
+                    for variante in variantes:
+                        if variante in encabezados_archivo:
+                            posiciones[key] = encabezados_archivo.index(variante)
+                            encontrada = True
+                            break
+                    if not encontrada:
+                        if key == 'Observación':
+                            posiciones[key] = None
+                        else:
+                            faltantes.append(key)
+
+                print(f"Posiciones encontradas: {posiciones}")
+                print(f"Columnas faltantes: {faltantes}")
+
+                if faltantes:
+                    print(f"Archivo inválido por columnas faltantes: {faltantes}")
                     erroneos.append(file_name.split("/")[-1])
                     continue
+
                 wb = load_workbook(file_name, data_only=True)
                 hoja = wb.active
+                
+                # 1. Intentar leer B10
                 nombresismo = hoja["B10"].value
+                
+                # 2. Respaldo: Si B10 está vacío, buscar en celdas cercanas o usar el nombre del archivo
+                if nombresismo is None or str(nombresismo).strip() == "" or pd.isna(nombresismo):
+                    nombresismo = hoja["C10"].value # Intentar C10
+                    
+                if nombresismo is None or str(nombresismo).strip() == "" or pd.isna(nombresismo):
+                    nombresismo = hoja["B9"].value # Intentar B9
+                    
+                if nombresismo is None or str(nombresismo).strip() == "" or pd.isna(nombresismo):
+                    # 3. ÚLTIMO RECURSO: Usar el nombre del archivo Excel (Ej: "AcelerografosSSSS")
+                    nombresismo = file_name.split("/")[-1].replace(".xlsx", "").replace(".xls", "")
+                    print(f"Nombre vacío en Excel. Se usará el nombre del archivo: {nombresismo}")
+
                 coordeste = hoja["B11"].value
                 coordnorte = hoja["D10"].value
                 coordnivel = hoja["D11"].value
                 wb.close()
-                if pd.isna(nombresismo) or proyectoid == 0 or not idcomponente:
+                
+                print(f"Metadata Leída -> Sismo: '{nombresismo}', ProyectoID: {proyectoid}, ComponenteID: {idcomponente}")
+                
+                if proyectoid == 0 or not idcomponente:
+                    print("Datos básicos inválidos (Falta proyecto o componente)")
                     erroneos.append(file_name.split("/")[-1])
                     continue
+                
                 idacelerografo = None
                 respu, info = AcelerografoController.ctrlComprobarExisteNombreAcelerografo(proyectoid, nombresismo)
+                
                 if respu:
                     idacelerografo = info[0]
+                    print(f"Acelerógrafo existente: {nombresismo}")
                 else:
-                    if pd.isna(coordnorte):
-                        coordnorte = 0
-                    else:
-                        try:
-                            coordnorte = float(coordnorte)
-                        except ValueError:
-                            coordnorte = 0
-                    if pd.isna(coordeste):
-                        coordeste = 0
-                    else:
-                        try:
-                            coordeste = float(coordeste)
-                        except ValueError:
-                            coordeste = 0
-                    if pd.isna(coordnivel):
-                        coordnivel = 0
-                    else:
-                        try:
-                            coordnivel = float(coordnivel)
-                        except ValueError:
-                            coordnivel = 0
+                    print(f"Creando nuevo Acelerógrafo: {nombresismo}")
+                    coordnorte = float(coordnorte) if not pd.isna(coordnorte) and coordnorte is not None else 0
+                    coordeste = float(coordeste) if not pd.isna(coordeste) and coordeste is not None else 0
+                    coordnivel = float(coordnivel) if not pd.isna(coordnivel) and coordnivel is not None else 0
+                    
                     datos = [nombresismo, coordeste, coordnorte, coordnivel, idcomponente]
                     respues = AcelerografoController.ctrlRegistrarFormatoAcelerografo(proyectoid, datos)
+                    
                     if respues:
                         idacelerografo = respues
+                        print(f"Nuevo acelerógrafo creado con ID: {idacelerografo}")
+
                 if idacelerografo is not None:
-                    df = pd.read_excel(file_name, header=None, skiprows=12, engine='openpyxl')
-                    df.columns = ['fecha', 'hora', 'magnitud', 'distancia', 'observacion']
+                    print("Leyendo datos del archivo")
+                    df_full = pd.read_excel(file_name, header=None, skiprows=12, engine='openpyxl')
+                    
+                    max_col = max([v for v in posiciones.values() if v is not None])
+                    if df_full.shape[1] <= max_col:
+                        print("Error: El archivo no tiene suficientes columnas para la data.")
+                        erroneos.append(file_name.split("/")[-1])
+                        continue
+                    
+                    df_dict = {
+                        'fecha':     df_full.iloc[:, posiciones['Fecha']],
+                        'hora':      df_full.iloc[:, posiciones['Hora']],
+                        'magnitud':  df_full.iloc[:, posiciones['Magnitud']],
+                        'distancia': df_full.iloc[:, posiciones['Distancia']],
+                    }
+                    
+                    if posiciones['Observación'] is not None:
+                        df_dict['observacion'] = df_full.iloc[:, posiciones['Observación']]
+                    else:
+                        df_dict['observacion'] = ""
+                        
+                    df = pd.DataFrame(df_dict)
+                    print(f"DataFrame creado con {len(df)} filas")
+                    
+                    filas_procesadas = 0
                     for _, row in df.iterrows():
                         fecha = row['fecha']
                         hora = row['hora']
                         magnitud = row['magnitud']
                         distancia = row['distancia']
                         observacion = row['observacion']
+                        
                         if pd.isna(fecha) or pd.isna(magnitud) or pd.isna(distancia):
                             continue
-                        # Manejo de la columna 'fecha'
+                        
                         if isinstance(fecha, (pd.Timestamp, datetime)):
-                            fecha = fecha.date()  # Convertir a date
-                            fecha = fecha.strftime('%Y-%m-%d')
+                            fecha = fecha.date().strftime('%Y-%m-%d')
                         elif isinstance(fecha, str):
                             fecha = MetodosGenerales.validarFormatoFecha(fecha)
-                            if fecha is None:
-                                continue
+                            if fecha is None: continue
                         else:
                             continue
-                        # Manejo de la columna 'hora'
+                            
                         if isinstance(hora, (pd.Timestamp, datetime)):
-                            hora = hora.time()
-                            hora = hora.strftime('%H:%M:%S')
+                            hora = hora.time().strftime('%H:%M:%S')
                         elif isinstance(hora, time):
                             hora = hora.strftime('%H:%M:%S')
                         elif isinstance(hora, str):
                             hora = MetodosGenerales.validarFormatoHora(hora) or "00:00:00"
                         else:
                             hora = "00:00:00"
+                            
                         try:
                             magnitud = float(magnitud)
-                        except (ValueError, TypeError):
-                            continue
-                        try:
                             distancia = float(distancia)
                         except (ValueError, TypeError):
                             continue
+                            
                         observa = "" if pd.isna(observacion) else str(observacion).strip()
                         data.append((idacelerografo, fecha, hora, magnitud, distancia, observa))
+                        filas_procesadas += 1
+                        
+                    print(f"Filas procesadas: {filas_procesadas}")
+                    
                     if data:
                         respon = AcelerografoController.ctrlRegistrarDataAcelerografo(proyectoid, data)
                         if respon:
                             equipos.append(idacelerografo)
                             respuesta = True
+                            print("Data guardada exitosamente en BD.")
                         else:
+                            print("Error al ejecutar guardado en base de datos.")
                             erroneos.append(file_name.split("/")[-1])
                     else:
+                        print("No hay data válida para guardar.")
                         erroneos.append(file_name.split("/")[-1])
                 else:
+                    print("Error: idacelerografo es None.")
                     erroneos.append(file_name.split("/")[-1])
-            except Exception:
+            except Exception as e:
+                print(f"Excepción en Acelerógrafos: {type(e).__name__}: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 erroneos.append(file_name.split("/")[-1])
+                
+        print(f"Proceso finalizado. Respuesta: {respuesta}, Equipos: {equipos}, Erróneos: {erroneos}")
         return respuesta, equipos, erroneos
-    
+
     def cambiar_componente_acelerografos(idcomponente, idproyecto, treewidget, nombregrupo, tipogrupo, subgrupo, reiniciarvistas):
         dialog = QDialog()
         dialog.setWindowTitle("Componente Acelerógrafos")

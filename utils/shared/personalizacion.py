@@ -1638,7 +1638,7 @@ class Personalizacion:
         dialogo.exec()
         
     @staticmethod
-    def dialogoAgregarNuevaPlantilla(tree_referencia, fn_guardar):
+    def dialogoAgregarNuevaPlantilla(tree_referencia, fn_guardar, nombre_inicial=None, preferencias_iniciales=None, modo_edicion=False):
         from PySide6.QtWidgets import QLineEdit 
 
         def limpiar_id(valor):
@@ -1648,7 +1648,7 @@ class Personalizacion:
             except: return None
 
         dialogo = QDialog()
-        dialogo.setWindowTitle("Nueva Plantilla")
+        dialogo.setWindowTitle("Editar Plantilla" if modo_edicion else "Nueva Plantilla")
         # Reducimos un poco el tamaño para que no sea tan "exagerado" 
         dialogo.setFixedSize(460, 650) 
         dialogo.setStyleSheet("background-color: #fcfcfc;")
@@ -1687,6 +1687,9 @@ class Personalizacion:
             }
             """)
         layout_principal.addWidget(input_nombre)
+        if nombre_inicial:
+            input_nombre.setText(nombre_inicial)
+            input_nombre.selectAll()
 
         # --- Toolbar Estilizada ---
         toolbar = QHBoxLayout()
@@ -1738,13 +1741,18 @@ class Personalizacion:
             QCheckBox::indicator { width: 14px; height: 14px; }
         """)
 
-        # Cargar datos (Lógica original intacta)
-        # set_prefs = set()
-        # for p in preferencias_actuales:
-        #     idz, idi = limpiar_id(p[0]), limpiar_id(p[1])
-        #     if idz is not None: set_prefs.add((idz, idi))
+        TIPOS_EQUIPO = {"topografia", "prisma", "inclinometro", "piezometrocuerda",
+                "piezometromanual", "pluviometro", "celda", "acelerografo",
+                "sondajetdr", "adicional", "prismavirtual"}
 
-        def copiar_y_sincronizar(item_orig, parent_dest, id_zona):
+        set_prefs = set()
+        for p in (preferencias_iniciales or []):
+            if p and len(p) >= 2:
+                idz, idi = limpiar_id(p[0]), limpiar_id(p[1])
+                if idz is not None:
+                    set_prefs.add((idz, idi))
+
+        def copiar_y_sincronizar(item_orig, parent_dest, id_zona, marcar_padre=False):
             for i in range(item_orig.childCount()):
                 h_orig = item_orig.child(i)
                 h_dest = QTreeWidgetItem(parent_dest)
@@ -1752,19 +1760,27 @@ class Personalizacion:
                 h_dest.setText(1, h_orig.text(1))
                 h_dest.setText(2, h_orig.text(2))
                 h_dest.setFlags(h_dest.flags() | Qt.ItemIsUserCheckable)
+
                 tipo = h_orig.text(1).lower()
-                id_equipo = limpiar_id(h_orig.text(2)) if tipo in ["prisma", "pluviometro"] else None
-                h_dest.setCheckState(0, Qt.Unchecked)
-                copiar_y_sincronizar(h_orig, h_dest, id_zona)
+                es_equipo = tipo in TIPOS_EQUIPO
+                id_equipo = limpiar_id(h_orig.text(2)) if es_equipo else None
+
+                marcar = marcar_padre or (es_equipo and (id_zona, id_equipo) in set_prefs)
+                h_dest.setCheckState(0, Qt.Checked if marcar else Qt.Unchecked)
+                copiar_y_sincronizar(h_orig, h_dest, id_zona, marcar_zona)
 
         tree_config.blockSignals(True)
         for i in range(tree_referencia.topLevelItemCount()):
             root_orig = tree_referencia.topLevelItem(i)
             id_z = limpiar_id(root_orig.text(2))
+            marcar_zona = (id_z, None) in set_prefs
+
             root_dest = QTreeWidgetItem(tree_config)
-            root_dest.setText(0, root_orig.text(0)); root_dest.setText(1, root_orig.text(1)); root_dest.setText(2, root_orig.text(2))
+            root_dest.setText(0, root_orig.text(0))
+            root_dest.setText(1, root_orig.text(1))
+            root_dest.setText(2, root_orig.text(2))
             root_dest.setFlags(root_dest.flags() | Qt.ItemIsUserCheckable)
-            root_dest.setCheckState(0, Qt.Unchecked)
+            root_dest.setCheckState(0, Qt.Checked if marcar_zona else Qt.Unchecked)
             copiar_y_sincronizar(root_orig, root_dest, id_z)
         
         def refrescar_jerarquia(item):
@@ -1805,7 +1821,7 @@ class Personalizacion:
         tree_config.itemChanged.connect(on_change)
 
         # --- Botón Guardar Elegante (Azul Profundo) ---
-        btn_save = QPushButton("GUARDAR PLANTILLA")
+        btn_save = QPushButton("GUARDAR CAMBIOS" if modo_edicion else "GUARDAR PLANTILLA")
         btn_save.setFixedHeight(40)
         btn_save.setCursor(Qt.PointingHandCursor)
         btn_save.setStyleSheet("""
@@ -1831,9 +1847,6 @@ class Personalizacion:
                 it = tree_config.topLevelItem(i); idz = limpiar_id(it.text(2))
                 if it.checkState(0) == Qt.Checked: res.append((idz, None))
                 elif it.checkState(0) == Qt.PartiallyChecked:
-                    TIPOS_EQUIPO = {"topografia", "prisma", "inclinometro", "piezometrocuerda",
-                                    "piezometromanual", "pluviometro", "celda", "acelerografo",
-                                    "sondajetdr", "adicional", "prismavirtual"}
                     def buscar(p):
                         for j in range(p.childCount()):
                             h = p.child(j)
@@ -1853,16 +1866,24 @@ class Personalizacion:
                 mostrar_mensaje("Validación", "Debe marcar al menos un equipo para guardar la plantilla", "advertencia")
                 return
 
-            if fn_guardar(nombre_plantilla, res): 
+            if fn_guardar(nombre_plantilla, res):
                 from utils.common.alertas import mostrar_mensaje
                 cantidad = len(res)
                 texto_equipos = "equipo" if cantidad == 1 else "equipos"
+                accion = "actualizada" if modo_edicion else "guardada"
                 mostrar_mensaje(
                     "Éxito",
-                    f"Plantilla '{nombre_plantilla}' guardada correctamente con {cantidad} {texto_equipos}.",
+                    f"Plantilla '{nombre_plantilla}' {accion} correctamente con {cantidad} {texto_equipos}.",
                     "exito"
                 )
                 dialogo.accept()
+            else:
+                from utils.common.alertas import mostrar_mensaje
+                mostrar_mensaje(
+                    "Error",
+                    "No se pudo guardar. Revise que el nombre no esté repetido.",
+                    "advertencia"
+                )
 
         btn_save.clicked.connect(recolectar_y_enviar)
         layout_principal.addWidget(tree_config)
@@ -2252,20 +2273,21 @@ class Personalizacion:
         # --- CARGA DESDE BASE DE DATOS ---
         from controllers.InterfazController import InterfazController
 
-        plantillas = InterfazController.ctrlListarPlantillas(id_proyecto, modulo)
-
-        # ✅ FIX 2: blockSignals evita fila "fantasma" al insertar;
-        #    cada item se crea directamente con los 4 valores correctos
-        tree_plantillas.blockSignals(True)
-        if plantillas:
-            for nombre, cantidad, fecha, id_plantilla in plantillas:
+        def cargar_plantillas():
+            tree_plantillas.blockSignals(True)
+            tree_plantillas.clear()
+            lista = InterfazController.ctrlListarPlantillas(id_proyecto, modulo)
+            for nombre, cantidad, fecha, id_plantilla in (lista or []):
                 item = QTreeWidgetItem()
                 item.setText(0, str(nombre))
                 item.setText(1, str(fecha))
                 item.setText(2, str(cantidad))
-                item.setText(3, str(id_plantilla))   # oculto, pero accesible
-                tree_plantillas.addTopLevelItem(item) # ✅ addTopLevelItem en lugar de pasar parent en constructor
-        tree_plantillas.blockSignals(False)
+                item.setText(3, str(id_plantilla))
+                tree_plantillas.addTopLevelItem(item)
+            tree_plantillas.blockSignals(False)
+            return lista
+
+        plantillas = cargar_plantillas()
 
         if not plantillas:
             lbl_vacio = QLabel("No hay plantillas guardadas para este proyecto")
@@ -2370,27 +2392,31 @@ class Personalizacion:
                 mostrar_mensaje("Validación", "Debe seleccionar una plantilla", "advertencia")
                 return
 
-            item = items[0]
-            nombre_actual = item.text(0)
-
-            from PySide6.QtWidgets import QInputDialog
-            nuevo_nombre, ok = QInputDialog.getText(
-                dialogo, "Editar Plantilla", "Nuevo nombre:", text=nombre_actual
-            )
-            nuevo_nombre = nuevo_nombre.strip() if nuevo_nombre else ""
-
-            if not ok or not nuevo_nombre or nuevo_nombre == nombre_actual:
+            if tree_referencia is None:
                 return
 
-            from utils.common.alertas import mostrar_mensaje
-            resultado = InterfazController.ctrlRenombrarPlantilla(
-                id_proyecto, modulo, nombre_actual, nuevo_nombre
+            nombre_actual = items[0].text(0)
+            id_preferencia = int(items[0].text(3))
+
+            preferencias = InterfazController.ctrlObtenerPreferenciasPorNombre(
+                id_proyecto, modulo, id_preferencia
             )
-            if resultado:
-                item.setText(0, nuevo_nombre)
-                mostrar_mensaje("Éxito", "Plantilla renombrada correctamente", "exito")
-            else:
-                mostrar_mensaje("Error", "No se pudo renombrar la plantilla", "advertencia")
+
+            def guardar_edicion(nuevo_nombre, equipos):
+                return InterfazController.ctrlActualizarPlantilla(
+                    id_proyecto, modulo, id_preferencia, nuevo_nombre, equipos
+                )
+
+            if Personalizacion.dialogoAgregarNuevaPlantilla(
+                tree_referencia,
+                guardar_edicion,
+                nombre_inicial=nombre_actual,
+                preferencias_iniciales=preferencias,
+                modo_edicion=True
+            ):
+                cargar_plantillas()
+                on_seleccion_cambio()
+
 
         def eliminar_plantilla():
             items = tree_plantillas.selectedItems()

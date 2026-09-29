@@ -234,31 +234,77 @@ class SubirPiezometros:
         botonAceptar.clicked.connect(procesar_archivo)
         dialogo.exec()
     
+   
     def registrarDataPiezometrosCuerda(proyectoid, ubicacion, idcomponente):
         erroneos = []
         data = []
         equipos = []
         respuesta = False
-        encabezadomb = ['Fecha', 'Hora', 'Frecuencia (Dg)', 'Temperatura (°C)', 'Presión (mb)', 'mca (m)', 'Observación']
-        encabezadokpa = ['Fecha', 'Hora', 'Frecuencia (Dg)', 'Temperatura (°C)', 'Presión (kPa)', 'mca (m)', 'Observación']
+        
         archivos = ubicacion.split("\n")
+        
         for file_name in archivos:
             file_name = file_name.strip()
             if not file_name or not file_name.endswith('.xlsx'):
                 continue
+            
             try:
+                print("Iniciando Lectura de Encabezado")
+                # 1) Leer el encabezado COMPLETO
                 df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=13, engine='openpyxl')
-                encabezado_archivomb = [str(col).strip() for col in df_header.iloc[0, :len(encabezadomb)]]
-                encabezado_archivokpa = [str(col).strip() for col in df_header.iloc[0, :len(encabezadokpa)]]
-                if encabezado_archivomb == encabezadomb:
+                encabezados_archivo = [str(col).strip() for col in df_header.iloc[0]]
+                
+                print(f"Encabezados encontrados: {encabezados_archivo}")
+
+                # 2) Mapeo flexible de columnas
+                posiciones = {}
+                faltantes = []
+                
+                # Columnas obligatorias con posibles variantes
+                mapeo_columnas = {
+                    'Fecha': ['Fecha'],
+                    'Hora': ['Hora'],
+                    'Frecuencia': ['Frecuencia (digits)', 'Frecuencia (Dg)', 'Frecuencia (kPa)', 'Frecuencia'],
+                    'Temperatura': ['Temperatura (°C)', 'Temperatura'],
+                    'mca': ['mca (m)', 'mca'],
+                    'Observación': ['Observación', 'Observacion'],
+                }
+                
+                # Buscar cada columna por sus posibles nombres
+                for key, variantes in mapeo_columnas.items():
+                    encontrada = False
+                    for variante in variantes:
+                        if variante in encabezados_archivo:
+                            posiciones[key] = encabezados_archivo.index(variante)
+                            encontrada = True
+                            break
+                    if not encontrada:
+                        faltantes.append(key)
+                
+                # 3) Buscar columna de presión (mb o kPa)
+                if 'Presión (mb)' in encabezados_archivo:
+                    posiciones['Presión'] = encabezados_archivo.index('Presión (mb)')
                     unidadpresion = "mb"
-                elif encabezado_archivokpa == encabezadokpa:
+                elif 'Presión (kPa)' in encabezados_archivo:
+                    posiciones['Presión'] = encabezados_archivo.index('Presión (kPa)')
                     unidadpresion = "kPa"
                 else:
+                    # La presión es opcional, poner en 0 si no existe
+                    posiciones['Presión'] = None
+                    unidadpresion = "mb"
+
+                print(f"Posiciones encontradas: {posiciones}")
+                print(f"Columnas faltantes: {faltantes}")
+
+                # Si falta alguna columna obligatoria (excepto Presión)
+                if faltantes:
+                    print(f"Archivo inválido por columnas faltantes: {faltantes}")
                     erroneos.append(file_name.split("/")[-1])
                     continue
+
                 wb = load_workbook(file_name, data_only=True)
                 hoja = wb.active
+                
                 # obtener data general
                 nombrepiezo = hoja["B8"].value
                 seriepiezo = hoja["B9"].value
@@ -280,333 +326,151 @@ class SubirPiezometros:
                 constantec = hoja["G13"].value
                 comentario = ""
                 wb.close()
-                # Validar datos
+                
+                # Validar datos básicos
                 if pd.isna(nombrepiezo) or proyectoid == 0 or not idcomponente:
+                    print(f"Datos básicos inválidos")
                     erroneos.append(file_name.split("/")[-1])
                     continue
+                
                 idpiezometro = None
                 respu, info = PiezometroController.ctrlComprobarExisteNombrePiezometro(proyectoid, nombrepiezo, "Automatizado")
+                
                 if respu:
                     idpiezometro = info[0]
-                    if float(coordeste) != 0 and float(coordnorte) != 0:
+                    if coordeste and coordnorte and float(coordeste) != 0 and float(coordnorte) != 0:
                         datos = (seriepiezo, coordeste, coordnorte, instalacion, fundacion, inclinacion, azimuth, cf, tk, frecuenciaini, temperaini, presionini, constantea, constanteb, constantec, conversion, comentario, idpiezometro)
                         response = PiezometroController.ctrlActualizarPiezometroCuerdaFormato(datos)
+                    print("Piezómetro existente actualizado")
                 else:
+                    print("Creando nuevo piezómetro")
                     if pd.isna(superficie):
+                        print("Superficie es NA, saltando archivo")
                         continue
-                    if pd.isna(coordnorte):
-                        coordnorte = 0
-                    else:
-                        try:
-                            coordnorte = float(coordnorte)
-                        except ValueError:
-                            coordnorte = 0
-                    if pd.isna(coordeste):
-                        coordeste = 0
-                    else:
-                        try:
-                            coordeste = float(coordeste)
-                        except ValueError:
-                            coordeste = 0
-                    if pd.isna(instalacion):
-                        instalacion = 0
-                    else:
-                        try:
-                            instalacion = float(instalacion)
-                        except ValueError:
-                            instalacion = 0
-                    if pd.isna(fundacion):
-                        fundacion = 0
-                    else:
-                        try:
-                            fundacion = float(fundacion)
-                        except ValueError:
-                            fundacion = 0
-                    if pd.isna(inclinacion):
-                        inclinacion = 90
-                    else:
-                        try:
-                            inclinacion = float(inclinacion)
-                        except ValueError:
-                            inclinacion = 90
-                    if pd.isna(azimuth):
-                        azimuth = 0
-                    else:
-                        try:
-                            azimuth = float(azimuth)
-                        except ValueError:
-                            azimuth = 0
-                    if pd.isna(conversion):
-                        conversion = 0
-                    else:
-                        try:
-                            conversion = float(conversion)
-                        except ValueError:
-                            conversion = 0
-                    if pd.isna(cf):
-                        cf = 0
-                    else:
-                        try:
-                            cf = float(cf)
-                        except ValueError:
-                            cf = 0
-                    if pd.isna(tk):
-                        tk = 0
-                    else:
-                        try:
-                            tk = float(tk)
-                        except ValueError:
-                            tk = 0
+                    
+                    # Validar y convertir valores numéricos
+                    coordnorte = float(coordnorte) if not pd.isna(coordnorte) else 0
+                    coordeste = float(coordeste) if not pd.isna(coordeste) else 0
+                    instalacion = float(instalacion) if not pd.isna(instalacion) else 0
+                    fundacion = float(fundacion) if not pd.isna(fundacion) else 0
+                    inclinacion = float(inclinacion) if not pd.isna(inclinacion) else 90
+                    azimuth = float(azimuth) if not pd.isna(azimuth) else 0
+                    conversion = float(conversion) if not pd.isna(conversion) else 0
+                    cf = float(cf) if not pd.isna(cf) else 0
+                    tk = float(tk) if not pd.isna(tk) else 0
+                    
                     fecha = f"{datetime.now().strftime('%Y-%m-%d')} 00:00:00"
                     datos = (proyectoid, nombrepiezo, seriepiezo, coordeste, coordnorte, instalacion, fundacion, inclinacion, azimuth, cf, tk, frecuenciaini, temperaini, presionini, unidadpresion, constantea, constanteb, constantec, conversion, comentario)
                     respues = PiezometroController.ctrlRegistrarPiezometroCuerdaFormato(idcomponente, datos, fecha, superficie, "PCV")
                     if respues:
                         idpiezometro = respues
+                        print(f"Nuevo piezómetro creado con ID: {idpiezometro}")
+
                 if idpiezometro is not None:
-                    df = pd.read_excel(file_name, header=None, skiprows=14, engine='openpyxl')
-                    df.columns = ['fecha', 'hora', 'frecuencia', 'temperatura', 'presion', 'mca', 'observacion']
+                    print("Leyendo datos del archivo")
+                    # 4) Leer toda la data
+                    df_full = pd.read_excel(file_name, header=None, skiprows=14, engine='openpyxl')
+                    
+                    # Verificar que tenemos suficientes columnas
+                    max_col = max([v for v in posiciones.values() if v is not None])
+                    if df_full.shape[1] <= max_col:
+                        print(f"Error: El archivo no tiene suficientes columnas")
+                        erroneos.append(file_name.split("/")[-1])
+                        continue
+                    
+                    # Construir DataFrame con las posiciones encontradas
+                    df_dict = {
+                        'fecha':       df_full.iloc[:, posiciones['Fecha']],
+                        'hora':        df_full.iloc[:, posiciones['Hora']],
+                        'frecuencia':  df_full.iloc[:, posiciones['Frecuencia']],
+                        'temperatura': df_full.iloc[:, posiciones['Temperatura']],
+                        'mca':         df_full.iloc[:, posiciones['mca']],
+                        'observacion': df_full.iloc[:, posiciones['Observación']],
+                    }
+                    
+                    # Agregar presión solo si existe
+                    if posiciones['Presión'] is not None:
+                        df_dict['presion'] = df_full.iloc[:, posiciones['Presión']]
+                    else:
+                        df_dict['presion'] = 0  # Valor por defecto
+                    
+                    df = pd.DataFrame(df_dict)
+                    
+                    print(f"DataFrame creado con {len(df)} filas")
+                    
+                    filas_procesadas = 0
                     for _, row in df.iterrows():
                         fecha = row['fecha']
                         hora = row['hora']
                         mca = row['mca']
                         observacion = row['observacion']
+                        
                         if pd.isna(fecha) or pd.isna(mca):
                             continue
-                        # Manejo de la columna 'fecha'
+                        
+                        # Procesar fecha
                         if isinstance(fecha, (pd.Timestamp, datetime)):
-                            fecha = fecha.date()  # Convertir a date
-                            fecha = fecha.strftime('%Y-%m-%d')
+                            fecha = fecha.date().strftime('%Y-%m-%d')
                         elif isinstance(fecha, str):
                             fecha = MetodosGenerales.validarFormatoFecha(fecha)
                             if fecha is None:
                                 continue
                         else:
                             continue
-                        # Manejo de la columna 'hora'
+                        
+                        # Procesar hora
                         if isinstance(hora, (pd.Timestamp, datetime)):
-                            hora = hora.time()
-                            hora = hora.strftime('%H:%M:%S')
+                            hora = hora.time().strftime('%H:%M:%S')
                         elif isinstance(hora, time):
                             hora = hora.strftime('%H:%M:%S')
                         elif isinstance(hora, str):
                             hora = MetodosGenerales.validarFormatoHora(hora) or "00:00:00"
                         else:
                             hora = "00:00:00"
+                        
                         try:
                             mca = float(mca)
                         except (ValueError, TypeError):
                             continue
+                        
                         frecu = float(row['frecuencia']) if not pd.isna(row['frecuencia']) else 0
                         tempe = float(row['temperatura']) if not pd.isna(row['temperatura']) else 0
                         presio = float(row['presion']) if not pd.isna(row['presion']) else 0
                         observa = "" if pd.isna(observacion) else str(observacion).strip()
+                        
                         data.append((idpiezometro, fecha, hora, frecu, tempe, presio, mca, observa))
+                        filas_procesadas += 1
+                    
+                    print(f"Filas procesadas: {filas_procesadas}")
+                    
                     if data:
                         respon = PiezometroController.ctrlGuardarPiezometrosCuerdaCalculada(proyectoid, data, False)
                         if respon:
                             equipos.append(idpiezometro)
                             respuesta = True
+                            print(f"Data guardada exitosamente")
+                            # Limpiar data para siguiente archivo
+                            data = []
                         else:
+                            print("Error al guardar data")
                             erroneos.append(file_name.split("/")[-1])
                     else:
+                        print("No hay data para guardar")
                         erroneos.append(file_name.split("/")[-1])
                 else:
+                    print("idpiezometro es None")
                     erroneos.append(file_name.split("/")[-1])
-            except Exception:
-                erroneos.append(file_name.split("/")[-1])
-        return respuesta, equipos, erroneos
-    
-    def registrarDataExcelPiezometrosCuerda(proyectoid, ubicacion, idcomponente):
-        erroneos = []
-        data = []
-        equipos = []
-        respuesta = False
-        # Definir encabezado esperado y las celdas donde debe estar cada columna
-        encabezado_esperado = {
-            'A12': 'Fecha',
-            'D12': 'Frecuencia (Digits)',
-            'I12': 'Frecuencia (Hz)',
-            'M12': 'Temperatura (°C)',
-            'R12': 'Presión (MPa)',
-            'V12': '(mca)',
-            'Y12': 'Cota piezométrica    (m s.n.m.)',
-            'AD12': 'Observación'
-        }
-        archivos = ubicacion.split("\n")
-        for file_name in archivos:
-            file_name = file_name.strip()
-            if not file_name or not file_name.endswith('.xlsx'):
-                continue
-            try:
-                # Obtener todas las hojas del archivo Excel
-                wb = load_workbook(file_name, data_only=True)
-                sheet_names = wb.sheetnames
-                # Procesar cada hoja
-                for sheet_name in sheet_names:
-                    try:
-                        # Seleccionar la hoja actual
-                        hoja = wb[sheet_name]
-                        # Validar el encabezado leyendo celdas específicas
-                        encabezado_valido = True
-                        for celda, valor_esperado in encabezado_esperado.items():
-                            valor_celda = hoja[celda].value
-                            if valor_celda is None:
-                                valor_celda = ""
-                            valor_celda = str(valor_celda).strip()
-                            if valor_celda != valor_esperado:
-                                encabezado_valido = False
-                                break
-                        if not encabezado_valido:
-                            continue
-                        # Obtener data general de la hoja actual
-                        nombrepiezo = hoja["C6"].value
-                        codigopiezo = hoja["C8"].value
-                        seriepiezo = hoja["C9"].value
-                        comentario = hoja["C10"].value
-                        instalacion = hoja["P7"].value
-                        fundacion = hoja["P7"].value
-                        coordeste = hoja["N9"].value
-                        coordnorte = hoja["N10"].value
-                        superficie = hoja["P6"].value
-                        cf = hoja["W10"].value
-                        tk = hoja["AE10"].value
-                        inclinacion = 90
-                        azimuth = 0
-                        frecuini = hoja["Y5"].value
-                        temperaini = hoja["AD5"].value
-                        presionini = 0
-                        constantea = hoja["W8"].value
-                        constanteb = hoja["AA8"].value
-                        constantec = hoja["AE8"].value
-                        conversion = 101.97
-                        # Validar datos
-                        if pd.isna(nombrepiezo) or proyectoid == 0 or not idcomponente:
-                            continue  # Continuar con la siguiente hoja
-                        idpiezometro = None
-                        respu, info = PiezometroController.ctrlComprobarExisteNombrePiezometro(proyectoid, nombrepiezo, "Automatizado")
-                        if respu:
-                            idpiezometro = info[0]
-                        else:
-                            if pd.isna(superficie):
-                                continue
-                            # Procesamiento de datos con validaciones
-                            if pd.isna(coordnorte):
-                                coordnorte = 0
-                            else:
-                                try:
-                                    coordnorte = float(coordnorte)
-                                except ValueError:
-                                    coordnorte = 0
-                            if pd.isna(coordeste):
-                                coordeste = 0
-                            else:
-                                try:
-                                    coordeste = float(coordeste)
-                                except ValueError:
-                                    coordeste = 0
-                            if pd.isna(instalacion):
-                                instalacion = 0
-                            else:
-                                try:
-                                    instalacion = float(instalacion)
-                                except ValueError:
-                                    instalacion = 0
-                            if pd.isna(fundacion):
-                                fundacion = 0
-                            else:
-                                try:
-                                    fundacion = float(fundacion)
-                                except ValueError:
-                                    fundacion = 0
-                            if pd.isna(cf):
-                                cf = 0
-                            else:
-                                try:
-                                    cf = float(cf)
-                                except ValueError:
-                                    cf = 0
-                            if pd.isna(tk):
-                                tk = 0
-                            else:
-                                try:
-                                    tk = float(tk)
-                                except ValueError:
-                                    tk = 0
-                            fecha = f"{datetime.now().strftime('%Y-%m-%d')} 00:00:00"
-                            datos = (proyectoid, nombrepiezo, seriepiezo, coordeste, coordnorte, instalacion, fundacion, inclinacion, azimuth, cf, tk, frecuini, temperaini, presionini, "Dg", constantea, constanteb, constantec, conversion, comentario)
-                            respues = PiezometroController.ctrlRegistrarPiezometroCuerdaFormato(idcomponente, datos, fecha, superficie, "PCV")
-                            if respues:
-                                idpiezometro = respues
-                                equipos.append(idpiezometro)
-                        if idpiezometro is not None:
-                            # Leer datos desde la fila 13 en adelante usando las columnas específicas
-                            sheet_data = []
-                            fila = 13  # Empezar desde la fila 13 (debajo del encabezado)
-                            while True:
-                                # Leer datos de la fila actual
-                                fecha_valor = hoja[f'A{fila}'].value
-                                digits_valor = hoja[f'D{fila}'].value
-                                frecuencia_valor = hoja[f'I{fila}'].value
-                                temperatura_valor = hoja[f'M{fila}'].value
-                                presion_valor = hoja[f'R{fila}'].value
-                                mca_valor = hoja[f'V{fila}'].value
-                                cota_valor = hoja[f'Y{fila}'].value
-                                observacion_valor = hoja[f'AD{fila}'].value
-                                # Si no hay fecha o mca, terminar la lectura
-                                if pd.isna(fecha_valor) or pd.isna(mca_valor):
-                                    # Verificar si es una fila completamente vacía
-                                    if all(pd.isna(val) for val in [fecha_valor, digits_valor, frecuencia_valor, temperatura_valor, presion_valor, mca_valor, cota_valor, observacion_valor]):
-                                        break
-                                    # Si solo faltan fecha o mca, saltar esta fila
-                                    fila += 1
-                                    continue
-                                # Manejo de la columna 'fecha'
-                                if isinstance(fecha_valor, (pd.Timestamp, datetime)):
-                                    fecha_procesada = fecha_valor.date()
-                                    fecha_procesada = fecha_procesada.strftime('%Y-%m-%d')
-                                elif isinstance(fecha_valor, str):
-                                    fecha_procesada = MetodosGenerales.validarFormatoFecha(fecha_valor)
-                                    if fecha_procesada is None:
-                                        fila += 1
-                                        continue
-                                else:
-                                    fila += 1
-                                    continue
-                                # Manejo de la columna 'hora'
-                                hora = "00:00:00"
-                                try:
-                                    mca_procesada = float(mca_valor)
-                                except (ValueError, TypeError):
-                                    fila += 1
-                                    continue
-                                # Procesar otros valores numéricos
-                                frecu = float(frecuencia_valor) if not pd.isna(frecuencia_valor) else 0
-                                tempe = float(temperatura_valor) if not pd.isna(temperatura_valor) else 0
-                                presio = float(presion_valor) if not pd.isna(presion_valor) else 0
-                                # Procesar observación
-                                observa = "" if pd.isna(observacion_valor) else str(observacion_valor).strip()
-                                sheet_data.append((idpiezometro, fecha_procesada, hora, frecu, tempe, presio, mca_procesada, observa))
-                                fila += 1
-                            # Agregar datos de esta hoja al conjunto total
-                            if sheet_data:
-                                data.extend(sheet_data)
-                    except Exception as e:
-                        continue
-                # Cerrar el workbook después de procesar todas las hojas
-                wb.close()
-                # Procesar todos los datos del archivo si hay datos válidos
-                if data:
-                    respon = PiezometroController.ctrlGuardarPiezometrosCuerdaCalculada(proyectoid, data, False)
-                    if respon:
-                        respuesta = True
-                    else:
-                        erroneos.append(file_name.split("/")[-1])
-                else:
-                    erroneos.append(file_name.split("/")[-1])
+                    
             except Exception as e:
+                print(f"Excepción: {type(e).__name__}: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 erroneos.append(file_name.split("/")[-1])
-        return respuesta, equipos, erroneos
-    
+        
+        print(f"Proceso finalizado. Respuesta: {respuesta}, Equipos: {equipos}, Erróneos: {erroneos}")
+        return respuesta, equipos, erroneos 
+
+
     def cargarPiezometrosCasagrande(main, proyectoid):
         loaderLoading = QUiLoader()        
         ui_file_path = resource_path("ui/datapiezometromanual.ui")
@@ -820,20 +684,58 @@ class SubirPiezometros:
         data = []
         equipos = []
         respuesta = False
-        encabezado = ['Fecha', 'Hora', 'Nivel Piezométrico (m)', 'Observación']
+        
         archivos = ubicacion.split("\n")
+        
         for file_name in archivos:
             file_name = file_name.strip()
             if not file_name or not file_name.endswith('.xlsx'):
                 continue
+                
             try:
+                print(f"Iniciando Lectura de Encabezado Casagrande: {file_name}")
+                # 1) Leer el encabezado COMPLETO (en el formato manual suele estar en la fila 21, skiprows=20)
                 df_header = pd.read_excel(file_name, header=None, nrows=1, skiprows=20, engine='openpyxl')
-                encabezados_archivo = [str(col).strip() for col in df_header.iloc[0, :len(encabezado)]]
-                if encabezados_archivo != encabezado:
+                encabezados_archivo = [str(col).strip() for col in df_header.iloc[0]]
+                
+                print(f"Encabezados encontrados: {encabezados_archivo}")
+
+                # 2) Mapeo flexible de columnas
+                posiciones = {}
+                faltantes = []
+                
+                # Columnas obligatorias con posibles variantes
+                mapeo_columnas = {
+                    'Fecha': ['Fecha'],
+                    'Hora': ['Hora'],
+                    'Nivel': ['Nivel Piezométrico (m)', 'Nivel Piezometrico (m)', 'Nivel (m)', 'Nivel Piezométrico', 'Nivel'],
+                    'Observación': ['Observación', 'Observacion', 'Observaciones']
+                }
+                
+                # Buscar cada columna por sus posibles nombres
+                for key, variantes in mapeo_columnas.items():
+                    encontrada = False
+                    for variante in variantes:
+                        if variante in encabezados_archivo:
+                            posiciones[key] = encabezados_archivo.index(variante)
+                            encontrada = True
+                            break
+                    if not encontrada:
+                        faltantes.append(key)
+
+                print(f"Posiciones encontradas: {posiciones}")
+                print(f"Columnas faltantes: {faltantes}")
+
+                # 3) Si falta alguna columna obligatoria, el archivo es inválido
+                if faltantes:
+                    print(f"Archivo inválido por columnas faltantes: {faltantes}")
                     erroneos.append(file_name.split("/")[-1])
                     continue
+
                 wb = load_workbook(file_name, data_only=True)
                 hoja = wb.active
+                
+                # Obtener data general
                 nombrepiezo = hoja["C10"].value
                 codigopiezo = hoja["C11"].value
                 cotafondo = hoja["C12"].value
@@ -846,124 +748,137 @@ class SubirPiezometros:
                 stickup = hoja["C19"].value
                 comentario = hoja["C20"].value
                 wb.close()
+                
+                # Validar datos básicos
                 if pd.isna(nombrepiezo) or proyectoid == 0 or not idcomponente:
+                    print("Datos básicos inválidos (Falta nombre, proyecto o componente)")
                     erroneos.append(file_name.split("/")[-1])
                     continue
+                
                 idpiezometro = None
                 respu, info = PiezometroController.ctrlComprobarExisteNombrePiezometro(proyectoid, nombrepiezo, "Manual")
+                
                 if respu:
                     idpiezometro = info[0]
-                    if float(coordeste) != 0 and float(coordnorte) != 0:
+                    if coordeste and coordnorte and float(coordeste) != 0 and float(coordnorte) != 0:
                         datos = (codigopiezo, coordnorte, coordeste, cotafondo, fundacion, inclinacion, azimuth, stickup, comentario, idpiezometro)
                         response = PiezometroController.ctrlActualizarPiezometroManualFormato(datos)
+                    print("Piezómetro Casagrande existente actualizado")
                 else:
+                    print("Creando nuevo Piezómetro Casagrande")
                     if pd.isna(superficie):
+                        print("Superficie es NA, saltando archivo")
                         continue
-                    if pd.isna(coordnorte):
-                        coordnorte = 0
-                    else:
-                        try:
-                            coordnorte = float(coordnorte)
-                        except ValueError:
-                            coordnorte = 0
-                    if pd.isna(coordeste):
-                        coordeste = 0
-                    else:
-                        try:
-                            coordeste = float(coordeste)
-                        except ValueError:
-                            coordeste = 0
-                    if pd.isna(cotafondo):
-                        cotafondo = 0
-                    else:
-                        try:
-                            cotafondo = float(cotafondo)
-                        except ValueError:
-                            cotafondo = 0
-                    if pd.isna(fundacion):
-                        fundacion = 0
-                    else:
-                        try:
-                            fundacion = float(fundacion)
-                        except ValueError:
-                            fundacion = 0
-                    if pd.isna(inclinacion):
-                        inclinacion = 90
-                    else:
-                        try:
-                            inclinacion = float(inclinacion)
-                        except ValueError:
-                            inclinacion = 90
-                    if pd.isna(azimuth):
-                        azimuth = 0
-                    else:
-                        try:
-                            azimuth = float(azimuth)
-                        except ValueError:
-                            azimuth = 0
-                    if pd.isna(stickup):
-                        stickup = 0
-                    else:
-                        try:
-                            stickup = float(stickup)
-                        except ValueError:
-                            stickup = 0
+                        
+                    # Validar y convertir valores numéricos
+                    coordnorte = float(coordnorte) if not pd.isna(coordnorte) else 0
+                    coordeste = float(coordeste) if not pd.isna(coordeste) else 0
+                    cotafondo = float(cotafondo) if not pd.isna(cotafondo) else 0
+                    fundacion = float(fundacion) if not pd.isna(fundacion) else 0
+                    inclinacion = float(inclinacion) if not pd.isna(inclinacion) else 90
+                    azimuth = float(azimuth) if not pd.isna(azimuth) else 0
+                    stickup = float(stickup) if not pd.isna(stickup) else 0
+                    
                     fecha = f"{datetime.now().strftime('%Y-%m-%d')} 00:00:00"
                     datos = (proyectoid, nombrepiezo, codigopiezo, coordnorte, coordeste, cotafondo, fundacion, stickup, inclinacion, azimuth, comentario)
                     respues = PiezometroController.ctrlRegistrarPiezometroManualFormato(idcomponente, datos, fecha, superficie, "PVC")
+                    
                     if respues:
                         idpiezometro = respues
+                        print(f"Nuevo piezómetro manual creado con ID: {idpiezometro}")
+
                 if idpiezometro is not None:
-                    df = pd.read_excel(file_name, header=None, skiprows=21, engine='openpyxl')
-                    df.columns = ['fecha', 'hora', 'nivel', 'observacion']
+                    print("Leyendo datos del archivo")
+                    # 4) Leer toda la data
+                    df_full = pd.read_excel(file_name, header=None, skiprows=21, engine='openpyxl')
+                    
+                    # Verificar que tenemos suficientes columnas
+                    max_col = max([v for v in posiciones.values() if v is not None])
+                    if df_full.shape[1] <= max_col:
+                        print("Error: El archivo no tiene suficientes columnas")
+                        erroneos.append(file_name.split("/")[-1])
+                        continue
+                    
+                    # Construir DataFrame con las posiciones encontradas
+                    df = pd.DataFrame({
+                        'fecha':       df_full.iloc[:, posiciones['Fecha']],
+                        'hora':        df_full.iloc[:, posiciones['Hora']],
+                        'nivel':       df_full.iloc[:, posiciones['Nivel']],
+                        'observacion': df_full.iloc[:, posiciones['Observación']],
+                    })
+                    
+                    print(f"DataFrame creado con {len(df)} filas")
+                    
+                    filas_procesadas = 0
                     for _, row in df.iterrows():
                         fecha = row['fecha']
                         hora = row['hora']
                         nivel = row['nivel']
                         observacion = row['observacion']
+                        
                         if pd.isna(fecha) or pd.isna(nivel):
                             continue
-                        # Manejo de la columna 'fecha'
+                            
+                        # Procesar fecha
                         if isinstance(fecha, (pd.Timestamp, datetime)):
-                            fecha = fecha.date()  # Convertir a date
-                            fecha = fecha.strftime('%Y-%m-%d')
+                            fecha = fecha.date().strftime('%Y-%m-%d')
                         elif isinstance(fecha, str):
                             fecha = MetodosGenerales.validarFormatoFecha(fecha)
                             if fecha is None:
                                 continue
                         else:
                             continue
-                        # Manejo de la columna 'hora'
+                            
+                        # Procesar hora
                         if isinstance(hora, (pd.Timestamp, datetime)):
-                            hora = hora.time()
-                            hora = hora.strftime('%H:%M:%S')
+                            hora = hora.time().strftime('%H:%M:%S')
                         elif isinstance(hora, time):
                             hora = hora.strftime('%H:%M:%S')
                         elif isinstance(hora, str):
                             hora = MetodosGenerales.validarFormatoHora(hora) or "00:00:00"
                         else:
                             hora = "00:00:00"
+                            
                         try:
                             nivel = float(nivel)
                         except (ValueError, TypeError):
                             continue
+                            
                         observa = "" if pd.isna(observacion) else str(observacion).strip()
+                        
                         data.append((idpiezometro, fecha, hora, nivel, observa))
+                        filas_procesadas += 1
+                        
+                    print(f"Filas procesadas: {filas_procesadas}")
+                    
                     if data:
                         respon = PiezometroController.ctrlGuardarPiezometrosManualesTabla(proyectoid, data)
                         if respon:
                             equipos.append(idpiezometro)
                             respuesta = True
+                            print("Data guardada exitosamente")
+                            # IMPORTANTE: Limpiar el arreglo data para el siguiente archivo
+                            data = []
                         else:
+                            print("Error al guardar data en la BD")
                             erroneos.append(file_name.split("/")[-1])
                     else:
+                        print("No hay data válida para guardar")
                         erroneos.append(file_name.split("/")[-1])
                 else:
+                    print("idpiezometro es None, fallo la creación/lectura")
                     erroneos.append(file_name.split("/")[-1])
-            except Exception:
+                    
+            except Exception as e:
+                print(f"Excepción Casagrande: {type(e).__name__}: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 erroneos.append(file_name.split("/")[-1])
+                
+        print(f"Proceso finalizado. Respuesta: {respuesta}, Equipos: {equipos}, Erróneos: {erroneos}")
         return respuesta, equipos, erroneos
-    
+
+
     def dialogoNuevaCotaPiezometrica(proyectoid):
         loaderLoading = QUiLoader()        
         ui_file_path = resource_path("ui/datacotapiezometrica.ui")
