@@ -956,6 +956,123 @@ class ModalDialog(QDialog):
         self.accept_button.clicked.connect(self.accept)
         self.cancel_button.clicked.connect(self.reject)
 
+def _llamar_handler_canvas(event, nombre):
+    f = getattr(event.canvas, nombre, None)
+    if f:
+        f(event)
+
+
+def _despachar_toolbar(widget, nombre, valor):
+    f = (getattr(widget, '_handlers', None) or {}).get(nombre)
+    if f:
+        f(valor)
+
+
+def obtener_canvas_persistente(widget, modo="completo", total=0):
+    """
+    Crea figura/canvas/toolbar la primera vez y los reutiliza después.
+    modo: "completo" (inspector + eventos + total), "inspector" o "simple".
+    Devuelve (figure, canvas, ax, tb) con tb = dict de controles del toolbar.
+    """
+    from matplotlib.figure import Figure
+
+    # ---------- REUTILIZAR ----------
+    if getattr(widget, 'mpl_canvas', None) is not None:
+        figure, canvas, ax = widget.mpl_figure, widget.mpl_canvas, widget.mpl_ax
+        if hasattr(widget, 'mpl_ax2'):
+            try:
+                figure.delaxes(widget.mpl_ax2)
+            except Exception:
+                pass
+            try:
+                del widget.mpl_ax2
+            except Exception:
+                pass
+        ax.clear()
+        ax.set_frame_on(True)
+        ax.set_axis_on()
+        ax._leyenda_flujo = None
+        ax._leyenda_entradas = None
+        figure.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.9)
+        tb = getattr(widget, '_tb', {})
+        if tb.get('label_total') is not None:
+            tb['label_total'].setText(f"Total: {total}")
+        try:
+            tb['toolbar'].update()   # reinicia el historial de zoom/home
+        except Exception:
+            pass
+        return figure, canvas, ax, tb
+
+    # ---------- CREAR (primera vez) ----------
+    limpiar_widget(widget)   # widget sin canvas persistente: limpieza completa
+    figure = Figure(figsize=(5, 4), dpi=100)
+    canvas = FigureCanvas(figure)
+    ax = figure.add_subplot(111)
+    widget.mpl_figure, widget.mpl_canvas, widget.mpl_ax = figure, canvas, ax
+
+    layout = widget.layout()
+    if layout is None:
+        layout = QVBoxLayout(widget)
+        widget.setLayout(layout)
+    canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    layout.addWidget(canvas)
+
+    toolbar_container = QWidget()
+    widget.toolbar_container = toolbar_container
+    toolbar_layout = QHBoxLayout(toolbar_container)
+    toolbar_layout.setContentsMargins(0, 0, 0, 0)
+    widget.toolbar = CustomToolbar(canvas, widget)
+    toolbar_layout.addWidget(widget.toolbar)
+    tb = {'toolbar': widget.toolbar, 'label_total': None}
+
+    if modo in ("completo", "inspector"):
+        if modo == "completo":
+            label_total = QLabel(f"Total: {total}")
+            label_total.setStyleSheet("font-size: 12px; margin-left: 8px; font-weight: bold; color: #333;")
+            toolbar_layout.addWidget(label_total)
+            tb['label_total'] = label_total
+        check_inspector = QCheckBox("Inspector de Datos")
+        check_inspector.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
+        check_inspector.setChecked(bool(widget.property("estado_inspector")))
+        check_inspector.toggled.connect(lambda checked: widget.setProperty("estado_inspector", checked))
+        toolbar_layout.addWidget(check_inspector)
+        tb['check_inspector'] = check_inspector
+
+    if modo == "completo":
+        check_ev_global = QCheckBox("Ev. Globales")
+        check_ev_global.setChecked(True)
+        check_ev_global.setStyleSheet("font-size: 11px; margin-left: 5px; color: #007bff; font-weight: bold;")
+        toolbar_layout.addWidget(check_ev_global)
+        check_ev_equipo = QCheckBox("Ev. Equipo")
+        check_ev_equipo.setChecked(True)
+        check_ev_equipo.setStyleSheet("font-size: 11px; margin-left: 3px; color: #28a745; font-weight: bold;")
+        toolbar_layout.addWidget(check_ev_equipo)
+        btn_add_evento = QPushButton("+ Evento")
+        btn_add_evento.setCheckable(True)
+        btn_add_evento.setStyleSheet("""
+            QPushButton { font-size: 11px; padding: 4px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; }
+            QPushButton:checked { background-color: #ffcccc; border: 1px solid red; color: red; font-weight: bold; }
+        """)
+        toolbar_layout.addWidget(btn_add_evento)
+        tb.update({'check_ev_global': check_ev_global, 'check_ev_equipo': check_ev_equipo,
+                   'btn_add_evento': btn_add_evento})
+        # Conectado UNA sola vez: despacha al handler vigente de cada redibujo
+        check_ev_global.toggled.connect(lambda c, w=widget: _despachar_toolbar(w, 'toggle_ev_global', c))
+        check_ev_equipo.toggled.connect(lambda c, w=widget: _despachar_toolbar(w, 'toggle_ev_equipo', c))
+        btn_add_evento.toggled.connect(lambda c, w=widget: _despachar_toolbar(w, 'on_toggle_add_evento', c))
+
+    toolbar_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    layout.addWidget(toolbar_container)
+
+    # Eventos del canvas: despachadores únicos
+    canvas.mpl_connect('resize_event', lambda e: _llamar_handler_canvas(e, '_h_resize'))
+    canvas.mpl_connect('button_press_event', lambda e: _llamar_handler_canvas(e, '_h_click'))
+    canvas.mpl_connect('motion_notify_event', lambda e: _llamar_handler_canvas(e, '_h_hover'))
+
+    widget._tb = tb
+    return figure, canvas, ax, tb
+
+
 def limpiar_widget(widget):
     """Limpia el canvas respetando el patrón persistente (sin fugas de memoria)"""
     # Si el canvas ya es persistente, solo limpiar los ejes (no destruir)
@@ -991,6 +1108,10 @@ def limpiar_widget(widget):
         canvas_p.lineas_actuales = []
         canvas_p.lineas_principales_actuales = []
         canvas_p.df_actual = None
+        canvas_p._h_resize = None
+        canvas_p._h_click = None
+        canvas_p._h_hover = None
+        widget._handlers = {}
         widget.mpl_ax._leyenda_flujo = None
         widget.mpl_ax._leyenda_entradas = None
         if getattr(widget, 'label_total', None) is not None:
@@ -1831,8 +1952,6 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
         else:
             intervalo_dias = total_dias / 10
 
-    # Limpiar el widget
-    limpiar_widget(widget)
     config = SoftwareConfiguracion.obtenerDataSoftware()
     SUAVIZADO_ESTADO = True if config[20] == 1 else False
     titulozise, ejezise, etiquesize, leyendazise, cotasize = config[0], config[1], config[2], config[3], config[4]
@@ -1840,49 +1959,13 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
     fuente, grosorlinea, grosorvertice, decimales = config[10], config[12], config[13], config[14]
     mostrarlluvia, posicionlluvia = config[17], config[18]
 
-    # Ajustar el tamaño de la figura al tamaño del widget
-    figure, ax = plt.subplots()
-    canvas = FigureCanvas(figure)
     plt.rcParams['font.family'] = fuente
-    layout = widget.layout()
-
-    # --- INICIO MODIFICACIÓN PASO 2 ---
-    toolbar_container = QWidget()
-    widget.toolbar_container = toolbar_container
-    toolbar_layout = QHBoxLayout(toolbar_container)
-    toolbar_layout.setContentsMargins(0, 0, 0, 0)
-    widget.toolbar = CustomToolbar(canvas, widget)
-    toolbar_layout.addWidget(widget.toolbar)
-    # --- NUEVO: Total de equipos, justo al lado del ícono de guardar ---
     total_equipos = df['Instrumento'].nunique() if data else 0
-    label_total = QLabel(f"Total: {total_equipos}")
-    label_total.setStyleSheet("font-size: 12px; margin-left: 8px; font-weight: bold; color: #333;")
-    toolbar_layout.addWidget(label_total)
-    check_inspector = QCheckBox("Inspector de Datos")
-    check_inspector.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
-    check_inspector.setChecked(bool(widget.property("estado_inspector")))
-    check_inspector.toggled.connect(lambda checked: widget.setProperty("estado_inspector", checked))
-    toolbar_layout.addWidget(check_inspector)
-    check_ev_global = QCheckBox("Ev. Globales")
-    check_ev_global.setChecked(True)
-    check_ev_global.setStyleSheet("font-size: 11px; margin-left: 5px; color: #007bff; font-weight: bold;")
-    toolbar_layout.addWidget(check_ev_global)
-    check_ev_equipo = QCheckBox("Ev. Equipo")
-    check_ev_equipo.setChecked(True)
-    check_ev_equipo.setStyleSheet("font-size: 11px; margin-left: 3px; color: #28a745; font-weight: bold;")
-    toolbar_layout.addWidget(check_ev_equipo)
-    btn_add_evento = QPushButton("+ Evento")
-    btn_add_evento.setCheckable(True) # Modo Toggle
-    btn_add_evento.setStyleSheet("""
-        QPushButton { font-size: 11px; padding: 4px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; }
-        QPushButton:checked { background-color: #ffcccc; border: 1px solid red; color: red; font-weight: bold; }
-    """)
-    toolbar_layout.addWidget(btn_add_evento)
-    canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-    # El contenedor del toolbar solo ocupa lo que necesita
-    toolbar_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-    layout.addWidget(canvas)
-    layout.addWidget(toolbar_container)
+    figure, canvas, ax, tb = obtener_canvas_persistente(widget, "completo", total_equipos)
+    check_inspector = tb['check_inspector']
+    check_ev_global = tb['check_ev_global']
+    check_ev_equipo = tb['check_ev_equipo']
+    btn_add_evento = tb['btn_add_evento']
 
     # Configurar eje secundario si hay datos de pluviómetro
     barras_pluviometro = None
@@ -1998,6 +2081,8 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
     lineas = []
     lineas_principales = []
     lblecuacion_rcuadrado = ""
+    if ax2 is not None:
+        widget.mpl_ax2 = ax2
     if data:
         for idinstrumento, datos_equipo in df.groupby('Instrumento'):
             nombreequipo = str(datos_equipo['Equipo'].iloc[0])
@@ -2329,9 +2414,16 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
             linea_fantasma.set_visible(False)
             canvas.draw_idle()
     
-    check_ev_global.toggled.connect(toggle_ev_global)
-    check_ev_equipo.toggled.connect(toggle_ev_equipo)
-    btn_add_evento.toggled.connect(on_toggle_add_evento)
+    widget._handlers = {
+        'toggle_ev_global': toggle_ev_global,
+        'toggle_ev_equipo': toggle_ev_equipo,
+        'on_toggle_add_evento': on_toggle_add_evento,
+    }
+    # Los eventos nuevos deben respetar el estado actual de los checks
+    for obj in ev_globales:
+        obj.set_visible(check_ev_global.isChecked())
+    for obj in ev_especificos:
+        obj.set_visible(check_ev_equipo.isChecked())
     # =========================================================================
     def actualizar_leyenda():
         actualizar_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro,
@@ -2586,11 +2678,10 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     text.set_visible(False)
             canvas.draw()
 
-    canvas.mpl_connect('resize_event', on_resize)
-    canvas.mpl_connect('button_press_event', on_click)
-    canvas.mpl_connect('motion_notify_event', on_hover)
+    canvas._h_resize = on_resize
+    canvas._h_click = on_click
+    canvas._h_hover = on_hover
     actualizar_leyenda()
-    plt.close(figure)
     if avisolabels:
         mostrar_mensaje("Ejes", "No se aplicó la configuración de ejes.", "advertencia")
 
@@ -2645,36 +2736,14 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
         total_dias = (fecha_fin - fecha_inicio)
     if intervalo_dias == 0:
         intervalo_dias = total_dias / 10
-    # Limpiar el widget
-    limpiar_widget(widget)
-    # crear figura
     config = SoftwareConfiguracion.obtenerDataSoftware()
     SUAVIZADO_ESTADO = True if config[20] == 1 else False
     titulozise, ejezise, etiquesize, leyendazise = config[0], config[1], config[2], config[3]
     vertices, fuente, grosorlinea, grosorvertice, decimales = config[6], config[10], config[12], config[13], config[14]
     
-    figure, ax = plt.subplots()
-    canvas = FigureCanvas(figure)
     plt.rcParams['font.family'] = fuente
-    layout = widget.layout()
-
-    # --- INICIO MODIFICACIÓN PASO 2 ---
-    toolbar_container = QWidget()
-    widget.toolbar_container = toolbar_container
-    toolbar_layout = QHBoxLayout(toolbar_container)
-    toolbar_layout.setContentsMargins(0, 0, 0, 0)
-    widget.toolbar = CustomToolbar(canvas, widget)
-    toolbar_layout.addWidget(widget.toolbar)
-    check_inspector = QCheckBox("Inspector de Datos")
-    check_inspector.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
-    check_inspector.setChecked(bool(widget.property("estado_inspector")))
-    check_inspector.toggled.connect(lambda checked: widget.setProperty("estado_inspector", checked))
-    toolbar_layout.addWidget(check_inspector)
-    canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-    # El contenedor del toolbar solo ocupa lo que necesita
-    toolbar_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-    layout.addWidget(canvas)
-    layout.addWidget(toolbar_container)
+    figure, canvas, ax, tb = obtener_canvas_persistente(widget, "inspector")
+    check_inspector = tb['check_inspector']
 
     # Graficar datos de desplazamiento
     lineas = []
@@ -2909,11 +2978,10 @@ def procesar_grafica_analisis(widget, data, idx_nombre, idx_fecha, idx_lectura, 
                 punto_resaltado.set_visible(False)
                 canvas.draw_idle()
                     
-    canvas.mpl_connect('resize_event', on_resize)
-    canvas.mpl_connect('motion_notify_event', on_hover)
-    canvas.mpl_connect('button_press_event', lambda event: procesar_click_leyenda(ax, canvas, event))
+    canvas._h_resize = on_resize
+    canvas._h_hover = on_hover
+    canvas._h_click = lambda event: procesar_click_leyenda(ax, canvas, event)
     actualizar_leyenda()
-    plt.close(figure)
     if avisolabels:
         mostrar_mensaje("Ejes", "No se aplicó la configuración de ejes.", "advertencia")
 
@@ -2922,20 +2990,10 @@ def procesar_grafica_histograma(widget, data, intervalos, nombreequipo, idx_lect
     df = pd.DataFrame(data, columns=['col_' + str(i) for i in range(len(data[0]))])
     df = df[[df.columns[idx_lectura]]]
     df.columns = ['Lectura']
-    # Limpiar el widget
-    limpiar_widget(widget)
     config = SoftwareConfiguracion.obtenerDataSoftware()
     titulozise, ejezise, etiquesize, leyendazise, fuente = config[0], config[1], config[2], config[3], config[10]
-    # crear figura
-    figure, ax = plt.subplots()
-    canvas = FigureCanvas(figure)
     plt.rcParams['font.family'] = fuente
-    layout = widget.layout()
-    layout.addWidget(canvas)
-    toolbar_layout = QHBoxLayout()
-    widget.toolbar = CustomToolbar(canvas, widget)
-    toolbar_layout.addWidget(widget.toolbar)
-    layout.addLayout(toolbar_layout)
+    figure, canvas, ax, tb = obtener_canvas_persistente(widget, "simple")
     # Graficar datos de desplazamiento
     ax.hist(df['Lectura'], bins=intervalos, edgecolor='black', alpha=0.5, label=nombreequipo)
     # Configuración de ejes y etiquetas
@@ -2951,4 +3009,3 @@ def procesar_grafica_histograma(widget, data, intervalos, nombreequipo, idx_lect
     #ax.legend(loc='upper center', bbox_to_anchor=(1, 0.5), prop={'size': leyendazise})
     figure.subplots_adjust(left=0.08, right=0.95, top=0.95, bottom=0.25)
     canvas.draw_idle()
-    plt.close(figure)
