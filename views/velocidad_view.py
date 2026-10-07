@@ -2,7 +2,7 @@ import threading
 from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox,QMenu, QLineEdit)
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica
-from utils.shared.graficaDesplazamientoVelocidad import limpiar_widget
+from utils.shared.graficaDesplazamientoVelocidad import limpiar_widget, mostrar_carga, ocultar_carga
 from controllers.VelocidadController import VelocidadController
 from controllers.PluviometroController import PluviometroController
 from controllers.ConfiguracionController import ConfiguracionController
@@ -427,6 +427,8 @@ class VelocidadView:
     @staticmethod
     def obtenerMostrarPrismasMarcados(tree_actual):
         """ Portero (Debounce): Agrupa clics rápidos """
+        if VelocidadView.main is not None:
+            mostrar_carga(VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad"))
         if VelocidadView.timer_consulta is None:
             VelocidadView.timer_consulta = QTimer()
             VelocidadView.timer_consulta.setSingleShot(True)
@@ -455,12 +457,14 @@ class VelocidadView:
             VelocidadView.limpiarGraficaVelocidad()
             VelocidadView.tendencia_cache_velocidad = None
             velocidad_query_manager.finish_request(request_id)
+            ocultar_carga(VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad"))
             return
 
         prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
         if len(prismasmarcados) == 0:
             VelocidadView.limpiarGraficaVelocidad()
             velocidad_query_manager.finish_request(request_id)
+            ocultar_carga(VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad"))
             return
 
         # 3. Capturar valores de la interfaz (Hilo Principal)
@@ -506,6 +510,7 @@ class VelocidadView:
             VelocidadView.worker_velocidad.start()
 
         except Exception as e:
+            ocultar_carga(VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad"))
             VelocidadView.main.unsetCursor()
 
     @staticmethod
@@ -513,29 +518,39 @@ class VelocidadView:
         if not velocidad_query_manager.is_current(request_id):
             return
 
-        VelocidadView.datos_memoria = datos
-        if len(datos) > 0:
-            VelocidadView.graficarPrismasVelocidad(lista, datos, tipografico, tipomedida, tipotiempo, VelocidadView.tendencia_cache_velocidad)
-            
-            # ✅ REPINTAR UMBRALES
-            if VelocidadView.umbral_activo_velocidad:
-                if VelocidadView.umbral_modo == "GENERAL":
-                    prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
-                    VelocidadView._dibujarUmbralesGenerales(prismasmarcados)
-        else:
-            VelocidadView.limpiarGraficaVelocidad()
-        VelocidadView.main.unsetCursor()
+        widget_g = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")
+        try:
+            VelocidadView.datos_memoria = datos
+            if len(datos) > 0:
+                mostrar_carga(widget_g, "Dibujando gráfica ...", forzar_pintado=True)
+                VelocidadView.graficarPrismasVelocidad(lista, datos, tipografico, tipomedida, tipotiempo, VelocidadView.tendencia_cache_velocidad)
+
+                # ✅ REPINTAR UMBRALES
+                if VelocidadView.umbral_activo_velocidad:
+                    if VelocidadView.umbral_modo == "GENERAL":
+                        prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
+                        VelocidadView._dibujarUmbralesGenerales(prismasmarcados)
+            else:
+                VelocidadView.limpiarGraficaVelocidad()
+        except Exception:
+            import traceback
+            traceback.print_exc()
+        finally:
+            ocultar_carga(widget_g)
+            VelocidadView.main.unsetCursor()
 
     @staticmethod
     def _on_worker_done(request_id, estado):
         """Registra el fin del request y limpia workers terminados."""
+        es_actual = velocidad_query_manager.is_current(request_id)
         velocidad_query_manager.finish_request(request_id, estado)
         VelocidadView._workers_anteriores = [
             w for w in VelocidadView._workers_anteriores if w.isRunning()
         ]
-        if estado in ('FAILED', 'CANCELLED'):
+        if estado == 'FAILED' or (estado == 'CANCELLED' and es_actual):
+            ocultar_carga(VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad"))
             VelocidadView.main.unsetCursor()
-        
+            
     def obtenerListaEquiposMarcados(lista, tipolista):
         equiposmarcados = []
         for region, instrumentos in lista.items():

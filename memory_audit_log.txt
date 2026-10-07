@@ -1,0 +1,294 @@
+
+======================================================================
+🔍 AUDITORÍA: ANTES de cambiar a vista 2
+🕒 TIEMPO: 2026-10-06 16:52:19
+💾 RAM Total del Proceso: 631.49 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 0
+   - Figure (Matplotlib): 0
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 0
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\qtawesome\iconic_font.py:410: size=5226 KiB, count=12, average=436 KiB
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\qtawesome\iconic_font.py:392: size=2176 KiB, count=24575, average=91 B
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:353: size=1324 KiB, count=24572, average=55 B
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\services\security\apis\conexiones\connection.py:96: size=203 KiB, count=2800, average=74 B
+   5. c:\xampp\htdocs\E-monitoring-V5 SqlServer\views\main_view.py:98: size=98.4 KiB, count=1316, average=77 B
+======================================================================
+
+
+======================================================================
+🔍 AUDITORÍA: DESPUÉS de cambiar a vista 2
+🕒 TIEMPO: 2026-10-06 16:52:25
+💾 RAM Total del Proceso: 725.34 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 0
+   - Figure (Matplotlib): 0
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 0
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\qtawesome\iconic_font.py:410: size=5226 KiB, count=12, average=436 KiB
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\qtawesome\iconic_font.py:392: size=2176 KiB, count=24575, average=91 B
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:353: size=1324 KiB, count=24572, average=55 B
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\services\security\apis\conexiones\connection.py:96: size=741 KiB, count=10208, average=74 B
+   5. c:\xampp\htdocs\E-monitoring-V5 SqlServer\utils\shared\arbolmarcado.py:57: size=188 KiB, count=3011, average=64 B
+======================================================================
+
+
+======================================================================
+🔍 AUDITORÍA: ANTES de cambiar a vista 3
+🕒 TIEMPO: 2026-10-06 16:54:42
+💾 RAM Total del Proceso: 1246.02 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 0
+   - Figure (Matplotlib): 0
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 0
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\qtawesome\iconic_font.py:410: size=5226 KiB, count=12, average=436 KiB
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\qtawesome\iconic_font.py:392: size=2176 KiB, count=24575, average=91 B
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:353: size=1324 KiB, count=24572, average=55 B
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\services\security\apis\conexiones\connection.py:96: size=791 KiB, count=10896, average=74 B
+   5. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\PrismaModel.py:1699: size=339 KiB, count=11622, average=30 B
+======================================================================
+
+
+======================================================================
+🔍 AUDITORÍA: DESPUÉS de cambiar a vista 3
+🕒 TIEMPO: 2026-10-06 16:54:44
+💾 RAM Total del Proceso: 1256.04 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 0
+   - Figure (Matplotlib): 0
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 0
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\qtawesome\iconic_font.py:410: size=5226 KiB, count=12, average=436 KiB
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\qtawesome\iconic_font.py:392: size=2176 KiB, count=24575, average=91 B
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:353: size=1324 KiB, count=24572, average=55 B
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\services\security\apis\conexiones\connection.py:96: size=791 KiB, count=10896, average=74 B
+   5. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\PrismaModel.py:1699: size=339 KiB, count=11622, average=30 B
+======================================================================
+
+
+======================================================================
+🔍 AUDITORÍA: ANTES de cambiar a vista 4
+🕒 TIEMPO: 2026-10-06 16:58:57
+💾 RAM Total del Proceso: 2002.31 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 2
+   - Figure (Matplotlib): 1
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 1
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:725: size=97.8 MiB, count=14561, average=7044 B
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\copy.py:79: size=97.3 MiB, count=7180, average=13.9 KiB
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:698: size=97.2 MiB, count=5454, average=18.3 KiB
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\DesplazamientoModel.py:718: size=66.8 MiB, count=1646832, average=43 B
+   5. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\qtawesome\iconic_font.py:410: size=5226 KiB, count=12, average=436 KiB
+======================================================================
+
+
+======================================================================
+🔍 AUDITORÍA: DESPUÉS de cambiar a vista 4
+🕒 TIEMPO: 2026-10-06 16:59:03
+💾 RAM Total del Proceso: 2012.33 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 2
+   - Figure (Matplotlib): 1
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 1
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:725: size=97.8 MiB, count=14561, average=7044 B
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\copy.py:79: size=97.3 MiB, count=7180, average=13.9 KiB
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:698: size=97.2 MiB, count=5454, average=18.3 KiB
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\DesplazamientoModel.py:718: size=66.8 MiB, count=1646832, average=43 B
+   5. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\qtawesome\iconic_font.py:410: size=5226 KiB, count=12, average=436 KiB
+======================================================================
+
+
+======================================================================
+🔍 AUDITORÍA: ANTES de cambiar a vista 3
+🕒 TIEMPO: 2026-10-06 17:01:05
+💾 RAM Total del Proceso: 2393.16 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 4
+   - Figure (Matplotlib): 2
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 2
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:725: size=102 MiB, count=24622, average=4325 B
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\copy.py:79: size=101 MiB, count=11658, average=9049 B
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:698: size=101 MiB, count=9116, average=11.3 KiB
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\VelocidadModel.py:1134: size=66.8 MiB, count=1646834, average=43 B
+   5. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\DesplazamientoModel.py:718: size=66.8 MiB, count=1646832, average=43 B
+======================================================================
+
+
+======================================================================
+🔍 AUDITORÍA: DESPUÉS de cambiar a vista 3
+🕒 TIEMPO: 2026-10-06 17:01:15
+💾 RAM Total del Proceso: 2423.41 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 4
+   - Figure (Matplotlib): 2
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 2
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:725: size=102 MiB, count=24622, average=4325 B
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\copy.py:79: size=101 MiB, count=11658, average=9049 B
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:698: size=101 MiB, count=9116, average=11.3 KiB
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\VelocidadModel.py:1134: size=66.8 MiB, count=1646834, average=43 B
+   5. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\DesplazamientoModel.py:718: size=66.8 MiB, count=1646832, average=43 B
+======================================================================
+
+
+======================================================================
+🔍 AUDITORÍA: ANTES de cambiar a vista 2
+🕒 TIEMPO: 2026-10-06 17:02:01
+💾 RAM Total del Proceso: 2470.16 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 4
+   - Figure (Matplotlib): 2
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 2
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:725: size=102 MiB, count=24622, average=4325 B
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\copy.py:79: size=101 MiB, count=11658, average=9049 B
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:698: size=101 MiB, count=9116, average=11.3 KiB
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\DesplazamientoModel.py:718: size=96.3 MiB, count=2372175, average=43 B
+   5. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\VelocidadModel.py:1134: size=66.8 MiB, count=1646833, average=43 B
+======================================================================
+
+
+======================================================================
+🔍 AUDITORÍA: DESPUÉS de cambiar a vista 2
+🕒 TIEMPO: 2026-10-06 17:02:13
+💾 RAM Total del Proceso: 2537.62 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 4
+   - Figure (Matplotlib): 2
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 2
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:725: size=102 MiB, count=24622, average=4325 B
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\copy.py:79: size=101 MiB, count=11658, average=9049 B
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:698: size=101 MiB, count=9116, average=11.3 KiB
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\DesplazamientoModel.py:718: size=96.6 MiB, count=2380488, average=43 B
+   5. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\VelocidadModel.py:1134: size=66.8 MiB, count=1646833, average=43 B
+======================================================================
+
+
+======================================================================
+🔍 AUDITORÍA: ANTES de cambiar a vista 3
+🕒 TIEMPO: 2026-10-06 17:03:17
+💾 RAM Total del Proceso: 2647.71 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 4
+   - Figure (Matplotlib): 2
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 3
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:725: size=105 MiB, count=34605, average=3190 B
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\copy.py:79: size=104 MiB, count=16136, average=6754 B
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:698: size=104 MiB, count=12746, average=8549 B
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\DesplazamientoModel.py:718: size=86.5 MiB, count=2058540, average=44 B
+   5. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\VelocidadModel.py:1134: size=66.8 MiB, count=1646832, average=43 B
+======================================================================
+
+
+======================================================================
+🔍 AUDITORÍA: DESPUÉS de cambiar a vista 3
+🕒 TIEMPO: 2026-10-06 17:03:30
+💾 RAM Total del Proceso: 2832.46 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 4
+   - Figure (Matplotlib): 2
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 3
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:725: size=105 MiB, count=34605, average=3190 B
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\copy.py:79: size=104 MiB, count=16136, average=6754 B
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:698: size=104 MiB, count=12746, average=8549 B
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\DesplazamientoModel.py:718: size=86.5 MiB, count=2058540, average=44 B
+   5. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\VelocidadModel.py:1134: size=66.8 MiB, count=1646832, average=43 B
+======================================================================
+
+
+======================================================================
+🔍 AUDITORÍA: ANTES de cambiar a vista 4
+🕒 TIEMPO: 2026-10-06 17:03:46
+💾 RAM Total del Proceso: 2834.78 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 4
+   - Figure (Matplotlib): 2
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 3
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:725: size=105 MiB, count=34605, average=3190 B
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\copy.py:79: size=104 MiB, count=16136, average=6754 B
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:698: size=104 MiB, count=12746, average=8549 B
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\DesplazamientoModel.py:718: size=91.2 MiB, count=2175667, average=44 B
+   5. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\VelocidadModel.py:1134: size=66.8 MiB, count=1646832, average=43 B
+======================================================================
+
+
+======================================================================
+🔍 AUDITORÍA: DESPUÉS de cambiar a vista 4
+🕒 TIEMPO: 2026-10-06 17:03:59
+💾 RAM Total del Proceso: 2843.39 MB
+
+📊 Conteo de Objetos Gráficos en Memoria:
+   - FigureCanvasQTAgg (Matplotlib): 4
+   - Figure (Matplotlib): 2
+   - vtkActor (VTK): 0
+   - vtkPolyDataMapper (VTK): 0
+   - DataFrame (Pandas): 3
+
+📍 Top 5 Líneas de Código que más RAM consumen ahora mismo:
+   1. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:725: size=105 MiB, count=34605, average=3190 B
+   2. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\copy.py:79: size=104 MiB, count=16136, average=6754 B
+   3. C:\Users\ronal\AppData\Local\Programs\Python\Python312\Lib\site-packages\matplotlib\lines.py:698: size=104 MiB, count=12746, average=8549 B
+   4. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\DesplazamientoModel.py:718: size=91.7 MiB, count=2190094, average=44 B
+   5. c:\xampp\htdocs\E-monitoring-V5 SqlServer\models\VelocidadModel.py:1134: size=66.8 MiB, count=1646832, average=43 B
+======================================================================
+

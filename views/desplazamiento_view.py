@@ -2,7 +2,7 @@ import threading
 from PySide6.QtWidgets import (QWidget, QLabel, QComboBox, QTreeWidget, QPushButton, QSpinBox, QMenu, QLineEdit)
 from PySide6.QtCore import Qt
 from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica
-from utils.shared.graficaDesplazamientoVelocidad import limpiar_widget
+from utils.shared.graficaDesplazamientoVelocidad import limpiar_widget, mostrar_carga, ocultar_carga
 from controllers.DesplazamientoController import DesplazamientoController
 from controllers.PluviometroController import PluviometroController
 from controllers.ConfiguracionController import ConfiguracionController
@@ -502,6 +502,8 @@ class DesplazamientoView:
     @staticmethod
     def obtenerMostrarPrismasMarcados(tree_actual):
         """ Maneja el temporizador para agrupar clics rápidos (Debounce) """
+        if DesplazamientoView.main is not None:
+            mostrar_carga(DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento"))
         if DesplazamientoView.timer_consulta is None:
             DesplazamientoView.timer_consulta = QTimer()
             DesplazamientoView.timer_consulta.setSingleShot(True)
@@ -526,12 +528,14 @@ class DesplazamientoView:
             DesplazamientoView.limpiarGraficaDesplazamiento()
             DesplazamientoView.tendencia_cache_desplazamiento = None
             desplazamiento_query_manager.finish_request(request_id)
+            ocultar_carga(DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento"))
             return
 
         prismasmarcados = DesplazamientoView.obtenerListaEquiposMarcados(lista, "Prismas")
         if len(prismasmarcados) == 0:
             DesplazamientoView.limpiarGraficaDesplazamiento()
             desplazamiento_query_manager.finish_request(request_id)
+            ocultar_carga(DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento"))
             return
 
         # 3. Capturar valores de la interfaz (Hilo Principal)
@@ -568,28 +572,40 @@ class DesplazamientoView:
         if not desplazamiento_query_manager.is_current(request_id):
             return
 
-        DesplazamientoView.datos_memoria = datos
-        if len(datos) > 0:
-            DesplazamientoView.graficarPrismasDesplazamiento(lista, datos, tipografico, tipomedida, tipotiempo, DesplazamientoView.tendencia_cache_desplazamiento)
-            
-            # ✅ REPINTAR UMBRALES SI ESTABAN ACTIVOS
-            if DesplazamientoView.umbral_activo_desplazamiento:
-                if DesplazamientoView.umbral_modo == "GENERAL":
-                    prismasmarcados = DesplazamientoView.obtenerListaEquiposMarcados(lista, "Prismas")
-                    DesplazamientoView._dibujarUmbralesGenerales(prismasmarcados)
-        else:
-            DesplazamientoView.limpiarGraficaDesplazamiento()
-        DesplazamientoView.main.unsetCursor()
+        widget_g = DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento")
+        try:
+            DesplazamientoView.datos_memoria = datos
+            if len(datos) > 0:
+                # Cambia el texto y fuerza el repintado ANTES de que el dibujo bloquee la UI
+                mostrar_carga(widget_g, "Dibujando gráfica ...", forzar_pintado=True)
+                DesplazamientoView.graficarPrismasDesplazamiento(lista, datos, tipografico, tipomedida, tipotiempo, DesplazamientoView.tendencia_cache_desplazamiento)
+
+                # ✅ REPINTAR UMBRALES SI ESTABAN ACTIVOS
+                if DesplazamientoView.umbral_activo_desplazamiento:
+                    if DesplazamientoView.umbral_modo == "GENERAL":
+                        prismasmarcados = DesplazamientoView.obtenerListaEquiposMarcados(lista, "Prismas")
+                        DesplazamientoView._dibujarUmbralesGenerales(prismasmarcados)
+            else:
+                DesplazamientoView.limpiarGraficaDesplazamiento()
+        except Exception:
+            import traceback
+            traceback.print_exc()
+        finally:
+            ocultar_carga(widget_g)
+            DesplazamientoView.main.unsetCursor()
 
     @staticmethod
     def _on_worker_done(request_id, estado):
         """Registra el fin del request y limpia workers terminados."""
+        es_actual = desplazamiento_query_manager.is_current(request_id)
         desplazamiento_query_manager.finish_request(request_id, estado)
-        # Limpiar referencias de workers que ya terminaron
         DesplazamientoView._workers_anteriores = [
             w for w in DesplazamientoView._workers_anteriores if w.isRunning()
         ]
-        if estado in ('FAILED', 'CANCELLED'):
+        # FAILED: siempre se libera. CANCELLED: solo si no hay una consulta más nueva en curso
+        # (si la cancelaron es porque lanzaron otra, y esa debe seguir mostrando "Cargando")
+        if estado == 'FAILED' or (estado == 'CANCELLED' and es_actual):
+            ocultar_carga(DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento"))
             DesplazamientoView.main.unsetCursor()
             
     def obtenerListaEquiposMarcados(lista, tipolista):

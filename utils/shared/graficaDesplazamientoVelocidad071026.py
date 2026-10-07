@@ -7,7 +7,7 @@ import matplotlib.dates as mdates
 import locale
 from datetime import datetime
 from PySide6.QtGui import Qt
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QDialog, QWidget, QCheckBox, QSizePolicy, QApplication
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QDialog, QWidget, QCheckBox, QSizePolicy
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from utils.common.customToolbar import CustomToolbar 
 from matplotlib.dates import DateFormatter
@@ -205,43 +205,6 @@ def configurar_evento_leyenda(canvas, legend, handles):
     if hasattr(canvas, '_leyenda_gid'):
         canvas.mpl_disconnect(canvas._leyenda_gid)
     canvas._leyenda_gid = canvas.mpl_connect('pick_event', on_pick)
-
-def mostrar_carga(widget, texto="Cargando ...", forzar_pintado=False):
-    """Muestra un aviso flotante (arriba a la derecha) sobre el widget de la gráfica."""
-    if widget is None:
-        return
-    lbl = getattr(widget, 'label_carga', None)
-    if lbl is None:
-        lbl = QLabel(texto, widget)
-        lbl.setStyleSheet("""
-            background-color: rgba(0, 0, 0, 180);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-        """)
-        lbl.setAlignment(Qt.AlignCenter)
-        lbl.setAttribute(Qt.WA_TransparentForMouseEvents)
-        widget.label_carga = lbl
-    lbl.setText(texto)
-    lbl.adjustSize()
-    lbl.move(max(widget.width() - lbl.width() - 15, 0), 15)
-    lbl.show()
-    lbl.raise_()
-    if forzar_pintado:
-        from PySide6.QtCore import QEventLoop
-        # Repinta ahora, sin procesar clics del usuario (evita reentradas)
-        QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
-
-
-def ocultar_carga(widget):
-    if widget is None:
-        return
-    lbl = getattr(widget, 'label_carga', None)
-    if lbl is not None:
-        lbl.hide()
-
 
 def etiqueta_tiempo(tiempo):
     """Devuelve el nombre del eje X según la unidad de tiempo seleccionada."""
@@ -619,310 +582,6 @@ def configurar_evento_leyenda(canvas, legend, handles, on_toggle_callback=None, 
     if hasattr(canvas, '_leyenda_gid'):
         canvas.mpl_disconnect(canvas._leyenda_gid)
     canvas._leyenda_gid = canvas.mpl_connect('pick_event', on_pick)
-
-# ============================================================
-# EVENTOS GLOBALES (Rompen clausuras para evitar fugas de memoria)
-# ============================================================
-def on_resize_global(event):
-    canvas = event.canvas
-    func = getattr(canvas, 'actualizar_leyenda_func', None)
-    if func:
-        func()
-
-def on_hover_global(event):
-    canvas = event.canvas
-    if not getattr(canvas, 'config_actual', None):
-        return
-    
-    cfg = canvas.config_actual
-    ax = cfg['ax']
-    ax2 = cfg.get('ax2')
-    etiquesize = cfg['etiquesize']
-    tiempo = cfg['tiempo']
-    
-    annot = cfg['annot']
-    punto_resaltado = cfg['punto_resaltado']
-    marcador_evento = cfg['marcador_evento']
-    label_evento = cfg['label_evento']
-    linea_fantasma = cfg['linea_fantasma']
-    equipo_detectado = cfg['equipo_detectado']
-    objetos_eventos = cfg['objetos_eventos']
-    ev_globales = cfg['ev_globales']
-    ev_especificos = cfg['ev_especificos']
-    nombre_a_id = cfg['nombre_a_id']
-    
-    btn_add_evento = cfg.get('btn_add_evento')
-    check_inspector = cfg.get('check_inspector')
-    
-    lineas = canvas.lineas_actuales
-    df = canvas.df_actual
-    
-    if event.inaxes != ax:
-        if annot.get_visible(): annot.set_visible(False)
-        if punto_resaltado.get_visible(): punto_resaltado.set_visible(False)
-        if linea_fantasma.get_visible(): linea_fantasma.set_visible(False)
-        if marcador_evento.get_visible(): marcador_evento.set_visible(False)
-        if label_evento.get_visible(): label_evento.set_visible(False)
-        canvas.draw_idle()
-        return
-    
-    if btn_add_evento and btn_add_evento.isChecked():
-        annot.set_visible(False)
-        punto_resaltado.set_visible(False)
-        linea_fantasma.set_xdata([event.xdata])
-        linea_fantasma.set_visible(True)
-        
-        min_dist = 40
-        cercano = None
-        xlim, ylim = ax.get_xlim(), ax.get_ylim()
-        
-        for line in lineas:
-            if not line.get_visible():
-                continue
-            x_data, y_data = line.get_data()
-            if tiempo == "FECHA":
-                try:
-                    if hasattr(x_data, 'dtype') and (x_data.dtype == 'object' or np.issubdtype(x_data.dtype, np.datetime64)):
-                        x_data = mdates.date2num(x_data)
-                except:
-                    continue
-            
-            mask = ((x_data >= xlim[0]) & (x_data <= xlim[1]) &
-                    (y_data >= ylim[0]) & (y_data <= ylim[1]))
-            if not np.any(mask):
-                continue
-            
-            puntos_px = ax.transData.transform(np.column_stack([x_data[mask], y_data[mask]]))
-            mouse = np.array([event.x, event.y])
-            dists = np.sqrt(np.sum((puntos_px - mouse) ** 2, axis=1))
-            
-            if len(dists) > 0:
-                idx = np.argmin(dists)
-                if dists[idx] < min_dist:
-                    min_dist = dists[idx]
-                    cercano = (x_data[mask][idx], y_data[mask][idx], line.get_label())
-        
-        if cercano:
-            fx, fy, nombre = cercano
-            marcador_evento.set_data([fx], [fy])
-            marcador_evento.set_visible(True)
-            label_evento.xy = (fx, fy)
-            label_evento.set_text(nombre)
-            label_evento.set_visible(True)
-            equipo_detectado['id'] = nombre_a_id.get(nombre)
-            equipo_detectado['nombre'] = nombre
-        else:
-            marcador_evento.set_visible(False)
-            label_evento.set_visible(False)
-            equipo_detectado['id'] = None
-            equipo_detectado['nombre'] = None
-        
-        canvas.draw_idle()
-        return
-    
-    # MODO INSPECTOR
-    linea_fantasma.set_visible(False)
-    marcador_evento.set_visible(False)
-    label_evento.set_visible(False)
-    
-    if not check_inspector or not check_inspector.isChecked():
-        return
-    
-    min_distancia = 30
-    punto_encontrado = None
-    xlim = ax.get_xlim()
-    ylim = ax.get_ylim()
-    
-    for line in lineas:
-        if not line.get_visible(): continue
-        x_data, y_data = line.get_data()
-        if tiempo == "FECHA":
-            try:
-                if hasattr(x_data, 'dtype') and (x_data.dtype == 'object' or np.issubdtype(x_data.dtype, np.datetime64)):
-                    x_data = mdates.date2num(x_data)
-            except Exception: continue
-        
-        mask = (x_data >= xlim[0]) & (x_data <= xlim[1]) & (y_data >= ylim[0]) & (y_data <= ylim[1])
-        if not np.any(mask): continue
-        
-        puntos_pixel = ax.transData.transform(np.column_stack([x_data[mask], y_data[mask]]))
-        mouse_pos = np.array([event.x, event.y])
-        distancias = np.sqrt(np.sum((puntos_pixel - mouse_pos)**2, axis=1))
-        
-        if len(distancias) > 0:
-            idx_min = np.argmin(distancias)
-            if distancias[idx_min] < min_distancia:
-                min_distancia = distancias[idx_min]
-                punto_encontrado = (x_data[mask][idx_min], y_data[mask][idx_min], line.get_label())
-    
-    if punto_encontrado:
-        fecha_num, lectura_val, label_equipo = punto_encontrado
-        punto_resaltado.set_data([fecha_num], [lectura_val])
-        punto_resaltado.set_visible(True)
-        
-        punto_pixel = ax.transData.transform((fecha_num, lectura_val))
-        x_rel, y_rel = ax.transAxes.inverted().transform(punto_pixel)
-        offset_x, offset_y = 15, 15
-        ha, va = 'left', 'bottom'
-        if y_rel > 0.70: va, offset_y = 'top', -15
-        if x_rel > 0.65: ha, offset_x = 'right', -15
-        
-        annot.xy = (fecha_num, lectura_val)
-        annot.xytext = (offset_x, offset_y)
-        annot.set_ha(ha)
-        annot.set_va(va)
-        
-        str_x = formatear_x_inspector(fecha_num, tiempo)
-        annot.set_text(f"{label_equipo}\n{etiqueta_tiempo(tiempo)}: {str_x}\nLectura: {lectura_val:.3f}")
-        annot.set_fontsize(9)
-        annot.set_color('#333333')
-        annot.set_visible(True)
-        annot.set_zorder(999)
-        canvas.draw_idle()
-    else:
-        if annot.get_visible():
-            annot.set_visible(False)
-            punto_resaltado.set_visible(False)
-            canvas.draw_idle()
-
-def on_click_global(event):
-    canvas = event.canvas
-    if not getattr(canvas, 'config_actual', None):
-        return
-    
-    cfg = canvas.config_actual
-    ax = cfg['ax']
-    ax2 = cfg.get('ax2')
-    etiquesize = cfg['etiquesize']
-    idproyecto = cfg['idproyecto']
-    tipo = cfg['tipo']
-    tiempo = cfg['tiempo']
-    widget = cfg['widget']
-    modulo = cfg['modulo']
-    
-    annot = cfg['annot']
-    punto_resaltado = cfg['punto_resaltado']
-    marcador_evento = cfg['marcador_evento']
-    label_evento = cfg['label_evento']
-    linea_fantasma = cfg['linea_fantasma']
-    equipo_detectado = cfg['equipo_detectado']
-    objetos_eventos = cfg['objetos_eventos']
-    ev_globales = cfg['ev_globales']
-    ev_especificos = cfg['ev_especificos']
-    nombre_a_id = cfg['nombre_a_id']
-    
-    btn_add_evento = cfg.get('btn_add_evento')
-    
-    lineas = canvas.lineas_actuales
-    df = canvas.df_actual
-    
-    # Procesar click en leyenda
-    if procesar_click_leyenda(ax, canvas, event):
-        return
-    
-    # CASO A: CREAR EVENTO
-    if btn_add_evento and btn_add_evento.isChecked():
-        if event.button == 1 and event.inaxes == ax:
-            fecha_clic = mdates.num2date(event.xdata).replace(tzinfo=None)
-            eq_id = equipo_detectado.get('id')
-            eq_nombre = equipo_detectado.get('nombre')
-            dialog = EventosDialog(widget, fecha_clic, idproyecto, "PRISMA", eq_id, eq_nombre)
-            if dialog.exec():
-                datos = dialog.obtener_datos()
-                exito = EventosController.ctrlCrearEvento(
-                    idproyecto, datos['fecha'], datos['descripcion'], datos['color'],
-                    datos['alcance'], "PRISMA", datos['id_instrumento']
-                )
-                if exito:
-                    fecha_num_click = mdates.date2num(datos['fecha'])
-                    nueva_linea = ax.axvline(x=datos['fecha'], color=datos['color'],
-                                             linestyle='--', linewidth=1.5, alpha=0.7)
-                    desc_full = datos['descripcion']
-                    texto_safe = (desc_full[:20] + '..') if len(desc_full) > 20 else desc_full
-                    nuevo_texto = ax.annotate(
-                        texto_safe,
-                        xy=(fecha_num_click, 0.96),
-                        xycoords=ax.get_xaxis_transform(),
-                        xytext=(4, 0), textcoords='offset points',
-                        rotation=90, va='top', ha='left',
-                        color=datos['color'], fontsize=7, fontweight='bold',
-                        annotation_clip=True, clip_on=True
-                    )
-                    if datos['alcance'] == 'GLOBAL':
-                        ev_globales.extend([nueva_linea, nuevo_texto])
-                    else:
-                        ev_especificos.extend([nueva_linea, nuevo_texto])
-                    objetos_eventos.extend([nueva_linea, nuevo_texto])
-                    canvas.draw()
-                    btn_add_evento.setChecked(False)
-                    mostrar_mensaje("Éxito", "Evento agregado.", "info")
-                else:
-                    mostrar_mensaje("Error", "No se pudo guardar el evento.", "error")
-            
-            marcador_evento.set_visible(False)
-            label_evento.set_visible(False)
-            linea_fantasma.set_visible(False)
-            canvas.draw_idle()
-            return
-    
-    # CASO B: LÓGICA ORIGINAL (Seleccionar / Omitir Lectura)
-    current_ax = ax2 if ax2 and ax2.in_axes(event) else ax
-    
-    if current_ax and current_ax.in_axes(event) and event.xdata is not None and event.ydata is not None:
-        for line in lineas:
-            contains, _ = line.contains(event)
-            if contains:
-                label = line.get_label()
-                x = mdates.num2date(event.xdata).replace(tzinfo=None)
-                y = event.ydata
-                line_data = df[df['Equipo'] == label]
-                
-                if line_data.empty:
-                    date = x.strftime('%d/%m/%Y %H:%M:%S')
-                    reading = round(y, 3)
-                    annotation_text = f"{label}\nFecha: {date}\nLectura: {reading}"
-                    tipo_prisma = ""
-                else:
-                    if line_data['Fecha'].dt.tz is not None:
-                        line_data['Fecha'] = line_data['Fecha'].dt.tz_localize(None)
-                    data_point = line_data.iloc[(line_data['Fecha'] - x).abs().argmin()]
-                    closest_x = data_point['Fecha']
-                    closest_y = data_point[tipo]
-                    date = closest_x.strftime('%d/%m/%Y %H:%M:%S')
-                    reading = round(closest_y, 3)
-                    tipo_prisma = data_point['TipoPrisma']
-                    annotation_text = f"{label}\nFecha: {date}\nLectura: {reading}"
-                
-                # Anticlick (Click Derecho)
-                if event.button == 3:
-                    for text in current_ax.texts:
-                        if text not in objetos_eventos:
-                            text.set_visible(False)
-                    annotation = current_ax.annotate(annotation_text, (x, y),
-                                                    textcoords="offset points", xytext=(10, 10),
-                                                    ha='left', fontsize=etiquesize,
-                                                    bbox=dict(facecolor='yellow', alpha=0.8, edgecolor='none'))
-                    annotation.set_visible(True)
-                    canvas.draw()
-                    break
-                
-                # Click Izquierdo
-                if event.button == 1:
-                    if event.guiEvent.modifiers() & Qt.ControlModifier:
-                        procesar_datos_console(idproyecto, label, date, reading, tipo_prisma)
-                    else:
-                        for text in current_ax.texts:
-                            if text not in objetos_eventos:
-                                text.set_visible(False)
-                        canvas.draw()
-
-def procesar_datos_console(id_proyecto, label, date, reading, tipo_prisma):
-    date_obj = datetime.strptime(date, '%d/%m/%Y %H:%M:%S')
-    formatted_date = date_obj.strftime('%Y-%m-%d %H:%M:%S')
-    # Necesitamos el widget - lo obtenemos del canvas
-    # Esta función será llamada desde on_click_global que tiene acceso al widget
-    # Por simplicidad, mostramos un mensaje
-    print(f"Omitir lectura: {label} - {formatted_date} - {reading}")
 class ModalDialog(QDialog):
     def __init__(self, parent, label, date, reading):  # Añadir parent
         super().__init__(parent, Qt.Window)  # Usar Qt.Window
@@ -957,61 +616,18 @@ class ModalDialog(QDialog):
         self.cancel_button.clicked.connect(self.reject)
 
 def limpiar_widget(widget):
-    """Limpia el canvas respetando el patrón persistente (sin fugas de memoria)"""
-    # Si el canvas ya es persistente, solo limpiar los ejes (no destruir)
-    if hasattr(widget, 'mpl_canvas') and widget.mpl_canvas is not None:
-        if hasattr(widget, 'mpl_ax'):
-            widget.mpl_ax.clear()
-        if hasattr(widget, 'mpl_ax2'):
-            try:
-                widget.mpl_ax2.clear()
-                # Eliminar el eje secundario del figure para evitar acumulación
-                widget.mpl_figure.delaxes(widget.mpl_ax2)
-                del widget.mpl_ax2
-            except:
-                pass
-        if hasattr(widget, 'mpl_figure'):
-            widget.mpl_figure.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.9)
-        
-        # Mostrar mensaje "Sin datos" en el centro del canvas
-        widget.mpl_ax.text(0.5, 0.5, 'Sin datos para mostrar', 
-                          transform=widget.mpl_ax.transAxes,
-                          fontsize=14, color='gray',
-                          ha='center', va='center',
-                          style='italic')
-        widget.mpl_ax.set_xticks([])
-        widget.mpl_ax.set_yticks([])
-        widget.mpl_ax.set_frame_on(False)
-        
-        # Invalidar todo el estado ligado a los artistas que ax.clear() acaba de destruir,
-        # para que resize/hover/clic no operen sobre objetos muertos
-        canvas_p = widget.mpl_canvas
-        canvas_p.config_actual = None
-        canvas_p.actualizar_leyenda_func = None
-        canvas_p.lineas_actuales = []
-        canvas_p.lineas_principales_actuales = []
-        canvas_p.df_actual = None
-        widget.mpl_ax._leyenda_flujo = None
-        widget.mpl_ax._leyenda_entradas = None
-        if getattr(widget, 'label_total', None) is not None:
-            widget.label_total.setText("Total: 0")
-
-        canvas_p.draw()
-        return  # No hacer nada más, el canvas persistente se mantiene
-    
-    # Primera vez o canvas no persistente: limpieza completa
     import matplotlib.pyplot as plt
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-    
-    # 1. Cierre síncrono de figuras de Matplotlib
+
+    # 1. Cierre síncrono de figuras de Matplotlib (Crucial para estabilidad)
     for child in widget.findChildren(FigureCanvas):
         try:
             if hasattr(child, 'figure'):
-                plt.close(child.figure)
-                child.figure.clear()
+                plt.close(child.figure) # Cerramos la figura
+                child.figure.clear()    # Limpiamos ejes
         except Exception:
             pass
-    
+
     # 2. Limpieza de Layouts y Sub-Layouts
     if widget.layout() is None:
         layout = QVBoxLayout(widget)
@@ -1023,8 +639,8 @@ def limpiar_widget(widget):
             widget_to_remove = item.widget()
             if widget_to_remove is not None:
                 widget_to_remove.hide()
-                widget_to_remove.setParent(None)
-                widget_to_remove.deleteLater()
+                widget_to_remove.setParent(None)   # <-- desvincula YA del padre (children() ya no lo ve)
+                widget_to_remove.deleteLater()     # sigue liberando memoria después
             else:
                 sub_layout = item.layout()
                 if sub_layout is not None:
@@ -1034,8 +650,9 @@ def limpiar_widget(widget):
                         if sub_widget is not None:
                             sub_widget.hide()
                             sub_widget.deleteLater()
-    
-    # 3. Limpieza de atributos dinámicos
+
+    # 3. Limpieza de atributos dinámicos (Toolbar, Botones de navegación)
+    # He unificado esto para que no haya errores de RuntimeError
     for attr in ["toolbar", "toolbar_container", "boton_siguiente", "boton_anterior"]:
         if hasattr(widget, attr):
             obj = getattr(widget, attr)
@@ -1045,11 +662,12 @@ def limpiar_widget(widget):
                     obj.deleteLater()
                 except Exception:
                     pass
-                setattr(widget, attr, None)
-    
+            # Seteamos a None para que nadie intente usar el objeto borrado
+            setattr(widget, attr, None)
+
     # 4. Forzar liberación de memoria
     gc.collect()
-
+    
 def dibujar_eventos(ax, id_proyecto, tipo_inst, instrumentos_dict, fecha_inicio, fecha_fin):
     globales = []
     especificos = []
@@ -1135,11 +753,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     ax = None
     ax2 = None
     avisolabels = False
-    # Inicializar variables de toolbar (se crean la primera vez, se reusan después)
-    check_inspector = getattr(widget, 'check_inspector', None)
-    btn_add_evento = getattr(widget, 'btn_add_evento', None)
-    check_ev_global = getattr(widget, 'check_ev_global', None)
-    check_ev_equipo = getattr(widget, 'check_ev_equipo', None)
+    
     # --- CORRECCIÓN SQL SERVER: Validar tipo de dato antes de convertir ---
     if fecha_inicio:
         if isinstance(fecha_inicio, str):
@@ -1147,15 +761,16 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     if fecha_fin:
         if isinstance(fecha_fin, str):
             fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d %H:%M:%S')
-    
     # ----------------------------------------------------------------------
+
     # Crear el DataFrame con las columnas necesarias
     df = pd.DataFrame(data, columns=['col_' + str(i) for i in range(len(data[0]))])
     df = df[[df.columns[0], df.columns[idx_nombre], df.columns[2], df.columns[idx_fecha], df.columns[idx_lectura], df.columns[-1]]]
     df.columns = ['Instrumento', 'Equipo', 'Tiempo', 'Fecha', tipo, 'TipoPrisma']
-    
+
     if tiempo == "FECHA":
-        df['Fecha'] = pd.to_datetime(df['Fecha'])
+        # pd.to_datetime maneja bien str y datetime, no necesita cambio
+        df['Fecha'] = pd.to_datetime(df['Fecha']) 
         if fecha_inicio is None:
             fecha_inicio = df['Fecha'].min()
             fecha_fin = df['Fecha'].max()
@@ -1166,11 +781,14 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
             fecha_inicio = df['Fecha'].min()
             fecha_fin = df['Fecha'].max()
         else:
+            # --- CORRECCIÓN SQL SERVER: La columna 'Tiempo' puede venir como objeto ---
             val_min_tiempo = df['Tiempo'].min()
             if isinstance(val_min_tiempo, str):
                 fechainiproyecto = datetime.strptime(val_min_tiempo, '%Y-%m-%d %H:%M:%S')
             else:
-                fechainiproyecto = val_min_tiempo
+                fechainiproyecto = val_min_tiempo # Ya es datetime
+            # ------------------------------------------------------------------------
+            
             if tiempo == "HORA":
                 unidtiempo = 24
             else:
@@ -1179,9 +797,9 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
             fecha_inicio = difdiasini.days * unidtiempo
             difdiasfin = fecha_fin - fechainiproyecto
             fecha_fin = difdiasfin.days * unidtiempo
-    
+
     ejeymin, ejeymax, ejeyprin, ejeysecu, intervalo_dias = 0, 0, 0, 0, 0
-    rango_max_lluvia, intervalo_lluvia = 100, 20
+    rango_max_lluvia, intervalo_lluvia = 100, 20 
     dataeje = ConfiguracionController.ctrlObtenerConfiguracionEje(idproyecto, modulo, tipo)
     if dataeje:
         ejeymin, ejeymax, ejeyprin, ejeysecu = dataeje[4], dataeje[5], dataeje[6], dataeje[7]
@@ -1189,11 +807,15 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
             intervalo_dias = dataeje[8] * 24
         else:
             intervalo_dias = dataeje[8]
+
         if dataeje[9]:
             rango_max_lluvia = dataeje[9]
         if dataeje[10]:
             intervalo_lluvia = dataeje[10]
-    
+
+    # =========================================================
+    # CORRECCIÓN: Validar fecha_inicio y fecha_fin antes de operar
+    # =========================================================
     if fecha_inicio is None or fecha_fin is None:
         if tiempo == "FECHA":
             fecha_inicio = datetime.now()
@@ -1201,140 +823,70 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
         else:
             fecha_inicio = 0.0
             fecha_fin = 0.0
-    
+    # =========================================================
     if tiempo == "FECHA":
         total_dias = (fecha_fin - fecha_inicio).days
     else:
         total_dias = (fecha_fin - fecha_inicio)
-    
+
+    # --- CORRECCIÓN APLICADA AQUÍ ---
     if intervalo_dias == 0:
         if tiempo == "HORA":
-            intervalo_dias = total_dias / 10
+            intervalo_dias = total_dias / 10 
         else:
             intervalo_dias = total_dias / 10
-    
-    # ============================================================
-    # PATRÓN PERSISTENTE: Crear canvas solo la primera vez
-    # ============================================================
-    if not hasattr(widget, 'mpl_canvas') or widget.mpl_canvas is None:
-        # PRIMERA VEZ: Crear figura, canvas y ejes
-        from matplotlib.figure import Figure
-        figure = Figure(figsize=(5, 4), dpi=100)
-        canvas = FigureCanvas(figure)
-        ax = figure.add_subplot(111)
-        
-        # Guardar referencias persistentes en el widget
-        widget.mpl_figure = figure
-        widget.mpl_canvas = canvas
-        widget.mpl_ax = ax
-        
-        # Configurar layout
-        layout = widget.layout()
-        if layout is None:
-            layout = QVBoxLayout(widget)
-            widget.setLayout(layout)
-        else:
-            # Limpiar layout solo la primera vez
-            while layout.count():
-                item = layout.takeAt(0)
-                w = item.widget()
-                if w:
-                    w.hide()
-                    w.setParent(None)
-                    w.deleteLater()
-        
-        canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        layout.addWidget(canvas)
-        
-        # Toolbar container
-        toolbar_container = QWidget()
-        widget.toolbar_container = toolbar_container
-        toolbar_layout = QHBoxLayout(toolbar_container)
-        toolbar_layout.setContentsMargins(0, 0, 0, 0)
-        widget.toolbar = CustomToolbar(canvas, widget)
-        toolbar_layout.addWidget(widget.toolbar)
-        
-        # Total de equipos
-        total_equipos = df['Instrumento'].nunique()
-        label_total = QLabel(f"Total: {total_equipos}")
-        label_total.setStyleSheet("font-size: 12px; margin-left: 8px; font-weight: bold; color: #333;")
-        toolbar_layout.addWidget(label_total)
-        widget.label_total = label_total
-        
-        # Checkboxes y botones
-        check_inspector = QCheckBox("Inspector de Datos")
-        check_inspector.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
-        check_inspector.setChecked(bool(widget.property("estado_inspector")))
-        check_inspector.toggled.connect(lambda checked: widget.setProperty("estado_inspector", checked))
-        toolbar_layout.addWidget(check_inspector)
-        
-        check_ev_global = QCheckBox("Ev. Globales")
-        check_ev_global.setChecked(True)
-        check_ev_global.setStyleSheet("font-size: 11px; margin-left: 5px; color: #007bff; font-weight: bold;")
-        toolbar_layout.addWidget(check_ev_global)
-        
-        check_ev_equipo = QCheckBox("Ev. Equipo")
-        check_ev_equipo.setChecked(True)
-        check_ev_equipo.setStyleSheet("font-size: 11px; margin-left: 3px; color: #28a745; font-weight: bold;")
-        toolbar_layout.addWidget(check_ev_equipo)
-        
-        btn_add_evento = QPushButton("+ Evento")
-        btn_add_evento.setCheckable(True)
-        btn_add_evento.setStyleSheet("""
-            QPushButton { font-size: 11px; padding: 4px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; }
-            QPushButton:checked { background-color: #ffcccc; border: 1px solid red; color: red; font-weight: bold; }
-        """)
-        toolbar_layout.addWidget(btn_add_evento)
-                # Guardar referencias para reutilizar en llamadas posteriores
-        widget.check_inspector = check_inspector
-        widget.btn_add_evento = btn_add_evento
-        widget.check_ev_global = check_ev_global
-        widget.check_ev_equipo = check_ev_equipo
-        
-        toolbar_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        layout.addWidget(toolbar_container)
-        
-        # Conectar eventos GLOBALES (una sola vez)
-        canvas.mpl_connect('resize_event', on_resize_global)
-        canvas.mpl_connect('button_press_event', on_click_global)
-        canvas.mpl_connect('motion_notify_event', on_hover_global)
-        
-    else:
-        # LLAMADAS POSTERIORES: Reutilizar canvas existente
-        figure = widget.mpl_figure
-        canvas = widget.mpl_canvas
-        ax = widget.mpl_ax
-        
-        # Limpiar contenido anterior (pero mantener el canvas)
-        ax.clear()
-        # ax.clear() no restablece el marco; limpiar_widget lo apaga en el estado "Sin datos"
-        ax.set_frame_on(True)
-        ax.set_axis_on()
-        
-        # Eliminar eje secundario si existe
-        if hasattr(widget, 'mpl_ax2'):
-            try:
-                figure.delaxes(widget.mpl_ax2)
-                del widget.mpl_ax2
-            except:
-                pass
-        
-        # Resetear márgenes
-        figure.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.9)
-    
-    # ============================================================
-    # CONFIGURACIÓN (igual que antes)
-    # ============================================================
+            
+    limpiar_widget(widget)
+
     config = SoftwareConfiguracion.obtenerDataSoftware()
     SUAVIZADO_ESTADO = True if config[20] == 1 else False
     titulozise, ejezise, etiquesize, leyendazise, vertices = config[0], config[1], config[2], config[3], config[6]
     lineatenden, grosortenden, colortenden, fuente = config[7], config[8], config[9], config[10]
     grosorlinea, grosorvertice, decimales, mostrarlluvia, posicionlluvia = config[12], config[13], config[14], config[17], config[18]
+
+    figure, ax = plt.subplots()
+    canvas = FigureCanvas(figure)
     plt.rcParams['font.family'] = fuente
-    
-    # ============================================================
-    # DIBUJO DE LLUVIA (EJE SECUNDARIO)
-    # ============================================================
+    layout = widget.layout()
+
+    # --- INICIO MODIFICACIÓN PASO 2 ---
+    toolbar_container = QWidget()
+    widget.toolbar_container = toolbar_container
+    toolbar_layout = QHBoxLayout(toolbar_container)
+    toolbar_layout.setContentsMargins(0, 0, 0, 0)
+    widget.toolbar = CustomToolbar(canvas, widget)
+    toolbar_layout.addWidget(widget.toolbar)
+    # --- NUEVO: Total de equipos, justo al lado del ícono de guardar ---
+    total_equipos = df['Instrumento'].nunique()
+    label_total = QLabel(f"Total: {total_equipos}")
+    label_total.setStyleSheet("font-size: 12px; margin-left: 8px; font-weight: bold; color: #333;")
+    toolbar_layout.addWidget(label_total)
+    check_inspector = QCheckBox("Inspector de Datos")
+    check_inspector.setStyleSheet("font-size: 12px; margin-left: 10px; font-weight: bold;")
+    check_inspector.setChecked(bool(widget.property("estado_inspector")))
+    check_inspector.toggled.connect(lambda checked: widget.setProperty("estado_inspector", checked))
+    toolbar_layout.addWidget(check_inspector)
+    check_ev_global = QCheckBox("Ev. Globales")
+    check_ev_global.setChecked(True)
+    check_ev_global.setStyleSheet("font-size: 11px; margin-left: 5px; color: #007bff; font-weight: bold;")
+    toolbar_layout.addWidget(check_ev_global)
+    check_ev_equipo = QCheckBox("Ev. Equipo")
+    check_ev_equipo.setChecked(True)
+    check_ev_equipo.setStyleSheet("font-size: 11px; margin-left: 3px; color: #28a745; font-weight: bold;")
+    toolbar_layout.addWidget(check_ev_equipo)
+    btn_add_evento = QPushButton("+ Evento")
+    btn_add_evento.setCheckable(True) # Modo Toggle
+    btn_add_evento.setStyleSheet("""
+        QPushButton { font-size: 11px; padding: 4px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; }
+        QPushButton:checked { background-color: #ffcccc; border: 1px solid red; color: red; font-weight: bold; }
+    """)
+    toolbar_layout.addWidget(btn_add_evento)
+    canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    # El contenedor del toolbar solo ocupa lo que necesita
+    toolbar_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    layout.addWidget(canvas)
+    layout.addWidget(toolbar_container)
+
     barras_pluviometro = None
     if tiempo == "FECHA":
         if modulo != "ANALISIS":
@@ -1344,12 +896,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                     estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idpluvio, 0)
                     df_pluviometro = pd.DataFrame(pluviometro_data, columns=['Codigo', 'Fecha', 'Lectura'])
                     df_pluviometro['Fecha'] = pd.to_datetime(df_pluviometro['Fecha'])
-                    
-                    # Crear o reutilizar eje secundario
-                    if not hasattr(widget, 'mpl_ax2'):
-                        widget.mpl_ax2 = ax.twinx()
-                    ax2 = widget.mpl_ax2
-                    
+                    ax2 = ax.twinx()
                     diferencia = df_pluviometro['Fecha'].max() - df_pluviometro['Fecha'].min()
                     totaldias = diferencia.days
                     ancho = 0.8
@@ -1358,14 +905,13 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                             ancho = totaldias / 100
                         else:
                             ancho = totaldias / 200
-                    
                     if estilo:
                         if posicionlluvia == 0:
                             ax2.set_ylim(int(estilo[3]), 0)
                         else:
                             ax2.set_ylim(0, int(estilo[3]))
                         barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color=estilo[5], width=ancho, label="Precipitación")
-                        ticks = generar_ticks_precipitacion(int(estilo[3]), int(estilo[4]))
+                        ticks = generar_ticks_precipitacion (int(estilo[3]), int(estilo[4]))
                         ax2.set_yticks(ticks)
                     else:
                         if posicionlluvia == 0:
@@ -1373,19 +919,16 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         else:
                             ax2.set_ylim(0, rango_max_lluvia)
                         barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color='cyan', width=ancho, alpha=0.5, label="Precipitación")
-                        ticks = generar_ticks_precipitacion(rango_max_lluvia, intervalo_lluvia)
+                        ticks = generar_ticks_precipitacion (rango_max_lluvia, intervalo_lluvia)
                         ax2.set_yticks(ticks)
                     ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
                 else:
-                    if not hasattr(widget, 'mpl_ax2'):
-                        widget.mpl_ax2 = ax.twinx()
-                    ax2 = widget.mpl_ax2
-                    
+                    ax2 = ax.twinx()
                     if posicionlluvia == 0:
                         ax2.set_ylim(rango_max_lluvia, 0)
                     else:
                         ax2.set_ylim(0, rango_max_lluvia)
-                    ticks = generar_ticks_precipitacion(rango_max_lluvia, intervalo_lluvia)
+                    ticks = generar_ticks_precipitacion (rango_max_lluvia, intervalo_lluvia)
                     ax2.set_yticks(ticks)
                     ax2.axhline(y=0, color='cyan', linestyle='-', linewidth=2, alpha=0.5)
                     ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
@@ -1396,11 +939,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                     estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idpluvio, 0)
                     df_pluviometro = pd.DataFrame(pluviometro_data, columns=['Codigo', 'Fecha', 'Lectura'])
                     df_pluviometro['Fecha'] = pd.to_datetime(df_pluviometro['Fecha'])
-                    
-                    if not hasattr(widget, 'mpl_ax2'):
-                        widget.mpl_ax2 = ax.twinx()
-                    ax2 = widget.mpl_ax2
-                    
+                    ax2 = ax.twinx()
                     diferencia = df_pluviometro['Fecha'].max() - df_pluviometro['Fecha'].min()
                     totaldias = diferencia.days
                     ancho = 0.8
@@ -1409,14 +948,13 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                             ancho = totaldias / 100
                         else:
                             ancho = totaldias / 200
-                    
                     if estilo:
                         if posicionlluvia == 0:
                             ax2.set_ylim(int(estilo[3]), 0)
                         else:
                             ax2.set_ylim(0, int(estilo[3]))
                         barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color=estilo[5], width=ancho, label="Precipitación")
-                        ticks = generar_ticks_precipitacion(int(estilo[3]), int(estilo[4]))
+                        ticks = generar_ticks_precipitacion (int(estilo[3]), int(estilo[4]))
                         ax2.set_yticks(ticks)
                     else:
                         if posicionlluvia == 0:
@@ -1424,27 +962,27 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         else:
                             ax2.set_ylim(0, rango_max_lluvia)
                         barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color='cyan', width=ancho, alpha=0.5, label="Precipitación")
-                        ticks = generar_ticks_precipitacion(rango_max_lluvia, intervalo_lluvia)
+                        ticks = generar_ticks_precipitacion (rango_max_lluvia, intervalo_lluvia)
                         ax2.set_yticks(ticks)
+
                     ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
-    
-    # ============================================================
-    # DIBUJO DE LÍNEAS Y TENDENCIAS
-    # ============================================================
+
     lineas = []
     lineas_principales = []
     lblecuacion_rcuadrado = ""
     prismasmodulo = {"DESPLAZAMIENTO", "VELOCIDAD", "ANALISIS"}
     equipotipo = 1 if modulo in prismasmodulo else 0
-    
+
     for idinstrumento, datos_equipo in df.groupby('Instrumento'):
         nombreequipo = str(datos_equipo['Equipo'].iloc[0])
         if equipotipo == 1:
             equipo = str(datos_equipo['Equipo'].iloc[0])
         else:
             equipo = idinstrumento
-        
         estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idinstrumento, 0)
+        
+        # ── ANTES: linea, = ax.plot(...)
+        # ── AHORA: plot_linea_suavizada(...)
         if estilo:
             if vertices == 1:
                 linea = plot_linea_suavizada(
@@ -1471,13 +1009,13 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                     ax, datos_equipo['Fecha'], datos_equipo[tipo], tiempo, activo=SUAVIZADO_ESTADO,
                     linewidth=grosorlinea, label=nombreequipo
                 )
-        
         lineas.append(linea)
         lineas_principales.append(linea)
-        
+        # El resto del bucle (tendencias, etc.) NO cambia
+
         if equipostendencia:
             for instru, regresion, grado in equipostendencia:
-                if str(instru[0]) == str(idinstrumento):
+                if str(instru[0]) == str(idinstrumento): 
                     if regresion == 'Lineal':
                         lineal = CalculosTendencias.dibujarTendenciaLineal(datos_equipo['Fecha'], datos_equipo[tipo], ax, tiempo, 1, nombreequipo, lineatenden, grosortenden, colortenden)
                         if tiempo != "FECHA":
@@ -1510,54 +1048,56 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                             if tiempo != "FECHA":
                                 potenci.set_label(f"{potenci.get_label()}:  {ecualbl}")
                             lineas.append(potenci)
-    
-    if labeltendencia:
-        labeltendencia.setText("")
-    
-    # ============================================================
-    # CONFIGURACIÓN DE EJES
-    # ============================================================
+        if labeltendencia:
+            labeltendencia.setText("")
+
     ax.set_title(titulo, fontsize=titulozise)
     ax.set_xlabel(labelejex, fontsize=ejezise)
     ax.set_ylabel(labelejey, fontsize=ejezise)
-    
     if tiempo == "FECHA":
-        if config[21] == 1:
+        if config[21] == 1: # Si fechahora está activo
             formato = '%d %b %y\n%H:%M:%S' if config[22] == 1 else '%d/%m/%Y\n%H:%M:%S'
             ax.xaxis.set_major_formatter(mdates.DateFormatter(formato))
         else:
             ax.xaxis.set_major_formatter(DateFormatter('%d/%m/%Y'))
-    
+        
     if not escala:
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda val, pos: '{:.{}f}'.format(val, decimales)))
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
-    
-    # Cálculo de etiquetas simétricas
+
+    # -----------------------------------------------------------------------------
+    # MEJORA VISUAL: CÁLCULO DE ETIQUETAS SIMÉTRICAS (LINSPACE)
+    # -----------------------------------------------------------------------------
     if tiempo == "FECHA":
+        # Convertimos fechas a números de matplotlib
         num_inicio = mdates.date2num(fecha_inicio)
         num_fin = mdates.date2num(fecha_fin)
         rango_total = num_fin - num_inicio
-        intervalo_num = intervalo_dias
+        intervalo_num = intervalo_dias 
     else:
+        # Ya son números (Días u Horas)
         num_inicio = float(fecha_inicio)
         num_fin = float(fecha_fin)
         rango_total = num_fin - num_inicio
         intervalo_num = intervalo_dias
-    
+
+    # Calcular cantidad de etiquetas basada en el intervalo
     if intervalo_num <= 0:
         num_etiquetas = 10
     else:
         num_etiquetas = int(rango_total / intervalo_num) + 1
-    
-    if num_etiquetas > 25:
+
+    # Protección de saturación: Limitar a 15-20 etiquetas para que se vean bien
+    if num_etiquetas > 25: 
         avisolabels = True
-        num_etiquetas = 15
+        num_etiquetas = 15 # Forzar visualización limpia
     elif num_etiquetas < 2:
         num_etiquetas = 2
-    
+
+    # Generación de puntos matemáticamente equidistantes (Simetría)
     etiquetas_numericas = np.linspace(num_inicio, num_fin, num_etiquetas)
     ax.set_xticks(etiquetas_numericas)
-    
+
     if escala:
         if escala == 'ESL':
             ax.set_yscale("log", base=10)
@@ -1567,18 +1107,19 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
             ax.set_yscale("log", base=10)
     else:
         ax.set_xlim([num_inicio, num_fin])
+    # -----------------------------------------------------------------------------
     
     plt.setp(ax.get_xticklabels(), rotation=90, ha="center", va="top", fontsize=etiquesize)
     plt.setp(ax.get_yticklabels(), fontsize=etiquesize)
-    
     if modulo != "ANALISIS":
         if mostrarlluvia == 0:
-            if tiempo == "FECHA" and ax2:
+            if tiempo == "FECHA":
                 plt.setp(ax2.get_yticklabels(), fontsize=etiquesize)
         else:
-            if tiempo == "FECHA" and ax2 and pluviometro_data:
-                plt.setp(ax2.get_yticklabels(), fontsize=etiquesize)
-    
+            if tiempo == "FECHA":
+                if pluviometro_data:
+                    plt.setp(ax2.get_yticklabels(), fontsize=etiquesize)
+
     if ejeymin != 0 or ejeymax != 0:
         if escala is None:
             ax.set_ylim(ejeymin * medida, ejeymax * medida)
@@ -1596,22 +1137,20 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         ax.axhline(y=tick, color='gray', linestyle='--', linewidth=0.5)
                 else:
                     avisolabels = True
-    
-    # ============================================================
-    # INICIALIZACIÓN HOVER Y EVENTOS
-    # ============================================================
+
     annot = ax.annotate("", xy=(0,0), xytext=(15,15), textcoords="offset points",
                         bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#cccccc", lw=1, alpha=0.95),
                         arrowprops=dict(arrowstyle="-|>", connectionstyle="arc3,rad=0.2", color="#555555", lw=0.8))
     annot.set_visible(False)
-    
+
     punto_resaltado, = ax.plot([], [], 'o', color='#dc3545', markersize=5, markeredgecolor='white', markeredgewidth=1, zorder=10)
     punto_resaltado.set_visible(False)
     
+    # Marcador y etiqueta para modo "agregar evento"
     marcador_evento, = ax.plot([], [], 'D', color='#ff4444', markersize=9,
                                 markeredgecolor='white', markeredgewidth=1.5, zorder=11)
     marcador_evento.set_visible(False)
-    
+
     label_evento = ax.annotate("", xy=(0, 0), xytext=(10, -20),
                                 textcoords="offset points",
                                 bbox=dict(boxstyle="round,pad=0.3", fc="#fff3cd",
@@ -1619,12 +1158,12 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                                 fontsize=9, fontweight='bold', color='#856404',
                                 annotation_clip=True)
     label_evento.set_visible(False)
-    
+
     equipo_detectado = {'id': None, 'nombre': None}
-    
-    linea_fantasma = ax.axvline(x=num_inicio, color='red', linestyle='--', linewidth=1.5, alpha=0.6)
+    # --- EVENTOS ---
+    linea_fantasma = ax.axvline(x=fecha_inicio, color='red', linestyle='--', linewidth=1.5, alpha=0.6)
     linea_fantasma.set_visible(False)
-    
+
     instrumentos_dict = {}
     for idinstrumento, datos_equipo in df.groupby('Instrumento'):
         nombre = str(datos_equipo['Equipo'].iloc[0])
@@ -1632,61 +1171,311 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
             instrumentos_dict[nombre] = nombre
         else:
             instrumentos_dict[str(idinstrumento)] = nombre
-    nombre_a_id = {v: k for k, v in instrumentos_dict.items()}
     
+    nombre_a_id = {v: k for k, v in instrumentos_dict.items()}
+
     ev_globales, ev_especificos = dibujar_eventos(ax, idproyecto, "PRISMA", instrumentos_dict, fecha_inicio, fecha_fin)
     objetos_eventos = ev_globales + ev_especificos
     
-    if getattr(widget, 'label_total', None) is not None:
-        widget.label_total.setText(f"Total: {df['Instrumento'].nunique()}")
-
-    # ============================================================
-    # GUARDAR ESTADO EN EL CANVAS (para eventos globales)
-    # ============================================================
-    canvas.df_actual = df
-    canvas.lineas_actuales = lineas
-    canvas.lineas_principales_actuales = lineas_principales
-    canvas.config_actual = {
-        'ax': ax,
-        'ax2': ax2,
-        'etiquesize': etiquesize,
-        'idproyecto': idproyecto,
-        'tipo': tipo,
-        'tiempo': tiempo,
-        'widget': widget,
-        'modulo': modulo,
-        'check_inspector': check_inspector if hasattr(widget, 'toolbar_container') else None,
-        'btn_add_evento': btn_add_evento if hasattr(widget, 'toolbar_container') else None,
-        'check_ev_global': check_ev_global if hasattr(widget, 'toolbar_container') else None,
-        'check_ev_equipo': check_ev_equipo if hasattr(widget, 'toolbar_container') else None,
-        'annot': annot,
-        'punto_resaltado': punto_resaltado,
-        'marcador_evento': marcador_evento,
-        'label_evento': label_evento,
-        'linea_fantasma': linea_fantasma,
-        'equipo_detectado': equipo_detectado,
-        'objetos_eventos': objetos_eventos,
-        'ev_globales': ev_globales,
-        'ev_especificos': ev_especificos,
-        'nombre_a_id': nombre_a_id
-    }
+    def toggle_ev_global(checked):
+        for obj in ev_globales:
+            try: obj.set_visible(checked)
+            except: pass
+        canvas.draw_idle()
     
-    # ============================================================
-    # LEYENDA Y DIBUJO FINAL
-    # ============================================================
-    def actualizar_leyenda_local():
+    def toggle_ev_equipo(checked):
+        for obj in ev_especificos:
+            try: obj.set_visible(checked)
+            except: pass
+        canvas.draw_idle()
+    
+    def on_toggle_add_evento(checked):
+        if not checked:
+            marcador_evento.set_visible(False)
+            label_evento.set_visible(False)
+            linea_fantasma.set_visible(False)
+            canvas.draw_idle()
+    
+    check_ev_global.toggled.connect(toggle_ev_global)
+    check_ev_equipo.toggled.connect(toggle_ev_equipo)
+    btn_add_evento.toggled.connect(on_toggle_add_evento)
+    # ----------------------------------
+    def actualizar_leyenda():
         actualizar_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro,
-                                 fuente, leyendazise)
+                                fuente, leyendazise)
+
+
+    def on_resize(event):
+        actualizar_leyenda()
     
-    canvas.actualizar_leyenda_func = actualizar_leyenda_local
-    actualizar_leyenda_local()
-    canvas.draw_idle()
+    def procesar_datos_console(id_proyecto,label, date, reading, tipo_prisma):
+        # Convertir la fecha al formato yyyy-mm-dd hh:mm:ss para la consola
+        date_obj = datetime.strptime(date, '%d/%m/%Y %H:%M:%S')
+        formatted_date= date_obj.strftime('%Y-%m-%d %H:%M:%S')
+
+        dialog = ModalDialog(widget,label, date, reading)
+        result = dialog.exec()
+
+        if result == QDialog.Accepted:          
+            respuesta=PrismaController.ctrlOmitirLecturaPrisma(id_proyecto,label,formatted_date,tipo_prisma)
+            if respuesta:
+                print(f"{label}\nFecha: {formatted_date}\nLectura: {reading}\nTipo: {tipo_prisma}")
+            else:
+                print('error al omitir')
+                
+    def on_hover(event):
+        if event.inaxes != ax:
+            if annot.get_visible(): annot.set_visible(False)
+            if punto_resaltado.get_visible(): punto_resaltado.set_visible(False)
+            if linea_fantasma.get_visible(): linea_fantasma.set_visible(False)
+            if marcador_evento.get_visible(): marcador_evento.set_visible(False)
+            if label_evento.get_visible(): label_evento.set_visible(False)
+            canvas.draw_idle()
+            return
+
+        if btn_add_evento.isChecked():
+            annot.set_visible(False)
+            punto_resaltado.set_visible(False)
+            linea_fantasma.set_xdata([event.xdata])
+            linea_fantasma.set_visible(True)
+            
+            min_dist = 40
+            cercano = None
+            xlim, ylim = ax.get_xlim(), ax.get_ylim()
+            
+            for line in lineas:
+                if not line.get_visible():
+                    continue
+                x_data, y_data = line.get_data()
+                if tiempo == "FECHA":
+                    try:
+                        if hasattr(x_data, 'dtype') and (x_data.dtype == 'object' or np.issubdtype(x_data.dtype, np.datetime64)):
+                            x_data = mdates.date2num(x_data)
+                    except:
+                        continue
+                mask = ((x_data >= xlim[0]) & (x_data <= xlim[1]) &
+                        (y_data >= ylim[0]) & (y_data <= ylim[1]))
+                if not np.any(mask):
+                    continue
+                puntos_px = ax.transData.transform(np.column_stack([x_data[mask], y_data[mask]]))
+                mouse = np.array([event.x, event.y])
+                dists = np.sqrt(np.sum((puntos_px - mouse) ** 2, axis=1))
+                if len(dists) > 0:
+                    idx = np.argmin(dists)
+                    if dists[idx] < min_dist:
+                        min_dist = dists[idx]
+                        cercano = (x_data[mask][idx], y_data[mask][idx], line.get_label())
+            
+            if cercano:
+                fx, fy, nombre = cercano
+                marcador_evento.set_data([fx], [fy])
+                marcador_evento.set_visible(True)
+                label_evento.xy = (fx, fy)
+                label_evento.set_text(nombre)
+                label_evento.set_visible(True)
+                equipo_detectado['id'] = nombre_a_id.get(nombre)
+                equipo_detectado['nombre'] = nombre
+            else:
+                marcador_evento.set_visible(False)
+                label_evento.set_visible(False)
+                equipo_detectado['id'] = None
+                equipo_detectado['nombre'] = None
+            
+            canvas.draw_idle()
+            return
+
+        # --- MODO 2: INSPECTOR (Tu lógica original) ---
+        linea_fantasma.set_visible(False)
+        marcador_evento.set_visible(False)
+        label_evento.set_visible(False)
+        
+        if not check_inspector.isChecked():
+            return
+
+        # (Tu lógica de búsqueda de punto cercano intacta)
+        min_distancia = 30
+        punto_encontrado = None
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+
+        for line in lineas:
+            if not line.get_visible(): continue
+            x_data, y_data = line.get_data()
+            if tiempo == "FECHA":
+                try:
+                    if hasattr(x_data, 'dtype') and (x_data.dtype == 'object' or np.issubdtype(x_data.dtype, np.datetime64)):
+                         x_data = mdates.date2num(x_data)
+                except Exception: continue 
+
+            mask = (x_data >= xlim[0]) & (x_data <= xlim[1]) & (y_data >= ylim[0]) & (y_data <= ylim[1])
+            if not np.any(mask): continue
+            
+            puntos_pixel = ax.transData.transform(np.column_stack([x_data[mask], y_data[mask]]))
+            mouse_pos = np.array([event.x, event.y])
+            distancias = np.sqrt(np.sum((puntos_pixel - mouse_pos)**2, axis=1))
+            
+            if len(distancias) > 0:
+                idx_min = np.argmin(distancias)
+                if distancias[idx_min] < min_distancia:
+                    min_distancia = distancias[idx_min]
+                    punto_encontrado = (x_data[mask][idx_min], y_data[mask][idx_min], line.get_label())
+
+        if punto_encontrado:
+            fecha_num, lectura_val, label_equipo = punto_encontrado
+            punto_resaltado.set_data([fecha_num], [lectura_val])
+            punto_resaltado.set_visible(True)
+            
+            punto_pixel = ax.transData.transform((fecha_num, lectura_val))
+            x_rel, y_rel = ax.transAxes.inverted().transform(punto_pixel)
+            
+            offset_x, offset_y = 15, 15
+            ha, va = 'left', 'bottom'
+            if y_rel > 0.70: va, offset_y = 'top', -15
+            if x_rel > 0.65: ha, offset_x = 'right', -15
+
+            annot.xy = (fecha_num, lectura_val)
+            annot.xytext = (offset_x, offset_y)
+            annot.set_ha(ha)
+            annot.set_va(va)
+            
+            str_x = formatear_x_inspector(fecha_num, tiempo)
+            annot.set_text(f"{label_equipo}\n{etiqueta_tiempo(tiempo)}: {str_x}\nLectura: {lectura_val:.3f}")
+            annot.set_fontsize(9)
+            annot.set_color('#333333')
+            annot.set_visible(True)
+            annot.set_zorder(999)
+            canvas.draw_idle()
+        else:
+            if annot.get_visible():
+                annot.set_visible(False)
+                punto_resaltado.set_visible(False)
+                canvas.draw_idle()
     
-    # IMPORTANTE: NO llamar plt.close(figure) - el canvas es persistente
-    
+    def on_click(event):
+        if procesar_click_leyenda(ax, canvas, event):
+            return
+        # --- CASO A: CREAR NUEVO EVENTO ---
+        if btn_add_evento.isChecked():
+            if event.button == 1 and event.inaxes == ax:
+                fecha_clic = mdates.num2date(event.xdata).replace(tzinfo=None)
+                
+                eq_id = equipo_detectado.get('id')
+                eq_nombre = equipo_detectado.get('nombre')
+                
+                dialog = EventosDialog(widget, fecha_clic, idproyecto, "PRISMA", eq_id, eq_nombre)
+                if dialog.exec():
+                    datos = dialog.obtener_datos()
+                    exito = EventosController.ctrlCrearEvento(
+                        idproyecto, datos['fecha'], datos['descripcion'], datos['color'],
+                        datos['alcance'], "PRISMA", datos['id_instrumento']
+                    )
+                    if exito:
+                        fecha_num_click = mdates.date2num(datos['fecha'])
+                        nueva_linea = ax.axvline(x=datos['fecha'], color=datos['color'],
+                                                  linestyle='--', linewidth=1.5, alpha=0.7)
+                        
+                        desc_full = datos['descripcion']
+                        texto_safe = (desc_full[:20] + '..') if len(desc_full) > 20 else desc_full
+                        
+                        nuevo_texto = ax.annotate(
+                            texto_safe,
+                            xy=(fecha_num_click, 0.96),
+                            xycoords=ax.get_xaxis_transform(),
+                            xytext=(4, 0), textcoords='offset points',
+                            rotation=90, va='top', ha='left',
+                            color=datos['color'], fontsize=7, fontweight='bold',
+                            annotation_clip=True, clip_on=True
+                        )
+                        
+                        if datos['alcance'] == 'GLOBAL':
+                            ev_globales.extend([nueva_linea, nuevo_texto])
+                        else:
+                            ev_especificos.extend([nueva_linea, nuevo_texto])
+                        objetos_eventos.extend([nueva_linea, nuevo_texto])
+                        
+                        canvas.draw()
+                        btn_add_evento.setChecked(False)
+                        mostrar_mensaje("Éxito", "Evento agregado.", "info")
+                    else:
+                        mostrar_mensaje("Error", "No se pudo guardar el evento.", "error")
+                
+                marcador_evento.set_visible(False)
+                label_evento.set_visible(False)
+                linea_fantasma.set_visible(False)
+                canvas.draw_idle()
+            return
+
+        # --- CASO B: TU LÓGICA ORIGINAL (Seleccionar / Omitir Lectura) ---
+        # (Se ejecuta solo si NO estamos agregando un evento)
+        
+        if ax2:
+            current_ax = ax2
+        else:
+            current_ax = ax
+
+        # Verificar si el clic está dentro de los límites de los ejes
+        if current_ax and current_ax.in_axes(event) and event.xdata is not None and event.ydata is not None:
+            for line in lineas:
+                contains, _ = line.contains(event)
+                if contains:
+                    label = line.get_label()
+                    x = mdates.num2date(event.xdata).replace(tzinfo=None)
+                    y = event.ydata
+
+                    line_data = df[df['Equipo'] == label]
+
+                    if line_data.empty:
+                        date = x.strftime('%d/%m/%Y %H:%M:%S')
+                        reading = round(y, 3)
+                        annotation_text = f"{label}\nFecha: {date}\nLectura: {reading}"
+                    else:
+                        if line_data['Fecha'].dt.tz is not None:
+                            line_data['Fecha'] = line_data['Fecha'].dt.tz_localize(None)
+
+                        data_point = line_data.iloc[(line_data['Fecha'] - x).abs().argmin()]
+                        closest_x = data_point['Fecha']
+                        closest_y = data_point[tipo]
+                        date = closest_x.strftime('%d/%m/%Y %H:%M:%S')
+                        reading = round(closest_y, 3)
+                        tipo_prisma = data_point['TipoPrisma']
+                        annotation_text = f"{label}\nFecha: {date}\nLectura: {reading}"
+
+                    # Anticlick (Click Derecho) - Mostrar etiqueta amarilla fija
+                    if event.button == 3:
+                        for text in current_ax.texts:
+                            # PROTECCIÓN: No borrar las etiquetas de los eventos
+                            if text not in objetos_eventos:
+                                text.set_visible(False)
+
+                        annotation = current_ax.annotate(annotation_text, (x, y),
+                                                        textcoords="offset points", xytext=(10, 10),
+                                                        ha='left', fontsize=etiquesize,
+                                                        bbox=dict(facecolor='yellow', alpha=0.8, edgecolor='none'))
+                        annotation.set_visible(True)
+                        canvas.draw()
+                        break 
+
+        # Click Izquierdo (Ctrl+Click para Omitir, Click normal para limpiar)
+        if event.button == 1:
+            if event.guiEvent.modifiers() & Qt.ControlModifier:
+                # Tu lógica de omitir lectura
+                procesar_datos_console(idproyecto, label, date, reading, tipo_prisma)
+            else:
+                # Limpiar etiquetas (respetando eventos)
+                for text in current_ax.texts:
+                    if text not in objetos_eventos:
+                        text.set_visible(False)
+                canvas.draw()
+
+    canvas.mpl_connect('resize_event', on_resize)
+    canvas.mpl_connect('button_press_event', on_click)
+    canvas.mpl_connect('motion_notify_event', on_hover)
+    actualizar_leyenda()
+    plt.close(figure)
     if avisolabels:
         mostrar_mensaje("Ejes", "No se aplica la configuración de ejes.", "advertencia")
-        
+
+
 def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, idx_nombre, idx_fecha, idx_lectura, idx_funda, idx_super, labelejex, labelejey, tipo, medida, tiempo, titulo, idproyecto, modulo, pluviometro_data=None, equipostendencia=None, dataterreno=None, fecha_inicio=None, fecha_fin=None):
     ax = None
     ax2 = None
