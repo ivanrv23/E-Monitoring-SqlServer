@@ -956,6 +956,28 @@ class ModalDialog(QDialog):
         self.accept_button.clicked.connect(self.accept)
         self.cancel_button.clicked.connect(self.reject)
 
+def _objeto_qt_vivo(obj):
+    """True si el objeto C++ de Qt sigue existiendo."""
+    if obj is None:
+        return False
+    try:
+        from shiboken6 import isValid
+        return isValid(obj)
+    except Exception:
+        return False
+
+
+def _olvidar_canvas_muerto(widget):
+    """Si otro limpiador destruyó el canvas, olvida todas las referencias."""
+    if getattr(widget, 'mpl_canvas', None) is not None and not _objeto_qt_vivo(widget.mpl_canvas):
+        for attr in ('mpl_canvas', 'mpl_figure', 'mpl_ax', 'mpl_ax2', 'toolbar',
+                     'toolbar_container', 'label_total', 'check_inspector',
+                     'btn_add_evento', 'check_ev_global', 'check_ev_equipo',
+                     '_tb', '_handlers', 'label_carga'):
+            if hasattr(widget, attr):
+                setattr(widget, attr, None)
+
+
 def _llamar_handler_canvas(event, nombre):
     f = getattr(event.canvas, nombre, None)
     if f:
@@ -976,6 +998,7 @@ def obtener_canvas_persistente(widget, modo="completo", total=0):
     """
     from matplotlib.figure import Figure
 
+    _olvidar_canvas_muerto(widget)
     # ---------- REUTILIZAR ----------
     if getattr(widget, 'mpl_canvas', None) is not None:
         figure, canvas, ax = widget.mpl_figure, widget.mpl_canvas, widget.mpl_ax
@@ -995,7 +1018,7 @@ def obtener_canvas_persistente(widget, modo="completo", total=0):
         ax._leyenda_entradas = None
         figure.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.9)
         tb = getattr(widget, '_tb', {})
-        if tb.get('label_total') is not None:
+        if _objeto_qt_vivo(tb.get('label_total')):
             tb['label_total'].setText(f"Total: {total}")
         try:
             tb['toolbar'].update()   # reinicia el historial de zoom/home
@@ -1075,6 +1098,7 @@ def obtener_canvas_persistente(widget, modo="completo", total=0):
 
 def limpiar_widget(widget):
     """Limpia el canvas respetando el patrón persistente (sin fugas de memoria)"""
+    _olvidar_canvas_muerto(widget)
     # Si el canvas ya es persistente, solo limpiar los ejes (no destruir)
     if hasattr(widget, 'mpl_canvas') and widget.mpl_canvas is not None:
         if hasattr(widget, 'mpl_ax'):
@@ -1114,7 +1138,7 @@ def limpiar_widget(widget):
         widget._handlers = {}
         widget.mpl_ax._leyenda_flujo = None
         widget.mpl_ax._leyenda_entradas = None
-        if getattr(widget, 'label_total', None) is not None:
+        if _objeto_qt_vivo(getattr(widget, 'label_total', None)):
             widget.label_total.setText("Total: 0")
 
         canvas_p.draw()
@@ -1337,6 +1361,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     # ============================================================
     # PATRÓN PERSISTENTE: Crear canvas solo la primera vez
     # ============================================================
+    _olvidar_canvas_muerto(widget)
     if not hasattr(widget, 'mpl_canvas') or widget.mpl_canvas is None:
         # PRIMERA VEZ: Crear figura, canvas y ejes
         from matplotlib.figure import Figure
@@ -1758,7 +1783,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     ev_globales, ev_especificos = dibujar_eventos(ax, idproyecto, "PRISMA", instrumentos_dict, fecha_inicio, fecha_fin)
     objetos_eventos = ev_globales + ev_especificos
     
-    if getattr(widget, 'label_total', None) is not None:
+    if _objeto_qt_vivo(getattr(widget, 'label_total', None)):
         widget.label_total.setText(f"Total: {df['Instrumento'].nunique()}")
 
     # ============================================================
