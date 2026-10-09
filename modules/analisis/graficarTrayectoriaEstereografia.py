@@ -23,9 +23,17 @@ class GraficarEstereografiaTrayectoria:
                 item = layout.takeAt(0)
                 widget_to_remove = item.widget()
                 if widget_to_remove is not None:
+                    widget_to_remove.setParent(None)   # sale del árbol ya, no al final del ciclo
                     widget_to_remove.deleteLater()
                 else:
                     layout.removeItem(item)
+        # Olvida el estado de canvas persistente (si lo hubiera) de forma explícita
+        for attr in ('mpl_canvas', 'mpl_figure', 'mpl_ax', 'mpl_ax2', 'toolbar',
+                     'toolbar_container', 'label_total', 'check_inspector',
+                     'btn_add_evento', 'check_ev_global', 'check_ev_equipo',
+                     '_tb', '_handlers'):
+            if hasattr(widget, attr):
+                setattr(widget, attr, None)
     
     def graficar_estereografia_nuevaversion(widget, vectores, dataestereo, tipo="polar"):
         config = SoftwareConfiguracion.obtenerDataSoftware()

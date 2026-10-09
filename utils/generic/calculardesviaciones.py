@@ -57,12 +57,23 @@ class CalcularDesviaciones:
             desviaciones_a_guardar.append(desviacion)
         
         # Guardar en la base de datos
+        if not desviaciones_a_guardar:
+            return False
         if len(desviaciones_a_guardar)>1:
             respuesta = AnalisisController.ctrlGuardarDesviaciones(proyecto_id, desviaciones_a_guardar)
         else: 
             respuesta = AnalisisController.ctrlGuardarDesviacionesPrisma(proyecto_id, desviaciones_a_guardar)
         return respuesta
     
+    def _std_seguro(valores):
+        """Desviación estándar muestral; 0.0 si hay muy pocos datos o salen valores no finitos."""
+        arr = np.array([v for v in valores if v is not None], dtype=float)
+        arr = arr[np.isfinite(arr)]
+        if arr.size < 2:
+            return 0.0
+        s = float(np.std(arr, ddof=1))
+        return s if np.isfinite(s) else 0.0
+
     def calcular_desviaciones_por_equipo(datos):
         # Organizar datos por equipo
         equipos = defaultdict(lambda: {'este': [], 'norte': [], 'cota': []})
@@ -81,13 +92,13 @@ class CalcularDesviaciones:
             centro_cota = medidas['cota'][0]
 
             # Calcular desviaciones para Este (ignorando la primera lectura ya que se toma como centro)
-            este_std = np.std(medidas['este'][1:], ddof=1)
+            este_std = CalcularDesviaciones._std_seguro(medidas['este'][1:])
 
             # Calcular desviaciones para Norte (ignorando la primera lectura ya que se toma como centro)
-            norte_std = np.std(medidas['norte'][1:], ddof=1)
+            norte_std = CalcularDesviaciones._std_seguro(medidas['norte'][1:])
 
             # Calcular desviaciones para Cota (ignorando la primera lectura ya que se toma como centro)
-            cota_std = np.std(medidas['cota'][1:], ddof=1)
+            cota_std = CalcularDesviaciones._std_seguro(medidas['cota'][1:])
 
             resultados[equipo] = {
                 'este': {
