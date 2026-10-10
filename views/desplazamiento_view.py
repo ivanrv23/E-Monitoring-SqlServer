@@ -90,9 +90,7 @@ class DesplazamientoView:
     timer_consulta = None
     timer_busqueda_desplaza = None
     timer_marcado_desplaza = None
-    # ── Bandera compartida: evita conectar el árbol dos veces (una vez desde
-    #    Desplazamiento y otra desde Velocidad, ya que comparten el mismo
-    #    QTreeWidget físico "tree_actual_desplazamiento") ──
+    TIPOS_ANGULO = {"DAH", "AHA", "AHI", "DAV", "AVA", "AVI"}
     
     def inicializarVistaDesplazamiento(main, proyectoid, proyectoname, fechaini, fechafin):
         DesplazamientoView.main = main
@@ -329,13 +327,6 @@ class DesplazamientoView:
 
         menu.addAction("Lista de Plantillas").triggered.connect(accion_lista_plantillas)
         menu.exec(pos_global)
-        
-    # def graficarUmbralesPersonalizado():
-    #     if DesplazamientoView.idproyecto:
-    #         widget_grafico = DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento")
-    #         combo_medidas = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza")
-    #         unidad = combo_medidas.currentData()
-    #         graficarUmbralesPersonalizado(widget_grafico,unidad,DesplazamientoView.idproyecto)
             
     @staticmethod
     def graficarUmbralesDesplazamiento():
@@ -385,6 +376,12 @@ class DesplazamientoView:
         DesplazamientoView._dibujarUmbralesGenerales(prismasmarcados)
 
     @staticmethod
+    def _actualizarEstadoComboMedida(tipografico):
+        combo_medidas = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza")
+        if combo_medidas is not None:
+            combo_medidas.setEnabled(tipografico not in DesplazamientoView.TIPOS_ANGULO)
+    
+    @staticmethod
     def _dibujarUmbralesGenerales(prismasmarcados=None):
         """Redibuja umbrales generales usando la selección ya guardada"""
         widget_grafico = DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento")
@@ -401,7 +398,10 @@ class DesplazamientoView:
         combo_tipo_grafico = DesplazamientoView.main.findChild(QWidget, "combo_tipos_desplazamiento")
         tipo = combo_tipo_grafico.currentData()
         combo_medidas = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza")
-        unidad = combo_medidas.currentData()
+        if tipo in DesplazamientoView.TIPOS_ANGULO:
+            unidad = 1   # los grados no se escalan
+        else:
+            unidad = combo_medidas.currentData()
 
         # ✅ USAR EL COMPONENTE GUARDADO (o el primero si no hay guardado)
         idcompo = DesplazamientoView.umbral_general_componente
@@ -545,7 +545,10 @@ class DesplazamientoView:
         spin_promedio.setEnabled(tipopromedio != "SPRO")
         numeropromedio = spin_promedio.value()
         tipografico = DesplazamientoView.main.findChild(QComboBox, "combo_tipos_desplazamiento").currentData()
+        DesplazamientoView._actualizarEstadoComboMedida(tipografico)
         tipomedida = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza").currentData()
+        if tipografico in DesplazamientoView.TIPOS_ANGULO:
+            tipomedida = 1
         tipotiempo = DesplazamientoView.main.findChild(QComboBox, "combo_tiempo_desplaza").currentData()
         config = SoftwareConfiguracion.obtenerDataSoftware()
         filtrado = config[16]
@@ -751,6 +754,8 @@ class DesplazamientoView:
                     tipografico = tipo_grafico_desplazamiento.currentData()
                     combotipomedida = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza")
                     tipomedida = combotipomedida.currentData()
+                    if tipografico in DesplazamientoView.TIPOS_ANGULO:
+                        tipomedida = 1
                     combotipofecha = DesplazamientoView.main.findChild(QComboBox, "combo_tiempo_desplaza")
                     tipotiempo = combotipofecha.currentData()
                     config = SoftwareConfiguracion.obtenerDataSoftware()
@@ -780,6 +785,8 @@ class DesplazamientoView:
         tipografico = tipo_grafico_desplazamiento.currentData()
         combotipomedida = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza")
         tipomedida = combotipomedida.currentData()
+        if tipografico in DesplazamientoView.TIPOS_ANGULO:
+            tipomedida = 1
         combotipofecha = DesplazamientoView.main.findChild(QComboBox, "combo_tiempo_desplaza")
         tipotiempo = combotipofecha.currentData()
         config = SoftwareConfiguracion.obtenerDataSoftware()
@@ -809,6 +816,8 @@ class DesplazamientoView:
                     tipografico = tipo_grafico_desplazamiento.currentData()
                     combotipomedida = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza")
                     tipomedida = combotipomedida.currentData()
+                    if tipografico in DesplazamientoView.TIPOS_ANGULO:
+                        tipomedida = 1
                     combotipofecha = DesplazamientoView.main.findChild(QComboBox, "combo_tiempo_desplaza")
                     tipotiempo = combotipofecha.currentData()
                     config = SoftwareConfiguracion.obtenerDataSoftware()
@@ -831,16 +840,18 @@ class DesplazamientoView:
         if lista:
             prismasmarcados = DesplazamientoView.obtenerListaEquiposMarcados(lista, "Prismas")
             if len(prismasmarcados) > 0:
+                tipo_grafico_desplazamiento = DesplazamientoView.main.findChild(QComboBox, "combo_tipos_desplazamiento")
+                tipografico = tipo_grafico_desplazamiento.currentData()
                 combotipomedida = DesplazamientoView.main.findChild(QComboBox, "combo_medida_desplaza")
                 unidadmedida = combotipomedida.currentData()
+                if tipografico in DesplazamientoView.TIPOS_ANGULO:
+                    unidadmedida = 1
                 combotipofecha = DesplazamientoView.main.findChild(QComboBox, "combo_tiempo_desplaza")
                 tipotiempo = combotipofecha.currentData()
                 if tipotiempo == "HORA":
                     unidadtiempo  = 24
                 else:
                     unidadtiempo  = 1
-                tipo_grafico_desplazamiento = DesplazamientoView.main.findChild(QComboBox, "combo_tipos_desplazamiento")
-                tipografico = tipo_grafico_desplazamiento.currentData()
                 infoeje = ConfiguracionController.ctrlObtenerConfiguracionEje(DesplazamientoView.idproyecto, "DESPLAZAMIENTO", tipografico)
                 if infoeje:
                     ejeymin, ejeymax, ejeyprim, ejeysecu, interdias, rangoprecipitacion, intervaloprecipitacion = infoeje[4], infoeje[5], infoeje[6], infoeje[7], infoeje[8], infoeje[9], infoeje[10]

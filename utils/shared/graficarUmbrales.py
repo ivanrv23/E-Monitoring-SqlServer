@@ -3,6 +3,18 @@ from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QComboBox, QDialogBu
 from utils.common.alertas import mostrar_mensaje
 from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 
+def _quitar_artistas(lista):
+    """Quita artistas de matplotlib ignorando los que ya fueron destruidos
+    (por ejemplo, tras un ax.clear()). Devuelve True si había algo en la lista."""
+    había = bool(lista)
+    for artista in list(lista):
+        try:
+            artista.remove()
+        except (NotImplementedError, ValueError, AttributeError, RuntimeError):
+            pass
+    lista.clear()
+    return había
+
 class GraficarUmbrales:
     
     def mostrarSeleccionUmbrales_personalizados(lista_opciones, titulo):
@@ -182,59 +194,29 @@ class GraficarUmbrales:
             mostrar_mensaje("Error", "No hay umbrales.", 'error')
     
     def clean_on_widget(widget, tipo_pintado='color', tipo=None):
-        # Convertir widget a una lista si no lo es
         widgets = widget if isinstance(widget, list) else [widget]
-        # Variable para rastrear si se realizó alguna limpieza
         limpieza_realizada = False
         for widget in widgets:
-            # Buscar el canvas de Matplotlib dentro del widget
             canvas = None
             for child in widget.children():
                 if isinstance(child, FigureCanvas):
                     canvas = child
-            if canvas is not None:
-                if tipo:
-                    for ax in canvas.figure.axes:
-                        # Inicializar atributos si no existen
-                        if not hasattr(ax, 'colored_spans'):
-                            ax.colored_spans = []
-                        if not hasattr(ax, 'dashed_lines'):
-                            ax.dashed_lines = []
-                        # Verificar si ya hay elementos pintados y limpiarlos
-                        if tipo_pintado == 'color' and ax.colored_spans:
-                            # Limpiar las áreas coloreadas existentes
-                            for span in ax.colored_spans:
-                                span.remove()
-                            ax.colored_spans.clear()
-                            limpieza_realizada = True
-                        elif tipo_pintado == 'linea' and ax.dashed_lines:
-                            # Limpiar las líneas punteadas existentes
-                            for line in ax.dashed_lines:
-                                line.remove()
-                            ax.dashed_lines.clear()
-                            limpieza_realizada = True
-                else:
-                    # Obtener el eje (ax) del canvas
-                    ax = canvas.figure.axes[0]
-                    # Inicializar atributos si no existen
-                    if not hasattr(ax, 'colored_spans'):
-                        ax.colored_spans = []
-                    if not hasattr(ax, 'dashed_lines'):
-                        ax.dashed_lines = []
-                    # Verificar si ya hay elementos pintados y limpiarlos
-                    if tipo_pintado == 'color' and ax.colored_spans:
-                        # Limpiar las áreas coloreadas existentes
-                        for span in ax.colored_spans:
-                            span.remove()
-                        ax.colored_spans.clear()
+            if canvas is None:
+                continue
+
+            ejes = canvas.figure.axes if tipo else canvas.figure.axes[:1]
+            for ax in ejes:
+                if not hasattr(ax, 'colored_spans'):
+                    ax.colored_spans = []
+                if not hasattr(ax, 'dashed_lines'):
+                    ax.dashed_lines = []
+
+                if tipo_pintado == 'color':
+                    if _quitar_artistas(ax.colored_spans):
                         limpieza_realizada = True
-                    elif tipo_pintado == 'linea' and ax.dashed_lines:
-                        # Limpiar las líneas punteadas existentes
-                        for line in ax.dashed_lines:
-                            line.remove()
-                        ax.dashed_lines.clear()
+                elif tipo_pintado == 'linea':
+                    if _quitar_artistas(ax.dashed_lines):
                         limpieza_realizada = True
-                # Redibujar el canvas después de la limpieza
-                canvas.draw()
+
+            canvas.draw()
         return limpieza_realizada
-    

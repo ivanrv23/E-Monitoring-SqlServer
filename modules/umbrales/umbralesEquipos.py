@@ -104,6 +104,24 @@ class UmbralView:
         combo_label = QLabel("Seleccione Umbral:")
         combo_tipo = QComboBox()
         options = UmbralView.retornarArregloTipo(tipo)
+        ANGULOS = {"DAH", "AHA", "AHI", "DAV", "AVA", "AVI"}
+        def obtener_unidad(selected_id):
+            """Devuelve (factor, texto_unidad). texto_unidad=None -> sin unidad."""
+            if selected_id == "ALL":
+                return 1, None
+            if selected_id in ANGULOS:
+                return 1, "°"
+            if selected_id.startswith("V"):
+                # Si llegó "°" desde la gráfica de ángulos, usar m/d
+                if medida2 == "°":
+                    return 1, "m/d"
+                return unidad2, medida2
+            # Desplazamientos
+            if medida1 == "°":
+                return 1, "m"
+            return unidad1, medida1
+        def texto_rango(medida):
+            return "Rango" if medida is None else f"Rango ({medida})"
         # Añadir opciones al ComboBox
         combo_tipo.addItems(options.keys())
         # Botón al lado del ComboBox
@@ -120,10 +138,8 @@ class UmbralView:
         def reset_table():
             selected_option = combo_tipo.currentText()
             selected_id = options[selected_option]
-            if selected_id.startswith("V"):
-                table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", f"Rango ({medida2})", "Acciones a realizar"])
-            else:
-                table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", f"Rango ({medida1})", "Acciones a realizar"])
+            _, medida = obtener_unidad(selected_id)
+            table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", texto_rango(medida), "Acciones a realizar"])
             table.setRowCount(3)
             for row in range(3):
                 # Condición
@@ -150,12 +166,8 @@ class UmbralView:
             selected_component_id = component_combo.currentData()  # Obtener el ID del componente seleccionado
             umbrales = UmbralController.ctrlObtenerUmbralesAjustes(proyectoid, selected_component_id, selected_id, tipo)
             if umbrales:
-                if selected_id.startswith("V"):
-                    table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", f"Rango ({medida2})", "Acciones a realizar"])
-                    unidad = unidad2
-                else:
-                    table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", f"Rango ({medida1})", "Acciones a realizar"])
-                    unidad = unidad1
+                unidad, medida = obtener_unidad(selected_id)
+                table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", texto_rango(medida), "Acciones a realizar"])
                 table.setRowCount(len(umbrales))
                 for row, umbral in enumerate(umbrales):
                     # Condición
@@ -228,10 +240,7 @@ class UmbralView:
         def confirm():
             selected_option = combo_tipo.currentText()
             selected_id = options[selected_option]  # Obtener el ID correspondiente
-            if selected_id.startswith("V"):
-                unidad = unidad2
-            else:
-                unidad = unidad1
+            unidad, _ = obtener_unidad(selected_id)
             selected_component_id = component_combo.currentData()  # Obtener el ID del componente seleccionado
             data = []
             for row in range(table.rowCount()):
@@ -1698,6 +1707,7 @@ class UmbralView:
     def retornarArregloTipo(tipo):
         if tipo == 'PRISMAS':
             options = {
+                "TODOS": "ALL",
                 "Desplaz. Acumulado 3D": "3DA",
                 "Desplaz. Incremental 3D": "3DI",
                 "Desplaz. Acumulado 2D": "2DA",
@@ -1716,6 +1726,12 @@ class UmbralView:
                 "Desplaz. Incremental Este": "DEI",
                 "Desplaz. Acumulado Cota": "DZA",
                 "Desplaz. Incremental Cota": "DZI",
+                "Ángulo Horizontal": "DAH",
+                "Ángulo Horizontal Acumulado": "AHA",
+                "Ángulo Horizontal Incremental": "AHI",
+                "Ángulo Vertical": "DAV",
+                "Ángulo Vertical Acumulado": "AVA",
+                "Ángulo Vertical Incremental": "AVI",
                 "Velocidad Incremental 3D": "VI3D",
                 "Velocidad Acumulada 3D": "VA3D",
                 "Velocidad Incremental 2D": "VI2D",

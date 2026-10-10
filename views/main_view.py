@@ -3,7 +3,7 @@ import qtawesome as qta
 from datetime import datetime
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtGui import QIcon, QAction, QKeySequence
-from PySide6.QtWidgets import (QMenu, QStackedWidget, QToolButton, QPushButton, QTreeWidget, QMessageBox, QApplication, QComboBox, QLabel)
+from PySide6.QtWidgets import (QMenu, QStackedWidget, QToolButton, QPushButton, QTreeWidget, QMessageBox, QApplication, QComboBox, QLabel, QWidget)
 from PySide6.QtCore import Qt, QObject, QEvent, QSize
 from utils.common.alertas import mostrar_mensaje
 from utils.common.rutasarchivos import resource_path
@@ -1384,17 +1384,23 @@ class MainView:
             pagina = MainView.main_window.findChild(QStackedWidget, "stackedWidget_principal").currentIndex()
             if tipo == 'PRISMAS':
                 if pagina == 3:
-                    combotipomedida = MainView.main_window.findChild(QComboBox, "combo_medida_desplaza")
-                    unidadmedida = combotipomedida.currentData()
-                    if unidadmedida == 1:
-                        unidad1, unidad2 = 1, 1
-                        medida1, medida2 = "m", "m/d"
-                    elif unidadmedida == 100:
-                        unidad1, unidad2 = 100, 1
-                        medida1, medida2 = "cm", "m/d"
+                    combotipografico = MainView.main_window.findChild(QWidget, "combo_tipos_desplazamiento")
+                    tipografico = combotipografico.currentData()
+                    if tipografico not in ['DAH', 'AHA', 'AHI', 'DAV', 'AVA', 'AVI']:
+                        combotipomedida = MainView.main_window.findChild(QComboBox, "combo_medida_desplaza")
+                        unidadmedida = combotipomedida.currentData()
+                        if unidadmedida == 1:
+                            unidad1, unidad2 = 1, 1
+                            medida1, medida2 = "m", "m/d"
+                        elif unidadmedida == 100:
+                            unidad1, unidad2 = 100, 1
+                            medida1, medida2 = "cm", "m/d"
+                        else:
+                            unidad1, unidad2 = 1000, 1
+                            medida1, medida2 = "mm", "m/d"
                     else:
-                        unidad1, unidad2 = 1000, 1
-                        medida1, medida2 = "mm", "m/d"
+                        unidad1, unidad2 = 1, 1
+                        medida1, medida2 = "°", "°"
                 elif pagina == 4:
                     combotipomedida = VelocidadView.main.findChild(QComboBox, "combo_medida_velocidad")
                     unidadmedida = combotipomedida.currentData()
