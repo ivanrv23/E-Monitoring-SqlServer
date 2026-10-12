@@ -625,4 +625,18 @@ class UmbralController:
     def ctrlListarTiposInstrumentoComponente(componente_id):
         return UmbralModel.mdlListarTiposInstrumentoComponente(componente_id)
     
-    
+    @staticmethod
+    def ctrlResolverUmbralesPrismas(idproyecto, ids_componentes, tipografica):
+        """Devuelve la lista de candidatos [(id_componente, tipo_umbral, etiqueta), ...]
+        combinando: componentes de los prismas + TODOS(0)  x  gráfica actual + ALL.
+        Si no hay ninguno devuelve None."""
+        ids = sorted(set(ids_componentes) | {0})
+        tipos = sorted({tipografica, 'ALL'})
+        filas = UmbralModel.mdlListarUmbralesCandidatos(idproyecto, ids, tipos, 'PRISMAS')
+        if not filas:
+            return None
+        candidatos = []
+        for id_comp, tipo, nombre in filas:
+            texto_tipo = "todas las gráficas" if tipo == 'ALL' else "gráfica específica"
+            candidatos.append((id_comp, tipo, f"{nombre} – {texto_tipo}"))
+        return candidatos

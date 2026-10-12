@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QMenu
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from utils.shared.arbolmarcado import TreeCheckbox
 from modules.proyecto.crearProyecto import CrearProyecto
 from modules.datos.subirPrismas import SubirPrismas
@@ -44,8 +44,8 @@ class EquiposVelocidad:
                     idproyecto = item.text(3)
                     edit_componente = menu.addAction("Editar Componente")
                     delete_componente = menu.addAction("Eliminar Componente")
-                    edit_componente.triggered.connect(lambda: CrearProyecto.dialogo_editar_componente(idzona, nombrezona, treeWidget, reiniciarvistas))
-                    delete_componente.triggered.connect(lambda: CrearProyecto.eliminar_componente(idproyecto, idzona, nombrezona, treeWidget, reiniciarvistas))
+                    edit_componente.triggered.connect(lambda: QTimer.singleShot(0, lambda: CrearProyecto.dialogo_editar_componente(idzona, nombrezona, treeWidget, reiniciarvistas)))
+                    delete_componente.triggered.connect(lambda: QTimer.singleShot(0, lambda: CrearProyecto.eliminar_componente(idproyecto, idzona, nombrezona, treeWidget, reiniciarvistas)))
                 elif tipo == "1": # Prismas
                     idzona = item.text(2)
                     idproyecto = item.text(3)
@@ -53,17 +53,17 @@ class EquiposVelocidad:
                     edit_prismasalta = menu.addAction("Dar de Baja")
                     change_prismasalta = menu.addAction("Cambiar de Componente")
                     delete_prismasalta = menu.addAction("Eliminar Prismas")
-                    edit_prismasalta.triggered.connect(lambda: SubirPrismas.dardebaja_prismas(idzona, idproyecto, nombrezona, treeWidget, "Prismas", "2", reiniciarvistas))
-                    change_prismasalta.triggered.connect(lambda: SubirPrismas.cambiar_componente_prismas(idzona, idproyecto, treeWidget, "Prismas", "2", "prisma", reiniciarvistas))
-                    delete_prismasalta.triggered.connect(lambda: SubirPrismas.eliminar_prismas(idzona, "Prismas", "2", treeWidget, reiniciarvistas))
+                    edit_prismasalta.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPrismas.dardebaja_prismas(idzona, idproyecto, nombrezona, treeWidget, "Prismas", "2", reiniciarvistas)))
+                    change_prismasalta.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPrismas.cambiar_componente_prismas(idzona, idproyecto, treeWidget, "Prismas", "2", "prisma", reiniciarvistas)))
+                    delete_prismasalta.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPrismas.eliminar_prismas(idzona, "Prismas", "2", treeWidget, reiniciarvistas)))
                 elif tipo == "2": # Pluviometros
                     idzona = item.text(2)
                     idproyecto = item.text(3)
                     nombrezona = item.parent().text(0)
                     edit_pluviometros = menu.addAction("Cambiar de Componente")
                     delete_pluviometros = menu.addAction("Eliminar Pluviómetros")
-                    edit_pluviometros.triggered.connect(lambda: SubirPluviometros.cambiar_componente_pluviometros(idzona, idproyecto, treeWidget, "Pluviómetros", "6", "pluviometro", reiniciarvistas))
-                    delete_pluviometros.triggered.connect(lambda: SubirPluviometros.eliminar_pluviometros(idproyecto, idzona, "Pluviómetros", "6", treeWidget, reiniciarvistas))
+                    edit_pluviometros.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.cambiar_componente_pluviometros(idzona, idproyecto, treeWidget, "Pluviómetros", "6", "pluviometro", reiniciarvistas)))
+                    delete_pluviometros.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.eliminar_pluviometros(idproyecto, idzona, "Pluviómetros", "6", treeWidget, reiniciarvistas)))
             else:    
                 if tipo == "prisma":
                     nombreprisma = item.text(0)
@@ -75,10 +75,10 @@ class EquiposVelocidad:
                     edit_prisma = menu.addAction("Dar de Baja")
                     change_prisma = menu.addAction("Cambiar de Componente")
                     delete_prisma = menu.addAction("Eliminar Prisma")
-                    custom_prisma.triggered.connect(lambda: Personalizacion.personalizarEquipoGrafica(idproyecto, idinstrumento, nombreprisma, "PRISMA"))
-                    edit_prisma.triggered.connect(lambda: SubirPrismas.dardebaja_prisma(main, idproyecto, idcomponente, nombreprisma, idinstrumento, nombrezona, treeWidget, reiniciarvistas))
-                    change_prisma.triggered.connect(lambda: SubirPrismas.cambiar_componente_prisma(idinstrumento, idcomponente, idproyecto, treeWidget, "Prismas", "1", "prisma", 1, reiniciarvistas))
-                    delete_prisma.triggered.connect(lambda: SubirPrismas.eliminar_prisma(idinstrumento, nombreprisma, "Prismas", "prisma", treeWidget, reiniciarvistas))
+                    custom_prisma.triggered.connect(lambda: QTimer.singleShot(0, lambda: Personalizacion.personalizarEquipoGrafica(idproyecto, idinstrumento, nombreprisma, "PRISMA")))
+                    edit_prisma.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPrismas.dardebaja_prisma(main, idproyecto, idcomponente, nombreprisma, idinstrumento, nombrezona, treeWidget, reiniciarvistas)))
+                    change_prisma.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPrismas.cambiar_componente_prisma(idinstrumento, idcomponente, idproyecto, treeWidget, "Prismas", "1", "prisma", 1, reiniciarvistas)))
+                    delete_prisma.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPrismas.eliminar_prisma(idinstrumento, nombreprisma, "Prismas", "prisma", treeWidget, reiniciarvistas)))
                 elif tipo == "pluviometro":
                     nombrepluvio = item.text(0)
                     idinstrumento = item.text(2)
@@ -88,9 +88,9 @@ class EquiposVelocidad:
                     custom_pluvio = menu.addAction("Personalizar Pluviómetro")
                     edit_pluviometro = menu.addAction("Editar Pluviómetro")
                     delete_pluviometro = menu.addAction("Eliminar Pluviómetro")
-                    custom_pluvio.triggered.connect(lambda: Personalizacion.personalizarPluviometroGrafica(idproyecto, idinstrumento, nombrepluvio, "PLUVIÓMETRO", 0))
-                    edit_pluviometro.triggered.connect(lambda: SubirPluviometros.actualizarPluviometro(idproyecto, idcomponente, idinstrumento, treeWidget, "Pluviómetros", "2", "pluviometro", reiniciarvistas))
-                    delete_pluviometro.triggered.connect(lambda: SubirPluviometros.eliminar_pluviometro(idproyecto, idinstrumento, nombrepluvio, "Pluviómetros", "pluviometro", treeWidget, reiniciarvistas))
+                    custom_pluvio.triggered.connect(lambda: QTimer.singleShot(0, lambda: Personalizacion.personalizarPluviometroGrafica(idproyecto, idinstrumento, nombrepluvio, "PLUVIÓMETRO", 0)))
+                    edit_pluviometro.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.actualizarPluviometro(idproyecto, idcomponente, idinstrumento, treeWidget, "Pluviómetros", "2", "pluviometro", reiniciarvistas)))
+                    delete_pluviometro.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.eliminar_pluviometro(idproyecto, idinstrumento, nombrepluvio, "Pluviómetros", "pluviometro", treeWidget, reiniciarvistas)))
             menu.exec(treeWidget.mapToGlobal(point))
     
     def validarMarcadoUnEquipoZona(datos, zona):

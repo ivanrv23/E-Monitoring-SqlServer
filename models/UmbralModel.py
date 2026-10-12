@@ -1851,3 +1851,57 @@ class UmbralModel:
             return None
         finally:
             if conn: conn.close()
+
+    @staticmethod
+    def mdlListarUmbralesCandidatos(idproyecto, ids_componentes, tipos, tipoequipo):
+        """Devuelve (id_componente, tipo_umbral, nombre_componente) de TODAS las
+        combinaciones componente/tipo de gráfica que tengan umbral registrado."""
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            ph_comp = ','.join('?' * len(ids_componentes))
+            ph_tipo = ','.join('?' * len(tipos))
+            sql = f"""SELECT DISTINCT u.id_componente, u.tipo_umbral,
+                             COALESCE(c.nombre_componente, 'TODOS') AS nombre
+                      FROM umbral_general u
+                      LEFT JOIN componentes c ON u.id_componente = c.id_componente
+                      WHERE u.id_proyecto = ? AND u.tipo_equipo = ?
+                        AND u.id_componente IN ({ph_comp})
+                        AND u.tipo_umbral IN ({ph_tipo})
+                      ORDER BY u.id_componente, u.tipo_umbral;"""
+            params = (idproyecto, tipoequipo) + tuple(ids_componentes) + tuple(tipos)
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            result = [tuple(row) for row in cur.fetchall()]
+            return result if result else None
+        except Exception as e:
+            print("Error al listar umbrales candidatos: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @staticmethod
+    def mdlListarUmbralesDisponiblesPorComponentes(idproyecto, ids_componentes, tipografica, tipoequipo):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            placeholders = ','.join('?' * len(ids_componentes))
+            sql = f"""SELECT DISTINCT u.id_componente,
+                            COALESCE(c.nombre_componente, 'TODOS') AS nombre
+                    FROM umbral_general u
+                    LEFT JOIN componentes c ON u.id_componente = c.id_componente
+                    WHERE u.id_proyecto = ? AND u.tipo_umbral = ? AND u.tipo_equipo = ?
+                        AND u.id_componente IN ({placeholders})
+                    ORDER BY nombre;"""
+            params = (idproyecto, tipografica, tipoequipo) + tuple(ids_componentes)
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            result = [tuple(row) for row in cur.fetchall()]
+            return result if result else None
+        except Exception as e:
+            print("Error al listar umbrales por componentes: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()

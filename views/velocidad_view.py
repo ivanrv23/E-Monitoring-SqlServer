@@ -80,6 +80,8 @@ class VelocidadView:
     _workers_anteriores = []
     timer_consulta = None
     timer_busqueda_veloc = None
+    umbral_tipo_resuelto = None
+    umbral_opciones_firma = None
        
     def inicializarVistaVelocidad(main, proyectoid, proyectoname, fechaini, fechafin):
         VelocidadView.main = main
@@ -87,19 +89,6 @@ class VelocidadView:
         VelocidadView.nameproyecto = proyectoname
         VelocidadView.fechainicial, VelocidadView.fechafinal = fechaini, fechafin
 
-        # if VelocidadView.estadochecklist:
-        #     tree_widget = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-        #     tree_widget.setHeaderLabels([VelocidadView.nameproyecto.upper()])
-        #     EquiposVelocidad.inicializar_lista_equipos(tree_widget, VelocidadView.idproyecto, VelocidadView.nameproyecto)
-        #     def sincronizar_memoria(nodo):
-        #         for i in range(nodo.childCount()):
-        #             hijo = nodo.child(i)
-        #             hijo.setData(0, Qt.UserRole + 999, hijo.checkState(0))
-        #             sincronizar_memoria(hijo)
-        #     root = tree_widget.invisibleRootItem()
-        #     sincronizar_memoria(root)
-        #     VelocidadView.estadochecklist = False
-        
         if VelocidadView.estadoPagina:
             tree_actual_velocidad =  main.findChild(QTreeWidget, "tree_actual_desplazamiento")
 
@@ -275,109 +264,107 @@ class VelocidadView:
             menu.addAction("Lista de Plantillas").triggered.connect(accion_lista_plantillas)
             menu.exec(pos_global)
     
-    # def graficarUmbralesPersonalizado():
-    #     if VelocidadView.idproyecto:
-    #         widget_grafico = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")
-    #         combo_medidas = VelocidadView.main.findChild(QComboBox, "combo_medida_velocidad")
-    #         unidad = combo_medidas.currentData()
-    #         if unidad == "MD":
-    #             unidadmedida = 1
-    #         elif unidad == "CMD":
-    #             unidadmedida = 100
-    #         elif unidad == "MMD":
-    #             unidadmedida = 1000
-    #         elif unidad == "MH":
-    #             unidadmedida = 1/24
-    #         elif unidad == "CMH":
-    #             unidadmedida = 100/24
-    #         else:
-    #             unidadmedida = 1000/24
-    #         graficarUmbralesPersonalizado(widget_grafico,unidadmedida,VelocidadView.idproyecto)
-            
+    @staticmethod
+    def _resetUmbrales():
+        VelocidadView.umbral_modo = None
+        VelocidadView.umbral_general_componente = None
+        VelocidadView.umbral_tipo_resuelto = None
+        VelocidadView.umbral_opciones_firma = None
+        VelocidadView.umbral_activo_velocidad = False
+        VelocidadView.umbrales_cache = None
+
     @staticmethod
     def graficarUmbralesVelocidad():
         widget_grafico = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")
-        
-        pintado = GraficarUmbrales.clean_on_widget(widget_grafico, 'color')
-        if pintado:
-            VelocidadView.umbral_modo = None
-            VelocidadView.umbral_general_componente = None
-            VelocidadView.umbral_activo_velocidad = False
-            VelocidadView.umbrales_cache = None
+
+        # Toggle: si ya está activo, quitar
+        if VelocidadView.umbral_activo_velocidad:
+            GraficarUmbrales.clean_on_widget(widget_grafico, 'color')
+            VelocidadView._resetUmbrales()
             return
 
         tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
         lista = EquiposVelocidad.obtener_todos_elementos_marcados(tree_actual)
         if not lista:
             return
-
         prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
         if not prismasmarcados:
             return
 
-        combo_tipo_grafico = VelocidadView.main.findChild(QWidget, "combo_tipos_velocidad")
-        tipo = combo_tipo_grafico.currentData()
-
-        opciones = UmbralController.ctrlListarUmbralesGeneralesDisponibles(
-            VelocidadView.idproyecto, tipo, 'PRISMAS')
-        
-        if not opciones:
-            mostrar_mensaje("Umbrales", "No hay umbrales generales configurados.", "advertencia")
-            return
-
-        if len(opciones) == 1:
-            idcompo = opciones[0][0]
-        else:
-            estado, idcompo = Personalizacion.dialogoSeleccionUmbralGeneral(opciones)
-            if not estado or idcompo is None:
-                return
-
-        VelocidadView.umbral_general_componente = idcompo
         VelocidadView.umbral_modo = "GENERAL"
         VelocidadView._dibujarUmbralesGenerales(prismasmarcados)
+        if not VelocidadView.umbral_activo_velocidad:
+            mostrar_mensaje("Umbrales", "No hay umbrales configurados para los prismas marcados.", "advertencia")
 
     @staticmethod
+    def _factorUnidadVelocidad():
+        tipomedida = VelocidadView.main.findChild(QComboBox, "combo_medida_velocidad").currentData()
+        factores = {
+            "MD": 1, "CMD": 100, "MMD": 1000,
+            "MH": 1/24, "CMH": 100/24, "MMH": 1000/24,
+        }
+        return factores.get(tipomedida, 1000/24)
+
+    @staticmethod
+    def _resolverUmbral(prismasmarcados):
+        """Define (componente, tipo) del umbral a pintar. True si hay umbral."""
+        tipo = VelocidadView.main.findChild(QWidget, "combo_tipos_velocidad").currentData()
+        # Normalizamos a int para evitar mezclar tipos (str/int) en el sorted()
+        ids = sorted({int(componente[1]) for componente, _ in prismasmarcados})
+
+        candidatos = UmbralController.ctrlResolverUmbralesPrismas(
+            VelocidadView.idproyecto, ids, tipo)
+        if not candidatos:
+            return False
+
+        pares = [(c[0], c[1]) for c in candidatos]
+
+        if (VelocidadView.umbral_opciones_firma == pares
+                and (VelocidadView.umbral_general_componente,
+                     VelocidadView.umbral_tipo_resuelto) in pares):
+            return True
+
+        if len(pares) == 1:
+            elegido = pares[0]
+        else:
+            opciones_dialogo = [(i, c[2]) for i, c in enumerate(candidatos)]
+            estado, idx = Personalizacion.dialogoSeleccionUmbralGeneral(opciones_dialogo)
+            if not estado or idx is None:
+                return False
+            elegido = pares[idx]
+
+        VelocidadView.umbral_general_componente = elegido[0]
+        VelocidadView.umbral_tipo_resuelto = elegido[1]
+        VelocidadView.umbral_opciones_firma = pares
+        return True
+    
+    @staticmethod
     def _dibujarUmbralesGenerales(prismasmarcados=None):
-        """Redibuja umbrales generales usando la selección ya guardada"""
         widget_grafico = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")
         GraficarUmbrales.clean_on_widget(widget_grafico, 'color')
 
         if prismasmarcados is None:
             tree_actual = VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
             lista = EquiposVelocidad.obtener_todos_elementos_marcados(tree_actual)
-            prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
-        
-        if not prismasmarcados:
+            prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas") if lista else []
+
+        if not prismasmarcados or not VelocidadView._resolverUmbral(prismasmarcados):
+            VelocidadView._resetUmbrales()
             return
 
-        combo_tipo_grafico = VelocidadView.main.findChild(QWidget, "combo_tipos_velocidad")
-        tipo = combo_tipo_grafico.currentData()
-        combo_medidas = VelocidadView.main.findChild(QComboBox, "combo_medida_velocidad")
-        unidad = combo_medidas.currentData()
-        
-        if unidad == "MD": unidadmedida = 1
-        elif unidad == "CMD": unidadmedida = 100
-        elif unidad == "MMD": unidadmedida = 1000
-        elif unidad == "MH": unidadmedida = 1/24
-        elif unidad == "CMH": unidadmedida = 100/24
-        else: unidadmedida = 1000/24
-
-        idcompo = VelocidadView.umbral_general_componente
-        if idcompo is None:
-            componente, _ = prismasmarcados[0]
-            idcompo = componente[1]
-
-        umbrales = UmbralController.ctrlObtenerUmbralesInstrumentacion(
-            VelocidadView.idproyecto, idcompo, tipo, 'PRISMAS')
-        
+        umbrales = UmbralController.ctrlObtenerUmbralesAjustes(
+            VelocidadView.idproyecto,
+            VelocidadView.umbral_general_componente,
+            VelocidadView.umbral_tipo_resuelto,
+            'PRISMAS')
         if not umbrales:
-            VelocidadView.umbral_modo = None
-            VelocidadView.umbral_activo_velocidad = False
+            VelocidadView._resetUmbrales()
             return
 
-        GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unidadmedida)
+        unidad = VelocidadView._factorUnidadVelocidad()
+        GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unidad)
         VelocidadView.umbral_activo_velocidad = True
-    
+        
     def checkProyectoActualVelocidad(parent_item, column):
         treeWidget =  VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
         EquiposVelocidad.validarMarcadoCheckbox(parent_item, column, lambda: VelocidadView.obtenerMostrarPrismasMarcados(treeWidget))
@@ -850,6 +837,8 @@ class VelocidadView:
         VelocidadView.umbral_modo = None
         VelocidadView.umbral_general_componente = None
         VelocidadView.tendencia_cache_velocidad = None
+        VelocidadView.umbral_tipo_resuelto = None
+        VelocidadView.umbral_opciones_firma = None
         VelocidadView.limpiarGraficaVelocidad()
     
     def iniciarAsistenteVozVelocidad(treeWidget, botonvoz):
