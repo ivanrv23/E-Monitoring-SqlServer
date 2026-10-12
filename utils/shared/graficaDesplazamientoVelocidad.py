@@ -15,7 +15,6 @@ from utils.common.alertas import mostrar_mensaje
 from utils.shared.calculostendencias import CalculosTendencias
 from controllers.ConfiguracionController import ConfiguracionController
 from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
-from controllers.PrismaController import PrismaController
 from controllers.PiezometroController import PiezometroController
 from controllers.CeldaController import CeldaController
 from controllers.EventosController import EventosController

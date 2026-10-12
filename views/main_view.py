@@ -1230,11 +1230,11 @@ class MainView:
         elif pagina == 3: # Desplazamiento
             DesplazamientoView.inicializarVistaDesplazamiento(main, proyecto_id, proyecto_name, MainView.prismafechainicial, MainView.prismafechafinal)
             tree_compartido = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-            DesplazamientoView.obtenerMostrarPrismasMarcados(tree_compartido)
+            DesplazamientoView.refrescarSiCambio(tree_compartido)
         elif pagina == 4: # Velocidad
             VelocidadView.inicializarVistaVelocidad(main, proyecto_id, proyecto_name, MainView.prismafechainicial, MainView.prismafechafinal)
             tree_compartido = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
-            VelocidadView.obtenerMostrarPrismasMarcados(tree_compartido)
+            VelocidadView.refrescarSiCambio(tree_compartido)
         elif pagina == 5: # Inclinometros
             InclinometrosView.inicializarVistaInclinometros(main, proyecto_id, proyecto_name)
         elif pagina == 6: # Piezometros

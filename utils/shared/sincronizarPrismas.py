@@ -50,16 +50,6 @@ def sincronizarPrismasVisorADesplazamiento(main):
     finally:
         tree_desplaza.blockSignals(False)
 
-    from views.desplazamiento_view import DesplazamientoView
-    from views.velocidad_view import VelocidadView
-
-    if DesplazamientoView.main is not None:
-        DesplazamientoView.obtenerMostrarPrismasMarcados(tree_desplaza)
-
-    if VelocidadView.main is not None:
-        VelocidadView.obtenerMostrarPrismasMarcados(tree_desplaza)
-
-
 def sincronizarPrismasDesplazamientoAVisor(main):
     """
     Toma los prismas marcados en el árbol compartido de Desplazamiento/Velocidad

@@ -4,6 +4,7 @@ import laspy
 import threading
 import sys
 import random
+import math
 import matplotlib.dates as mdates
 from PySide6.QtGui import QColor, QDoubleValidator
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -3744,60 +3745,218 @@ class EstiloInteraccionPersonalizado(vtk.vtkInteractorStyleTrackballCamera):
         self._picker = picker
         self._is_panning = False
         self._last_pos = None
-        
-        # Observadores propios
+
+        # ── Rubber-band zoom (Ctrl + clic derecho) ──
+        self._is_rubber_zoom = False
+        self._rubber_start = None
+        self._rubber_end = None
+        self._rubber_actor = None
+        self._rubber_points = None
+        self._rubber_polydata = None
+
         self.AddObserver("RightButtonPressEvent", self.on_right_button_press)
         self.AddObserver("RightButtonReleaseEvent", self.on_right_button_release)
         self.AddObserver("MouseMoveEvent", self.on_mouse_move)
         self.AddObserver("LeftButtonPressEvent", self.on_left_button_press)
-    
+
+    # ══════════════════════════════════════════════════════════════
+    # CLIC IZQUIERDO  (sin cambios: Ctrl = prisma virtual, si no = rotar)
+    # ══════════════════════════════════════════════════════════════
     def on_left_button_press(self, obj, event):
-        """Clic izquierdo: rotar O abrir diálogo si ctrl está presionado"""
         interactor = self.GetInteractor()
         if interactor.GetControlKey():
-            # Ctrl + clic izquierdo → abrir diálogo prisma virtual
             if self._picker:
                 click_pos = interactor.GetEventPosition()
-                self._picker.Pick(
-                    click_pos[0], 
-                    click_pos[1], 
-                    0, 
-                    VisorView.rendererVisor
-                )
+                self._picker.Pick(click_pos[0], click_pos[1], 0, VisorView.rendererVisor)
                 picked_point = self._picker.GetPickPosition()
                 if picked_point:
                     x, y, z = picked_point
                     VisorView.abrir_dialogo(x, y, z)
-                # Desactivar ctrl para evitar propagación
                 interactor.SetControlKey(0)
-            return  # No propagar
-        else:
-            # Comportamiento normal: rotar
-            self.OnLeftButtonDown()
-    
+            return
+        self.OnLeftButtonDown()
+
+    # ══════════════════════════════════════════════════════════════
+    # CLIC DERECHO
+    #   Ctrl + derecho  → rubber-band zoom
+    #   solo derecho    → pan (comportamiento actual)
+    # ══════════════════════════════════════════════════════════════
     def on_right_button_press(self, obj, event):
-        """Clic derecho presionado: iniciar pan (arrastre)"""
-        self._is_panning = True
         interactor = self.GetInteractor()
-        self._last_pos = interactor.GetEventPosition()
-        # Activar modo pan en VTK
-        self.StartPan()
-    
-    def on_right_button_release(self, obj, event):
-        """Clic derecho soltado: terminar pan"""
-        self._is_panning = False
-        self._last_pos = None
-        # Terminar modo pan en VTK
-        self.EndPan()
-    
-    def on_mouse_move(self, obj, event):
-        """Movimiento del mouse: ejecutar pan si clic derecho está presionado"""
-        if self._is_panning:
-            # VTK maneja el pan internamente cuando está en modo Pan
-            self.OnMouseMove()
+        if interactor.GetControlKey():
+            self._is_rubber_zoom = True
+            self._rubber_start = interactor.GetEventPosition()
+            self._rubber_end = self._rubber_start
+            self._crear_rubber_actor()
+            self._actualizar_rubber_actor()
         else:
-            # Comportamiento normal (rotación con clic izquierdo, etc.)
-            self.OnMouseMove()
+            self._is_panning = True
+            self._last_pos = interactor.GetEventPosition()
+            self.StartPan()
+
+    def on_right_button_release(self, obj, event):
+        if self._is_rubber_zoom:
+            self._is_rubber_zoom = False
+            self._aplicar_zoom_rubber_band()
+            self._eliminar_rubber_actor()
+            self._rubber_start = None
+            self._rubber_end = None
+        else:
+            self._is_panning = False
+            self._last_pos = None
+            self.EndPan()
+
+    # ══════════════════════════════════════════════════════════════
+    # MOVIMIENTO DEL MOUSE
+    # ══════════════════════════════════════════════════════════════
+    def on_mouse_move(self, obj, event):
+        if self._is_rubber_zoom:
+            self._rubber_end = self.GetInteractor().GetEventPosition()
+            self._actualizar_rubber_actor()
+            return
+        self.OnMouseMove()
+
+    # ══════════════════════════════════════════════════════════════
+    # RUBBER BAND: rectángulo 2D de selección
+    # ══════════════════════════════════════════════════════════════
+    def _crear_rubber_actor(self):
+        if self._rubber_actor is not None:
+            return
+
+        # 4 puntos en coords display
+        self._rubber_points = vtk.vtkPoints()
+        for _ in range(4):
+            self._rubber_points.InsertNextPoint(0, 0, 0)
+
+        # 4 líneas cerrando el rectángulo
+        lines = vtk.vtkCellArray()
+        for i in range(4):
+            line = vtk.vtkLine()
+            line.GetPointIds().SetId(0, i)
+            line.GetPointIds().SetId(1, (i + 1) % 4)
+            lines.InsertNextCell(line)
+
+        self._rubber_polydata = vtk.vtkPolyData()
+        self._rubber_polydata.SetPoints(self._rubber_points)
+        self._rubber_polydata.SetLines(lines)
+
+        coord = vtk.vtkCoordinate()
+        coord.SetCoordinateSystemToDisplay()   # píxeles de pantalla
+
+        mapper = vtk.vtkPolyDataMapper2D()
+        mapper.SetInputData(self._rubber_polydata)
+        mapper.SetTransformCoordinate(coord)
+
+        self._rubber_actor = vtk.vtkActor2D()
+        self._rubber_actor.SetMapper(mapper)
+        self._rubber_actor.GetProperty().SetColor(0.0, 0.6, 1.0)  # azul
+        self._rubber_actor.GetProperty().SetLineWidth(2)
+        self._rubber_actor.PickableOff()
+        self._rubber_actor.SetVisibility(False)
+
+        renderer = self._get_renderer()
+        if renderer is not None:
+            renderer.AddActor2D(self._rubber_actor)
+
+    def _actualizar_rubber_actor(self):
+        if self._rubber_actor is None or self._rubber_start is None or self._rubber_end is None:
+            return
+        x1, y1 = self._rubber_start
+        x2, y2 = self._rubber_end
+        self._rubber_points.SetPoint(0, x1, y1, 0)
+        self._rubber_points.SetPoint(1, x2, y1, 0)
+        self._rubber_points.SetPoint(2, x2, y2, 0)
+        self._rubber_points.SetPoint(3, x1, y2, 0)
+        self._rubber_points.Modified()
+        self._rubber_actor.SetVisibility(True)
+        self.GetInteractor().GetRenderWindow().Render()
+
+    def _eliminar_rubber_actor(self):
+        if self._rubber_actor is None:
+            return
+        renderer = self._get_renderer()
+        if renderer is not None:
+            renderer.RemoveActor2D(self._rubber_actor)
+        self._rubber_actor = None
+        self._rubber_polydata = None
+        self._rubber_points = None
+        self.GetInteractor().GetRenderWindow().Render()
+
+    def _get_renderer(self):
+        try:
+            return self.GetInteractor().GetRenderWindow().GetRenderers().GetFirstRenderer()
+        except Exception:
+            return None
+
+    # ══════════════════════════════════════════════════════════════
+    # ZOOM AL ÁREA SELECCIONADA
+    # ══════════════════════════════════════════════════════════════
+    def _aplicar_zoom_rubber_band(self):
+        if self._rubber_start is None or self._rubber_end is None:
+            return
+
+        x1, y1 = self._rubber_start
+        x2, y2 = self._rubber_end
+
+        box_w = abs(x2 - x1)
+        box_h = abs(y2 - y1)
+        if box_w < 5 or box_h < 5:      # click accidental, no hacemos nada
+            return
+
+        renderer = self._get_renderer()
+        if renderer is None:
+            return
+        ren_win = renderer.GetRenderWindow()
+        win_w, win_h = ren_win.GetSize()
+
+        # Centro del rectángulo (coords display)
+        cx = (x1 + x2) / 2.0
+        cy = (y1 + y2) / 2.0
+
+        # Corregir aspect ratio: expandir la caja para igualar la ventana
+        win_aspect = win_w / float(win_h)
+        box_aspect = box_w / float(box_h)
+        if box_aspect < win_aspect:
+            box_w = box_h * win_aspect
+        else:
+            box_h = box_w / win_aspect
+
+        zoom_factor = win_w / float(box_w)   # == win_h / box_h
+
+        camera = renderer.GetActiveCamera()
+
+        # 1) Ajustar nivel de zoom (paralela o perspectiva)
+        if camera.GetParallelProjection():
+            camera.SetParallelScale(camera.GetParallelScale() / zoom_factor)
+        else:
+            old_angle = camera.GetViewAngle()
+            new_angle = 2.0 * math.degrees(
+                math.atan(math.tan(math.radians(old_angle) / 2.0) / zoom_factor)
+            )
+            camera.SetViewAngle(new_angle)
+
+        # 2) Centrar la cámara en el rectángulo seleccionado
+        focal = camera.GetFocalPoint()
+        # display-Z del focal (misma profundidad para el click)
+        renderer.SetWorldPoint(focal[0], focal[1], focal[2], 1.0)
+        renderer.WorldToDisplay()
+        focal_disp_z = renderer.GetDisplayPoint()[2]
+
+        # display -> world del centro del rectángulo
+        renderer.SetDisplayPoint(cx, cy, focal_disp_z)
+        renderer.DisplayToWorld()
+        wc = renderer.GetWorldPoint()
+        w = wc[3] if wc[3] != 0.0 else 1.0
+        new_center = [wc[0] / w, wc[1] / w, wc[2] / w]
+
+        # Desplazar cámara y focal point manteniendo el offset original
+        old_pos = camera.GetPosition()
+        offset = [old_pos[i] - focal[i] for i in range(3)]
+        camera.SetFocalPoint(new_center)
+        camera.SetPosition([new_center[i] + offset[i] for i in range(3)])
+
+        renderer.ResetCameraClippingRange()
+        ren_win.Render()
 
 # Hilo procesar topografías
 class ProcesarTopografiaThread(QThread):

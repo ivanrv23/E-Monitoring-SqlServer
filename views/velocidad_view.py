@@ -17,10 +17,8 @@ from utils.shared.calculostendencias import CalculosTendencias
 from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 from controllers.UmbralController import UmbralController
 from utils.shared.graficarUmbrales import GraficarUmbrales
-from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
 from controllers.InterfazController import InterfazController
 from utils.common.alertas import mostrar_mensaje
-
 from services.queries.graph_query_manager import velocidad_query_manager
 from services.queries.query_context import set_active_request, clear_active_request
 from services.queries.query_registry import query_registry
@@ -82,6 +80,7 @@ class VelocidadView:
     timer_busqueda_veloc = None
     umbral_tipo_resuelto = None
     umbral_opciones_firma = None
+    firma_grafica = None
        
     def inicializarVistaVelocidad(main, proyectoid, proyectoname, fechaini, fechafin):
         VelocidadView.main = main
@@ -200,8 +199,6 @@ class VelocidadView:
             btn_guardar_grafico_reporte.clicked.connect(lambda: VelocidadView.mostrarDialogoReporteVelocidad(tree_actual_velocidad, widget_grafico, combo_tipo_grafico, "Anexos"))
             btnReporteGeneral = main.findChild(QPushButton, "btn_imagen_velocidad")
             btnReporteGeneral.clicked.connect(lambda: VelocidadView.mostrarDialogoReporteVelocidad(tree_actual_velocidad, widget_grafico, combo_tipo_grafico, "General"))
-            # btnAplicarUmbralPersonalizado = main.findChild(QPushButton, "btn_umbral_personalizado_V")
-            # btnAplicarUmbralPersonalizado.clicked.connect(VelocidadView.graficarUmbralesPersonalizado)
                         
             btnExportarV = main.findChild(QPushButton, "btn_exportar_velocidad")
             if btnExportarV:
@@ -292,8 +289,9 @@ class VelocidadView:
             return
 
         VelocidadView.umbral_modo = "GENERAL"
-        VelocidadView._dibujarUmbralesGenerales(prismasmarcados)
-        if not VelocidadView.umbral_activo_velocidad:
+        estado = VelocidadView._dibujarUmbralesGenerales(prismasmarcados)
+        # Solo avisar si realmente no hay umbrales (no si el usuario canceló el diálogo)
+        if estado == "SIN_UMBRAL":
             mostrar_mensaje("Umbrales", "No hay umbrales configurados para los prismas marcados.", "advertencia")
 
     @staticmethod
@@ -307,22 +305,22 @@ class VelocidadView:
 
     @staticmethod
     def _resolverUmbral(prismasmarcados):
-        """Define (componente, tipo) del umbral a pintar. True si hay umbral."""
+        """Define (componente, tipo) del umbral a pintar.
+        Retorna: "OK", "SIN_UMBRAL" o "CANCELADO"."""
         tipo = VelocidadView.main.findChild(QWidget, "combo_tipos_velocidad").currentData()
         # Normalizamos a int para evitar mezclar tipos (str/int) en el sorted()
         ids = sorted({int(componente[1]) for componente, _ in prismasmarcados})
 
-        candidatos = UmbralController.ctrlResolverUmbralesPrismas(
-            VelocidadView.idproyecto, ids, tipo)
+        candidatos = UmbralController.ctrlResolverUmbralesPrismas(VelocidadView.idproyecto, ids, tipo)
         if not candidatos:
-            return False
+            return "SIN_UMBRAL"
 
         pares = [(c[0], c[1]) for c in candidatos]
 
         if (VelocidadView.umbral_opciones_firma == pares
                 and (VelocidadView.umbral_general_componente,
                      VelocidadView.umbral_tipo_resuelto) in pares):
-            return True
+            return "OK"
 
         if len(pares) == 1:
             elegido = pares[0]
@@ -330,16 +328,17 @@ class VelocidadView:
             opciones_dialogo = [(i, c[2]) for i, c in enumerate(candidatos)]
             estado, idx = Personalizacion.dialogoSeleccionUmbralGeneral(opciones_dialogo)
             if not estado or idx is None:
-                return False
+                return "CANCELADO"
             elegido = pares[idx]
 
         VelocidadView.umbral_general_componente = elegido[0]
         VelocidadView.umbral_tipo_resuelto = elegido[1]
         VelocidadView.umbral_opciones_firma = pares
-        return True
+        return "OK"
     
     @staticmethod
     def _dibujarUmbralesGenerales(prismasmarcados=None):
+        """Retorna: "OK", "SIN_UMBRAL" o "CANCELADO"."""
         widget_grafico = VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad")
         GraficarUmbrales.clean_on_widget(widget_grafico, 'color')
 
@@ -348,9 +347,14 @@ class VelocidadView:
             lista = EquiposVelocidad.obtener_todos_elementos_marcados(tree_actual)
             prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas") if lista else []
 
-        if not prismasmarcados or not VelocidadView._resolverUmbral(prismasmarcados):
+        if not prismasmarcados:
             VelocidadView._resetUmbrales()
-            return
+            return "SIN_UMBRAL"
+
+        estado = VelocidadView._resolverUmbral(prismasmarcados)
+        if estado != "OK":
+            VelocidadView._resetUmbrales()
+            return estado
 
         umbrales = UmbralController.ctrlObtenerUmbralesAjustes(
             VelocidadView.idproyecto,
@@ -359,11 +363,12 @@ class VelocidadView:
             'PRISMAS')
         if not umbrales:
             VelocidadView._resetUmbrales()
-            return
+            return "SIN_UMBRAL"
 
         unidad = VelocidadView._factorUnidadVelocidad()
         GraficarUmbrales.draw_on_widget(widget_grafico, umbrales, unidad)
         VelocidadView.umbral_activo_velocidad = True
+        return "OK"
         
     def checkProyectoActualVelocidad(parent_item, column):
         treeWidget =  VelocidadView.main.findChild(QTreeWidget, "tree_actual_desplazamiento")
@@ -412,6 +417,44 @@ class VelocidadView:
     timer_consulta = None
 
     @staticmethod
+    def _calcularFirma(tree_actual):
+        if VelocidadView.main is None or VelocidadView.idproyecto is None:
+            return None
+        main = VelocidadView.main
+        lista = EquiposVelocidad.obtener_todos_elementos_marcados(tree_actual)
+        prismas, pluvios = frozenset(), frozenset()
+        if lista:
+            prismas = frozenset(
+                (str(c[1]), str(p[1]))
+                for c, equipos in VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
+                for p in equipos
+            )
+            pluvios = frozenset(
+                (str(c[1]), str(p[1]))
+                for c, equipos in VelocidadView.obtenerListaEquiposMarcados(lista, "Pluviómetros")
+                for p in equipos
+            )
+        tipopromedio = main.findChild(QComboBox, "combo_promedio_velocidad").currentData()
+        numeropromedio = main.findChild(QSpinBox, "spin_promedio_velocidad").value()
+        tipografico = main.findChild(QComboBox, "combo_tipos_velocidad").currentData()
+        tipomedida = main.findChild(QComboBox, "combo_medida_velocidad").currentData()
+        tipotiempo = main.findChild(QComboBox, "combo_tiempo_velocidad").currentData()
+        config = SoftwareConfiguracion.obtenerDataSoftware()
+        return (VelocidadView.idproyecto, prismas, pluvios,
+                str(VelocidadView.fechainicial), str(VelocidadView.fechafinal),
+                tipografico, tipomedida, tipotiempo, tipopromedio, numeropromedio,
+                config[15], config[16])
+
+    @staticmethod
+    def refrescarSiCambio(tree_actual):
+        if VelocidadView.main is None or VelocidadView.idproyecto is None:
+            return
+        firma = VelocidadView._calcularFirma(tree_actual)
+        if firma is not None and firma == VelocidadView.firma_grafica:
+            return
+        VelocidadView.obtenerMostrarPrismasMarcados(tree_actual)
+    
+    @staticmethod
     def obtenerMostrarPrismasMarcados(tree_actual):
         """ Portero (Debounce): Agrupa clics rápidos """
         if VelocidadView.main is not None:
@@ -430,19 +473,17 @@ class VelocidadView:
     @staticmethod
     def iniciar_peticion_final(tree_actual):
         """Genera un request cancelable y lanza la consulta."""
-        # Si la vista de Velocidad nunca se inicializó, no hay nada que refrescar
         if VelocidadView.main is None or VelocidadView.idproyecto is None:
             return
 
-        # 1. Generar nuevo request_id
-        #    (cancela automáticamente la consulta anterior via SPID)
         request_id = velocidad_query_manager.start_request()
+        firma = VelocidadView._calcularFirma(tree_actual)
 
-        # 2. Obtener lo que quedó marcado al final de los clics
         lista = EquiposVelocidad.obtener_todos_elementos_marcados(tree_actual)
         if not lista:
             VelocidadView.limpiarGraficaVelocidad()
             VelocidadView.tendencia_cache_velocidad = None
+            VelocidadView.firma_grafica = firma
             velocidad_query_manager.finish_request(request_id)
             ocultar_carga(VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad"))
             return
@@ -450,6 +491,7 @@ class VelocidadView:
         prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
         if len(prismasmarcados) == 0:
             VelocidadView.limpiarGraficaVelocidad()
+            VelocidadView.firma_grafica = firma
             velocidad_query_manager.finish_request(request_id)
             ocultar_carga(VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad"))
             return
@@ -489,7 +531,7 @@ class VelocidadView:
             VelocidadView.main.setCursor(Qt.WaitCursor)
             VelocidadView.worker_velocidad = DataWorkerVelocidad(params, request_id)
             VelocidadView.worker_velocidad.data_ready.connect(
-                lambda rid, datos: VelocidadView._on_data_ready(rid, lista, datos, tipografico, tipomedida, tipotiempo)
+                lambda rid, datos: VelocidadView._on_data_ready(rid, lista, datos, tipografico, tipomedida, tipotiempo, firma)
             )
             VelocidadView.worker_velocidad.worker_done.connect(
                 lambda rid, estado: VelocidadView._on_worker_done(rid, estado)
@@ -501,7 +543,7 @@ class VelocidadView:
             VelocidadView.main.unsetCursor()
 
     @staticmethod
-    def _on_data_ready(request_id, lista, datos, tipografico, tipomedida, tipotiempo):
+    def _on_data_ready(request_id, lista, datos, tipografico, tipomedida, tipotiempo, firma=None):
         if not velocidad_query_manager.is_current(request_id):
             return
 
@@ -512,13 +554,13 @@ class VelocidadView:
                 mostrar_carga(widget_g, "Dibujando gráfica ...", forzar_pintado=True)
                 VelocidadView.graficarPrismasVelocidad(lista, datos, tipografico, tipomedida, tipotiempo, VelocidadView.tendencia_cache_velocidad)
 
-                # ✅ REPINTAR UMBRALES
                 if VelocidadView.umbral_activo_velocidad:
                     if VelocidadView.umbral_modo == "GENERAL":
                         prismasmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Prismas")
                         VelocidadView._dibujarUmbralesGenerales(prismasmarcados)
             else:
                 VelocidadView.limpiarGraficaVelocidad()
+            VelocidadView.firma_grafica = firma
         except Exception:
             import traceback
             traceback.print_exc()
@@ -839,6 +881,7 @@ class VelocidadView:
         VelocidadView.tendencia_cache_velocidad = None
         VelocidadView.umbral_tipo_resuelto = None
         VelocidadView.umbral_opciones_firma = None
+        VelocidadView.firma_grafica = None
         VelocidadView.limpiarGraficaVelocidad()
     
     def iniciarAsistenteVozVelocidad(treeWidget, botonvoz):
