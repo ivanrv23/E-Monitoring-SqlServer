@@ -164,7 +164,7 @@ class ExportarDatos:
             ExportarDatos.exportar_celdas_asentamiento,
         ]
 
-        for hora in ["00:00", "08:00", "16:35"]:
+        for hora in ["00:00", "08:00", "16:00"]:
             schedule.every().day.at(hora).do(eliminar_carpeta_exportados)
             for fn in exportaciones:
                 schedule.every().day.at(hora).do(

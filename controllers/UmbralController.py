@@ -637,6 +637,6 @@ class UmbralController:
             return None
         candidatos = []
         for id_comp, tipo, nombre in filas:
-            texto_tipo = "todas las gráficas" if tipo == 'ALL' else "gráfica específica"
+            texto_tipo = "Todas las gráficas" if tipo == 'ALL' else "Gráfica específica"
             candidatos.append((id_comp, tipo, f"{nombre} – {texto_tipo}"))
         return candidatos

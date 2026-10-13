@@ -1651,8 +1651,8 @@ class UmbralView:
         checkestado = dialogo.findChild(QCheckBox, "check_estado")
         btnAceptar = dialogo.findChild(QPushButton, "btn_confirmar")
         # Cargar combo
-        item1 = ("D3D", "Desplaz. 3D")
-        item2 = ("VI3D", "Vel. Inc. 3D")
+        item1 = ("D3D", "Desplaz. Acum. 3D")
+        item2 = ("VI3D", "Vel. Incr. 3D")
         # Agregar elementos al combo con valores y texto
         for valor, texto in [item1, item2]:
             combotipo.addItem(texto, valor)

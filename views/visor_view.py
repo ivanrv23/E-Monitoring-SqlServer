@@ -87,6 +87,9 @@ class VisorView:
     prismasvirtualesgraficados = []
     timer_busqueda_visor = None
     prismas_cache = {}
+    umbral_vector_comp = None
+    umbral_vector_tipo = None
+    umbral_vector_firma = None
     timer_consulta_visor = None
     _timer_visor_conectado = False
     worker_visor = None
@@ -683,6 +686,37 @@ class VisorView:
     def _actualizar_cache_prismas(datos):
         VisorView.prismas_cache = datos
 
+    @staticmethod
+    def _resolverUmbralVectores(prismasmarcados, tipo_umbral):
+        """Define (componente, tipo) del umbral para los vectores.
+        Retorna: "OK", "SIN_UMBRAL" o "CANCELADO"."""
+        ids = sorted({int(componente[1]) for componente, _ in prismasmarcados})
+        candidatos = UmbralController.ctrlResolverUmbralesPrismas(
+            VisorView.idproyecto, ids, tipo_umbral)
+        if not candidatos:
+            return "SIN_UMBRAL"
+
+        pares = [(c[0], c[1]) for c in candidatos]
+
+        # Si las opciones no cambiaron, se reutiliza la elección anterior (no vuelve a preguntar)
+        if (VisorView.umbral_vector_firma == pares
+                and (VisorView.umbral_vector_comp, VisorView.umbral_vector_tipo) in pares):
+            return "OK"
+
+        if len(pares) == 1:
+            elegido = pares[0]
+        else:
+            opciones_dialogo = [(i, c[2]) for i, c in enumerate(candidatos)]
+            estado, idx = Personalizacion.dialogoSeleccionUmbralGeneral(opciones_dialogo)
+            if not estado or idx is None:
+                return "CANCELADO"
+            elegido = pares[idx]
+
+        VisorView.umbral_vector_comp = elegido[0]
+        VisorView.umbral_vector_tipo = elegido[1]
+        VisorView.umbral_vector_firma = pares
+        return "OK"
+    
     def _construir_vectores_vtk(prismasmarcados):
         if not VisorView.estadovector:
             VisorView._limpiar_vectores_completamente()
@@ -702,20 +736,33 @@ class VisorView:
             VisorView.vtkWidgetVisor.GetRenderWindow().Render()
             return
 
-        config = SoftwareConfiguracion.obtenerDataSoftware()
+        # config = SoftwareConfiguracion.obtenerDataSoftware()
         info = ConfiguracionVisor.obtenerDataConfiguracionVisor()
         grosor = info[17]
         radioprisma = info[3]
         
-        idcomponente = prismasmarcados[0][0][1] if prismasmarcados else None
         tipo_umbral = "3DA" if VisorView.tipovector == "D3D" else "VI3D"
-        umbrales = UmbralController.ctrObtenerUmbralPrismas(VisorView.idproyecto, idcomponente, tipo_umbral)
-        
+
+        estado_umbral = VisorView._resolverUmbralVectores(prismasmarcados, tipo_umbral)
+        if estado_umbral == "CANCELADO":
+            VisorView.vtkWidgetVisor.GetRenderWindow().Render()
+            return
+        if estado_umbral == "SIN_UMBRAL":
+            mostrar_mensaje("Mostrar Vectores", "No hay umbrales configurados.", "advertencia")
+            VisorView.vtkWidgetVisor.GetRenderWindow().Render()
+            return
+
+        umbrales = UmbralController.ctrlObtenerUmbralesAjustes(
+            VisorView.idproyecto,
+            VisorView.umbral_vector_comp,
+            VisorView.umbral_vector_tipo,
+            'PRISMAS')
+
         umbrales_color = []
         if umbrales:
             for fila in umbrales:
-                umbrales_color.append((fila[3], fila[4], fila[6])) # nombre, color, valor
-                
+                umbrales_color.append((fila[3], fila[4], fila[6]))  # nombre, color, valor
+
         if not umbrales_color:
             mostrar_mensaje("Mostrar Vectores", "No hay umbrales configurados.", "advertencia")
             VisorView.vtkWidgetVisor.GetRenderWindow().Render()
@@ -1648,32 +1695,13 @@ class VisorView:
             if len(prismasmarcados) > 0:
                 respuesta, estadvect, tipvect, escavect = UmbralView.dialogoConfiguracionVectores(VisorView.estadovector, VisorView.tipovector, VisorView.escalavector)
                 if respuesta:
+                    VisorView.umbral_vector_firma = None
                     VisorView.estadovector, VisorView.tipovector, VisorView.escalavector = estadvect, tipvect, escavect
                     datos_cache = VisorView.prismas_cache.get('datos_maestros') if VisorView.prismas_cache else None
                     if datos_cache:
                         VisorView._construir_vectores_vtk(prismasmarcados)
                     else:
                         VisorView.iniciar_hilo_final_visor(tree_actual)
-    
-    def escalarVectores(prismasmarcados):
-        if len(VisorView.vectoresDXF) > 0:
-            for vector in VisorView.vectoresDXF:
-                VisorView.rendererVisor.RemoveActor(vector[3])
-            VisorView.vectoresDXF.clear()
-        if VisorView.estadovector:
-            estadovect, VisorView.vectoresDXF = VisorView.vectoresPrismas(prismasmarcados)
-            if estadovect == "OK":
-                for vector in VisorView.vectoresDXF: # id inst, id compon, coord, actor
-                    vector[3].SetVisibility(False)
-                    for componente, listaprismas in prismasmarcados:
-                        for prismarcado in listaprismas:
-                            if str(vector[0]) == str(prismarcado[1]) and str(vector[1]) == str(componente[1]):
-                                vector[3].SetVisibility(True)
-            elif estadovect == "NO":
-                mostrar_mensaje("Mostrar Vectores", "No hay umbrales configurados.", "advertencia")
-            else:
-                mostrar_mensaje("Mostrar Vectores", "No se puede mostrar los vectores.", "advertencia")
-        VisorView.vtkWidgetVisor.GetRenderWindow().Render()
     
     def vectoresPrismas(prismasmarcados):
         if VisorView.estadovector:
@@ -3513,6 +3541,9 @@ class VisorView:
         VisorView.colorvectores = []
         VisorView.limites_corte = []
         VisorView.estadovector, VisorView.tipovector, VisorView.escalavector = False, 'D3D', 0
+        VisorView.umbral_vector_comp = None
+        VisorView.umbral_vector_tipo = None
+        VisorView.umbral_vector_firma = None
         VisorView.toposDTM = []
         # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO
         buscador_arbol = main.findChild(QLineEdit, "input_buscar_visor")
@@ -3596,14 +3627,6 @@ class VisorView:
         if VisorView.idproyecto:
             tree_actual_visor =  VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
             VisorView.iniciar_hilo_final_visor(tree_actual_visor)
-    
-    def validarVectores(tree_actual):
-        if VisorView.estadovector:
-            lista = EquiposVisor.obtener_todos_elementos_marcados(tree_actual)
-            if lista:
-                prismasmarcados = VisorView.obtenerListaEquiposMarcados(lista, "Prismas")
-                if len(prismasmarcados) > 0:
-                        VisorView.escalarVectores(prismasmarcados)
     
     def actualizarGraficaFechasInclinometros():
         treewidget = VisorView.main.findChild(QTreeWidget, "tree_actual_visor")
