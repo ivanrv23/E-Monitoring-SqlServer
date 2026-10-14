@@ -94,9 +94,6 @@ class MainView:
             MainView.main_window.setWindowTitle(f"E-MONITORING {MainView.version} - {MainView.proyecto_name.upper()}")
 
             ################################ TÍTULO DASHBOARD POR DEFECTO #################################
-            # El Dashboard es la página inicial (índice 0) y nada dispara su
-            # inicialización al arrancar, así que el label se setea aquí manualmente
-            # para que diga "DASHBOARD" desde el primer instante, con o sin proyecto cargado.
             label_dashboard = MainView.main_window.findChild(QLabel, "label_dashboard")
             if label_dashboard:
                 label_dashboard.setText("DASHBOARD")
@@ -163,7 +160,6 @@ class MainView:
             boton_datos.setStyleSheet("background-color: rgb(59, 132, 208);")
             ############################## DASHBOARD #############################
             btn_visor = MainView.main_window.findChild(QToolButton, "btn_menu_bar")
-            # Encuentra el QStackedWidget que quieres ocultar o mostrar
             stacked_widget_lista_checks = MainView.main_window.findChild(QStackedWidget, "stacked_lista_checks")
             btn_visor.hide()
             stacked_widget_lista_checks.hide()

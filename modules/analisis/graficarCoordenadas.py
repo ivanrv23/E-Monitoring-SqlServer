@@ -1,13 +1,59 @@
 import pandas as pd
 import pyqtgraph as pg
-import numpy as np
-from PySide6.QtWidgets import (QVBoxLayout, QWidget, QDialog, QDialogButtonBox, QLabel, QFrame, QPushButton)
 from pyqtgraph import DateAxisItem
-from PySide6.QtCore import QDateTime, Signal, QObject, Qt
+from PySide6.QtWidgets import (QVBoxLayout, QHBoxLayout, QWidget, QDialog, QDialogButtonBox, QLabel, QFrame, QPushButton, QRubberBand)
+from PySide6.QtCore import QDateTime, Signal, QObject, Qt, QEvent, QPoint, QRect, QSize
 from services.security.session import Session
 
 class SignalHandler(QObject):
-    data_updated = Signal(int, str, str, str, int, dict)
+    data_updated = Signal(int, str, str, str, int, object)
+
+class ZoomRectangulo(QObject):
+    """Ctrl + arrastrar con clic derecho: dibuja un rectángulo y acerca la gráfica a esa zona."""
+    def __init__(self, plot_widget):
+        super().__init__(plot_widget)
+        self.pw = plot_widget
+        self.viewport = plot_widget.viewport()
+        self.band = QRubberBand(QRubberBand.Shape.Rectangle, self.viewport)
+        self.origin = QPoint()
+        self.activo = False
+        self.viewport.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if obj is not self.viewport:
+            return False
+        tipo = event.type()
+
+        if tipo == QEvent.Type.MouseButtonPress:
+            if (event.button() == Qt.MouseButton.RightButton
+                    and event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+                self.origin = event.position().toPoint()
+                self.band.setGeometry(QRect(self.origin, QSize()))
+                self.band.show()
+                self.activo = True
+                return True  # evita el menú contextual y el zoom de ejes de pyqtgraph
+
+        elif tipo == QEvent.Type.MouseMove and self.activo:
+            rect = QRect(self.origin, event.position().toPoint()).normalized()
+            self.band.setGeometry(rect)
+            return True
+
+        elif tipo == QEvent.Type.MouseButtonRelease and self.activo:
+            self.activo = False
+            self.band.hide()
+            rect = QRect(self.origin, event.position().toPoint()).normalized()
+            if rect.width() >= 5 and rect.height() >= 5:  # ignora Ctrl+clic sin arrastrar
+                vb = self.pw.getViewBox()
+                p1 = vb.mapSceneToView(self.pw.mapToScene(rect.topLeft()))
+                p2 = vb.mapSceneToView(self.pw.mapToScene(rect.bottomRight()))
+                self.pw.setRange(
+                    xRange=(min(p1.x(), p2.x()), max(p1.x(), p2.x())),
+                    yRange=(min(p1.y(), p2.y()), max(p1.y(), p2.y())),
+                    padding=0
+                )
+            return True
+
+        return False
 
 class GraficarCoordenadasPrismas:
     @staticmethod
@@ -39,7 +85,7 @@ class GraficarCoordenadasPrismas:
 
         # Valores a graficar
         values = df[col_name].copy()
-        timestamps = df['fecha'].astype('int64') // 10**9  # convertir a segundos
+        timestamps = df['fecha'].apply(lambda t: t.timestamp())
 
         # Crear widget de gráfico y layout
         layout = QVBoxLayout()
@@ -97,6 +143,43 @@ class GraficarCoordenadasPrismas:
 
             plot_widget.setXRange(timestamps.iloc[0] - x_padding, timestamps.iloc[-1] + x_padding)
             plot_widget.setYRange(values.min() - y_padding, values.max() + y_padding)
+        
+        # ---- Zoom con Ctrl + arrastrar ----
+        plot_widget._zoom_filter = ZoomRectangulo(plot_widget)
+
+        def restablecer_zoom():
+            if len(values) > 1:
+                plot_widget.setXRange(timestamps.iloc[0] - x_padding, timestamps.iloc[-1] + x_padding)
+                plot_widget.setYRange(values.min() - y_padding, values.max() + y_padding)
+            else:
+                plot_widget.autoRange()
+
+        # ---- Barra de instrucciones ----
+        label_ayuda = QLabel(
+            "<b>🔍 Zoom:</b> mantenga <b>Ctrl</b> y arrastre con el <b>clic derecho</b> para acercar una zona "
+            "(también funciona la rueda del mouse). "
+            "<b>🎯 Limpiar salto:</b> haga clic en el <b>primer punto después del salto</b>, "
+            "es decir, el primero que ya aparece en el nuevo nivel, "
+            "<u>no</u> en el último punto antes del salto."
+        )
+        label_ayuda.setWordWrap(True)
+        label_ayuda.setStyleSheet(
+            "background-color: #fff8e1; border: 1px solid #ffe082; border-radius: 4px;"
+            "padding: 6px; font-size: 11px; color: #5d4037;"
+        )
+
+        btn_reset_zoom = QPushButton("Restablecer zoom")
+        btn_reset_zoom.setStyleSheet(
+            "QPushButton { background-color: #1976d2; color: white; padding: 6px 12px; border-radius: 4px; }"
+            "QPushButton:hover { background-color: #1565c0; }"
+        )
+        # btn_reset_zoom.setSizePolicy(btn_reset_zoom.sizePolicy().horizontalPolicy(), btn_reset_zoom.sizePolicy().verticalPolicy())
+        btn_reset_zoom.clicked.connect(restablecer_zoom)
+
+        barra = QHBoxLayout()
+        barra.addWidget(label_ayuda, 1)
+        barra.addWidget(btn_reset_zoom, 0)
+        layout.insertLayout(0, barra)  # queda arriba de la gráfica
 
         # Señal para actualización
         signal_handler = SignalHandler()
@@ -154,8 +237,12 @@ class GraficarCoordenadasPrismas:
             if dialog.exec() == QDialog.Accepted:
                 if callback:
                     tabla = f"prismas{idproyecto}"
-                    callback(df, row['id'], row['nombre'], row['fecha'], variable, tabla)
-                signal_handler.data_updated.emit(row['id'], row['nombre'], row['fecha'], variable, idproyecto, df)
+                    try:
+                        callback(df, row['id'], row['nombre'], row['fecha'], variable, tabla)
+                    except Exception:
+                        import traceback
+                        traceback.print_exc()
+                signal_handler.data_updated.emit(int(row['id']), str(row['nombre']), str(row['fecha']), variable, int(idproyecto), df)
 
         if Session.is_authenticated() and Session.get_idrole() != 3:
             plot_item.sigPointsClicked.connect(on_click)

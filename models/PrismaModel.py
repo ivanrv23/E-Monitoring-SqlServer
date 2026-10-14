@@ -1575,12 +1575,16 @@ class PrismaModel:
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            query_update = f"""UPDATE {tabla} SET estado_prisma = 0 WHERE nombre_prisma = ? AND hora_prisma=?;"""
+            query_update = f"""UPDATE {tabla} SET estado_prisma = 0
+            WHERE nombre_prisma = ? AND hora_prisma = ? AND estado_prisma = 1;"""
             cursor.execute(query_update, (prisma, fecha))
+            filas = cursor.rowcount
             conn.commit()
-            return True
+            return filas > 0
         except Exception as e:
             print(f"Error al omitir lecturas del prisma: {e}")
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn: conn.close()

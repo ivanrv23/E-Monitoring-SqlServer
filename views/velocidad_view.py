@@ -91,14 +91,7 @@ class VelocidadView:
         if VelocidadView.estadoPagina:
             tree_actual_velocidad =  main.findChild(QTreeWidget, "tree_actual_desplazamiento")
 
-            # --- Conexión del árbol (compartido físicamente con Desplazamiento) ---
-            # Velocidad y Desplazamiento usan el MISMO QTreeWidget
-            # ("tree_actual_desplazamiento"). Para que el marcado se
-            # refleje siempre en las 3 vistas (Desplazamiento, Velocidad
-            # y Visor) sin importar qué pestaña se abra primero, la
-            # conexión de señales del árbol se hace UNA sola vez y
-            # siempre apunta a los handlers de DesplazamientoView, que
-            # ya disparan el triple refresco (Desplaz + Veloc + Visor).
+            # --- Conexión del árbol (compartido físicamente con Desplazamiento)
             from views.desplazamiento_view import DesplazamientoView
             if not tree_actual_velocidad.property("conexiones_arbol_realizadas"):
                 tree_actual_velocidad.currentItemChanged.connect(DesplazamientoView.seleccionEquipoDesplazamiento)
@@ -180,6 +173,7 @@ class VelocidadView:
             # Localizamos el QComboBox en la interfaz
             widget_grafico = main.findChild(QWidget, "widget_grafica_velocidad")
             combo_tipo_grafico = main.findChild(QWidget, "combo_tipos_velocidad")
+            widget_grafico.callback_refresco = lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual_velocidad)
             for key, value in lista_tipos_velocidad.items():
                 combo_tipo_grafico.addItem(value, key)
             combo_tipo_grafico.activated.connect(lambda: VelocidadView.obtenerMostrarPrismasMarcados(tree_actual_velocidad))

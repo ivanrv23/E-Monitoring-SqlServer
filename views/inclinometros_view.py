@@ -385,7 +385,7 @@ class InclinometrosView:
         widget_grafico = InclinometrosView.main.findChild(QWidget, "widget_grafica_inclinoizquierda")
         widget_grafico2 = InclinometrosView.main.findChild(QWidget, "widget_grafica_inclinoderecha")
         
-        # ✅ PASAR COMO LISTA (ambos widgets)
+        # PASAR COMO LISTA (ambos widgets)
         widgets = [widget_grafico, widget_grafico2]
 
         if len(inclinometromarcados) != 1:
@@ -409,7 +409,7 @@ class InclinometrosView:
         combo_medidas = InclinometrosView.main.findChild(QComboBox, "combo_medida_inclinometros")
         unidad = combo_medidas.currentData()
 
-        # ✅ LLAMAR CON WIDGETS (lista) Y silencioso=True
+        # LLAMAR CON WIDGETS (lista) Y silencioso=True
         pintado = graficarUmbralesPersonalizado(
             widgets, unidad, InclinometrosView.idproyecto, idequipo,
             tipografico, 'INCLINOMETRO', 'x', 'linea', silencioso=True
@@ -612,4 +612,3 @@ class InclinometrosView:
                 botonvoz.setEnabled(False)
                 hilo_asistente = threading.Thread(target=AsistenteVoz.analizarInclinometros, args=(InclinometrosView.idproyecto, inclinometrosmarcados, tipografico, botonvoz))
                 hilo_asistente.start()
-    

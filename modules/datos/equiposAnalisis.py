@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QMenu
+from PySide6.QtWidgets import QMenu, QTreeWidgetItem
 from PySide6.QtCore import Qt
 from utils.shared.arbolmarcado import TreeCheckbox
 from modules.proyecto.crearProyecto import CrearProyecto
@@ -303,6 +303,63 @@ class EquiposAnalisis:
             return {(nodo.text(0), nodo.text(2), nodo.text(3)): marcados} if marcados else None
         else:
             return (nodo.text(0), nodo.text(2), nodo.text(3))
+
+    @staticmethod
+    def agregar_prismas_nuevos(tree_widget, idcomponente, idproyecto):
+        """Agrega al árbol los prismas del componente que aún no aparecen.
+        No reconstruye el árbol: conserva marcados y estado visual.
+        Devuelve la lista de nombres agregados."""
+        agregados = []
+        prismas = InterfazController.ctrlListarPrismasComponente(idcomponente, 1)
+        if not prismas:
+            return agregados
+
+        # Componente (nivel raíz: text(1) == "0")
+        zona_item = None
+        for i in range(tree_widget.topLevelItemCount()):
+            item = tree_widget.topLevelItem(i)
+            if item.text(1) == "0" and item.text(2) == str(idcomponente):
+                zona_item = item
+                break
+        if zona_item is None:
+            return agregados
+
+        # Grupo "Prismas" (text(1) == "1")
+        grupo_item = None
+        for j in range(zona_item.childCount()):
+            hijo = zona_item.child(j)
+            if hijo.text(1) == "1":
+                grupo_item = hijo
+                break
+        if grupo_item is None:
+            return agregados
+
+        existentes = {grupo_item.child(k).text(0) for k in range(grupo_item.childCount())}
+
+        tree_widget.blockSignals(True)
+        try:
+            ultimo = None
+            for dato in prismas:
+                nombre = str(dato[3])
+                if nombre in existentes:
+                    continue
+                kid_item = QTreeWidgetItem(grupo_item)
+                kid_item.setText(0, nombre)            # nombre
+                kid_item.setText(1, "prisma")
+                kid_item.setText(2, str(dato[0]))      # id instrumentación
+                kid_item.setText(3, str(dato[4]))      # id equipo / tabla
+                kid_item.setCheckState(0, Qt.Unchecked)
+                kid_item.setData(0, Qt.UserRole + 999, Qt.Unchecked)
+                kid_item.setFlags(kid_item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable)
+                existentes.add(nombre)
+                agregados.append(nombre)
+                ultimo = kid_item
+            if ultimo is not None:
+                # El grupo y el componente pasan a "parcialmente marcado" si corresponde
+                EquiposAnalisis.actualizar_estado_padre_hijos(ultimo)
+        finally:
+            tree_widget.blockSignals(False)
+        return agregados
     
     def inicializar_lista_equipos(tree_widget, tree_vacio, proyecto_id, proyecto_name):
         TreeCheckbox.limpiarArbolCheckboxes(tree_widget, proyecto_name)

@@ -757,15 +757,11 @@ class PiezometroController:
         respuesta = PiezometroModel.mdlTraerListaFormulas()
         return respuesta
     
-    def ctrlOmitirLecturaPiezometro(proyecto,idPiezo,fecha,tipo):
-        if tipo=='PIEZOMETROCUERDA':
-            tabla=f'piezometrocuerda_detalle{proyecto}'
-            campo='estado_cuerda'
-            campo_fecha='fecha_cuerda'
+    def ctrlOmitirLecturaPiezometro(proyecto, idPiezo, fecha, tipo):
+        if tipo == 'PIEZOMETROCUERDA':
+            tabla = f'piezometrocuerda_detalle{proyecto}'
+            # idPiezo es aquí el id_instrumentacion
+            return PiezometroModel.mdlOmitirLecturaPiezometroCuerda(tabla, int(idPiezo), fecha)
         else:
-            tabla=f'piezometromanual_detalle{proyecto}'
-            campo='estado_manual'
-            campo_fecha='fecha_piezometro'
-
-        respuesta= PiezometroModel.mdlOmitirLecturaPiezometro(tabla,int(idPiezo),fecha,campo,campo_fecha)
-        return respuesta
+            tabla = f'piezometromanual_detalle{proyecto}'
+            return PiezometroModel.mdlOmitirLecturaPiezometro(tabla, int(idPiezo), fecha, 'estado_manual', 'fecha_piezometro')

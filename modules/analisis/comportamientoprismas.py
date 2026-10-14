@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import (QWidget, QComboBox)
-from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica
+from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica, limpiar_widget
 from controllers.AnalisisController import AnalisisController
 from controllers.InterfazController import InterfazController
 from utils.shared.personalizacion import Personalizacion
@@ -155,6 +155,7 @@ class GraficaComportamiento:
         nombreunidad  = comboUnidades.currentText()
 
         if not idinstrumento:
+            limpiar_widget(widget)
             return
 
         # ── 1. Datos crudos ───────────────────────────────────────
@@ -163,6 +164,7 @@ class GraficaComportamiento:
             unidadmedida, fechainicial, fechafinal, filtrado
         )
         if not datos:
+            limpiar_widget(widget)
             return
 
         # ── 2. Seleccionar mapa de columnas y tipos ───────────────
@@ -192,6 +194,7 @@ class GraficaComportamiento:
         )
 
         if not datos_transformados:
+            limpiar_widget(widget)
             return
         
         # ── 4. Obtener lista de preferencia marcado ───────────────
@@ -206,8 +209,9 @@ class GraficaComportamiento:
         # ── 5. Filtrar datos según preferencias ───────────────────
         datos_transformados = _filtrar_por_preferencias(datos_transformados, prefs_actuales, cols_map)
         if not datos_transformados:
+            limpiar_widget(widget)
             return
-
+        widget.contexto_omision = {'nombre': nombreprisma}
         # ── 6. Graficar ───────────────────────────────────────────
         procesar_grafica(
             widget,

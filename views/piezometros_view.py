@@ -75,6 +75,7 @@ class PiezometrosView:
             # inicializar tools
             widget_grafico = main.findChild(QWidget, "widget_piezometros")
             btn_refrescar_piezometros = main.findChild(QPushButton, "btn_refrescar_vista_piezometros")
+            widget_grafico.callback_refresco = lambda: PiezometrosView.obtenerMostrarEquiposMarcados(tree_actual_piezometros)
             btn_refrescar_piezometros.clicked.connect(lambda: PiezometrosView.obtenerMostrarEquiposMarcados(tree_actual_piezometros))
             btn_umbral_piezometro= main.findChild(QPushButton, "btn_umbral_piezometro")
             btn_umbral_piezometro.clicked.connect(PiezometrosView.graficarUmbralesPiezometros)

@@ -2924,3 +2924,26 @@ class PiezometroModel:
         finally:
             if conn:
                 conn.close()
+
+    @staticmethod
+    def mdlOmitirLecturaPiezometroCuerda(tabla, id_instrumentacion, fecha):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cursor = conn.cursor()
+            query_update = f"""UPDATE {tabla} SET estado_cuerda = 0
+            WHERE id_piezometro = (
+                SELECT id_equipo FROM instrumentacion
+                WHERE id_instrumentacion = ? AND tipo_equipo = 'PIEZOMETROCUERDA'
+            ) AND fecha_cuerda = ?;"""
+            cursor.execute(query_update, (id_instrumentacion, fecha))
+            conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            print(f"Error al omitir lectura del piezómetro cuerda: {e}")
+            if conn:
+                conn.rollback()
+            return False
+        finally:
+            if conn:
+                conn.close()

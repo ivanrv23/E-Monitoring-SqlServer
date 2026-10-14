@@ -1190,9 +1190,6 @@ class VisorView:
             prom.task_finishPrismaVirtual.connect(on_threadcorte_complete)
             prom.start()
             loading.exec()
-            # promedios = VisorView.calcular_y_graficar_promedio(x, y, z, float(radio_edit.text()), topografiasmarcadas)
-            # # Graficar los resultados
-            # VisorView.graficar_resultados(combo_box, plot_widget, promedios)
         combo_box.currentIndexChanged.connect(on_combo_change)
         if dialog.exec() == QDialog.Accepted:
             try:
@@ -1363,7 +1360,6 @@ class VisorView:
 
         return dialog, nombre_edit, radio_edit, color_container, combo_box, plot_widget
 
-    ################################################################
     def limpiarTopografiasVisor():
         if len(VisorView.toposDTM) > 0 or len(VisorView.listatopograficados) > 0:
             for compocod, codtopo, actor_dtm, color_dtm, rutadtm in VisorView.toposDTM:
@@ -1843,55 +1839,44 @@ class VisorView:
     
     # Graficar los inclinometros 3d en el visor
     def mostrarInclinometrosVisor(paginacion, escala, inclinometrofechasmarcados):
-            # iniciar hilo
-            # loading = LoadingView.cargar_loading()
-            # def on_thread_complete():
-            #     loading.close()
-            # guardar_data_thread = ProcesarVisor3dThread(proyecto, ax, canvas, inclinometrofechasmarcados, escala, dibujar)
-            # guardar_data_thread.task_finished.connect(on_thread_complete)
-            # guardar_data_thread.start()
-            # loading.exec()
-            # fin hilo
-            # Dibujar puntos y nombres
-            if VisorView.dibujarLineaIncli == 0:
-                VisorView.limpiarInclinometrosVisor()
-            else:
-                VisorView.ocultarInclinometrosVisor()
-            if len(inclinometrofechasmarcados) > 0:
-                VisorView.dibujarPuntosInclinometros(inclinometrofechasmarcados)
-                VisorView.dibujarDesplazamientoInclinometros(inclinometrofechasmarcados, escala)
-                VisorView.dibujarPuntoIncli = 1
-                VisorView.dibujarLineaIncli = 1
-                # mostrar puntos inclinometro
-                for idcomponente, codinstru, puntito, label in VisorView.inclinometroPuntos:
-                    puntito.SetVisibility(False)
-                    label.SetVisibility(False)
-                    for compo, listaincli in inclinometrofechasmarcados:
-                        for nombreincli, idinstrum, dates in listaincli:
-                            if str(idcomponente) == compo[1] and str(codinstru) == idinstrum:
-                                puntito.SetVisibility(True)
-                                label.SetVisibility(True)
-                # mostrar lineas incli
-                for idcomponen, idinstru, fecha, linea in VisorView.inclinometrolineas:
-                    linea.SetVisibility(False)
-                    for compon, inclinos in inclinometrofechasmarcados:
-                        for nombreincli, idinstrume, fechas in inclinos:
-                            contexto_seguro = {'datetime': dt_module}
-                            listafechas = eval(fechas, {"__builtins__": None}, contexto_seguro)
-                            for fech in listafechas:
-                                if str(fecha) == str(fech) and str(idcomponen) == compon[1] and str(idinstru) == idinstrume:
-                                    linea.SetVisibility(True)
-            # validar si no hay inclinometros
-            if VisorView.resetvisor is False:
-                camera = VisorView.rendererVisor.GetActiveCamera()
-                VisorView.rendererVisor.ResetCamera()
-                camera.Zoom(1.5)
-            VisorView.vtkWidgetVisor.GetRenderWindow().Render()
+        # Dibujar puntos y nombres
+        if VisorView.dibujarLineaIncli == 0:
+            VisorView.limpiarInclinometrosVisor()
+        else:
+            VisorView.ocultarInclinometrosVisor()
+        if len(inclinometrofechasmarcados) > 0:
+            VisorView.dibujarPuntosInclinometros(inclinometrofechasmarcados)
+            VisorView.dibujarDesplazamientoInclinometros(inclinometrofechasmarcados, escala)
+            VisorView.dibujarPuntoIncli = 1
+            VisorView.dibujarLineaIncli = 1
+            # mostrar puntos inclinometro
+            for idcomponente, codinstru, puntito, label in VisorView.inclinometroPuntos:
+                puntito.SetVisibility(False)
+                label.SetVisibility(False)
+                for compo, listaincli in inclinometrofechasmarcados:
+                    for nombreincli, idinstrum, dates in listaincli:
+                        if str(idcomponente) == compo[1] and str(codinstru) == idinstrum:
+                            puntito.SetVisibility(True)
+                            label.SetVisibility(True)
+            # mostrar lineas incli
+            for idcomponen, idinstru, fecha, linea in VisorView.inclinometrolineas:
+                linea.SetVisibility(False)
+                for compon, inclinos in inclinometrofechasmarcados:
+                    for nombreincli, idinstrume, fechas in inclinos:
+                        contexto_seguro = {'datetime': dt_module}
+                        listafechas = eval(fechas, {"__builtins__": None}, contexto_seguro)
+                        for fech in listafechas:
+                            if str(fecha) == str(fech) and str(idcomponen) == compon[1] and str(idinstru) == idinstrume:
+                                linea.SetVisibility(True)
+        # validar si no hay inclinometros
+        if VisorView.resetvisor is False:
+            camera = VisorView.rendererVisor.GetActiveCamera()
+            VisorView.rendererVisor.ResetCamera()
+            camera.Zoom(1.5)
+        VisorView.vtkWidgetVisor.GetRenderWindow().Render()
     
     # dibujar puntos de inclinómetros
     def dibujarPuntosInclinometros(inclinometrosmarcados):
-        # VisorView.inclinometroPuntos = []
-        # VisorView.inclinometrosTubos = []
         listainclinometros = InclinometroController.ctrlListarInclinometrosProyecto(VisorView.idproyecto, inclinometrosmarcados)
         if len(listainclinometros) > 0:
             respuesta = ConfiguracionVisor.obtenerDataConfiguracionVisor()
@@ -3149,12 +3134,6 @@ class VisorView:
             triangulacion_mapper.SetInputConnection(extrusion_filter.GetOutputPort())
             triangulacion_actor = vtk.vtkActor()
             triangulacion_actor.SetMapper(triangulacion_mapper)
-            # Habilitar blending en el renderizador
-            # rendererVisor.SetUseDepthPeeling(True)
-            # rendererVisor.SetMaximumNumberOfPeels(100)
-            # rendererVisor.SetOcclusionRatio(0.01)
-            # Habilitar sombras
-            # rendererVisor.SetUseShadows(True)
             VisorView.rendererVisor.AddActor(triangulacion_actor)
             return triangulacion_actor
         except Exception as e:

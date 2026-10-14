@@ -7,6 +7,7 @@ import matplotlib.dates as mdates
 import locale
 from datetime import datetime
 from PySide6.QtGui import Qt
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QDialog, QWidget, QCheckBox, QSizePolicy, QApplication
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from utils.common.customToolbar import CustomToolbar 
@@ -15,6 +16,7 @@ from utils.common.alertas import mostrar_mensaje
 from utils.shared.calculostendencias import CalculosTendencias
 from controllers.ConfiguracionController import ConfiguracionController
 from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
+from controllers.PrismaController import PrismaController
 from controllers.PiezometroController import PiezometroController
 from controllers.CeldaController import CeldaController
 from controllers.EventosController import EventosController
@@ -48,27 +50,6 @@ SUAVIZADO_TENSION = 0.2  # 0.0=recto, 0.5=máximo suavizado
 def suavizar_con_bezier(x_num, y_num, tension=0.2):
     """
     Suaviza una línea usando curvas de Bézier cúbicas.
-
-    GARANTÍAS PARA DATOS DE SENSORES:
-    - La curva pasa EXACTAMENTE por todos los puntos originales
-    - No se inventan lecturas intermedias
-    - Solo se suavizan las esquinas (igual que Excel y ECharts)
-    - El hover sigue usando los datos reales originales
-
-    Parámetros:
-    -----------
-    x_num    : np.array de float (fechas ya convertidas a número matplotlib,
-                o días/horas según el modo)
-    y_num    : np.array de float (lecturas reales del sensor)
-    tension  : float 0.0-0.5
-                0.0 = sin suavizado (línea recta)
-                0.2 = suavizado moderado (recomendado sensores)
-                0.5 = máximo (igual que ECharts default)
-
-    Retorna:
-    --------
-    (x_bezier, y_bezier) : arrays listos para ax.plot()
-                           SOLO para la representación visual.
     """
     x = np.asarray(x_num, dtype=float)
     y = np.asarray(y_num, dtype=float)
@@ -908,20 +889,40 @@ def on_click_global(event):
                 # Click Izquierdo
                 if event.button == 1:
                     if event.guiEvent.modifiers() & Qt.ControlModifier:
-                        procesar_datos_console(idproyecto, label, date, reading, tipo_prisma)
+                        ctx = getattr(widget, 'contexto_omision', None) or {}
+                        nombre_omitir = ctx.get('nombre') or label
+                        tipo_omitir = ctx.get('tipo') or tipo_prisma
+                        procesar_datos_console(widget, idproyecto, nombre_omitir, date, reading, tipo_omitir)
                     else:
                         for text in current_ax.texts:
                             if text not in objetos_eventos:
                                 text.set_visible(False)
                         canvas.draw()
+                    return
 
-def procesar_datos_console(id_proyecto, label, date, reading, tipo_prisma):
+def refrescar_tras_omitir(widget):
+    """Redibuja la gráfica luego de omitir una lectura, fuera del handler de clic."""
+    callback = getattr(widget, 'callback_refresco', None)
+    if callback:
+        QTimer.singleShot(0, callback)
+
+
+def procesar_datos_console(widget, id_proyecto, label, date, reading, tipo_prisma):
     date_obj = datetime.strptime(date, '%d/%m/%Y %H:%M:%S')
     formatted_date = date_obj.strftime('%Y-%m-%d %H:%M:%S')
-    # Necesitamos el widget - lo obtenemos del canvas
-    # Esta función será llamada desde on_click_global que tiene acceso al widget
-    # Por simplicidad, mostramos un mensaje
-    print(f"Omitir lectura: {label} - {formatted_date} - {reading}")
+
+    dialog = ModalDialog(widget, label, date, reading)
+    if dialog.exec() != QDialog.Accepted:
+        return False
+
+    respuesta = PrismaController.ctrlOmitirLecturaPrisma(id_proyecto, label, formatted_date, tipo_prisma)
+    if not respuesta:
+        mostrar_mensaje("Error", "No se encontró la lectura para omitir.", "error")
+        return False
+
+    refrescar_tras_omitir(widget)
+    return True
+
 class ModalDialog(QDialog):
     def __init__(self, parent, label, date, reading):  # Añadir parent
         super().__init__(parent, Qt.Window)  # Usar Qt.Window
@@ -2069,38 +2070,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     ticks = generar_ticks_precipitacion (rango_max_lluvia, intervalo_lluvia)
                     ax2.set_yticks(ticks)
                 ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
-                
-    # else:
-    #         if pluviometro_data:
-    #             idpluvio = str(pluviometro_data[0][0])
-    #             estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idpluvio, 0)
-    #             df_pluviometro = pd.DataFrame(pluviometro_data, columns=['Codigo', 'Fecha', 'Lectura'])
-    #             df_pluviometro['Fecha'] = pd.to_datetime(df_pluviometro['Fecha'])
-    #             ax2 = ax.twinx()
-    #             diferencia = df_pluviometro['Fecha'].max() - df_pluviometro['Fecha'].min()
-    #             totaldias = diferencia.days
-    #             ancho = 0.8
-    #             if totaldias > 0:
-    #                 if totaldias < 100:
-    #                     ancho = totaldias / 100
-    #                 else:
-    #                     ancho = totaldias / 200
-    #             if estilo:
-    #                 if posicionlluvia == 0:
-    #                     ax2.set_ylim(int(estilo[3]), 0)
-    #                 else:
-    #                     ax2.set_ylim(0, int(estilo[3]))
-    #                 barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color=estilo[5], width=ancho, label="Precipitación")
-    #                 ticks = generar_ticks_precipitacion (int(estilo[3]), int(estilo[4]))
-    #                 ax2.set_yticks(ticks)
-    #             else:
-    #                 if posicionlluvia == 0:
-    #                     ax2.set_ylim(rango_max_lluvia, 0)
-    #                 else:
-    #                     ax2.set_ylim(0, rango_max_lluvia)
-    #                 barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color='cyan', width=ancho, alpha=0.5, label="Precipitación")
-    #             ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
-
+    
     # Graficar datos
     lineas = []
     lineas_principales = []
@@ -2460,21 +2430,18 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
         date_obj = datetime.strptime(date, '%d/%m/%Y %H:%M:%S')
         formatted_date = date_obj.strftime('%Y-%m-%d %H:%M:%S')
         dialog = ModalDialog(widget, label, date, reading)
-        result = dialog.exec()
-        if result == QDialog.Accepted:
-            respuesta = None
-            if modulo == "PIEZOMETROS":
-                respuesta = PiezometroController.ctrlOmitirLecturaPiezometro(id_proyecto, id_equipo, formatted_date, tipo_piezo)
-                if respuesta:
-                    print(f"{label}\nFecha: {formatted_date}\nLectura: {reading}\nTipo: {tipo_piezo}")
-                else:
-                    print('error al omitir lectura de piezometros')
-            else:
-                respuesta = CeldaController.ctrlOmitirLecturaCelda(id_proyecto, id_equipo, formatted_date)
-                if respuesta:
-                    print(f"{label}\nFecha: {formatted_date}\nLectura: {reading}\nTipo: {tipo_piezo}")
-                else:
-                    print('error al omitir de celdas')
+        if dialog.exec() != QDialog.Accepted:
+            return
+
+        if modulo == "PIEZOMETROS":
+            respuesta = PiezometroController.ctrlOmitirLecturaPiezometro(id_proyecto, id_equipo, formatted_date, tipo_piezo)
+        else:
+            respuesta = CeldaController.ctrlOmitirLecturaCelda(id_proyecto, id_equipo, formatted_date)
+
+        if respuesta:
+            refrescar_tras_omitir(widget)
+        else:
+            mostrar_mensaje("Error", "No se pudo omitir la lectura.", "error")
                     
     def on_hover(event):
         if event.inaxes != ax:
@@ -2681,6 +2648,9 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                         reading = round(data_point[tipo], 3)
                         tipo_piezo = data_point['TipoPiezo']
                         id_equipo = data_point['idEquipo']
+                        # Usamos el id_instrumentacion (columna 'Instrumento').
+                        if modulo == "PIEZOMETROS" and str(tipo_piezo).upper() == 'PIEZOMETROCUERDA':
+                            id_equipo = data_point['Instrumento']
                         annotation_text = f"{label}\nFecha: {date}\nLectura: {reading}"
 
                         if event.guiEvent.modifiers() & Qt.ControlModifier:

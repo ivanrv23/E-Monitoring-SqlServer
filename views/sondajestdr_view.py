@@ -274,7 +274,7 @@ class SondajetdrView:
         tipo = tipo_grafico_TDR.currentData()
         unimedida = SondajetdrView._calcularUnimedidaUmbral()
 
-        # ✅ LLAMAR CON silencioso=True (automático, sin diálogo)
+        # LLAMAR CON silencioso=True (automático, sin diálogo)
         pintado = graficarUmbralesPersonalizado(
             widget_tdr, unimedida, SondajetdrView.idproyecto, idequipo,
             tipo, 'TDR', 'x', 'linea', silencioso=True
