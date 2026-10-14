@@ -242,6 +242,11 @@ class UmbralView:
             selected_id = options[selected_option]  # Obtener el ID correspondiente
             unidad, _ = obtener_unidad(selected_id)
             selected_component_id = component_combo.currentData()  # Obtener el ID del componente seleccionado
+            # VALIDACIÓN
+            ok, msg = UmbralView.validarFilasUmbral(table)
+            if not ok:
+                mostrar_mensaje("Validación de umbrales", msg, 'advertencia')
+                return
             data = []
             for row in range(table.rowCount()):
                 condicion_item = table.item(row, 0)
@@ -462,6 +467,11 @@ class UmbralView:
             selected_option = combo.currentText()
             selected_id = options[selected_option]  # Obtener el ID correspondiente
             selected_equipos_id = component_combo.currentData()  # Obtener el ID del componente seleccionado
+            # VALIDACIÓN
+            ok, msg = UmbralView.validarFilasUmbral(table)
+            if not ok:
+                mostrar_mensaje("Validación de umbrales", msg, 'advertencia')
+                return
             data = []
             for row in range(table.rowCount()):
                 condicion_item = table.item(row, 0)
@@ -713,6 +723,11 @@ class UmbralView:
             selected_option = combo.currentText()
             selected_id = options[selected_option]  # Obtener el ID correspondiente
             selected_component_id = component_combo.currentData()  # Obtener el ID del piezómetro seleccionado
+            # VALIDACIÓN
+            ok, msg = UmbralView.validarFilasUmbral(table)
+            if not ok:
+                mostrar_mensaje("Validación de umbrales", msg, 'advertencia')
+                return
             if selected_id == "NF":
                 unimedida = 1
             elif selected_id == "NI" or selected_id == "NA":
@@ -1010,6 +1025,11 @@ class UmbralView:
             selected_option = combo.currentText()
             selected_id = options[selected_option]  # Obtener el ID correspondiente
             selected_component_id = component_combo.currentData()
+            # VALIDACIÓN
+            ok, msg = UmbralView.validarFilasUmbral(table)
+            if not ok:
+                mostrar_mensaje("Validación de umbrales", msg, 'advertencia')
+                return
             if selected_id == "VI":
                 if tipovelocidad == "Por Mes":
                     if unidad == 1:
@@ -1161,7 +1181,7 @@ class UmbralView:
                 table = None
             if tipografica == "AMA":
                 table = QTableWidget(3, 6)
-                table.setHorizontalHeaderLabels(["Nombre", "Color", "Riesgo", "Magnitud (M)", "Distancia (km)", "Acciones a Realizar"])
+                table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", "Distancia (km)", "Magnitud (M)", "Acciones a Realizar"])
             else:
                 table = QTableWidget(3, 5)
                 if tipografica == "AAC":
@@ -1194,16 +1214,16 @@ class UmbralView:
                     # Riesgo
                     riesgo_item = QTableWidgetItem("")
                     table.setItem(row, 2, riesgo_item)
-                    # Magnitud (DoubleSpinBox)
-                    double_spinbox1 = QDoubleSpinBox()
-                    double_spinbox1.setRange(-1e9, 1e9)  # Rango grande
-                    double_spinbox1.setDecimals(5)  # Hasta 5 decimales
-                    table.setCellWidget(row, 3, double_spinbox1)
                     # Distancia (DoubleSpinBox)
                     double_spinbox = QDoubleSpinBox()
                     double_spinbox.setRange(-1e9, 1e9)  # Rango grande
                     double_spinbox.setDecimals(5)  # Hasta 5 decimales
-                    table.setCellWidget(row, 4, double_spinbox)
+                    table.setCellWidget(row, 3, double_spinbox)
+                    # Magnitud (DoubleSpinBox)
+                    double_spinbox1 = QDoubleSpinBox()
+                    double_spinbox1.setRange(-1e9, 1e9)  # Rango grande
+                    double_spinbox1.setDecimals(5)  # Hasta 5 decimales
+                    table.setCellWidget(row, 4, double_spinbox1)
                     # Acciones a realizar
                     acciones_item = QTableWidgetItem("")
                     table.setItem(row, 5, acciones_item)
@@ -1250,18 +1270,18 @@ class UmbralView:
                         # Riesgo
                         riesgo_item = QTableWidgetItem(umbral[5])  # Asumiendo que el riesgo
                         table.setItem(row, 2, riesgo_item)
-                        # Magnitud (DoubleSpinBox)
-                        magnitud_spinbox = QDoubleSpinBox()
-                        magnitud_spinbox.setRange(0, 1e9)  # Rango grande
-                        magnitud_spinbox.setDecimals(5)  # Hasta 5 decimales
-                        magnitud_spinbox.setValue(umbral[6])  
-                        table.setCellWidget(row, 4, magnitud_spinbox)
                         # Distancia (DoubleSpinBox)
                         distancia_spinbox = QDoubleSpinBox()
                         distancia_spinbox.setRange(0, 1e9)  # Rango grande
                         distancia_spinbox.setDecimals(5)  # Hasta 5 decimales
-                        distancia_spinbox.setValue(umbral[7])
+                        distancia_spinbox.setValue(umbral[6])
                         table.setCellWidget(row, 3, distancia_spinbox)
+                        # Magnitud (DoubleSpinBox)
+                        magnitud_spinbox = QDoubleSpinBox()
+                        magnitud_spinbox.setRange(0, 1e9)  # Rango grande
+                        magnitud_spinbox.setDecimals(5)  # Hasta 5 decimales
+                        magnitud_spinbox.setValue(umbral[7])  
+                        table.setCellWidget(row, 4, magnitud_spinbox)
                         # Acciones a Realizar
                         acciones_item = QTableWidgetItem(umbral[8]) 
                         table.setItem(row, 5, acciones_item)
@@ -1325,16 +1345,16 @@ class UmbralView:
                 # Riesgo
                 riesgo_item = QTableWidgetItem("")
                 table.setItem(row_count, 2, riesgo_item)
-                # Magnitud
-                magnitud = QDoubleSpinBox()
-                magnitud.setRange(0, 1e9)
-                magnitud.setDecimals(5)
-                table.setCellWidget(row_count, 3, magnitud)
                 # Distancia
                 distancia = QDoubleSpinBox()
                 distancia.setRange(0, 1e9)
                 distancia.setDecimals(5)
-                table.setCellWidget(row_count, 4, distancia)
+                table.setCellWidget(row_count, 3, distancia)
+                # Magnitud
+                magnitud = QDoubleSpinBox()
+                magnitud.setRange(0, 1e9)
+                magnitud.setDecimals(5)
+                table.setCellWidget(row_count, 4, magnitud)
                 # Acciones
                 acciones_item = QTableWidgetItem("")
                 table.setItem(row_count, 5, acciones_item)
@@ -1365,6 +1385,29 @@ class UmbralView:
             selected_option = combo.currentText()
             tipografica = options[selected_option]
             componente_id = component_combo.currentData()
+            # VALIDACIÓN según tipo de gráfica
+            if tipografica == "AMA":
+                ok, msg = UmbralView.validarFilasUmbral(
+                    table, col_condicion=0, col_rango=3,
+                    etiqueta_condicion="el nombre",
+                    etiqueta_rango="la magnitud",
+                    permitir_negativos=False
+                )
+            else:
+                ok, msg = UmbralView.validarFilasUmbral(table)
+
+            if not ok:
+                mostrar_mensaje("Validación de umbrales", msg, 'advertencia')
+                return
+            ok2, msg2 = UmbralView.validarFilasUmbral(
+                table, col_condicion=0, col_rango=4,
+                etiqueta_condicion="el nombre",
+                etiqueta_rango="la distancia",
+                permitir_negativos=False
+            )
+            if not ok2:
+                mostrar_mensaje("Validación de umbrales", msg2, 'advertencia')
+                return
             data = []
             if tipografica == "AMA":
                 for row in range(table.rowCount()):
@@ -1575,6 +1618,11 @@ class UmbralView:
             selected_option = combo_tipo.currentText()
             selected_id = options[selected_option]
             selected_component_id = component_combo.currentData()
+            # VALIDACIÓN
+            ok, msg = UmbralView.validarFilasUmbral(table)
+            if not ok:
+                mostrar_mensaje("Validación de umbrales", msg, 'advertencia')
+                return
             data = []
             for row in range(table.rowCount()):
                 condicion_item = table.item(row, 0)
@@ -1703,7 +1751,61 @@ class UmbralView:
         btnAceptar.clicked.connect(aceptarEscala)
         dialogo.exec()
         return estadoescalainccli, escalainclino
-    
+
+    @staticmethod
+    def validarFilasUmbral(table, col_condicion=0, col_rango=3, etiqueta_condicion="la condición", etiqueta_rango="el rango", permitir_negativos=False):
+        """
+        Valida las filas de una tabla de umbrales antes de guardar.
+        Retorna (ok: bool, mensaje: str).
+
+        Reglas:
+        * Una fila se considera 'con datos' si la condición tiene texto
+            o si el rango es distinto de 0.
+        * Una fila con datos debe tener: condición no vacía y rango válido.
+        * Debe existir al menos una fila con datos.
+        * El color NO se valida (siempre existe aunque sea blanco).
+        """
+        errores = []
+        filas_validas = 0
+
+        for row in range(table.rowCount()):
+            item_cond = table.item(row, col_condicion)
+            widget_rango = table.cellWidget(row, col_rango)
+
+            condicion = (item_cond.text().strip()
+                        if item_cond and item_cond.text() else "")
+
+            try:
+                rango_val = float(widget_rango.value()) if widget_rango else 0.0
+            except Exception:
+                rango_val = 0.0
+
+            # Fila totalmente vacía → se ignora (no genera error)
+            if not condicion and rango_val == 0:
+                continue
+
+            errores_fila = []
+            if not condicion:
+                errores_fila.append(f"{etiqueta_condicion} es obligatoria")
+
+            if permitir_negativos:
+                if rango_val == 0:
+                    errores_fila.append(f"{etiqueta_rango} es obligatorio (no puede ser 0)")
+            else:
+                if rango_val <= 0:
+                    errores_fila.append(f"{etiqueta_rango} es obligatorio y debe ser mayor a 0")
+
+            if errores_fila:
+                errores.append(f"Fila {row + 1}: " + " y ".join(errores_fila) + ".")
+            else:
+                filas_validas += 1
+
+        if errores:
+            return False, "\n".join(errores)
+        if filas_validas == 0:
+            return False, "Debe ingresar al menos una fila con condición y rango."
+        return True, ""
+
     def retornarArregloTipo(tipo):
         if tipo == 'PRISMAS':
             options = {
@@ -1979,6 +2081,11 @@ class UmbralView:
             selected_option = combo.currentText()
             selected_id = options[selected_option]  # Obtener el ID correspondiente
             selected_equipos_id = inclinometro_combo.currentData()  # Obtener el ID del inclinómetro seleccionado
+            # VALIDACIÓN
+            ok, msg = UmbralView.validarFilasUmbral(table)
+            if not ok:
+                mostrar_mensaje("Validación de umbrales", msg, 'advertencia')
+                return
             data = []
             for row in range(table.rowCount()):
                 condicion_item = table.item(row, 0)
@@ -2124,7 +2231,7 @@ class UmbralView:
                 table = None
             if tipografica == "AMA":
                 table = QTableWidget(3, 6)
-                table.setHorizontalHeaderLabels(["Nombre", "Color", "Riesgo", "Distancia (km)", "Magnitud (M)", "Acciones a Realizar"])
+                table.setHorizontalHeaderLabels(["Condición", "Color", "Riesgo", "Distancia (km)", "Magnitud (M)", "Acciones a Realizar"])
             else:
                 table = QTableWidget(3, 5)
                 if tipografica == "AAC":
@@ -2336,6 +2443,29 @@ class UmbralView:
             tipografica = options[selected_option]
             if not acelerografo_combo.currentData():
                 mostrar_mensaje("Advertencia", "Debe seleccionar un acelerógrafo.", 'advertencia')
+                return
+            # VALIDACIÓN según tipo de gráfica
+            if tipografica == "AMA":
+                ok, msg = UmbralView.validarFilasUmbral(
+                    table, col_condicion=0, col_rango=3,
+                    etiqueta_condicion="el nombre",
+                    etiqueta_rango="la magnitud",
+                    permitir_negativos=False
+                )
+            else:
+                ok, msg = UmbralView.validarFilasUmbral(table)
+
+            if not ok:
+                mostrar_mensaje("Validación de umbrales", msg, 'advertencia')
+                return
+            ok2, msg2 = UmbralView.validarFilasUmbral(
+                table, col_condicion=0, col_rango=4,
+                etiqueta_condicion="el nombre",
+                etiqueta_rango="la distancia",
+                permitir_negativos=False
+            )
+            if not ok2:
+                mostrar_mensaje("Validación de umbrales", msg2, 'advertencia')
                 return
             acelerografo_id = acelerografo_combo.currentData()
             data = []
@@ -2657,6 +2787,11 @@ class UmbralView:
                 mostrar_mensaje("Advertencia", "Debe seleccionar una celda.", 'advertencia')
                 return
             celda_id = celda_combo.currentData()
+            # VALIDACIÓN
+            ok, msg = UmbralView.validarFilasUmbral(table)
+            if not ok:
+                mostrar_mensaje("Validación de umbrales", msg, 'advertencia')
+                return
             if selected_id == "VI":
                 if tipovelocidad == "Por Mes":
                     if unidad == 1:
@@ -2904,6 +3039,11 @@ class UmbralView:
                 mostrar_mensaje("Advertencia", "Debe seleccionar un TDR.", 'advertencia')
                 return
             tdr_id = tdr_combo.currentData()
+            # VALIDACIÓN
+            ok, msg = UmbralView.validarFilasUmbral(table)
+            if not ok:
+                mostrar_mensaje("Validación de umbrales", msg, 'advertencia')
+                return
             data = []
             for row in range(table.rowCount()):
                 condicion_item = table.item(row, 0)
@@ -3173,6 +3313,11 @@ class UmbralView:
                 mostrar_mensaje("Advertencia", "Debe seleccionar un piezómetro.", 'advertencia')
                 return
             piezometro_id = piezometro_combo.currentData()  # Obtener el ID del piezómetro seleccionado
+            # VALIDACIÓN
+            ok, msg = UmbralView.validarFilasUmbral(table)
+            if not ok:
+                mostrar_mensaje("Validación de umbrales", msg, 'advertencia')
+                return
             if selected_id == "NF":
                 unimedida = 1
             elif selected_id == "NI" or selected_id == "NA":
