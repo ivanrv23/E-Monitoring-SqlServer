@@ -239,25 +239,21 @@ class MainView:
             # cargarIcono(btnanularfechasdesplaza, ListaIconos.ICONOS["regresar"])
             btnanularfechasdesplaza.setIcon(qta.icon("fa6s.calendar-xmark"))
             btnanularfechasdesplaza.setIconSize(QSize(16, 16))
-
-
             btnVozDesplazamiento = MainView.main_window.findChild(QPushButton, "btn_voz_desplazamiento")
             cargarIcono(btnVozDesplazamiento, ListaIconos.ICONOS["asistente_voz"])
-            btn_add_reporteSD= MainView.main_window.findChild(QPushButton, "btn_reporte_grafica_desplazamiento")
+            btn_add_reporteSD = MainView.main_window.findChild(QPushButton, "btn_reporte_grafica_desplazamiento")
             cargarIcono(btn_add_reporteSD, ListaIconos.ICONOS["add_imagen_reporte"])
             btnReporteGeneralDesplaza = MainView.main_window.findChild(QPushButton, "btn_imagen_desplazamiento")
             cargarIcono(btnReporteGeneralDesplaza, ListaIconos.ICONOS["imagenes"])
             btn_configurar_ejes_sd = MainView.main_window.findChild(QPushButton, "btn_ejes_desplazamiento")
             cargarIcono(btn_configurar_ejes_sd, ListaIconos.ICONOS["configurar_ejes"])
-            btn_tendencia_SD= MainView.main_window.findChild(QPushButton, "btn_tendencia_desplazamiento")
+            btn_tendencia_SD = MainView.main_window.findChild(QPushButton, "btn_tendencia_desplazamiento")
             cargarIcono(btn_tendencia_SD, ListaIconos.ICONOS["tendencia"])
-            btn_limpieza_SD= MainView.main_window.findChild(QPushButton, "btn_limpieza_desplazamiento")
-            cargarIcono(btn_limpieza_SD, ListaIconos.ICONOS["limpieza"])          
-            btn_umbral_desplazamiento= MainView.main_window.findChild(QPushButton, "btn_umbral_desplazamiento")
-            cargarIcono(btn_umbral_desplazamiento, ListaIconos.ICONOS["umbral"])  
-            #UMBRAL PERSONALIZADO
-            # btn_umbral_desplazamiento_personalizado= MainView.main_window.findChild(QPushButton, "btn_umbral_personalizado_D")
-            #cargarIcono(btn_umbral_desplazamiento_personalizado, ListaIconos.ICONOS["umbral2"])
+            btn_limpieza_SD = MainView.main_window.findChild(QPushButton, "btn_limpieza_desplazamiento")
+            cargarIcono(btn_limpieza_SD, ListaIconos.ICONOS["limpieza"])
+            btn_umbral_desplazamiento = MainView.main_window.findChild(QPushButton, "btn_umbral_desplazamiento")
+            cargarIcono(btn_umbral_desplazamiento, ListaIconos.ICONOS["umbral"])
+            # UMBRAL PERSONALIZADO
             btn_expotar_desplazamiento= MainView.main_window.findChild(QPushButton, "btn_exportar_desplazamiento")
             # #cargarIcono(btn_expotar_desplazamiento, ListaIconos.ICONOS["exportar_grafico"])
             btn_expotar_desplazamiento.setIcon(qta.icon("fa6s.file-arrow-down"))
@@ -288,9 +284,7 @@ class MainView:
             cargarIcono(btn_limpieza_velocidad, ListaIconos.ICONOS["limpieza"])
             btn_umbral_velocidad= MainView.main_window.findChild(QPushButton, "btn_umbral_velocidad")
             cargarIcono(btn_umbral_velocidad, ListaIconos.ICONOS["umbral"]) 
-            #UMBRAL PERSONALIZADO
-            # btn_umbral_velocidad_personalizado= MainView.main_window.findChild(QPushButton, "btn_umbral_personalizado_V")
-            # cargarIcono(btn_umbral_velocidad_personalizado, ListaIconos.ICONOS["umbral2"])
+            # UMBRAL PERSONALIZADO
             btn_expotar_velocidad= MainView.main_window.findChild(QPushButton, "btn_exportar_velocidad")
             cargarIcono(btn_expotar_velocidad, ListaIconos.ICONOS["exportar_grafico"])
 
@@ -435,11 +429,13 @@ class MainView:
             cargarIcono(btn_limpieza_analisis, ListaIconos.ICONOS["limpieza"])
             btn_ejes_analisis = MainView.main_window.findChild(QPushButton, "btn_ejes_analisis")
             cargarIcono(btn_ejes_analisis, ListaIconos.ICONOS["configurar_ejes"])
-            # Tiempo Real
+            #  Comportamiento de prismas
             btn_ejes_tiempo = MainView.main_window.findChild(QPushButton, "btn_ejes_comportamiento")
             cargarIcono(btn_ejes_tiempo, ListaIconos.ICONOS["configurar_ejes"])
             btn_configurar_comportamiento = MainView.main_window.findChild(QPushButton, "btn_configurar_comportamiento")
             cargarIcono(btn_configurar_comportamiento, ListaIconos.ICONOS["limpieza_ruido_manual"])
+            btn_limpieza_comportamiento = MainView.main_window.findChild(QPushButton, "btn_limpieza_comportamiento")
+            cargarIcono(btn_limpieza_comportamiento, ListaIconos.ICONOS["limpieza"])
             # Variaciones de coordenadas
             btn_refrescar_vista_variacion = MainView.main_window.findChild(QPushButton, "btn_refresca_grafica_variaciones")
             cargarIcono(btn_refrescar_vista_variacion, ListaIconos.ICONOS["refrescar_grafico"])

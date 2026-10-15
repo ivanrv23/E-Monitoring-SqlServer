@@ -502,6 +502,46 @@ class Personalizacion:
         dialogo.exec()
         return Personalizacion.limpioEstado, Personalizacion.limpiezaMetodo, Personalizacion.marcadosCombos
     
+    @staticmethod
+    def dialogoLimpiezaRuidoComportamiento(series, nombreprisma):
+        """
+        series: [(clave, etiqueta)]
+        return: (estado, metodo, [(clave, valor), ...])
+        """
+        resultado = {"ok": False, "metodo": "", "series": []}
+        loader = QUiLoader()
+        ui_file_path = resource_path("ui/limpiezaruido.ui")
+        ui_file = loader.load(ui_file_path, None)
+        dialogo = QDialog()
+        dialogo.setWindowTitle(f"Limpieza de Ruido - Prisma {nombreprisma}")
+        layout = QVBoxLayout()
+        layout.addWidget(ui_file)
+        dialogo.setLayout(layout)
+        labelTitulo = dialogo.findChild(QLabel, "label_tipo_grafica")
+        widgetEquipos = dialogo.findChild(QWidget, "widget_equipos")
+        comboLimpieza = dialogo.findChild(QComboBox, "combo_tipo_limpieza")
+        botonAplicar = dialogo.findChild(QPushButton, "btn_aplicar")
+        labelTitulo.setText("Tipo de gráfica")
+        filas = []
+        for clave, etiqueta in series:
+            checkbox, doublespinbox = Personalizacion.crearFilaLimpieza(widgetEquipos, etiqueta, comboLimpieza)
+            filas.append((clave, checkbox, doublespinbox))
+
+        def aplicar():
+            marcadas = [(clave, spin.value()) for clave, check, spin in filas if check.isChecked()]
+            if not marcadas:
+                from utils.common.alertas import mostrar_mensaje
+                mostrar_mensaje("Limpieza de Ruido", "Marque al menos un tipo de gráfica.", "advertencia")
+                return
+            resultado["ok"] = True
+            resultado["metodo"] = comboLimpieza.currentText()
+            resultado["series"] = marcadas
+            dialogo.close()
+
+        botonAplicar.clicked.connect(aplicar)
+        dialogo.exec()
+        return resultado["ok"], resultado["metodo"], resultado["series"]
+    
     def crearFilaLimpieza(widget, nombre, combotipoLiempieza):
         fila_widget = QWidget()
         checkbox = QCheckBox()

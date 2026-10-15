@@ -3,6 +3,7 @@ from utils.shared.graficaDesplazamientoVelocidad import procesar_grafica, limpia
 from controllers.AnalisisController import AnalisisController
 from controllers.InterfazController import InterfazController
 from utils.shared.personalizacion import Personalizacion
+from utils.shared.calculostendencias import CalculosTendencias
 
 # ─────────────────────────────────────────────────────────────
 #  Mapeo: clave_interna → (índice_columna_en_raw, etiqueta_leyenda)
@@ -116,6 +117,32 @@ def _filtrar_por_preferencias(datos_transformados, prefs_actuales, cols_map):
     ]
     return resultado
 
+def _aplicar_limpieza(datos_transformados, limpieza):
+    """
+    Limpieza temporal (solo en memoria, no toca la BD).
+    limpieza = {"metodo": "Limpieza Automática" | "Limpieza Manual" | "Ajustar Gráfico",
+                "series": [(clave, valor), ...]}   # clave: "DA3D", "VA3D", ...
+    """
+    if not limpieza or not datos_transformados:
+        return datos_transformados
+
+    # Cada serie pivotada tiene id "{id_inst}_{clave}": se toma el id real de los datos
+    grupos = []
+    for clave, valor in limpieza["series"]:
+        ids = {fila[0] for fila in datos_transformados if fila[0].split("_", 1)[-1] == clave}
+        grupos.extend((idserie, valor) for idserie in ids)
+    if not grupos:
+        return datos_transformados
+
+    metodo = limpieza["metodo"]
+    # indexinstru=0 (id_serie), indexcol=6 (lectura)
+    if metodo == 'Limpieza Automática':
+        return CalculosTendencias.limpiezaAutomaticaSaltos(datos_transformados, grupos, 0, 6)
+    if metodo == 'Limpieza Manual':
+        return CalculosTendencias.limpiezaManualSaltos(datos_transformados, grupos, 0, 6)
+    if metodo == 'Ajustar Gráfico':
+        return CalculosTendencias.ajustarCalculoSaltos(datos_transformados, grupos, 0, 6)
+    return datos_transformados
 
 class GraficaComportamiento:
 
@@ -145,7 +172,7 @@ class GraficaComportamiento:
     # ─────────────────────────────────────────────────────────────
     #  Método principal
     # ─────────────────────────────────────────────────────────────
-    def graficarComportamientoPrismas(main, idproyecto, idcomponente, idinstrumento, nombreprisma, fechainicial, fechafinal, filtrado):
+    def graficarComportamientoPrismas(main, idproyecto, idcomponente, idinstrumento, nombreprisma, fechainicial, fechafinal, filtrado, limpieza=None):
         widget           = main.findChild(QWidget,   "widget_graficas_comportamiento")
         comboGraficas    = main.findChild(QComboBox, "combo_tiposgrafica_comportamiento")
         comboUnidades    = main.findChild(QComboBox, "combo_unidades_comportamiento")
@@ -211,6 +238,8 @@ class GraficaComportamiento:
         if not datos_transformados:
             limpiar_widget(widget)
             return
+        # ── 5b. Limpieza temporal (solo en memoria) ───────────────
+        datos_transformados = _aplicar_limpieza(datos_transformados, limpieza)
         widget.contexto_omision = {'nombre': nombreprisma}
         # ── 6. Graficar ───────────────────────────────────────────
         procesar_grafica(
@@ -251,4 +280,16 @@ class GraficaComportamiento:
         # Mostrar dialogo
         Personalizacion.dialogoConfigurarMarcadoAnalisis(cols_map, prefs_actuales, callback_guardar, reiniciar)
 
-    
+    @staticmethod
+    def obtenerSeriesDisponibles(idproyecto, tipografica):
+        """Devuelve [(clave, etiqueta)] de los tipos visibles según preferencias."""
+        if tipografica == "velocidad":
+            tipo, cols_map = "VELOCIDADANALISIS", _VELOCIDAD_COLS
+        else:
+            tipo, cols_map = "DESPLAZAMIENTOANALISIS", _DESPLAZAMIENTO_COLS
+        prefs = InterfazController.ctrlObtenerPreferenciasMarcado(idproyecto, tipo) or []
+        if not prefs:
+            return [(clave, etiqueta) for clave, (_, etiqueta) in cols_map.items()]
+        permitidos = {id_inst for (_, id_inst) in prefs}
+        return [(clave, etiqueta) for clave, (col_idx, etiqueta) in cols_map.items()
+                if col_idx in permitidos]

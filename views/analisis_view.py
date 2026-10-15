@@ -263,8 +263,11 @@ class AnalisisView:
     idcomponente_elipse_actual = None
     nombreprisma_elipse_actual = None
     tipoprisma_elipse_actual = None
-    tendencias_iv = None            # <- NUEVO
-    tendencias_iv_firma = None      # <- NUEVO
+    tendencias_iv = None
+    tendencias_iv_firma = None
+    idinstrumento_comportamiento_actual = None
+    nombreprisma_comportamiento_actual = None
+    limpieza_comportamiento = None   # {"idinstrumento", "tipografica", "metodo", "series": [(clave, valor)]}
 
     def inicializarVistaAnalisis(main, proyectoid, proyectoname, fechaini, fechafin):
         AnalisisView.main = main
@@ -516,12 +519,8 @@ class AnalisisView:
             btn_refrescar_resumen_equipos = main.findChild(QPushButton, "btn_refrescar_resumen_equipos")
             btn_refrescar_resumen_equipos.clicked.connect(lambda: AnalisisView.grafica_barras_resumen())
             ##### VISTA COMPORTAMIENTO PRISMAS
-            # comboComponentesComportamiento = main.findChild(QComboBox, "combo_componentes_comportamiento")
-            # comboPrismasComportamiento = main.findChild(QComboBox, "combo_prismas_comportamiento")
             comboGraficasComportamiento = main.findChild(QComboBox, "combo_tiposgrafica_comportamiento")
             comboUnidadesComprtamiento = main.findChild(QComboBox, "combo_unidades_comportamiento")
-            # comboComponentesComportamiento.hide()
-            # comboPrismasComportamiento.hide()
             def cargarTiposGraficas():
                 comboGraficasComportamiento.clear()
                 for texto, valor in [("Desplazamientos", "desplazamiento"), ("Velocidades", "velocidad")]:
@@ -540,6 +539,9 @@ class AnalisisView:
             comboUnidadesComprtamiento.activated.connect(lambda: AnalisisView.validarComportamientoPrismasArbol(tree_actual))
             btnConfigurarComportamiento = main.findChild(QPushButton, "btn_configurar_comportamiento")
             btnConfigurarComportamiento.clicked.connect(AnalisisView.validarMarcadoDesmarcadoComportamiento)
+            btnLimpiezaComportamiento = main.findChild(QPushButton, "btn_limpieza_comportamiento")
+            btnLimpiezaComportamiento.setCheckable(True) # necesario para que "checked" funcione
+            btnLimpiezaComportamiento.clicked.connect(lambda checked: AnalisisView.toggleLimpiezaComportamiento(checked))
             # VISTA ELIPSE DE ERROR
             btn_refrescar_elipse = main.findChild(QPushButton, "btn_refresca_grafica_elipse")
             btn_refrescar_elipse.clicked.connect(AnalisisView.graficarElipseDesviaciones)
@@ -547,13 +549,10 @@ class AnalisisView:
             btn_ocultar_mostrar_desviaciones.clicked.connect(AnalisisView.OcultarDesviaciones)
             btn_mostrar_cambios = main.findChild(QPushButton, "btn_mostrar_cambios_prismas")
             btn_mostrar_cambios.clicked.connect(AnalisisView.mostrarCambiosPrismas)
-            
             btn_limpiar_ruido_coordenadas = main.findChild(QPushButton, "btn_limpiar_ruido")
             btn_limpiar_ruido_coordenadas.clicked.connect(AnalisisView.LimpiarRuidoGrafico)
-            
             btn_limpiar_ruido_manual = main.findChild(QPushButton, "btn_limpiar_ruido_manual")
             btn_limpiar_ruido_manual.clicked.connect(AnalisisView.LimpiarRuidoManual)
-            
             # Limpieza y elipse
             comboUnidadesMedidaElipse = main.findChild(QComboBox, "combo_unidades_medida")
             lista_unidades_medida = [
@@ -1160,6 +1159,65 @@ class AnalisisView:
             AnalisisView.validarVistaAnalisis(treeWidget)
         GraficaComportamiento.configurarMarcadoDesmarcado(AnalisisView.idproyecto, idcomponente, tipografica, reiniciar)
 
+    @staticmethod
+    def _tipoGraficaComportamiento():
+        combo = AnalisisView.main.findChild(QComboBox, "combo_tiposgrafica_comportamiento")
+        return combo.currentData() or "desplazamiento"
+
+    @staticmethod
+    def _sincronizarBotonLimpiezaComportamiento():
+        btn = AnalisisView.main.findChild(QPushButton, "btn_limpieza_comportamiento")
+        if btn is None:
+            return
+        btn.blockSignals(True)
+        btn.setChecked(AnalisisView.limpieza_comportamiento is not None)
+        btn.blockSignals(False)
+
+    @staticmethod
+    def _resetLimpiezaComportamiento():
+        AnalisisView.limpieza_comportamiento = None
+        if AnalisisView.main is not None:
+            AnalisisView._sincronizarBotonLimpiezaComportamiento()
+
+    @staticmethod
+    def _redibujarComportamiento():
+        tree_actual = AnalisisView.main.findChild(QTreeWidget, "tree_actual_analisis")
+        AnalisisView.ValidarComportamientoPrismas(tree_actual)
+
+    @staticmethod
+    def toggleLimpiezaComportamiento(checked):
+        if checked:
+            if not AnalisisView.mostrarModalLimpiezaComportamiento():
+                # Canceló o no había prisma: revertir el check del botón
+                AnalisisView._sincronizarBotonLimpiezaComportamiento()
+        else:
+            AnalisisView._resetLimpiezaComportamiento()
+            AnalisisView._redibujarComportamiento()
+
+    @staticmethod
+    def mostrarModalLimpiezaComportamiento():
+        idinstrumento = AnalisisView.idinstrumento_comportamiento_actual
+        nombreprisma = AnalisisView.nombreprisma_comportamiento_actual
+        if not idinstrumento:
+            mostrar_mensaje("Limpieza de Ruido", "Debe marcar un prisma en el árbol.", "advertencia")
+            return False
+        tipografica = AnalisisView._tipoGraficaComportamiento()
+        series = GraficaComportamiento.obtenerSeriesDisponibles(AnalisisView.idproyecto, tipografica)
+        if not series:
+            mostrar_mensaje("Limpieza de Ruido", "No hay tipos de gráfica visibles para limpiar.", "advertencia")
+            return False
+        estado, metodo, seleccion = Personalizacion.dialogoLimpiezaRuidoComportamiento(series, nombreprisma)
+        if not estado:
+            return False
+        AnalisisView.limpieza_comportamiento = {
+            "idinstrumento": str(idinstrumento),
+            "tipografica": tipografica,
+            "metodo": metodo,
+            "series": seleccion,
+        }
+        AnalisisView._redibujarComportamiento()
+        return True
+    
     def validarVariacionesCoordenadas(tree_actual):
         lista = EquiposAnalisis.obtener_todos_elementos_marcados(tree_actual)
         if lista:
@@ -1256,13 +1314,21 @@ class AnalisisView:
 
         nombreprisma, idinstrumento, tipoprisma = listaprismas[0]
         AnalisisView.idcomponente_comportamiento_actual = idcomponente
+        AnalisisView.idinstrumento_comportamiento_actual = idinstrumento
+        AnalisisView.nombreprisma_comportamiento_actual = nombreprisma
 
-        # AnalisisView.limpiarGraficaComportamiento()
+        # La limpieza solo vale para el mismo prisma y el mismo tipo (desplazamiento/velocidad)
+        lc = AnalisisView.limpieza_comportamiento
+        if lc is not None and (lc["idinstrumento"] != str(idinstrumento)
+                               or lc["tipografica"] != AnalisisView._tipoGraficaComportamiento()):
+            AnalisisView._resetLimpiezaComportamiento()
+
         config = SoftwareConfiguracion.obtenerDataSoftware()
         filtrado = config[16]
         GraficaComportamiento.graficarComportamientoPrismas(
             AnalisisView.main, AnalisisView.idproyecto, idcomponente, idinstrumento, nombreprisma,
-            AnalisisView.fechainicial, AnalisisView.fechafinal, filtrado
+            AnalisisView.fechainicial, AnalisisView.fechafinal, filtrado,
+            AnalisisView.limpieza_comportamiento
         )
 
     def graficarElipseArbol(prismasmarcados):
@@ -1992,6 +2058,9 @@ class AnalisisView:
         GraficarEstereografiaTrayectoria.limpiar_widget(widget_analisis)
     
     def limpiarGraficaComportamiento():
+        AnalisisView.idinstrumento_comportamiento_actual = None
+        AnalisisView.nombreprisma_comportamiento_actual = None
+        AnalisisView._resetLimpiezaComportamiento()
         widget_comportamiento = AnalisisView.main.findChild(QWidget, "widget_graficas_comportamiento")
         GraficarEstereografiaTrayectoria.limpiar_widget(widget_comportamiento)
     
