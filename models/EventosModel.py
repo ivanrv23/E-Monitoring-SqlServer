@@ -9,15 +9,17 @@ class EventosModel:
         if isinstance(fecha, pd.Timestamp):
             fecha = fecha.to_pydatetime()
         sql = """INSERT INTO Software_EventosGrafica 
-                 (id_proyecto, fecha_evento, descripcion, color_hex, tipo_alcance, tipo_instrumento, id_instrumento)
-                 VALUES (?, ?, ?, ?, ?, ?, ?);"""
+            (id_proyecto, fecha_evento, descripcion, color_hex, tipo_alcance, tipo_instrumento, id_instrumento)
+            OUTPUT INSERTED.id_evento
+            VALUES (?, ?, ?, ?, ?, ?, ?);"""
         conn = None
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idproyecto, fecha, descripcion, color, alcance, tipo_inst, str(id_inst)))
+            fila = cur.fetchone()
             conn.commit()
-            return True
+            return int(fila[0]) if fila else None
         except Exception as e:
             print("Error al crear evento:", e)
             return False
@@ -98,6 +100,48 @@ class EventosModel:
             return True
         except Exception as e:
             print("Error al eliminar evento:", e)
+            return False
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlListarEventosProyecto(idproyecto):
+        sql = """SELECT id_evento, descripcion, fecha_evento, tipo_alcance,
+            tipo_instrumento, id_instrumento, color_hex
+        FROM Software_EventosGrafica
+        WHERE id_proyecto = ?
+        ORDER BY fecha_evento DESC;"""
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (idproyecto,))
+            filas = cur.fetchall()
+            return [tuple(f) for f in filas] if filas else []
+        except Exception as e:
+            print("Error al listar eventos:", e)
+            return []
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlActualizarEvento(id_evento, fecha, descripcion, color):
+        if isinstance(fecha, pd.Timestamp):
+            fecha = fecha.to_pydatetime()
+        sql = """UPDATE Software_EventosGrafica
+            SET fecha_evento = ?, descripcion = ?, color_hex = ?
+            WHERE id_evento = ?;"""
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (fecha, descripcion, color, id_evento))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al actualizar evento:", e)
             return False
         finally:
             if conn:

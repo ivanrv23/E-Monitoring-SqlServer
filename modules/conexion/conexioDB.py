@@ -632,6 +632,7 @@ class ConexionDB:
         dlg.setWindowTitle("Eliminar Conexión")
         dlg.setText(f"¿Está seguro de eliminar la conexión de {instrumento} \n y del servidor {servidor}?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
         dlg.setIcon(QMessageBox.Question)
         result = dlg.exec()
         if result == QMessageBox.Yes:

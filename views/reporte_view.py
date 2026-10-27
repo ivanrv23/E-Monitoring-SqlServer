@@ -395,6 +395,7 @@ class ReporteView:
             confirmacion.setWindowTitle("Guardar Reporte")
             confirmacion.setText("¿Desea guardar la información del reporte?")
             confirmacion.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            confirmacion.button(QMessageBox.Yes).setText("Sí")
             # Mostrar el cuadro de diálogo y obtener la respuesta del usuario
             respuesta = confirmacion.exec()
             if respuesta == QMessageBox.Yes:

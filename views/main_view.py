@@ -45,6 +45,7 @@ from controllers.PiezometroController import PiezometroController
 from controllers.CeldaController import CeldaController
 from controllers.AcelerografoController import AcelerografoController
 from modules.estratros.estratosEquipos import ConfigurarEstratos
+from modules.empresa.eventosgrafica import EventosGrafica
 from services.security.session import Session
 from views.dashboard_view import DashboardView
 from modules.conexion.conexioDB import ConexionDB
@@ -625,10 +626,6 @@ class MainView:
             # umbrales tdr
             actionUmbralesTDRPerso = MainView.main_window.findChild(QAction, "action_umbral_personalizado_tdr")
             actionUmbralesTDRPerso.triggered.connect(lambda: MainView.registrarUmbralPersonalizado('TDR'))
-
-            # estratos
-            actionConfigurarEstratos = MainView.main_window.findChild(QAction, "action_estratos_inclinometros")
-            actionConfigurarEstratos.triggered.connect(lambda: ConfigurarEstratos.modalEstratos(MainView.proyecto_id))
             
             # inclinómetros
             actionNuevoInclinometro = MainView.main_window.findChild(QAction, "action_nuevo_Inclinometro")
@@ -693,6 +690,12 @@ class MainView:
             actionConfigEmpresa = MainView.main_window.findChild(QAction, "action_configuracion_empresa")
             actionConfigEmpresa.setShortcut(QKeySequence("Ctrl+Q"))
             actionConfigEmpresa.triggered.connect(MainView.mostrarDialogoConfiguracionEmpresa)
+            # estratos
+            actionConfigurarEstratos = MainView.main_window.findChild(QAction, "action_estratos_inclinometros")
+            actionConfigurarEstratos.triggered.connect(lambda: ConfigurarEstratos.modalEstratos(MainView.proyecto_id))
+            # eventos
+            actionEventos = MainView.main_window.findChild(QAction, "action_eventos")
+            actionEventos.triggered.connect(lambda: EventosGrafica.modalEventos(MainView.proyecto_id))
             # Conectar acción Acerca de
             actionAcercade = MainView.main_window.findChild(QAction, "action_acercade")
             actionAcercade.setShortcut(QKeySequence("Ctrl+I"))

@@ -14,3 +14,11 @@ class EventosController:
     @staticmethod
     def ctrlEliminarEvento(id_evento):
         return EventosModel.mdlEliminarEvento(id_evento)
+
+    @staticmethod
+    def ctrlListarEventosProyecto(idproyecto):
+        return EventosModel.mdlListarEventosProyecto(idproyecto)
+
+    @staticmethod
+    def ctrlActualizarEvento(id_evento, fecha, descripcion, color):
+        return EventosModel.mdlActualizarEvento(id_evento, fecha, descripcion, color)

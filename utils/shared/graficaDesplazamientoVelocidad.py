@@ -6,9 +6,10 @@ import matplotlib.patches as mpatches
 import matplotlib.dates as mdates
 import locale
 from datetime import datetime
-from PySide6.QtGui import Qt
+from PySide6.QtGui import Qt, QCursor
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QDialog, QWidget, QCheckBox, QSizePolicy, QApplication
+from PySide6.QtWidgets import (QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QDialog, QWidget,
+                               QCheckBox, QSizePolicy, QApplication, QMenu, QMessageBox)
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from utils.common.customToolbar import CustomToolbar 
 from matplotlib.dates import DateFormatter
@@ -828,6 +829,9 @@ def on_click_global(event):
                         color=datos['color'], fontsize=7, fontweight='bold',
                         annotation_clip=True, clip_on=True
                     )
+                    nueva_linea._id_evento = exito
+                    nueva_linea._texto = nuevo_texto
+                    nuevo_texto._id_evento = exito
                     if datos['alcance'] == 'GLOBAL':
                         ev_globales.extend([nueva_linea, nuevo_texto])
                     else:
@@ -835,7 +839,7 @@ def on_click_global(event):
                     objetos_eventos.extend([nueva_linea, nuevo_texto])
                     canvas.draw()
                     btn_add_evento.setChecked(False)
-                    mostrar_mensaje("Éxito", "Evento agregado.", "info")
+                    mostrar_mensaje("Guardado", "Evento agregado.", "informacion")
                 else:
                     mostrar_mensaje("Error", "No se pudo guardar el evento.", "error")
             
@@ -1242,13 +1246,48 @@ def dibujar_eventos(ax, id_proyecto, tipo_inst, instrumentos_dict, fecha_inicio,
             annotation_clip=True,
             clip_on=True
         )
-        
+        linea._id_evento = id_ev
+        linea._texto = anotacion
+        anotacion._id_evento = id_ev
         if alcance == 'GLOBAL':
             globales.extend([linea, anotacion])
         else:
             especificos.extend([linea, anotacion])
 
     return globales, especificos
+
+def registrar_handlers_eventos(widget, canvas, ev_globales, ev_especificos,
+                               marcador_evento, label_evento, linea_fantasma,
+                               check_ev_global, check_ev_equipo):
+    """Registra los handlers del toolbar y aplica el estado actual de los checks."""
+    def toggle_ev_global(checked):
+        for obj in ev_globales:
+            try: obj.set_visible(checked)
+            except Exception: pass
+        canvas.draw_idle()
+
+    def toggle_ev_equipo(checked):
+        for obj in ev_especificos:
+            try: obj.set_visible(checked)
+            except Exception: pass
+        canvas.draw_idle()
+
+    def on_toggle_add_evento(checked):
+        if not checked:
+            marcador_evento.set_visible(False)
+            label_evento.set_visible(False)
+            linea_fantasma.set_visible(False)
+            canvas.draw_idle()
+
+    widget._handlers = {
+        'toggle_ev_global': toggle_ev_global,
+        'toggle_ev_equipo': toggle_ev_equipo,
+        'on_toggle_add_evento': on_toggle_add_evento,
+    }
+    for obj in ev_globales:
+        obj.set_visible(check_ev_global.isChecked())
+    for obj in ev_especificos:
+        obj.set_visible(check_ev_equipo.isChecked())
 
 def generar_ticks_precipitacion(rango_max, intervalo, min_etiquetas=5):
     """
@@ -1436,7 +1475,9 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
         widget.btn_add_evento = btn_add_evento
         widget.check_ev_global = check_ev_global
         widget.check_ev_equipo = check_ev_equipo
-        
+        check_ev_global.toggled.connect(lambda c, w=widget: _despachar_toolbar(w, 'toggle_ev_global', c))
+        check_ev_equipo.toggled.connect(lambda c, w=widget: _despachar_toolbar(w, 'toggle_ev_equipo', c))
+        btn_add_evento.toggled.connect(lambda c, w=widget: _despachar_toolbar(w, 'on_toggle_add_evento', c))
         toolbar_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         layout.addWidget(toolbar_container)
         
@@ -1782,7 +1823,8 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     
     ev_globales, ev_especificos = dibujar_eventos(ax, idproyecto, "PRISMA", instrumentos_dict, fecha_inicio, fecha_fin)
     objetos_eventos = ev_globales + ev_especificos
-    
+    registrar_handlers_eventos(widget, canvas, ev_globales, ev_especificos, marcador_evento, label_evento, linea_fantasma, check_ev_global, check_ev_equipo)
+
     if _objeto_qt_vivo(getattr(widget, 'label_total', None)):
         widget.label_total.setText(f"Total: {df['Instrumento'].nunique()}")
 
@@ -2566,21 +2608,28 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                 annot.set_visible(False)
                 punto_resaltado.set_visible(False)
                 canvas.draw_idle()
-    
+
     def on_click(event):
         if procesar_click_leyenda(ax, canvas, event):
             return
-        if event.button != 1: return
+
+        def ocultar_etiquetas(eje):
+            for text in eje.texts:
+                if text not in objetos_eventos:
+                    text.set_visible(False)
+
         # =====================================================================
-        # CASO A: CREAR EVENTO
+        # CASO A: CREAR EVENTO (solo clic izquierdo)
         # =====================================================================
         if btn_add_evento.isChecked():
+            if event.button != 1:
+                return
             if event.inaxes == ax:
                 fecha_clic = mdates.num2date(event.xdata).replace(tzinfo=None)
-                
+
                 eq_id = equipo_detectado.get('id')
                 eq_nombre = equipo_detectado.get('nombre')
-                
+
                 dialog = EventosDialog(widget, fecha_clic, idproyecto, tipo_evento, eq_id, eq_nombre)
                 if dialog.exec():
                     datos = dialog.obtener_datos()
@@ -2588,15 +2637,15 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                         idproyecto, datos['fecha'], datos['descripcion'], datos['color'],
                         datos['alcance'], tipo_evento, datos['id_instrumento']
                     )
-                    
+
                     if exito:
                         fecha_num_click = mdates.date2num(datos['fecha'])
                         nueva_linea = ax.axvline(x=datos['fecha'], color=datos['color'],
-                                                  linestyle='--', linewidth=1.5, alpha=0.7)
-                        
+                                                 linestyle='--', linewidth=1.5, alpha=0.7)
+
                         desc_full = datos['descripcion']
                         texto_safe = (desc_full[:20] + '..') if len(desc_full) > 20 else desc_full
-                        
+
                         nuevo_texto = ax.annotate(
                             texto_safe,
                             xy=(fecha_num_click, 0.96),
@@ -2606,70 +2655,84 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                             color=datos['color'], fontsize=7, fontweight='bold',
                             annotation_clip=True, clip_on=True
                         )
-                        
+                        nueva_linea._id_evento = exito
+                        nueva_linea._texto = nuevo_texto
+                        nuevo_texto._id_evento = exito
                         if datos['alcance'] == 'GLOBAL':
                             ev_globales.extend([nueva_linea, nuevo_texto])
                         else:
                             ev_especificos.extend([nueva_linea, nuevo_texto])
                         objetos_eventos.extend([nueva_linea, nuevo_texto])
-                        
+
                         canvas.draw()
                         btn_add_evento.setChecked(False)
-                        mostrar_mensaje("Éxito", "Evento agregado.", "info")
+                        mostrar_mensaje("Guardado", "Evento agregado.", "informacion")
                     else:
                         mostrar_mensaje("Error", "No se pudo guardar el evento.", "error")
-                
+
                 marcador_evento.set_visible(False)
                 label_evento.set_visible(False)
                 linea_fantasma.set_visible(False)
                 canvas.draw_idle()
             return
-        # =====================================================================
 
-        # CASO B: LÓGICA ORIGINAL (Seleccionar / Omitir)
+        # =====================================================================
+        # CASO B: igual que prismas (clic derecho = etiqueta, izquierdo = limpiar,
+        #         Ctrl + izquierdo = omitir lectura)
+        # =====================================================================
+        if event.button not in (1, 3):
+            return
+
         current_ax = ax2 if ax2 and ax2.in_axes(event) else ax
 
-        if current_ax.in_axes(event):
+        if current_ax.in_axes(event) and event.xdata is not None and event.ydata is not None:
             for line in lineas:
                 contains, _ = line.contains(event)
-                if contains:
-                    label = line.get_label()
-                    x = mdates.num2date(event.xdata).replace(tzinfo=None)
-                    y = event.ydata
+                if not contains:
+                    continue
 
-                    line_data = df[df['Equipo'] == label]
+                label = line.get_label()
+                line_data = df[df['Equipo'] == label].copy()
+                if line_data.empty:
+                    continue
 
-                    if not line_data.empty:
-                        if line_data['Fecha'].dt.tz is not None:
-                            line_data['Fecha'] = line_data['Fecha'].dt.tz_localize(None)
+                x = mdates.num2date(event.xdata).replace(tzinfo=None)
+                if line_data['Fecha'].dt.tz is not None:
+                    line_data['Fecha'] = line_data['Fecha'].dt.tz_localize(None)
 
-                        data_point = line_data.iloc[(line_data['Fecha'] - x).abs().argmin()]
-                        date = data_point['Fecha'].strftime('%d/%m/%Y %H:%M:%S')
-                        reading = round(data_point[tipo], 3)
-                        tipo_piezo = data_point['TipoPiezo']
-                        id_equipo = data_point['idEquipo']
-                        # Usamos el id_instrumentacion (columna 'Instrumento').
-                        if modulo == "PIEZOMETROS" and str(tipo_piezo).upper() == 'PIEZOMETROCUERDA':
-                            id_equipo = data_point['Instrumento']
-                        annotation_text = f"{label}\nFecha: {date}\nLectura: {reading}"
+                data_point = line_data.iloc[(line_data['Fecha'] - x).abs().argmin()]
+                date = data_point['Fecha'].strftime('%d/%m/%Y %H:%M:%S')
+                reading = round(data_point[tipo], 3)
+                tipo_piezo = data_point['TipoPiezo']
+                id_equipo = data_point['idEquipo']
+                if modulo == "PIEZOMETROS" and str(tipo_piezo).upper() == 'PIEZOMETROCUERDA':
+                    id_equipo = data_point['Instrumento']
+                annotation_text = f"{label}\nFecha: {date}\nLectura: {reading}"
 
-                        if event.guiEvent.modifiers() & Qt.ControlModifier:
-                            procesar_datos_lectura_piezo_celda(idproyecto, label, id_equipo, date, reading, tipo_piezo, modulo)
-                        else:
-                            fecha_num_data = mdates.date2num(data_point['Fecha'])
-                            annotation = current_ax.annotate(annotation_text, (fecha_num_data, data_point[tipo]),
-                                                            textcoords="offset points", xytext=(10, 10),
-                                                            ha='left', fontsize=etiquesize,
-                                                            bbox=dict(facecolor='yellow', alpha=0.8, edgecolor='none'))
-                            annotation.set_visible(True)
-                            canvas.draw()
-                        return
+                # ---- Clic derecho: mostrar etiqueta amarilla ----
+                if event.button == 3:
+                    ocultar_etiquetas(current_ax)
+                    fecha_num_data = mdates.date2num(data_point['Fecha'])
+                    annotation = current_ax.annotate(
+                        annotation_text, (fecha_num_data, data_point[tipo]),
+                        textcoords="offset points", xytext=(10, 10),
+                        ha='left', fontsize=etiquesize,
+                        bbox=dict(facecolor='yellow', alpha=0.8, edgecolor='none'))
+                    annotation.set_visible(True)
+                    canvas.draw()
+                    return
 
-        # Limpiar etiquetas
-        if not (event.guiEvent.modifiers() & Qt.ControlModifier):
-            for text in current_ax.texts:
-                if text not in objetos_eventos:
-                    text.set_visible(False)
+                # ---- Clic izquierdo ----
+                if event.guiEvent.modifiers() & Qt.ControlModifier:
+                    procesar_datos_lectura_piezo_celda(idproyecto, label, id_equipo, date, reading, tipo_piezo, modulo)
+                else:
+                    ocultar_etiquetas(current_ax)
+                    canvas.draw()
+                return
+
+        # Clic izquierdo sobre zona vacía: limpiar etiquetas
+        if event.button == 1 and not (event.guiEvent.modifiers() & Qt.ControlModifier):
+            ocultar_etiquetas(current_ax)
             canvas.draw()
 
     canvas._h_resize = on_resize
