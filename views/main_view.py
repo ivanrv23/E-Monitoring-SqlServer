@@ -44,7 +44,7 @@ from controllers.PrismaController import PrismaController
 from controllers.PiezometroController import PiezometroController
 from controllers.CeldaController import CeldaController
 from controllers.AcelerografoController import AcelerografoController
-from modules.estratros.estratosEquipos import ConfigurarEstratos
+from modules.estratos.estratosEquipos import ConfigurarEstratos
 from modules.empresa.eventosgrafica import EventosGrafica
 from services.security.session import Session
 from views.dashboard_view import DashboardView
