@@ -22,6 +22,7 @@ from utils.common.alertas import mostrar_mensaje
 from services.queries.graph_query_manager import velocidad_query_manager
 from services.queries.query_context import set_active_request, clear_active_request
 from services.queries.query_registry import query_registry
+from controllers.VoladuraController import VoladuraController
 
 class DataWorkerVelocidad(QThread):
     """Worker de consulta con soporte de cancelación real via SPID."""
@@ -416,7 +417,7 @@ class VelocidadView:
             return None
         main = VelocidadView.main
         lista = EquiposVelocidad.obtener_todos_elementos_marcados(tree_actual)
-        prismas, pluvios = frozenset(), frozenset()
+        prismas, pluvios, voladuras = frozenset(), frozenset(), frozenset()
         if lista:
             prismas = frozenset(
                 (str(c[1]), str(p[1]))
@@ -428,13 +429,18 @@ class VelocidadView:
                 for c, equipos in VelocidadView.obtenerListaEquiposMarcados(lista, "Pluviómetros")
                 for p in equipos
             )
+            voladuras = frozenset(
+                (str(c[1]), str(p[1]))
+                for c, equipos in VelocidadView.obtenerListaEquiposMarcados(lista, "Voladuras")
+                for p in equipos
+            )
         tipopromedio = main.findChild(QComboBox, "combo_promedio_velocidad").currentData()
         numeropromedio = main.findChild(QSpinBox, "spin_promedio_velocidad").value()
         tipografico = main.findChild(QComboBox, "combo_tipos_velocidad").currentData()
         tipomedida = main.findChild(QComboBox, "combo_medida_velocidad").currentData()
         tipotiempo = main.findChild(QComboBox, "combo_tiempo_velocidad").currentData()
         config = SoftwareConfiguracion.obtenerDataSoftware()
-        return (VelocidadView.idproyecto, prismas, pluvios,
+        return (VelocidadView.idproyecto, prismas, pluvios, voladuras,
                 str(VelocidadView.fechainicial), str(VelocidadView.fechafinal),
                 tipografico, tipomedida, tipotiempo, tipopromedio, numeropromedio,
                 config[15], config[16])
@@ -573,6 +579,18 @@ class VelocidadView:
         if estado == 'FAILED' or (estado == 'CANCELLED' and es_actual):
             ocultar_carga(VelocidadView.main.findChild(QWidget, "widget_grafica_velocidad"))
             VelocidadView.main.unsetCursor()
+
+    @staticmethod
+    def _obtenerDataVoladuras(lista):
+        ids = []
+        for _, equipos in VelocidadView.obtenerListaEquiposMarcados(lista, "Voladuras"):
+            for eq in equipos:
+                info = VoladuraController.ctrlObtenerInfoVoladura(eq[1])
+                if info:
+                    ids.append(info[0])
+        if not ids:
+            return None
+        return VoladuraController.ctrlObtenerDataVoladuras(VelocidadView.idproyecto, ids)
             
     def obtenerListaEquiposMarcados(lista, tipolista):
         equiposmarcados = []
@@ -630,6 +648,7 @@ class VelocidadView:
             pluviometros, escala = None, None
             modulo = "VELOCIDAD"
             pluviometrosmarcados = VelocidadView.obtenerListaEquiposMarcados(lista, "Pluviómetros")
+            voladuras = VelocidadView._obtenerDataVoladuras(lista)
             if len(pluviometrosmarcados) == 1:
                 datapluvio = PluviometroController.ctrlObtenerPluviometros(VelocidadView.idproyecto, pluviometrosmarcados, VelocidadView.fechainicial, VelocidadView.fechafinal)
                 if datapluvio:
@@ -638,9 +657,9 @@ class VelocidadView:
             config = SoftwareConfiguracion.obtenerDataSoftware()
             filtrado = config[16]
             if filtrado == 0:
-                procesar_grafica(widget_velocidad, labeltendencia, datos, 1, indextiempo, 5, labelx, labely, tipografico, unidadmedida, tipotiempo, titulo, VelocidadView.idproyecto, modulo, pluviometros, tendencias, escala, VelocidadView.fechainicial, VelocidadView.fechafinal)
+                procesar_grafica(widget_velocidad, labeltendencia, datos, 1, indextiempo, 5, labelx, labely, tipografico, unidadmedida, tipotiempo, titulo, VelocidadView.idproyecto, modulo, pluviometros, tendencias, escala, VelocidadView.fechainicial, VelocidadView.fechafinal, voladura_data=voladuras)
             else:
-                procesar_grafica(widget_velocidad, labeltendencia, datos, 1, indextiempo, 5, labelx, labely, tipografico, unidadmedida, tipotiempo, titulo, VelocidadView.idproyecto, modulo, pluviometros, tendencias, escala)
+                procesar_grafica(widget_velocidad, labeltendencia, datos, 1, indextiempo, 5, labelx, labely, tipografico, unidadmedida, tipotiempo, titulo, VelocidadView.idproyecto, modulo, pluviometros, tendencias, escala, voladura_data=voladuras)
         else:
             VelocidadView.limpiarGraficaVelocidad()
 

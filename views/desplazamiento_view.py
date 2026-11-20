@@ -22,6 +22,7 @@ from utils.common.alertas import mostrar_mensaje
 from services.queries.graph_query_manager import desplazamiento_query_manager
 from services.queries.query_context import set_active_request, clear_active_request
 from services.queries.query_registry import query_registry
+from controllers.VoladuraController import VoladuraController
 
 class DataWorker(QThread):
     """Worker de consulta con soporte de cancelación real via SPID."""
@@ -461,7 +462,7 @@ class DesplazamientoView:
             return None
         main = DesplazamientoView.main
         lista = EquiposDesplazamiento.obtener_todos_elementos_marcados(tree_actual)
-        prismas, pluvios = frozenset(), frozenset()
+        prismas, pluvios, voladuras = frozenset(), frozenset(), frozenset()
         if lista:
             prismas = frozenset(
                 (str(c[1]), str(p[1]))
@@ -473,13 +474,18 @@ class DesplazamientoView:
                 for c, equipos in DesplazamientoView.obtenerListaEquiposMarcados(lista, "Pluviómetros")
                 for p in equipos
             )
+            voladuras = frozenset(
+                (str(c[1]), str(p[1]))
+                for c, equipos in DesplazamientoView.obtenerListaEquiposMarcados(lista, "Voladuras")
+                for p in equipos
+            )
         tipopromedio = main.findChild(QComboBox, "combo_promedio_desplaza").currentData()
         numeropromedio = main.findChild(QSpinBox, "spin_promedio_desplaza").value()
         tipografico = main.findChild(QComboBox, "combo_tipos_desplazamiento").currentData()
         tipomedida = main.findChild(QComboBox, "combo_medida_desplaza").currentData()
         tipotiempo = main.findChild(QComboBox, "combo_tiempo_desplaza").currentData()
         filtrado = SoftwareConfiguracion.obtenerDataSoftware()[16]
-        return (DesplazamientoView.idproyecto, prismas, pluvios,
+        return (DesplazamientoView.idproyecto, prismas, pluvios, voladuras,
                 str(DesplazamientoView.fechainicial), str(DesplazamientoView.fechafinal),
                 tipografico, tipomedida, tipotiempo, tipopromedio, numeropromedio, filtrado)
 
@@ -607,6 +613,19 @@ class DesplazamientoView:
         if estado == 'FAILED' or (estado == 'CANCELLED' and es_actual):
             ocultar_carga(DesplazamientoView.main.findChild(QWidget, "widget_grafica_desplazamiento"))
             DesplazamientoView.main.unsetCursor()
+
+    @staticmethod
+    def _obtenerDataVoladuras(lista):
+        """Filas de las voladuras marcadas, o None si no hay."""
+        ids = []
+        for _, equipos in DesplazamientoView.obtenerListaEquiposMarcados(lista, "Voladuras"):
+            for eq in equipos:
+                info = VoladuraController.ctrlObtenerInfoVoladura(eq[1])  # eq[1] = id de instrumentación
+                if info:
+                    ids.append(info[0])                                    # info[0] = id_voladura
+        if not ids:
+            return None
+        return VoladuraController.ctrlObtenerDataVoladuras(DesplazamientoView.idproyecto, ids)
             
     def obtenerListaEquiposMarcados(lista, tipolista):
         equiposmarcados = []
@@ -698,12 +717,13 @@ class DesplazamientoView:
                 datapluvio = PluviometroController.ctrlObtenerPluviometros(DesplazamientoView.idproyecto, pluviometrosmarcados, DesplazamientoView.fechainicial, DesplazamientoView.fechafinal)
                 if datapluvio:
                     pluviometros = datapluvio
+            voladuras = DesplazamientoView._obtenerDataVoladuras(lista)
             config = SoftwareConfiguracion.obtenerDataSoftware()
             filtrado = config[16]
             if filtrado == 0:
-                procesar_grafica(widget_deplazamiento, labeltendencia, datos, 1, indextiempo, 5, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, DesplazamientoView.idproyecto, modulo, pluviometros, tendencias, escala, DesplazamientoView.fechainicial, DesplazamientoView.fechafinal)
+                procesar_grafica(widget_deplazamiento, labeltendencia, datos, 1, indextiempo, 5, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, DesplazamientoView.idproyecto, modulo, pluviometros, tendencias, escala, DesplazamientoView.fechainicial, DesplazamientoView.fechafinal, voladura_data=voladuras)
             else:
-                procesar_grafica(widget_deplazamiento, labeltendencia, datos, 1, indextiempo, 5, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, DesplazamientoView.idproyecto, modulo, pluviometros, tendencias, escala)
+                procesar_grafica(widget_deplazamiento, labeltendencia, datos, 1, indextiempo, 5, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, DesplazamientoView.idproyecto, modulo, pluviometros, tendencias, escala, voladura_data=voladuras)
         else:
             DesplazamientoView.limpiarGraficaDesplazamiento()
     

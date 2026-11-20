@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QPushButton, QLineEdit
 from utils.common.metodosGenerales import MetodosGenerales
 from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 from controllers.DatosController import DatosController
+from controllers.VoladuraController import VoladuraController
 
 # Clase CustomTableModel
 class CustomTableModel(QAbstractTableModel):
@@ -150,6 +151,8 @@ class VistaDatos:
             return VistaDatos.datos_tabla_sondajestdr(proyecto_id, idzona, equipos, decimales)
         elif tipo == 'Equipos Adicionales':
             return VistaDatos.datos_tabla_equipos_adicionales(proyecto_id, idzona, equipos, decimales)
+        elif tipo == 'Voladuras':
+            return VistaDatos.datos_tabla_voladuras(proyecto_id, idzona, equipos, decimales)
         return None
 
     def construirTablaEquipo(main, tabla, tipo, resultado):
@@ -229,6 +232,14 @@ class VistaDatos:
         if terrenos:
             headers = ["", "Nombre Cota", "Fecha Hora", "Cota (msnm)", "Observación", "Estado", ""]
             return {'headers': headers, 'data': terrenos, 'columnacolor': 0, 'hidden': [0, 6], 'decimales': decimales}
+        return None
+    
+    def datos_tabla_voladuras(proyecto_id, idzona, equipos, decimales):
+        ids = [dato[2] for dato in equipos]
+        filas = VoladuraController.ctrlObtenerDataVoladuras(proyecto_id, ids)
+        if filas:
+            headers = ["", "Voladura", "Fecha Hora", "Ubicación", "Cota (msnm)", "Observación", "Estado", ""]
+            return {'headers': headers, 'data': filas, 'columnacolor': 6, 'hidden': [0, 7], 'decimales': decimales}
         return None
 
     def datos_tabla_celdas_asentamiento(proyecto_id, idzona, equipos, decimales):

@@ -13,6 +13,7 @@ from modules.datos.subirAcelerografos import SubirAcelerografos
 from modules.datos.subirTDR import SubirTDR
 from controllers.InterfazController import InterfazController
 from modules.datos.registroEquipos import RegistroEquipos
+from modules.datos.subirVoladuras import SubirVoladuras
 
 class EquiposDatos:
 
@@ -326,6 +327,16 @@ class EquiposDatos:
                     edit_prismabaja.triggered.connect(lambda: SubirPrismas.dardealta_prisma(idproyecto, idcomponente, nombreprisma, idinstrumento, nombrezona, treeWidget, reiniciarvistas))
                     change_prismabaja.triggered.connect(lambda: SubirPrismas.cambiar_componente_prisma(idinstrumento, idcomponente, idproyecto, treeWidget, "Prismas de Baja", "11", "prismabaja", 0, reiniciarvistas))
                     delete_prismabaja.triggered.connect(lambda: SubirPrismas.eliminar_prisma(idinstrumento, nombreprisma, "Prismas de Baja", "prismabaja", treeWidget, reiniciarvistas))
+                elif tipo == "voladura":
+                    nombrevoladura = item.text(0)
+                    idinstrumento = item.text(2)
+                    idcomponente = item.parent().parent().text(2)
+                    idproyecto = item.parent().parent().text(3)
+                    edit_voladura = menu.addAction("Editar Voladura")
+                    delete_voladura = menu.addAction("Eliminar Voladura")
+                    edit_voladura.triggered.connect(lambda: SubirVoladuras.actualizarVoladura(idproyecto, idcomponente, idinstrumento, treeWidget, reiniciarvistas))
+                    delete_voladura.triggered.connect(lambda: SubirVoladuras.eliminar_voladura(idinstrumento, nombrevoladura, item, treeWidget, reiniciarvistas))
+            
             menu.exec(treeWidget.mapToGlobal(point))
     
     def validarAlgunHijoMarcado(nodo):
@@ -528,6 +539,10 @@ class EquiposDatos:
                     prismasbaja = InterfazController.ctrlListarPrismasComponente(idzona, 0)
                     if prismasbaja:
                         TreeCheckbox.crearNuevoGrupoCheckboxesSimple(tree_widget, namezona, idzona, proyecto_id, "Prismas de Baja", "11", prismasbaja, "prismabaja")
+                    # LISTAR VOLADURAS
+                    voladuras = InterfazController.ctrlListarVoladurasComponente(idzona)
+                    if voladuras:
+                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(tree_widget, namezona, idzona, proyecto_id, "Voladuras", "12", voladuras, "voladura")
 
     @staticmethod
     def filtrarArbolPorTexto(treeWidget, texto):

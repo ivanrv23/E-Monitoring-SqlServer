@@ -27,7 +27,8 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 from matplotlib.transforms import Bbox
 from matplotlib.collections import PathCollection
-
+from matplotlib.collections import PathCollection, LineCollection
+from controllers.VoladuraController import VoladuraController
 
 # Configurar el idioma de las fechas a español
 try:
@@ -299,6 +300,9 @@ def _fijar_visible(handle, estado):
         p.set_visible(estado)
     for obj in getattr(handle, '_asociados', []):  # capas del suavizado
         obj.set_visible(estado)
+    f = getattr(handle, '_refrescar_lluvia', None)
+    if f:
+        f()
 
 
 def _atenuar_entrada(visuales, visible):
@@ -347,6 +351,13 @@ def _crear_icono_leyenda(handle, ancho=26, alto=14):
         da.add_artist(punto)
         visuales.append(punto)
 
+    elif isinstance(handle, LineCollection):     # voladuras
+        ec = handle.get_edgecolor()
+        color = ec[0] if len(ec) else 'red'
+        rect = Rectangle((1, 2), ancho - 2, alto - 4, facecolor=color, edgecolor='none')
+        da.add_artist(rect)
+        visuales.append(rect)
+
     else:                                        # barras / parche de lluvia
         patches = getattr(handle, 'patches', None)
         fuente_color = patches[0] if patches else handle
@@ -369,13 +380,15 @@ def _crear_texto_info(texto, fuente, leyendazise):
     """Entrada de texto simple (sin ícono, no clickeable) para Total/Activas/Ocultas."""
     return TextArea(texto, textprops=dict(size=leyendazise, family=fuente, weight='bold'))
 
-def construir_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro, fuente, leyendazise):
+def construir_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro, fuente, leyendazise, extras=None):
     canvas.draw()
     renderer = canvas.get_renderer()
 
     handles = list(lineas)
     if barras_pluviometro is not None:
         handles.append(barras_pluviometro)
+    if extras:
+        handles.extend(extras)
 
     dpi_scale = figure.dpi / 72.0
     ANCHO_ICONO = 15
@@ -438,8 +451,12 @@ def construir_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro, fuen
     return anchored, entradas_info
 
 def actualizar_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro,
-                             fuente, leyendazise, left=0.10, right=0.90):
+                             fuente, leyendazise, left=0.10, right=0.90, extras=None):
     """Reconstruye la leyenda y acomoda márgenes. Común a todas las gráficas."""
+    f_lluvia = getattr(barras_pluviometro, '_refrescar_lluvia', None)
+    if f_lluvia:
+        f_lluvia()
+
     try:
         anterior = getattr(ax, '_leyenda_flujo', None)
         if anterior is not None:
@@ -449,7 +466,7 @@ def actualizar_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro,
                 pass
 
         anchored, entradas = construir_leyenda_flujo(
-            ax, canvas, figure, lineas, barras_pluviometro, fuente, leyendazise)
+            ax, canvas, figure, lineas, barras_pluviometro, fuente, leyendazise, extras)
         ax._leyenda_flujo = anchored
         ax._leyenda_entradas = entradas
 
@@ -1256,6 +1273,32 @@ def dibujar_eventos(ax, id_proyecto, tipo_inst, instrumentos_dict, fecha_inicio,
 
     return globales, especificos
 
+def dibujar_voladuras(ax, voladura_data, tiempo, idproyecto=None,
+                      alto_def=0.05, grosor_def=2.5, color_def='#ff0000'):
+    """Devuelve la lista de LineCollection (una por voladura, con su estilo guardado)."""
+    if not voladura_data or tiempo != "FECHA":
+        return []
+    try:
+        estilos = VoladuraController.ctrlObtenerEstilosVoladuras(idproyecto) if idproyecto else {}
+    except Exception:
+        estilos = {}
+
+    grupos = {}
+    for r in voladura_data:
+        if str(r[6]) == 'Activo':
+            grupos.setdefault(str(r[1]), []).append(r[2])
+
+    cols = []
+    for nombre, fechas in grupos.items():
+        grosor, alto, color = estilos.get(nombre, (grosor_def, alto_def, color_def))
+        x = mdates.date2num(pd.to_datetime(fechas).to_pydatetime())
+        segmentos = [[(xi, 0), (xi, alto)] for xi in x]
+        col = LineCollection(segmentos, colors=color, linewidths=grosor,
+                             transform=ax.get_xaxis_transform(), zorder=4, label=nombre)
+        ax.add_collection(col, autolim=False)
+        cols.append(col)
+    return cols
+
 def registrar_handlers_eventos(widget, canvas, ev_globales, ev_especificos,
                                marcador_evento, label_evento, linea_fantasma,
                                check_ev_global, check_ev_equipo):
@@ -1289,6 +1332,113 @@ def registrar_handlers_eventos(widget, canvas, ev_globales, ev_especificos,
     for obj in ev_especificos:
         obj.set_visible(check_ev_equipo.isChecked())
 
+def configurar_lluvia_dinamica(ax, ax2, barras, ancho_px=4, sep_min_px=20, fontsize=8, mostrar_valor=True):
+    """
+    - Barras delgadas: ancho fijo en píxeles (se recalcula con zoom/pan/resize),
+      nunca mayor al ancho original (espaciado real entre lecturas).
+    - Etiquetas (mm): solo las de barras visibles en el rango actual y separadas
+      al menos 'sep_min_px' píxeles (si chocan, gana la de mayor valor).
+    Devuelve la lista de textos para meterla en objetos_eventos.
+    """
+    if barras is None or not hasattr(barras, 'patches'):
+        return []
+
+    invertido = ax2.yaxis_inverted()
+    patches = list(barras.patches)
+    if not patches:
+        return []
+
+    centros = np.array([p.get_x() + p.get_width() / 2 for p in patches], dtype=float)
+    alturas = np.array([float(p.get_height()) for p in patches], dtype=float)
+    ancho_max = max(float(patches[0].get_width()), 1e-9)   # ancho original (calcular_ancho_barras)
+
+    for p in patches:
+        p.set_linewidth(0)
+
+    # Una etiqueta por barra con valor > 0; su visibilidad se decide en refrescar()
+    textos, idx_textos = [], []
+    if mostrar_valor:
+        for i, (c, h) in enumerate(zip(centros, alturas)):
+            if not np.isfinite(h) or h <= 0:
+                continue
+            t = ax2.annotate(
+                f"{h:.1f}", xy=(c, h),
+                xytext=(0, -3 if invertido else 3), textcoords='offset points',
+                ha='center', va='top' if invertido else 'bottom',
+                fontsize=fontsize, color='black', zorder=50,
+                annotation_clip=True)
+            t.set_visible(False)
+            textos.append(t)
+            idx_textos.append(i)
+
+    def refrescar(*_):
+        try:
+            x0, x1 = ax2.get_xlim()
+            if x0 > x1:
+                x0, x1 = x1, x0
+            ancho_ax_px = ax.get_window_extent().width
+            if ancho_ax_px <= 0 or x1 <= x0:
+                return
+            dpp = (x1 - x0) / ancho_ax_px            # días por píxel
+
+            # 1) Ancho delgado: ~ancho_px px, sin pasar del original, mínimo ~1 px
+            w = max(min(ancho_px * dpp, ancho_max), 1.2 * dpp)
+            for p, c in zip(patches, centros):
+                p.set_width(w)
+                p.set_x(c - w / 2)
+
+            # 2) Etiquetas: visibles en el rango, ordenadas por valor y separadas
+            barras_visibles = patches[0].get_visible()
+            candidatos = []
+            if barras_visibles:
+                for t, i in zip(textos, idx_textos):
+                    if x0 <= centros[i] <= x1:
+                        candidatos.append((alturas[i], i, t))
+                candidatos.sort(key=lambda k: k[0], reverse=True)
+
+            elegidos_px = []
+            mostrar = set()
+            for h, i, t in candidatos:
+                px = (centros[i] - x0) / dpp
+                if all(abs(px - q) >= sep_min_px for q in elegidos_px):
+                    elegidos_px.append(px)
+                    mostrar.add(t)
+            for t in textos:
+                t.set_visible(t in mostrar)
+        except Exception:
+            import traceback
+            traceback.print_exc()
+
+    # Reconectar (ax.twinx comparte x; el zoom puede emitirse desde cualquiera de los dos)
+    for eje in (ax, ax2):
+        cid = getattr(eje, '_cid_lluvia', None)
+        if cid is not None:
+            try:
+                eje.callbacks.disconnect(cid)
+            except Exception:
+                pass
+        eje._cid_lluvia = eje.callbacks.connect('xlim_changed', refrescar)
+
+    barras._asociados = textos
+    barras._refrescar_lluvia = refrescar
+    refrescar()
+    return textos
+
+def calcular_ancho_barras(fechas, factor=0.8):
+    """
+    Ancho de barra (en días, unidad de matplotlib para fechas) basado en el
+    espaciado típico entre lecturas, no en el rango total.
+    Así cada lectura queda como barra independiente sin solaparse.
+    """
+    f = pd.to_datetime(pd.Series(fechas)).sort_values().drop_duplicates()
+    if len(f) < 2:
+        return 0.8
+    dif = f.diff().dropna().dt.total_seconds() / 86400.0   # en días
+    dif = dif[dif > 0]
+    if dif.empty:
+        return 0.8
+    return float(dif.median()) * factor
+
 def generar_ticks_precipitacion(rango_max, intervalo, min_etiquetas=5):
     """
     Genera los ticks del eje de precipitación respetando 3 reglas:
@@ -1315,7 +1465,10 @@ def generar_ticks_precipitacion(rango_max, intervalo, min_etiquetas=5):
 
     return ticks   
 
-def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_lectura, labelejex, labelejey, tipo, medida, tiempo, titulo, idproyecto, modulo, pluviometro_data=None, equipostendencia=None, escala=None, fecha_inicio=None, fecha_fin=None):
+def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_lectura, labelejex, labelejey,
+                     tipo, medida, tiempo, titulo, idproyecto, modulo, pluviometro_data=None,
+                     equipostendencia=None, escala=None, fecha_inicio=None, fecha_fin=None,
+                     voladura_data=None):
     ax = None
     ax2 = None
     avisolabels = False
@@ -1537,15 +1690,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         widget.mpl_ax2 = ax.twinx()
                     ax2 = widget.mpl_ax2
                     
-                    diferencia = df_pluviometro['Fecha'].max() - df_pluviometro['Fecha'].min()
-                    totaldias = diferencia.days
-                    ancho = 0.8
-                    if totaldias > 0:
-                        if totaldias < 100:
-                            ancho = totaldias / 100
-                        else:
-                            ancho = totaldias / 200
-                    
+                    ancho = calcular_ancho_barras(df_pluviometro['Fecha'])
                     if estilo:
                         if posicionlluvia == 0:
                             ax2.set_ylim(int(estilo[3]), 0)
@@ -1588,14 +1733,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         widget.mpl_ax2 = ax.twinx()
                     ax2 = widget.mpl_ax2
                     
-                    diferencia = df_pluviometro['Fecha'].max() - df_pluviometro['Fecha'].min()
-                    totaldias = diferencia.days
-                    ancho = 0.8
-                    if totaldias > 0:
-                        if totaldias < 100:
-                            ancho = totaldias / 100
-                        else:
-                            ancho = totaldias / 200
+                    ancho = calcular_ancho_barras(df_pluviometro['Fecha'])
                     
                     if estilo:
                         if posicionlluvia == 0:
@@ -1614,7 +1752,15 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
                         ticks = generar_ticks_precipitacion(rango_max_lluvia, intervalo_lluvia)
                         ax2.set_yticks(ticks)
                     ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
-    
+
+    etiquetas_lluvia = []
+    if barras_pluviometro is not None and hasattr(barras_pluviometro, 'patches'):
+        etiquetas_lluvia = configurar_lluvia_dinamica(
+            ax, ax2, barras_pluviometro, fontsize=max(etiquesize - 1, 6), mostrar_valor=(config[24] == 0))
+
+    col_voladuras = dibujar_voladuras(ax, voladura_data, tiempo, idproyecto)
+    extras_leyenda = [col_voladuras] if col_voladuras is not None else []
+        
     # ============================================================
     # DIBUJO DE LÍNEAS Y TENDENCIAS
     # ============================================================
@@ -1823,6 +1969,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     
     ev_globales, ev_especificos = dibujar_eventos(ax, idproyecto, "PRISMA", instrumentos_dict, fecha_inicio, fecha_fin)
     objetos_eventos = ev_globales + ev_especificos
+    objetos_eventos.extend(etiquetas_lluvia)
     registrar_handlers_eventos(widget, canvas, ev_globales, ev_especificos, marcador_evento, label_evento, linea_fantasma, check_ev_global, check_ev_equipo)
 
     if _objeto_qt_vivo(getattr(widget, 'label_total', None)):
@@ -1864,7 +2011,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     # ============================================================
     def actualizar_leyenda_local():
         actualizar_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro,
-                                 fuente, leyendazise)
+                                 fuente, leyendazise, extras=extras_leyenda)
     
     canvas.actualizar_leyenda_func = actualizar_leyenda_local
     actualizar_leyenda_local()
@@ -1875,7 +2022,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     if avisolabels:
         mostrar_mensaje("Ejes", "No se aplica la configuración de ejes.", "advertencia")
         
-def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, idx_nombre, idx_fecha, idx_lectura, idx_funda, idx_super, labelejex, labelejey, tipo, medida, tiempo, titulo, idproyecto, modulo, pluviometro_data=None, equipostendencia=None, dataterreno=None, fecha_inicio=None, fecha_fin=None):
+def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, idx_nombre, idx_fecha, idx_lectura, idx_funda, idx_super, labelejex, labelejey, tipo, medida, tiempo, titulo, idproyecto, modulo, pluviometro_data=None, equipostendencia=None, dataterreno=None, fecha_inicio=None, fecha_fin=None, voladura_data=None):    
     ax = None
     ax2 = None
     avisolabels = False
@@ -2044,14 +2191,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                 df_pluviometro = pd.DataFrame(pluviometro_data, columns=['Codigo', 'Fecha', 'Lectura'])
                 df_pluviometro['Fecha'] = pd.to_datetime(df_pluviometro['Fecha'])
                 ax2 = ax.twinx()
-                diferencia = df_pluviometro['Fecha'].max() - df_pluviometro['Fecha'].min()
-                totaldias = diferencia.days
-                ancho = 0.8
-                if totaldias > 0:
-                    if totaldias < 100:
-                        ancho = totaldias / 100
-                    else:
-                        ancho = totaldias / 200
+                ancho = calcular_ancho_barras(df_pluviometro['Fecha'])
                 if estilo:
                     if posicionlluvia == 0:
                         ax2.set_ylim(int(estilo[3]), 0)
@@ -2087,14 +2227,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                 df_pluviometro = pd.DataFrame(pluviometro_data, columns=['Codigo', 'Fecha', 'Lectura'])
                 df_pluviometro['Fecha'] = pd.to_datetime(df_pluviometro['Fecha'])
                 ax2 = ax.twinx()
-                diferencia = df_pluviometro['Fecha'].max() - df_pluviometro['Fecha'].min()
-                totaldias = diferencia.days
-                ancho = 0.8
-                if totaldias > 0:
-                    if totaldias < 100:
-                        ancho = totaldias / 100
-                    else:
-                        ancho = totaldias / 200
+                ancho = calcular_ancho_barras(df_pluviometro['Fecha'])
                 if estilo:
                     if posicionlluvia == 0:
                         ax2.set_ylim(int(estilo[3]), 0)
@@ -2112,7 +2245,15 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
                     ticks = generar_ticks_precipitacion (rango_max_lluvia, intervalo_lluvia)
                     ax2.set_yticks(ticks)
                 ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
-    
+
+    etiquetas_lluvia = []
+    if barras_pluviometro is not None and hasattr(barras_pluviometro, 'patches'):
+        etiquetas_lluvia = configurar_lluvia_dinamica(
+            ax, ax2, barras_pluviometro, fontsize=max(etiquesize - 1, 6), mostrar_valor=(config[24] == 0))
+
+    col_voladuras = dibujar_voladuras(ax, voladura_data, tiempo, idproyecto)
+    extras_leyenda = [col_voladuras] if col_voladuras is not None else []
+
     # Graficar datos
     lineas = []
     lineas_principales = []
@@ -2430,6 +2571,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
 
     ev_globales, ev_especificos = dibujar_eventos(ax, idproyecto, tipo_evento, instrumentos_dict, fecha_inicio, fecha_fin)
     objetos_eventos = ev_globales + ev_especificos
+    objetos_eventos.extend(etiquetas_lluvia) 
     
     def toggle_ev_global(checked):
         for obj in ev_globales:
@@ -2463,7 +2605,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
     # =========================================================================
     def actualizar_leyenda():
         actualizar_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro,
-                                 fuente, leyendazise)
+                                 fuente, leyendazise, extras=extras_leyenda)
 
     def on_resize(event):
         actualizar_leyenda()

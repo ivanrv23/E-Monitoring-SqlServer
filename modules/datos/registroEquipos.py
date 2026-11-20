@@ -19,6 +19,7 @@ from controllers.PluviometroController import PluviometroController
 from controllers.TerrenoController import TerrenoController
 from controllers.EquipoController import EquipoController
 from utils.shared.arbolmarcado import TreeCheckbox
+from controllers.VoladuraController import VoladuraController
 
 class RegistroEquipos:
     
@@ -427,7 +428,66 @@ class RegistroEquipos:
 
         botonguardar.clicked.connect(guardarNuevoPluviometro)
         dialogopluviometros.exec()
-    
+
+    ###############################Voladuras########################################
+    def mostrarDialogoRegistroVoladuras(main, proyecto_id):
+        loaderLoading = QUiLoader()
+        ui_file_path = resource_path("ui/nuevavoladura.ui")
+        ui_file = loaderLoading.load(ui_file_path, None)
+        dialogovoladuras = QDialog()
+        dialogovoladuras.setWindowTitle("Nueva Voladura")
+        layout_procesar_data = QVBoxLayout()
+        layout_procesar_data.addWidget(ui_file)
+        dialogovoladuras.setLayout(layout_procesar_data)
+        # Obtener elementos para interactuar
+        comboComponente = dialogovoladuras.findChild(QComboBox, "cb_lista_componentes")
+        nombreVoladura = dialogovoladuras.findChild(QLineEdit, "input_nombre")
+        codigoVoladura = dialogovoladuras.findChild(QLineEdit, "input_codigo")
+        comentarioVoladura = dialogovoladuras.findChild(QTextEdit, "input_comentario")
+        botonguardar = dialogovoladuras.findChild(QPushButton, "btn_registrar")
+        lblrespuesta = dialogovoladuras.findChild(QLabel, "label_mensaje")
+        estado_voladura = dialogovoladuras.findChild(QComboBox, "estado_pluvio")
+        estado_voladura.addItem("Operativo", 1)
+        estado_voladura.addItem("Inoperativo", 0)
+
+        RegistroEquipos.llenar_componentes_combo(proyecto_id, comboComponente)
+        def guardarNuevaVoladura():
+            componente = comboComponente.currentData()
+            nombrezona = comboComponente.currentText()
+            nombre = nombreVoladura.text()
+            codigo = codigoVoladura.text()
+            comentario = comentarioVoladura.toPlainText()
+            estado = estado_voladura.currentData()
+            if nombre:
+                datos = [nombre, codigo, comentario, estado, componente]
+                respuesta = VoladuraController.ctrlGuardarNuevaVoladura(proyecto_id, datos)
+                if respuesta == "NO":
+                    lblrespuesta.setText("El equipo ya existe.")
+                    lblrespuesta.setStyleSheet("color: orange;")
+                elif respuesta:
+                    lblrespuesta.setText("Voladura registrada exitosamente.")
+                    lblrespuesta.setStyleSheet("color: green;")
+                    nombreVoladura.clear()
+                    codigoVoladura.clear()
+                    comentarioVoladura.clear()
+                    # actualizar árbol de Datos
+                    if respuesta is not True:  # es el id de instrumentacion
+                        equipo = InterfazController.ctrlListarComponenteVoladura(respuesta)
+                        if equipo:
+                            treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(
+                                treewidgetdatos, nombrezona, componente, proyecto_id,
+                                "Voladuras", "12", equipo, "voladura")
+                else:
+                    lblrespuesta.setText("Error al registrar la Voladura.")
+                    lblrespuesta.setStyleSheet("color: red;")
+            else:
+                lblrespuesta.setText("El nombre no debe ir vacío.")
+                lblrespuesta.setStyleSheet("color: red;")
+
+        botonguardar.clicked.connect(guardarNuevaVoladura)
+        dialogovoladuras.exec()
+
     ###############################Cotas Terreno########################################    
     def mostrarDialogoRegistroCotaTerreno(proyecto_id):
         loaderLoading = QUiLoader()        

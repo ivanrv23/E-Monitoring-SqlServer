@@ -124,6 +124,18 @@ class InterfazController:
         lista = InterfazModel.mdlListarComponenteEquipo(idinstrumento, "COTATERRENO")
         return lista
     
+    def ctrlListarVoladurasComponente(idzona):
+        lista = InterfazModel.mdlListarVoladurasComponente(idzona, "VOLADURA", 1)
+        return lista
+
+    def ctrlListarComponenteVoladura(idinstrumento):
+        lista = InterfazModel.mdlListarComponenteEquipo(idinstrumento, "VOLADURA")
+        return lista
+
+    def ctrlListarComponenteVoladura(idinstrumento):
+        lista = InterfazModel.mdlListarComponenteEquipo(idinstrumento, "VOLADURA")
+        return lista
+    
     def ctrlListarCeldasComponente(idproyecto, idzona):
         listapiezo = InterfazModel.mdlListarCeldasComponente(idproyecto, idzona, "CELDA", 1)
         return listapiezo

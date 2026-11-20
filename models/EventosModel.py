@@ -64,7 +64,8 @@ class EventosModel:
                          AND (
                             tipo_alcance = 'GLOBAL' 
                             OR (tipo_alcance = 'ESPECIFICO' AND id_instrumento IN ({placeholders}))
-                         )
+                         )                     
+                         AND activo = 1
                          AND fecha_evento BETWEEN ? AND ?
                          ORDER BY fecha_evento ASC;"""
                 params = [idproyecto, tipo_inst] + [str(i) for i in ids_instrumentos] + [f_ini_safe, f_fin_safe]
@@ -74,6 +75,7 @@ class EventosModel:
                          WHERE id_proyecto = ? 
                          AND tipo_instrumento = ?
                          AND tipo_alcance = 'GLOBAL'
+                         AND activo = 1
                          AND fecha_evento BETWEEN ? AND ?
                          ORDER BY fecha_evento ASC;"""
                 params = [idproyecto, tipo_inst, f_ini_safe, f_fin_safe]
@@ -107,11 +109,14 @@ class EventosModel:
 
     @staticmethod
     def mdlListarEventosProyecto(idproyecto):
-        sql = """SELECT id_evento, descripcion, fecha_evento, tipo_alcance,
-            tipo_instrumento, id_instrumento, color_hex
-        FROM Software_EventosGrafica
-        WHERE id_proyecto = ?
-        ORDER BY fecha_evento DESC;"""
+        sql = """SELECT e.id_evento, e.descripcion, e.fecha_evento, e.tipo_alcance,
+            e.tipo_instrumento, e.id_instrumento, e.color_hex, e.activo,
+            i.nombre_equipo, i.tipo_equipo
+        FROM Software_EventosGrafica e
+        LEFT JOIN instrumentacion i
+               ON i.id_instrumentacion = TRY_CAST(e.id_instrumento AS INT)
+        WHERE e.id_proyecto = ?
+        ORDER BY e.fecha_evento DESC;"""
         conn = None
         try:
             conn = Connection.connectionDB()
@@ -142,6 +147,25 @@ class EventosModel:
             return True
         except Exception as e:
             print("Error al actualizar evento:", e)
+            return False
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def mdlCambiarEstadoEvento(id_evento, activo):
+        sql = """UPDATE Software_EventosGrafica
+            SET activo = ?
+            WHERE id_evento = ?;"""
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (1 if activo else 0, id_evento))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al cambiar estado del evento:", e)
             return False
         finally:
             if conn:

@@ -434,6 +434,8 @@ class Personalizacion:
         botonAplicar = dialogo.findChild(QPushButton, "btn_aplicar")
         labelTitulo.setText("Instrumento")
         checkbox_doublespinbox_list = []
+        Personalizacion.crearBarraMarcarTodo(
+            widgetEquipos, lambda: [c for c, s in checkbox_doublespinbox_list])
         for componente, listaprismas in prismasmarcados:
             resultado = MetodosGenerales.ctrlAgruparPrismasSegunTipo(listaprismas)
             for tabla, prismas in resultado.items():
@@ -479,6 +481,8 @@ class Personalizacion:
         botonAplicar = dialogo.findChild(QPushButton, "btn_aplicar")
         labelTitulo.setText("Equipo")
         checkbox_doublespinbox_list = []
+        Personalizacion.crearBarraMarcarTodo(
+            widgetEquipos, lambda: [c for c, s, i in checkbox_doublespinbox_list])
         for componente, equipo in equiposmarcados:
             checkbox, doublespinbox = Personalizacion.crearFilaLimpieza(widgetEquipos, equipo[0], comboLiempieza)
             checkbox_doublespinbox_list.append((checkbox, doublespinbox, equipo[1]))
@@ -523,6 +527,8 @@ class Personalizacion:
         botonAplicar = dialogo.findChild(QPushButton, "btn_aplicar")
         labelTitulo.setText("Tipo de gráfica")
         filas = []
+        Personalizacion.crearBarraMarcarTodo(
+            widgetEquipos, lambda: [check for clave, check, spin in filas])
         for clave, etiqueta in series:
             checkbox, doublespinbox = Personalizacion.crearFilaLimpieza(widgetEquipos, etiqueta, comboLimpieza)
             filas.append((clave, checkbox, doublespinbox))
@@ -541,6 +547,50 @@ class Personalizacion:
         botonAplicar.clicked.connect(aplicar)
         dialogo.exec()
         return resultado["ok"], resultado["metodo"], resultado["series"]
+    
+    @staticmethod
+    def crearBarraMarcarTodo(widget, obtener_checkboxes):
+        """
+        Agrega al inicio de 'widget' una barra con 'Marcar todo' / 'Desmarcar todo'.
+        obtener_checkboxes: función que devuelve la lista actual de checkboxes
+        (se evalúa al hacer clic, así que puede llamarse antes de crear las filas).
+        """
+        layout = widget.layout()
+        if layout is None:
+            layout = QVBoxLayout(widget)
+            widget.setLayout(layout)
+
+        barra = QWidget()
+        barra_layout = QHBoxLayout(barra)
+        barra_layout.setContentsMargins(0, 0, 0, 4)
+
+        btn_all = QPushButton("Marcar todo")
+        btn_none = QPushButton("Desmarcar todo")
+        estilo = """
+            QPushButton {
+                background-color: transparent; color: #5dade2;
+                border: 1px solid #5dade2; border-radius: 10px;
+                padding: 2px 12px; font-size: 10px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #5dade2; color: white; }
+            QPushButton:pressed { background-color: #3498db; }
+        """
+        for b in (btn_all, btn_none):
+            b.setStyleSheet(estilo)
+            b.setCursor(Qt.PointingHandCursor)
+
+        def aplicar(estado):
+            for cb in obtener_checkboxes():
+                cb.setChecked(estado)  # dispara toggled -> habilita/reinicia el spin
+
+        btn_all.clicked.connect(lambda: aplicar(True))
+        btn_none.clicked.connect(lambda: aplicar(False))
+
+        barra_layout.addStretch()
+        barra_layout.addWidget(btn_all)
+        barra_layout.addWidget(btn_none)
+        barra_layout.addStretch() 
+        layout.addWidget(barra)
     
     def crearFilaLimpieza(widget, nombre, combotipoLiempieza):
         fila_widget = QWidget()
@@ -1702,34 +1752,66 @@ class Personalizacion:
         lbl_instrucciones.setStyleSheet("color: #2c3e50; font-size: 14px; font-weight: bold; border:none;")
         layout_principal.addWidget(lbl_instrucciones)
 
-        #Agregar input para el nombre de la plantilla
+        # --- Fila: Nombre + Buscador (lado a lado) ---
+        fila_superior = QHBoxLayout()
+        fila_superior.setSpacing(10)
 
+        # Columna izquierda: nombre
+        col_nombre = QVBoxLayout()
+        col_nombre.setSpacing(4)
         lbl_nombre = QLabel("Nombre de la plantilla:")
-        lbl_nombre.setStyleSheet("color: #34495e; font-size: 11px; margin-top: 5px;")
-        layout_principal.addWidget(lbl_nombre)
-            
+        lbl_nombre.setStyleSheet("color: #34495e; font-size: 11px;")
+        col_nombre.addWidget(lbl_nombre)
+
         input_nombre = QLineEdit()
-        input_nombre.setPlaceholderText("Ej: Plantilla Zona Norte, Configuración Semanal...")
+        input_nombre.setPlaceholderText("Ej: Zona Norte")
+        input_nombre.setFixedHeight(34)
         input_nombre.setStyleSheet("""
-        QLineEdit {
-            border: 2px solid #bdc3c7;
-            border-radius: 8px;
-            padding: 8px 12px;
-            background-color: white;
-            color: #2c3e50;
-            font-size: 11px;
+            QLineEdit {
+                border: 2px solid #bdc3c7;
+                border-radius: 8px;
+                padding: 0 10px;
+                background-color: white;
+                color: #2c3e50;
+                font-size: 11px;
             }
-        QLineEdit:focus {
-            border: 2px solid #3498db;
-            }
-        QLineEdit:hover {
-            border: 2px solid #7f8c8d;
-            }
-            """)
-        layout_principal.addWidget(input_nombre)
+            QLineEdit:focus { border: 2px solid #3498db; }
+            QLineEdit:hover { border: 2px solid #7f8c8d; }
+        """)
+        col_nombre.addWidget(input_nombre)
         if nombre_inicial:
             input_nombre.setText(nombre_inicial)
             input_nombre.selectAll()
+
+        # Columna derecha: buscador
+        col_buscar = QVBoxLayout()
+        col_buscar.setSpacing(4)
+        lbl_buscar = QLabel("Buscar:")
+        lbl_buscar.setStyleSheet("color: #34495e; font-size: 11px;")
+        col_buscar.addWidget(lbl_buscar)
+
+        input_buscar = QLineEdit()
+        input_buscar.setPlaceholderText("🔍 Equipo o zona...")
+        input_buscar.setClearButtonEnabled(True)
+        input_buscar.setFixedHeight(34)
+        input_buscar.setStyleSheet("""
+            QLineEdit {
+                border: 2px solid #bdc3c7;
+                border-radius: 8px;
+                padding: 0 10px;
+                background-color: white;
+                color: #2c3e50;
+                font-size: 11px;
+            }
+            QLineEdit:hover { border: 2px solid #7f8c8d; }
+            QLineEdit:focus { border: 2px solid #3498db; }
+        """)
+        col_buscar.addWidget(input_buscar)
+
+        # Mismo ancho para ambas columnas
+        fila_superior.addLayout(col_nombre, 1)
+        fila_superior.addLayout(col_buscar, 1)
+        layout_principal.addLayout(fila_superior)
 
         # --- Toolbar Estilizada ---
         toolbar = QHBoxLayout()
@@ -1807,7 +1889,7 @@ class Personalizacion:
 
                 marcar = marcar_padre or (es_equipo and (id_zona, id_equipo) in set_prefs)
                 h_dest.setCheckState(0, Qt.Checked if marcar else Qt.Unchecked)
-                copiar_y_sincronizar(h_orig, h_dest, id_zona, marcar_zona)
+                copiar_y_sincronizar(h_orig, h_dest, id_zona, marcar)
 
         tree_config.blockSignals(True)
         for i in range(tree_referencia.topLevelItemCount()):
@@ -1859,6 +1941,26 @@ class Personalizacion:
             set_p(item); tree_config.blockSignals(False)
 
         tree_config.itemChanged.connect(on_change)
+
+        def filtrar_arbol(texto):
+            texto = texto.strip().lower()
+
+            def filtrar(item, padre_coincide=False):
+                coincide = texto in item.text(0).lower()
+                mostrar_todo = padre_coincide or coincide   # si el padre coincide, se ven todos sus hijos
+                hijo_visible = False
+                for k in range(item.childCount()):
+                    if filtrar(item.child(k), mostrar_todo):
+                        hijo_visible = True
+                visible = mostrar_todo or hijo_visible
+                item.setHidden(not visible)
+                item.setExpanded(bool(texto) and hijo_visible)  # expande solo mientras se busca
+                return visible
+
+            for i in range(tree_config.topLevelItemCount()):
+                filtrar(tree_config.topLevelItem(i))
+
+        input_buscar.textChanged.connect(filtrar_arbol)
 
         # --- Botón Guardar Elegante (Azul Profundo) ---
         btn_save = QPushButton("GUARDAR CAMBIOS" if modo_edicion else "GUARDAR PLANTILLA")
@@ -2250,6 +2352,25 @@ class Personalizacion:
         lbl_subtitulo = QLabel("Selecciona una plantilla para aplicar o gestionar")
         lbl_subtitulo.setStyleSheet("color: #7f8c8d; font-size: 11px; border:none; margin-bottom: 5px;")
         layout_principal.addWidget(lbl_subtitulo)
+
+        # --- Buscador ---
+        input_buscar = QLineEdit()
+        input_buscar.setPlaceholderText("🔍 Buscar plantilla por nombre o fecha...")
+        input_buscar.setClearButtonEnabled(True)
+        input_buscar.setFixedHeight(32)
+        input_buscar.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #bdc3c7;
+                border-radius: 8px;
+                padding: 4px 10px;
+                background-color: white;
+                color: #2c3e50;
+                font-size: 11px;
+            }
+            QLineEdit:hover { border: 1px solid #7f8c8d; }
+            QLineEdit:focus { border: 1px solid #3498db; }
+        """)
+        layout_principal.addWidget(input_buscar)
         
         # --- Lista de Plantillas ---
         # ✅ FIX 1: Se elimina "ID" de las cabeceras visibles,
@@ -2404,6 +2525,19 @@ class Personalizacion:
             btn_editar.setEnabled(hay_seleccion)
             btn_eliminar.setEnabled(hay_seleccion)
 
+        def filtrar_plantillas(texto):
+            texto = texto.strip().lower()
+            for i in range(tree_plantillas.topLevelItemCount()):
+                item = tree_plantillas.topLevelItem(i)
+                coincide = (texto in item.text(0).lower()      # Nombre
+                            or texto in item.text(1).lower())  # Fecha
+                item.setHidden(not coincide)
+                # Si el ítem oculto estaba seleccionado, lo deseleccionamos
+                # para no aplicar/editar/eliminar algo que el usuario no ve
+                if not coincide and item.isSelected():
+                    item.setSelected(False)
+            on_seleccion_cambio()
+
         def aplicar_plantilla():
             items = tree_plantillas.selectedItems()
             if not items:
@@ -2455,6 +2589,7 @@ class Personalizacion:
                 modo_edicion=True
             ):
                 cargar_plantillas()
+                filtrar_plantillas(input_buscar.text()) 
                 on_seleccion_cambio()
 
 
@@ -2483,6 +2618,7 @@ class Personalizacion:
                     mostrar_mensaje("Error", "No se pudo eliminar la plantilla", "advertencia")
 
         # --- Conectar señales ---
+        input_buscar.textChanged.connect(filtrar_plantillas)
         tree_plantillas.itemSelectionChanged.connect(on_seleccion_cambio)
         btn_aplicar.clicked.connect(aplicar_plantilla)
         btn_editar.clicked.connect(editar_plantilla)

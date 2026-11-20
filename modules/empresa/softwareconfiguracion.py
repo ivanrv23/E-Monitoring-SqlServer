@@ -29,6 +29,7 @@ class SoftwareConfiguracion:
     suavizado = 0
     fechahora = 0
     mesletras = 0 
+    valorlluvia = 0 
     version = "5.4.7"
        
     # MOSTRAR DIALOGO DE AJUSTES DE SOFTWARE
@@ -69,6 +70,8 @@ class SoftwareConfiguracion:
         radioLluviaAbajo = dialog.findChild(QRadioButton, "radio_lluvia_abajo")
         radioCeldaPositiva = dialog.findChild(QRadioButton, "radio_celdas_positivas")
         radioCeldaNegativa = dialog.findChild(QRadioButton, "radio_celdas_negativas")
+        radioLluviaValorMostrar = dialog.findChild(QRadioButton, "radio_mostrar_lluvia_valor")
+        radioLluviaValorOcultar = dialog.findChild(QRadioButton, "radio_ocultar_lluvia_valor")
         checkSuavizado = dialog.findChild(QCheckBox, "check_suavizado") 
         checkFechaHora = dialog.findChild(QCheckBox, "check_fechahora")
         checkMesLetras = dialog.findChild(QCheckBox, "check_mesletras")
@@ -146,6 +149,14 @@ class SoftwareConfiguracion:
                 
             if len(respuesta) > 23:
                 checkMesLetras.setChecked(True if respuesta[23] == 1 else False)
+
+            if len(respuesta) > 24:
+                if respuesta[24] == 0:
+                    radioLluviaValorMostrar.setChecked(True)
+                else:
+                    radioLluviaValorOcultar.setChecked(True)
+            else:
+                radioLluviaValorMostrar.setChecked(True)
     
         else:
             spinTitulo.setValue(SoftwareConfiguracion.titulo)
@@ -193,6 +204,10 @@ class SoftwareConfiguracion:
                 radioCeldaPositiva.setChecked(True)
             else:
                 radioCeldaNegativa.setChecked(True)
+            if SoftwareConfiguracion.valorlluvia == 0:
+                radioLluviaValorMostrar.setChecked(True)
+            else:
+                radioLluviaValorOcultar.setChecked(True)
             
             checkSuavizado.setChecked(True if SoftwareConfiguracion.suavizado == 1 else False)
             
@@ -246,6 +261,7 @@ class SoftwareConfiguracion:
                 
             suavizado_valor = 1 if checkSuavizado.isChecked() else 0
             # Lista de datos que se enviarán al controlador
+            valorlluvia = 0 if radioLluviaValorMostrar.isChecked() else 1
             lista_datos = {
                 "titulo": titulo,
                 "ejes": ejes,
@@ -269,7 +285,8 @@ class SoftwareConfiguracion:
                 "velocidad_celda": velocidadcelda,
                 "suavizado": suavizado_valor,
                 "fechahora": 1 if checkFechaHora.isChecked() else 0,
-                "mesletras": 1 if checkMesLetras.isChecked() else 0
+                "mesletras": 1 if checkMesLetras.isChecked() else 0,
+                "valorlluvia": valorlluvia
             }
             respuesta = EmpresaController.ctrlRegistrarActualizarAjustesSoftware(lista_datos)
             if respuesta:
@@ -311,6 +328,7 @@ class SoftwareConfiguracion:
             SoftwareConfiguracion.suavizado = respuesta[21] if len(respuesta) > 21 else 0
             SoftwareConfiguracion.fechahora = respuesta[22] if len(respuesta) > 22 else 0
             SoftwareConfiguracion.mesletras = respuesta[23] if len(respuesta) > 23 else 0
+            SoftwareConfiguracion.valorlluvia = respuesta[24] if len(respuesta) > 24 else 0
     
     def obtenerDataSoftware():
         data = [
@@ -337,7 +355,8 @@ class SoftwareConfiguracion:
             SoftwareConfiguracion.suavizado,
             SoftwareConfiguracion.fechahora, # Índice 21
             SoftwareConfiguracion.mesletras, # Índice 22
-            SoftwareConfiguracion.version
+            SoftwareConfiguracion.version, # Índice 23
+            SoftwareConfiguracion.valorlluvia # Índice 24
         ]
         return data
     

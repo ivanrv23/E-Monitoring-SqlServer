@@ -16,6 +16,10 @@ class EventosController:
         return EventosModel.mdlEliminarEvento(id_evento)
 
     @staticmethod
+    def ctrlCambiarEstadoEvento(id_evento, activo):
+        return EventosModel.mdlCambiarEstadoEvento(id_evento, activo)
+
+    @staticmethod
     def ctrlListarEventosProyecto(idproyecto):
         return EventosModel.mdlListarEventosProyecto(idproyecto)
 

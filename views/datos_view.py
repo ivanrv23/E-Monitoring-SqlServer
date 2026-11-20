@@ -16,6 +16,7 @@ from controllers.AcelerografoController import AcelerografoController
 from controllers.TDRController import TDRController
 from controllers.TerrenoController import TerrenoController
 from services.security.session import Session
+from controllers.VoladuraController import VoladuraController
 
 class DatosView:
     main = None
@@ -212,6 +213,9 @@ class DatosView:
         # Acelerografos
         btnAcelerografo = QPushButton()
         btnAcelerografo.setText("Acelerógrafos")
+        # Voladuras
+        btnVoladuras = QPushButton()
+        btnVoladuras.setText("Voladuras")
         # Añadir los campos al layout
         tituloLabel.setAlignment(Qt.AlignCenter)
         layout.addRow(tituloLabel)
@@ -219,6 +223,7 @@ class DatosView:
         layout.addRow(btnCeldas, btnPiezomanual)
         layout.addRow(btnPluviometro, btnCotas)
         layout.addRow(btnSondajes, btnAcelerografo)
+        layout.addRow(btnVoladuras)
         # Conectar los botones a las funciones correspondientes
         btnPrismas.clicked.connect(lambda: ExportarData.descargarFormatoExcel("prisma"))
         btnPiezocuerda.clicked.connect(lambda: ExportarData.descargarFormatoExcel("cuerda"))
@@ -228,6 +233,7 @@ class DatosView:
         btnCotas.clicked.connect(lambda: ExportarData.descargarFormatoExcel("cota"))
         btnSondajes.clicked.connect(lambda: ExportarData.descargarFormatoExcel("sondaje"))
         btnAcelerografo.clicked.connect(lambda: ExportarData.descargarFormatoExcel("acelero"))
+        btnVoladuras.clicked.connect(lambda: ExportarData.descargarFormatoExcel("voladura"))
         # Mostrar el diálogo
         dialog.setLayout(layout)
         dialog.exec()
@@ -387,6 +393,14 @@ class DatosView:
                 iddetalle = table.model().data(table.model().index(row, 9), Qt.DisplayRole)
                 tablasql = f"sondajetdr_detalle{DatosView.idproyecto}"
                 DatosView.generarMenuTablaSondajestdr(position, table, nombre, fecha, medida, impedancia, observa, iddetalle, tablasql)
+            elif tipo == 'VOLADURA':
+                nombre = table.model().data(table.model().index(row, 1), Qt.DisplayRole)
+                fecha = table.model().data(table.model().index(row, 2), Qt.DisplayRole)
+                ubicacion = table.model().data(table.model().index(row, 3), Qt.DisplayRole)
+                cota = table.model().data(table.model().index(row, 4), Qt.DisplayRole)
+                observa = table.model().data(table.model().index(row, 5), Qt.DisplayRole)
+                iddetalle = table.model().data(table.model().index(row, 7), Qt.DisplayRole)
+                DatosView.generarMenuTablaVoladuras(position, table, nombre, fecha, ubicacion, cota, observa, iddetalle)
         
     # MENU TABLA PRISMAS    
     def generarMenuTablaPrismas(position, table, nombre, fecha, este, norte, nivel, distancia, iddetalle, tablasql):
@@ -1878,7 +1892,148 @@ class DatosView:
         # Mostrar el diálogo
         dialog.setLayout(layout)
         dialog.exec()
-    
+
+    # MENU TABLA VOLADURAS
+    # IMPORTANTE: ajusta este índice según VistaDatos.construirTablaEquipo (columna donde va id_voladura_data)
+    COL_ID_VOLADURA = 7
+
+    def _confirmar(titulo, texto):
+        dlg = QMessageBox()
+        dlg.setWindowTitle(titulo)
+        dlg.setText(texto)
+        dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
+        dlg.setIcon(QMessageBox.Question)
+        return dlg.exec() == QMessageBox.Yes
+
+    def generarMenuTablaVoladuras(position, table, nombre, fecha, ubicacion, cota, observa, iddetalle):
+        menu = QMenu()
+        edit_action = QAction("Editar Lectura", table)
+        hide_action = QAction("Omitir/incluir Lectura", table)
+        delete_action = QAction("Eliminar Lectura", table)
+        edit_action.triggered.connect(lambda: DatosView.editarDatosLecturaVoladuras(iddetalle, nombre, fecha, ubicacion, cota, observa))
+        hide_action.triggered.connect(lambda: DatosView.hide_row_voladuras(iddetalle, nombre, fecha))
+        delete_action.triggered.connect(lambda: DatosView.delete_row_voladuras(iddetalle, nombre, fecha))
+        menu.addAction(edit_action)
+        menu.addAction(hide_action)
+        menu.addAction(delete_action)
+        selected_indexes = table.selectionModel().selectedRows()
+        if selected_indexes:
+            omitir_action = QAction("Omitir/incluir en Bloque", table)
+            eliminar_action = QAction("Eliminar en Bloque", table)
+            omitir_action.triggered.connect(lambda: DatosView.omitir_rows_voladuras(table, selected_indexes))
+            eliminar_action.triggered.connect(lambda: DatosView.delete_rows_voladuras(table, selected_indexes))
+            menu.addAction(omitir_action)
+            menu.addAction(eliminar_action)
+        menu.exec(table.viewport().mapToGlobal(position))
+
+    def editarDatosLecturaVoladuras(iddetalle, nombre, fecha, ubicacion, cota, observa):
+        dialog = QDialog()
+        dialog.setWindowTitle("Editar Lectura Voladura")
+        validator = QDoubleValidator()
+        layout = QFormLayout(dialog)
+        nombre_input = QLineEdit()
+        nombre_input.setText(nombre)
+        nombre_input.setReadOnly(True)
+        fecha_input = QLineEdit()
+        fecha_input.setText(str(fecha))
+        ubicacion_input = QLineEdit()
+        ubicacion_input.setText(str(ubicacion or ""))
+        cota_input = QLineEdit()
+        cota_input.setText(str(cota if cota is not None else ""))
+        cota_input.setValidator(validator)
+        observa_input = QLineEdit()
+        observa_input.setText(str(observa or ""))
+        layout.addRow("Nombre:", nombre_input)
+        layout.addRow("Fecha y Hora:", fecha_input)
+        layout.addRow("Ubicación:", ubicacion_input)
+        layout.addRow("Cota (msnm):", cota_input)
+        layout.addRow("Observación:", observa_input)
+        label_mensaje = QLabel("")
+        label_mensaje.setAlignment(Qt.AlignCenter)
+        label_mensaje.setStyleSheet("QLabel { color: red; }")
+        layout.addRow(label_mensaje)
+        button_box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        button_box.button(QDialogButtonBox.Save).setText("Guardar")
+        button_box.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        layout.addWidget(button_box)
+        def actualizarDatos():
+            datofecha = fecha_input.text().strip()
+            if not MetodosGenerales.validarFormatoFechaDatabase(datofecha):
+                label_mensaje.setText("El formato de fecha no es válido.")
+                return
+            datocota = cota_input.text().strip()
+            if not (MetodosGenerales.validarEsNumero(datocota) and datocota != ""):
+                label_mensaje.setText("La cota no es válida.")
+                return
+            partes = datofecha.split(" ")
+            solofecha = partes[0]
+            solohora = partes[1] if len(partes) > 1 else "00:00:00"
+            username = Session.get_username()
+            nombres = Session.get_nombres()
+            if Session.is_authenticated() and DatosView.idproyecto:
+                datanueva = [solofecha, solohora, ubicacion_input.text(), datocota, observa_input.text(), iddetalle]
+                respuesta = VoladuraController.ctrlActualizarLecturaVoladura(DatosView.idproyecto, datanueva, username, nombres)
+                if respuesta:
+                    dialog.reject()
+                    DatosView.obtenerEquiposMarcados(True)
+                else:
+                    label_mensaje.setText("Error al actualizar los datos.")
+        button_box.accepted.connect(actualizarDatos)
+        button_box.rejected.connect(dialog.reject)
+        dialog.setLayout(layout)
+        dialog.exec()
+
+    def hide_row_voladuras(iddetalle, nombre, fecha):
+        if DatosView._confirmar("Omitir Lectura Voladura", f"¿Desea omitir/incluir la lectura del '{nombre}' con fecha '{fecha}'?"):
+            if VoladuraController.ctrlCambiarEstadoLecturaVoladura(DatosView.idproyecto, iddetalle):
+                DatosView.obtenerEquiposMarcados(True)
+            else:
+                mostrar_mensaje("Estado Lectura", "No se pudo omitir/incluir la lectura.", "advertencia")
+
+    def delete_row_voladuras(iddetalle, nombre, fecha):
+        if DatosView._confirmar("Eliminar Lectura Voladura", f"¿Desea eliminar la lectura del '{nombre}' con fecha '{fecha}'?"):
+            username = Session.get_username()
+            nombres = Session.get_nombres()
+            if Session.is_authenticated() and DatosView.idproyecto:
+                if VoladuraController.ctrlEliminarLecturaVoladura(DatosView.idproyecto, iddetalle, username, nombres):
+                    DatosView.obtenerEquiposMarcados(True)
+                else:
+                    mostrar_mensaje("Eliminar Lectura", "No se pudo eliminar la lectura.", "advertencia")
+
+    def omitir_rows_voladuras(table, selected_indexes):
+        data, ids = [], []
+        for index in selected_indexes:
+            row = index.row()
+            nombre = table.model().data(table.model().index(row, 1), Qt.DisplayRole)
+            fecha = table.model().data(table.model().index(row, 2), Qt.DisplayRole)
+            iddetalle = table.model().data(table.model().index(row, DatosView.COL_ID_VOLADURA), Qt.DisplayRole)
+            data.append((nombre, fecha, row))
+            ids.append(iddetalle)
+        if ids and DatosView._confirmar("Estado Lectura Voladura", f"¿Desea omitir/incluir las lecturas '{data}'?"):
+            if VoladuraController.ctrlCambiarEstadoLecturaVoladuraBloque(DatosView.idproyecto, ids):
+                DatosView.obtenerEquiposMarcados(True)
+            else:
+                mostrar_mensaje("Omitir Lecturas", "No se pudo omitir/incluir las lecturas.", "advertencia")
+
+    def delete_rows_voladuras(table, selected_indexes):
+        data, ids = [], []
+        for index in selected_indexes:
+            row = index.row()
+            nombre = table.model().data(table.model().index(row, 1), Qt.DisplayRole)
+            fecha = table.model().data(table.model().index(row, 2), Qt.DisplayRole)
+            iddetalle = table.model().data(table.model().index(row, DatosView.COL_ID_VOLADURA), Qt.DisplayRole)
+            data.append((nombre, fecha, row))
+            ids.append(iddetalle)
+        if ids and DatosView._confirmar("Eliminar Lecturas Voladura", f"¿Desea eliminar las lecturas '{data}'?"):
+            username = Session.get_username()
+            nombres = Session.get_nombres()
+            if Session.is_authenticated() and DatosView.idproyecto:
+                if VoladuraController.ctrlEliminarLecturasBloqueVoladura(DatosView.idproyecto, ids, username, nombres):
+                    DatosView.obtenerEquiposMarcados(True)
+                else:
+                    mostrar_mensaje("Eliminar Lecturas", "No se pudo eliminar las lecturas.", "advertencia")
 
 class ProcesarDatosThread(QThread):
     task_finishProcesardatos = Signal(object)

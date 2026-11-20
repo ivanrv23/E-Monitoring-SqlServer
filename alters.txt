@@ -167,3 +167,48 @@ CREATE TABLE [umbral_personalizado] (
         FOREIGN KEY ([id_proyecto])
         REFERENCES [dbemonitoring].[dbo].[proyectos] ([id_proyecto])
 );
+
+
+-----------------------------------------------20/11/2026
+
+CREATE TABLE voladuras (
+    id_voladura INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    id_proyecto INT NOT NULL,
+    nombre_voladura VARCHAR(100) NOT NULL,
+    codigo_voladura VARCHAR(50),
+    comentario_voladura VARCHAR(500),
+    estado_voladura INT NOT NULL DEFAULT 1
+);
+
+-----------------------------------------------
+
+ALTER TABLE voladuras_data ADD estado_data BIT NOT NULL CONSTRAINT DF_voladuras_data_estado DEFAULT 1;
+
+-----------------------------------------------
+
+CREATE TABLE voladuras_estilo (
+    id_voladura INT NOT NULL PRIMARY KEY,
+    grosor      FLOAT NOT NULL DEFAULT 2.5,
+    alto        FLOAT NOT NULL DEFAULT 0.05,   -- fracción del alto del gráfico (0.05 = 5%)
+    color       VARCHAR(20) NOT NULL DEFAULT '#ff0000'
+);
+
+---------------------------------------------------------
+CREATE TABLE [dbo].[voladura_detalle1](
+	[id_voladura_data] [int] IDENTITY(1,1) NOT NULL,
+	[id_voladura] [int] NOT NULL,
+	[fecha] [date] NOT NULL,
+	[hora] [time](7) NOT NULL,
+	[ubicacion] [varchar](255) NULL,
+	[cota] [float] NOT NULL,
+	[observacion] [varchar](500) NULL,
+	[estado_data] [bit] NOT NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[id_voladura_data] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [dbo].[voladuras_data] ADD  CONSTRAINT [DF_voladuras_data_estado]  DEFAULT ((1)) FOR [estado_data]
+GO                                                                                                                                                                                                                                                                                               

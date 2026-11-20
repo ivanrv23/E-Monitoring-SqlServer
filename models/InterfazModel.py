@@ -416,7 +416,29 @@ class InterfazModel:
         finally:
             if conn:
                 conn.close()
-    
+
+    @staticmethod
+    def mdlListarVoladurasComponente(idzona, tipo, estado):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            sql = """SELECT DISTINCT i.* FROM instrumentacion i INNER JOIN voladuras v ON i.id_equipo = v.id_voladura
+            WHERE i.id_componente = ? AND i.tipo_equipo = ? AND i.estado_instrumentacion = ? ORDER BY i.nombre_equipo;"""
+            cur = conn.cursor()
+            cur.execute(sql, (idzona, tipo, estado))
+            rows = cur.fetchall()
+            results = [tuple(row) for row in rows]
+            if results:
+                return results
+            else:
+                return None
+        except Exception as e:
+            print("Error al obtener voladuras:", e)
+            return None
+        finally:
+            if conn:
+                conn.close()
+
     @staticmethod
     def mdlListarPrismasVirtualesComponente(idzona, tipo, estado):
         conn = None

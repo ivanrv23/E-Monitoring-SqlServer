@@ -8,10 +8,29 @@ from utils.common.alertas import mostrar_mensaje
 from controllers.EventosController import EventosController
 
 
+NOMBRES_TIPO = {
+    "ACELEROGRAFO":     "Acelerógrafos",
+    "CELDA":            "Celdas",
+    "COTATERRENO":      "Cota de Terreno",
+    "INCLINOMETRO":     "Inclinómetros",
+    "PIEZOMETROCUERDA": "Piezómetros de Cuerda Vibrante",
+    "PIEZOMETROMANUAL": "Piezómetros Casagrande",
+    "PLUVIOMETRO":      "Pluviómetros",
+    "PRISMA":          "Prismas",
+    "PRISMAVIRTUAL":    "Prismas Virtuales",
+    "TDR":              "TDR",
+    "TOPOGRAFIA":       "Topografía",
+}
+
+# El evento guarda PIEZO_CUERDA y la tabla instrumentacion guarda PIEZOMETROCUERDA
+ALIAS_TIPO = {
+    "PIEZO_CUERDA": "PIEZOMETROCUERDA",
+}
+
 class EventosGrafica:
 
     # Columnas de la tabla
-    COL_ID, COL_DESC, COL_FECHA, COL_ALCANCE, COL_TIPO, COL_INSTRUMENTO = range(6)
+    COL_ID, COL_DESC, COL_FECHA, COL_ALCANCE, COL_TIPO, COL_INSTRUMENTO, COL_ACTIVO = range(7)
 
     @staticmethod
     def _a_datetime(valor):
@@ -25,6 +44,13 @@ class EventosGrafica:
         return datetime.now()
 
     @staticmethod
+    def _nombre_tipo(codigo):
+        if not codigo:
+            return ""
+        codigo = ALIAS_TIPO.get(codigo, codigo)
+        return NOMBRES_TIPO.get(codigo, codigo)
+
+    @staticmethod
     def modalEventos(proyectoid, on_cambio=None):
         """Lista de eventos del proyecto. `on_cambio` se llama al cerrar si se editó o eliminó algo
         (por ejemplo, para redibujar la gráfica)."""
@@ -35,12 +61,12 @@ class EventosGrafica:
         dialog.resize(850, 450)
         layout = QVBoxLayout(dialog)
 
-        lbl_info = QLabel("Clic derecho o doble clic sobre un evento para editarlo o eliminarlo.")
+        lbl_info = QLabel("Clic derecho o doble clic sobre un evento para editarlo, omitirlo o eliminarlo.")
         lbl_info.setStyleSheet("color: #666; font-style: italic;")
         layout.addWidget(lbl_info)
 
-        table = QTableWidget(0, 6)
-        table.setHorizontalHeaderLabels(["ID", "Descripción", "Fecha", "Alcance", "Tipo Instrumento", "Instrumento"])
+        table = QTableWidget(0, 7)
+        table.setHorizontalHeaderLabels(["ID", "Descripción", "Fecha", "Alcance","Tipo Instrumento", "Instrumento", "Estado"])        
         table.setSelectionBehavior(QAbstractItemView.SelectRows)
         table.setSelectionMode(QAbstractItemView.SingleSelection)
         table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -49,7 +75,7 @@ class EventosGrafica:
         header = table.horizontalHeader()
         header.setSectionResizeMode(EventosGrafica.COL_DESC, QHeaderView.Stretch)
         for col in (EventosGrafica.COL_FECHA, EventosGrafica.COL_ALCANCE,
-                    EventosGrafica.COL_TIPO, EventosGrafica.COL_INSTRUMENTO):
+                    EventosGrafica.COL_TIPO, EventosGrafica.COL_INSTRUMENTO, EventosGrafica.COL_ACTIVO):
             header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
         layout.addWidget(table)
 
@@ -67,19 +93,34 @@ class EventosGrafica:
             if not eventos:
                 return
             table.setRowCount(len(eventos))
-            for fila, (id_ev, desc, fecha, alcance, tipo_inst, id_inst, color) in enumerate(eventos):
+            for fila, ev in enumerate(eventos):
+                (id_ev, desc, fecha, alcance, tipo_inst, id_inst,
+                 color, activo, nombre_equipo, tipo_equipo) = ev[:10]
+                activo = bool(activo)
+                es_global = (alcance == "GLOBAL")
+
                 fecha_dt = EventosGrafica._a_datetime(fecha)
+
                 item_desc = QTableWidgetItem(str(desc))
-                item_desc.setData(Qt.UserRole, color or "#ff0000")   # color guardado en la celda
+                item_desc.setData(Qt.UserRole, color or "#ff0000")
                 if color:
                     item_desc.setForeground(QColor(color))
+
+                item_activo = QTableWidgetItem("Activo" if activo else "Omitido")
+                item_activo.setForeground(QColor("#2e7d32") if activo else QColor("#888888"))
+                item_activo.setData(Qt.UserRole, activo)
+
+                nombre_tipo = EventosGrafica._nombre_tipo(tipo_equipo or tipo_inst)
+                nombre_inst = "Todos" if es_global else (nombre_equipo or str(id_inst or ""))
+
                 valores = [
                     QTableWidgetItem(str(id_ev)),
                     item_desc,
                     QTableWidgetItem(fecha_dt.strftime('%d/%m/%Y %H:%M:%S')),
-                    QTableWidgetItem("Global" if alcance == "GLOBAL" else "Específico"),
-                    QTableWidgetItem(str(tipo_inst or "")),
-                    QTableWidgetItem("Todos" if alcance == "GLOBAL" else str(id_inst or "")),
+                    QTableWidgetItem("Global" if es_global else "Específico"),
+                    QTableWidgetItem(nombre_tipo),
+                    QTableWidgetItem(nombre_inst),
+                    item_activo,
                 ]
                 for col, item in enumerate(valores):
                     table.setItem(fila, col, item)
@@ -112,6 +153,17 @@ class EventosGrafica:
             else:
                 mostrar_mensaje("Error", "No se pudo actualizar el evento.", "error")
 
+        def cambiar_estado(fila):
+            id_ev = int(table.item(fila, EventosGrafica.COL_ID).text())
+            activo_actual = bool(table.item(fila, EventosGrafica.COL_ACTIVO).data(Qt.UserRole))
+            nuevo_estado = not activo_actual
+
+            if EventosController.ctrlCambiarEstadoEvento(id_ev, nuevo_estado):
+                cambios['hubo'] = True
+                cargar()
+            else:
+                mostrar_mensaje("Error", "No se pudo cambiar el estado del evento.", "error")
+
         def eliminar(fila):
             id_ev = int(table.item(fila, EventosGrafica.COL_ID).text())
             desc = table.item(fila, EventosGrafica.COL_DESC).text()
@@ -137,12 +189,20 @@ class EventosGrafica:
             fila = fila_actual(position)
             if fila is None:
                 return
+            activo = bool(table.item(fila, EventosGrafica.COL_ACTIVO).data(Qt.UserRole))
+
             menu = QMenu()
             act_editar = QAction("Editar Evento", table)
+            act_estado = QAction("Omitir Evento" if activo else "Activar Evento", table)
             act_eliminar = QAction("Eliminar Evento", table)
+
             act_editar.triggered.connect(lambda: editar(fila))
+            act_estado.triggered.connect(lambda: cambiar_estado(fila))
             act_eliminar.triggered.connect(lambda: eliminar(fila))
+
             menu.addAction(act_editar)
+            menu.addAction(act_estado)
+            menu.addSeparator()
             menu.addAction(act_eliminar)
             menu.exec(table.viewport().mapToGlobal(position))
 

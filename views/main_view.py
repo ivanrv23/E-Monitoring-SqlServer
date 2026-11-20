@@ -49,6 +49,7 @@ from modules.empresa.eventosgrafica import EventosGrafica
 from services.security.session import Session
 from views.dashboard_view import DashboardView
 from modules.conexion.conexioDB import ConexionDB
+from modules.datos.subirVoladuras import SubirVoladuras
 
 class MenuEventFilter(QObject):
     def __init__(self, menu, main_window):
@@ -667,6 +668,13 @@ class MainView:
             actionDataPluviometro.triggered.connect(MainView.registrarDataPluvimetro)
             actionDataFormatoPluviometro = MainView.main_window.findChild(QAction, "action_formato_pluviometro")
             actionDataFormatoPluviometro.triggered.connect(MainView.subirFormatoDataPluviometro)
+            # Voladuras
+            actionNuevaVoladura = MainView.main_window.findChild(QAction, "action_nueva_voladura")
+            actionNuevaVoladura.triggered.connect(MainView.mostrarDialogoRegistroVoladura)
+            actionDataVoladura = MainView.main_window.findChild(QAction, "action_cargar_desde_Tabla")
+            actionDataVoladura.triggered.connect(MainView.registrarDataVoladura)
+            actionFormatoVoladuras = MainView.main_window.findChild(QAction, "actionCargar_Formato")            
+            actionFormatoVoladuras.triggered.connect(MainView.subirFormatoDataVoladura)
             # Cotas
             actionNuevaCotaTerreno = MainView.main_window.findChild(QAction, "action_nueva_cota_terreno")
             actionNuevaCotaTerreno.triggered.connect(MainView.mostrarDialogoRegistroCotaTerreno)
@@ -886,7 +894,33 @@ class MainView:
     def subirFormatoDataPluviometro():
         if MainView.proyecto_id:
             SubirPluviometros.cargarDataFormatosPluviometros(MainView.main_window, MainView.proyecto_id)
-    
+
+    def mostrarDialogoRegistroVoladura():
+        if MainView.proyecto_id:
+            RegistroEquipos.mostrarDialogoRegistroVoladuras(MainView.main_window, MainView.proyecto_id)
+        else:
+            mostrar_mensaje("Sin Proyecto", "Inicie un proyecto primero.", "advertencia")
+            
+    def _arbolDatos():
+        if DatosView.main is None:
+            return None, None
+        tree = DatosView.main.findChild(QTreeWidget, "tree_actual_datos")
+        return tree, DatosView.reiniciarVistasAfectadas
+
+    def registrarDataVoladura():
+        if MainView.proyecto_id:
+            tree, reiniciar = MainView._arbolDatos()
+            SubirVoladuras.registroNuevaDataVoladuras(MainView.main_window, MainView.proyecto_id, tree, reiniciar)
+        else:
+            mostrar_mensaje("Sin Proyecto", "Inicie un proyecto primero.", "advertencia")
+
+    def subirFormatoDataVoladura():
+        if MainView.proyecto_id:
+            tree, reiniciar = MainView._arbolDatos()
+            SubirVoladuras.cargarDataFormatosVoladuras(MainView.main_window, MainView.proyecto_id, tree, reiniciar)
+        else:
+            mostrar_mensaje("Sin Proyecto", "Inicie un proyecto primero.", "advertencia")
+
     def registrarCotasTerreno():
         if MainView.proyecto_id:
             SubirCotasTerreno.registroDataCotaTerreno(MainView.main_window, MainView.proyecto_id)
@@ -990,30 +1024,31 @@ class MainView:
         lista = InterfazController.ctrlListarProyectos()
         if lista:
             num_proyectos_a_mostrar = 10
+            principales = lista[:num_proyectos_a_mostrar]
+            restantes = lista[num_proyectos_a_mostrar:]
+
             # Lista principal
-            for i, proyecto in enumerate(lista[:num_proyectos_a_mostrar]):
+            for i, proyecto in enumerate(principales):
                 accion_proyecto = QAction(proyecto[1], main_window)
                 accion_proyecto.setData((proyecto[0], proyecto[1]))
-                # CORRECCIÓN AQUÍ: Usamos *args en lugar de checked
                 accion_proyecto.triggered.connect(lambda *args, p=proyecto, main=main_window: MainView.manejar_proyecto_seleccionado(p, main))
                 menu.addAction(accion_proyecto)
-                if i < len(lista[:num_proyectos_a_mostrar]) - 1:
+                if i < len(principales) - 1:
                     menu.addSeparator()
-            
+
             # Submenú "Mostrar más"
-            if len(lista) > num_proyectos_a_mostrar:
+            if restantes:
                 menu.addSeparator()
                 submenu_mostrar_mas = QMenu("Mostrar más...", main_window)
-                for proyecto in lista[num_proyectos_a_mostrar:]:
+                for j, proyecto in enumerate(restantes):
                     accion_proyecto = QAction(proyecto[1], main_window)
                     accion_proyecto.setData((proyecto[0], proyecto[1]))
-                    # CORRECCIÓN AQUÍ TAMBIÉN: Usamos *args
                     accion_proyecto.triggered.connect(lambda *args, p=proyecto, main=main_window: MainView.manejar_proyecto_seleccionado(p, main))
                     submenu_mostrar_mas.addAction(accion_proyecto)
-                    if i < len(lista[num_proyectos_a_mostrar:]) - 1:
+                    if j < len(restantes) - 1:
                         submenu_mostrar_mas.addSeparator()
                 menu.addMenu(submenu_mostrar_mas)
-        
+
         menu.installEventFilter(MenuEventFilter(menu, main_window))
 
     @staticmethod

@@ -1777,6 +1777,9 @@ class ExportarData():
         elif tipo == "sondaje":
             rutaexcel = resource_path("resources/formatos/FormatoTDR.xlsx")
             nombrearchivo = "FormatoTDR.xlsx"
+        elif tipo == "voladura":
+            rutaexcel = resource_path("resources/formatos/FormatoVoladuras.xlsx")
+            nombrearchivo = "FormatoVoladuras.xlsx"
         else:
             rutaexcel = resource_path("resources/formatos/FormatoAcelerografos.xlsx")
             nombrearchivo = "FormatoAcelerografos.xlsx"

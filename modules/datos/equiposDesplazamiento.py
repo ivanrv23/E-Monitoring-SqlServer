@@ -6,6 +6,7 @@ from modules.datos.subirPrismas import SubirPrismas
 from modules.datos.subirPluviometros import SubirPluviometros
 from utils.shared.personalizacion import Personalizacion
 from controllers.InterfazController import InterfazController
+from modules.datos.subirVoladuras import SubirVoladuras
 
 class EquiposDesplazamiento:
 
@@ -96,7 +97,12 @@ class EquiposDesplazamiento:
                     custom_pluvio.triggered.connect(lambda: QTimer.singleShot(0, lambda: Personalizacion.personalizarPluviometroGrafica(idproyecto, idinstrumento, nombrepluvio, "PLUVIÓMETRO", 0)))
                     edit_pluviometro.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.actualizarPluviometro(idproyecto, idcomponente, idinstrumento, treeWidget, "Pluviómetros", "2", "pluviometro", reiniciarvistas)))
                     delete_pluviometro.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.eliminar_pluviometro(idproyecto, idinstrumento, nombrepluvio, "Pluviómetros", "pluviometro", treeWidget, reiniciarvistas)))
-            
+
+                elif tipo == "voladura":
+                    nombrevoladura = item.text(0)
+                    idinstrumento = item.text(2)
+                    custom_voladura = menu.addAction("Personalizar Voladura")
+                    custom_voladura.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirVoladuras.personalizarVoladura(idinstrumento, nombrevoladura, callback_graficar)))
             menu.exec(treeWidget.mapToGlobal(point))
     
     def validarMarcadoUnEquipoZona(datos, zona):
@@ -259,6 +265,10 @@ class EquiposDesplazamiento:
                     pluviometros = InterfazController.ctrlListarPluviometrosComponente(proyecto_id, idzona)
                     if pluviometros:
                         TreeCheckbox.crearNuevoGrupoCheckboxesSimple(tree_widget, namezona, idzona, proyecto_id, "Pluviómetros", "2", pluviometros, "pluviometro")
+                    # Listar voladuras
+                    voladuras = InterfazController.ctrlListarVoladurasComponente(idzona)
+                    if voladuras:
+                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(tree_widget, namezona, idzona, proyecto_id, "Voladuras", "3", voladuras, "voladura")
     
     @staticmethod
     def marcar_desmarcar_proyecto_completo(treeWidget, estado, callback_graficar):

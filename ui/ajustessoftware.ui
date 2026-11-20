@@ -74,7 +74,7 @@
       <item>
        <widget class="QTabWidget" name="tabWidget">
         <property name="currentIndex">
-         <number>0</number>
+         <number>1</number>
         </property>
         <widget class="QWidget" name="tab_graficado">
          <attribute name="title">
@@ -504,6 +504,29 @@
                  <widget class="QRadioButton" name="radio_celdas_negativas">
                   <property name="text">
                    <string>Incluir Positivos y Negativos</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QGroupBox" name="group_valor_lluvia">
+               <property name="title">
+                <string>Valor de Precipitación</string>
+               </property>
+               <layout class="QVBoxLayout" name="verticalLayout_10">
+                <item>
+                 <widget class="QRadioButton" name="radio_mostrar_lluvia_valor">
+                  <property name="text">
+                   <string>Mostrar valor numérico</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QRadioButton" name="radio_ocultar_lluvia_valor">
+                  <property name="text">
+                   <string>Ocultar valor numérico</string>
                   </property>
                  </widget>
                 </item>

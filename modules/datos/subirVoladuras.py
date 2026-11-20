@@ -1,0 +1,514 @@
+import re
+import unicodedata
+import pandas as pd
+from openpyxl import load_workbook
+from datetime import datetime, time
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QPushButton, QMenu, QTableWidget,
+                               QLabel, QLineEdit, QFileDialog, QFormLayout, QDialogButtonBox, QMessageBox)
+from PySide6.QtUiTools import QUiLoader
+from PySide6.QtCore import Qt, QThread, Signal
+from utils.common.rutasarchivos import resource_path
+from utils.generic.cargariconos import cargarIcono
+from utils.shared.pegarDatosTabla import configurar_tabla_para_pegado, pegar_desde_portapapeles
+from utils.common.metodosGenerales import MetodosGenerales
+from controllers.ProyectoController import ProyectoController
+from controllers.VoladuraController import VoladuraController
+from utils.shared.loading import LoadingView
+from utils.common.alertas import mostrar_mensaje
+from PySide6.QtWidgets import QDoubleSpinBox, QSpinBox, QColorDialog
+from PySide6.QtGui import QColor
+
+
+class SubirVoladuras:
+    _current_thread_voladura = None
+
+    # ------------------------------------------------------------------
+    # REFRESCAR ÁRBOL DE EQUIPOS (pestaña Datos)
+    # ------------------------------------------------------------------
+    def _refrescarArbol(treeWidget, reiniciarvistas=None):
+        from modules.datos.equiposDatos import EquiposDatos
+        from views.datos_view import DatosView
+        if treeWidget is not None:
+            EquiposDatos.inicializar_lista_datos(treeWidget, DatosView.idproyecto, DatosView.nameproyecto)
+        DatosView.obtenerEquiposMarcados(True)
+        if reiniciarvistas:
+            reiniciarvistas("Voladura")
+
+    # ------------------------------------------------------------------
+    # CARGAR DESDE TABLA
+    # Columnas: 0 Fecha | 1 Hora | 2 Ubicación | 3 Cota | 4 Observación
+    # ------------------------------------------------------------------
+    def registroNuevaDataVoladuras(main, proyectoid, treeWidget=None, reiniciarvistas=None):
+        loader = QUiLoader()
+        ui_file = loader.load(resource_path("ui/datavoladura.ui"), None)
+        dialog = QDialog()
+        dialog.setWindowTitle("Data de Voladuras")
+        layout = QVBoxLayout()
+        layout.addWidget(ui_file)
+        dialog.setLayout(layout)
+
+        combovoladuras = dialog.findChild(QComboBox, "combo_voladuras")
+        tabladata = dialog.findChild(QTableWidget, "table_voladuras_data")
+        botonGuardar = dialog.findChild(QPushButton, "btn_guardar")
+        botonCancelar = dialog.findChild(QPushButton, "btn_cancelar")
+        lblrespuesta = dialog.findChild(QLabel, "label_mensaje_estado")
+        tabladata.insertRow(0)
+
+        listavoladuras = VoladuraController.ctrlListaVoladurasProyecto(proyectoid)
+        if listavoladuras:
+            for fila in listavoladuras:
+                combovoladuras.addItem(str(fila[2]), fila[0])
+        else:
+            combovoladuras.addItem("Sin Voladuras")
+            botonGuardar.setEnabled(False)
+
+        def menuPegadoDataTabla(pos):
+            menu = QMenu()
+            accion = menu.addAction("Pegar aquí")
+            accion.triggered.connect(lambda: pegar_desde_portapapeles(tabladata))
+            menu.exec(tabladata.mapToGlobal(pos))
+
+        def textoCelda(row, col):
+            item = tabladata.item(row, col)
+            return item.text().strip() if item else ""
+
+        def guardarDataVoladura():
+            idvoladura = combovoladuras.currentData()
+            data = []
+            for row in range(tabladata.rowCount()):
+                fecha = textoCelda(row, 0)
+                hora = textoCelda(row, 1)
+                ubicacion = textoCelda(row, 2)
+                cota = textoCelda(row, 3)
+                observa = textoCelda(row, 4)
+                # ignorar filas totalmente vacías
+                if not any([fecha, hora, ubicacion, cota, observa]):
+                    continue
+                if not fecha:
+                    mensaje = "La fecha está vacía."
+                elif not MetodosGenerales.validarFormatoFecha(fecha):
+                    mensaje = "La fecha no tiene un formato adecuado."
+                elif hora and not MetodosGenerales.validarFormatoHora(hora):
+                    mensaje = "La hora no tiene un formato adecuado."
+                elif not cota:
+                    mensaje = "La cota está vacía."
+                elif not MetodosGenerales.validarEsNumero(cota):
+                    mensaje = "La cota debe ser numérica."
+                else:
+                    mensaje = None
+                if mensaje:
+                    lblrespuesta.setText(f"En la fila {row + 1}: {mensaje}")
+                    lblrespuesta.setStyleSheet("color: orange;")
+                    return
+                fecha = MetodosGenerales.validarFormatoFecha(fecha)
+                hora = MetodosGenerales.validarFormatoHora(hora) if hora else "00:00:00"
+                data.append((idvoladura, fecha, hora, ubicacion, float(cota), observa))
+            if not data:
+                lblrespuesta.setText("No hay datos para guardar.")
+                lblrespuesta.setStyleSheet("color: orange;")
+                return
+            if VoladuraController.ctrlGuardarDataVoladura(proyectoid, data):
+                lblrespuesta.setText("Registrado Correctamente.")
+                lblrespuesta.setStyleSheet("color: green;")
+                tabladata.setRowCount(0)
+                tabladata.insertRow(0)
+                SubirVoladuras._refrescarArbol(treeWidget, reiniciarvistas)
+            else:
+                lblrespuesta.setText("Error al registrar.")
+                lblrespuesta.setStyleSheet("color: red;")
+
+        tabladata.setContextMenuPolicy(Qt.CustomContextMenu)
+        tabladata.customContextMenuRequested.connect(menuPegadoDataTabla)
+        configurar_tabla_para_pegado(tabladata)
+        botonGuardar.clicked.connect(guardarDataVoladura)
+        botonCancelar.clicked.connect(dialog.close)
+        dialog.exec()
+
+    # ------------------------------------------------------------------
+    # CARGAR FORMATO (Excel)  -> reutiliza ui/cargardataformato.ui
+    # Formato esperado (igual que Cotas de Terreno):
+    #   C10 = nombre de la voladura, C11 = comentario
+    #   fila 12 = encabezados, datos desde la fila 13
+    # ------------------------------------------------------------------
+    def cargarDataFormatosVoladuras(main, proyectoid, treeWidget=None, reiniciarvistas=None):
+        loader = QUiLoader()
+        ui_file = loader.load(resource_path("ui/cargardataformato.ui"), None)
+        dialogo = QDialog()
+        dialogo.setWindowTitle("Data Voladuras")
+        layout = QVBoxLayout()
+        layout.addWidget(ui_file)
+        dialogo.setLayout(layout)
+
+        botonSubir = dialogo.findChild(QPushButton, "btn_cargar_archivo")
+        cargarIcono(botonSubir, "resources/iconos/fontawesome/solid/file-arrow-up.svg")
+        ubicacion_archivo = dialogo.findChild(QLineEdit, "input_archivo")
+        ubicacion_archivo.setReadOnly(True)
+        comboComponentes = dialogo.findChild(QComboBox, "combo_componentes")
+        labelRespuesta = dialogo.findChild(QLabel, "label_mensaje")
+        botonAceptar = dialogo.findChild(QPushButton, "btn_aceptar")
+
+        listacomponentes = VoladuraController.ctrlListarComponentesProyecto(proyectoid)
+        if listacomponentes:
+            for fila in listacomponentes:
+                comboComponentes.addItem(str(fila[1]), fila[0])
+            comboComponentes.setEnabled(True)
+        else:
+            comboComponentes.addItem("Sin Carpetas")
+            comboComponentes.setEnabled(False)
+            botonAceptar.setEnabled(False)
+
+        def cargar_archivo():
+            files, _ = QFileDialog.getOpenFileNames(None, "Cargar Archivos", "", "Archivos Excel (*.xlsx)")
+            if files:
+                ubicacion_archivo.setText("\n".join(files))
+
+        def procesar_archivo():
+            if not ubicacion_archivo.text().strip():
+                labelRespuesta.setText("No se cargó ningún archivo.")
+                labelRespuesta.setStyleSheet("color: red;")
+                return
+            idcomponente = comboComponentes.currentData()
+            labelRespuesta.setText("")
+            botonAceptar.setEnabled(False)
+            loading = LoadingView.mostrarLoading()
+            thread = CargarVoladurasThread(proyectoid, ubicacion_archivo.text(), idcomponente)
+            SubirVoladuras._current_thread_voladura = thread
+
+            def on_finish(resultado):
+                loading.close()
+                botonAceptar.setEnabled(True)
+                labelRespuesta.setText(resultado.get("mensaje", ""))
+                labelRespuesta.setStyleSheet(f"color: {resultado.get('color', 'red')};")
+                if resultado.get("ok"):
+                    ubicacion_archivo.clear()
+                    SubirVoladuras._refrescarArbol(treeWidget, reiniciarvistas)
+                SubirVoladuras._current_thread_voladura = None
+
+            thread.task_finishVoladura.connect(on_finish, Qt.ConnectionType.QueuedConnection)
+            thread.finished.connect(thread.deleteLater)
+            thread.start()
+            loading.exec()
+
+        botonSubir.clicked.connect(cargar_archivo)
+        botonAceptar.clicked.connect(procesar_archivo)
+        dialogo.exec()
+
+    def _norm(valor):
+        if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+            return ""
+        txt = unicodedata.normalize("NFD", str(valor))
+        txt = "".join(c for c in txt if unicodedata.category(c) != "Mn")
+        return re.sub(r"[^a-z0-9]", "", txt.lower())
+
+    # Busca arriba de los encabezados una celda que contenga 'clave' y
+    # devuelve la primera celda no vacía a su derecha (misma fila).
+    def _valorJuntoA(df, fila_limite, clave):
+        for r in range(fila_limite):
+            fila = df.iloc[r]
+            for c in range(len(fila)):
+                if clave in SubirVoladuras._norm(fila.iloc[c]):
+                    for c2 in range(c + 1, len(fila)):
+                        v = fila.iloc[c2]
+                        if not pd.isna(v) and str(v).strip() != "":
+                            return str(v).strip()
+        return None
+
+    def registrarFormatoDataVoladuras(proyectoid, ubicacion, idcomponente):
+        erroneos = []
+        respuesta = False
+        for file_name in ubicacion.split("\n"):
+            file_name = file_name.strip()
+            if not file_name or not file_name.endswith('.xlsx'):
+                continue
+            nombre_corto = file_name.replace("\\", "/").split("/")[-1]
+            try:
+                df = pd.read_excel(file_name, header=None, engine='openpyxl')
+                # 1) localizar fila de encabezados (Fecha ... Cota ...)
+                fila_enc = None
+                col = {}
+                for r in range(min(len(df), 40)):
+                    normas = [SubirVoladuras._norm(v) for v in df.iloc[r]]
+                    if "fecha" in normas and any(n.startswith("cota") for n in normas):
+                        fila_enc = r
+                        for idx, n in enumerate(normas):
+                            if n == "fecha":
+                                col["fecha"] = idx
+                            elif n == "hora":
+                                col["hora"] = idx
+                            elif n.startswith("ubicacion"):
+                                col["ubicacion"] = idx
+                            elif n.startswith("cota"):
+                                col["cota"] = idx
+                            elif n.startswith("observ"):
+                                col["observacion"] = idx
+                        break
+                if fila_enc is None:
+                    erroneos.append(f"{nombre_corto} (no se encontró fila con encabezados Fecha y Cota)")
+                    continue
+                if proyectoid == 0 or not idcomponente:
+                    erroneos.append(f"{nombre_corto} (seleccione un componente)")
+                    continue
+
+                # 2) nombre (y comentario opcional) que vienen en el Excel
+                nombrevol = SubirVoladuras._valorJuntoA(df, fila_enc, "nombre")
+                if not nombrevol:
+                    erroneos.append(f"{nombre_corto} (no se encontró el nombre de la voladura)")
+                    continue
+                comentario = SubirVoladuras._valorJuntoA(df, fila_enc, "comentario") or ""
+
+                # 3) leer filas de datos (sin id todavía)
+                def celda(row, clave):
+                    idx = col.get(clave)
+                    return row.iloc[idx] if idx is not None else None
+                filas = []
+                for r in range(fila_enc + 1, len(df)):
+                    row = df.iloc[r]
+                    fecha, hora, cota_raw = celda(row, "fecha"), celda(row, "hora"), celda(row, "cota")
+                    if pd.isna(fecha) or pd.isna(cota_raw):
+                        continue
+                    if isinstance(fecha, (pd.Timestamp, datetime)):
+                        fecha = fecha.strftime('%Y-%m-%d')
+                    elif isinstance(fecha, str):
+                        fecha = MetodosGenerales.validarFormatoFecha(fecha.strip())
+                        if not fecha:
+                            continue
+                    else:
+                        continue
+                    if isinstance(hora, (pd.Timestamp, datetime)):
+                        hora = hora.time().strftime('%H:%M:%S')
+                    elif isinstance(hora, time):
+                        hora = hora.strftime('%H:%M:%S')
+                    elif isinstance(hora, str):
+                        hora = MetodosGenerales.validarFormatoHora(hora.strip()) or "00:00:00"
+                    else:
+                        hora = "00:00:00"
+                    try:
+                        cota = float(cota_raw)
+                    except (ValueError, TypeError):
+                        continue
+                    ubic, obs = celda(row, "ubicacion"), celda(row, "observacion")
+                    ubic = "" if ubic is None or pd.isna(ubic) else str(ubic).strip()
+                    obs = "" if obs is None or pd.isna(obs) else str(obs).strip()
+                    filas.append((fecha, hora, ubic, cota, obs))
+                if not filas:
+                    erroneos.append(f"{nombre_corto} (sin filas válidas: revise fecha y cota)")
+                    continue
+
+                # 4) buscar la voladura en la carpeta; si no existe, crearla
+                idvoladura = SubirVoladuras._buscarVoladura(proyectoid, nombrevol, idcomponente)
+                if not idvoladura:
+                    idvoladura = VoladuraController.ctrlRegistrarFormatoVoladura(
+                        proyectoid, nombrevol, nombrevol, comentario, idcomponente)
+                    if not idvoladura:
+                        erroneos.append(f"{nombre_corto} (no se pudo crear la voladura '{nombrevol}')")
+                        continue
+
+                # 5) guardar lecturas
+                data = [(idvoladura,) + f for f in filas]
+                print("### PASO 5 VISTA ### filas:", len(data), "idvoladura:", idvoladura)
+                if VoladuraController.ctrlGuardarVoladuraTabla(proyectoid, data):
+                    respuesta = True
+                else:
+                    erroneos.append(f"{nombre_corto} (error al guardar en BD, ver consola)")
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                erroneos.append(f"{nombre_corto} ({type(e).__name__}: {e})")
+        return respuesta, erroneos
+
+    # ------------------------------------------------------------------
+    # EDITAR / ELIMINAR VOLADURA (menú del árbol)
+    # ------------------------------------------------------------------
+    def actualizarVoladura(idproyecto, idcomponente, idinstrumento, treeWidget, reiniciarvistas):
+        info = VoladuraController.ctrlObtenerInfoVoladura(idinstrumento)
+        if not info:
+            mostrar_mensaje("Sin Datos", "No se pudo cargar los datos de la voladura.", "advertencia")
+            return
+        idvoladura, nombre_ini, codigo_ini, comentario_ini, estado_ini, idcomp_ini = info
+        componentes = VoladuraController.ctrlListarComponentesProyecto(idproyecto) or []
+
+        dialog = QDialog()
+        dialog.setWindowTitle("Editar Voladura")
+        layout = QFormLayout(dialog)
+
+        nombre_input = QLineEdit(str(nombre_ini or ""))
+        codigo_input = QLineEdit(str(codigo_ini or ""))
+        comentario_input = QLineEdit(str(comentario_ini or ""))
+
+        componente_combo = QComboBox()
+        for comp in componentes:
+            componente_combo.addItem(str(comp[1]), comp[0])
+        idx = componente_combo.findData(idcomp_ini)
+        if idx >= 0:
+            componente_combo.setCurrentIndex(idx)
+
+        estado_combo = QComboBox()
+        estado_combo.addItems(["Activo", "Inactivo"])
+        estado_combo.setCurrentText("Activo" if estado_ini in (1, True, "1") else "Inactivo")
+
+        layout.addRow("Nombre:", nombre_input)
+        layout.addRow("Código:", codigo_input)
+        layout.addRow("Comentario:", comentario_input)
+        layout.addRow("Componente:", componente_combo)
+        layout.addRow("Estado:", estado_combo)
+
+        label_mensaje = QLabel("")
+        label_mensaje.setAlignment(Qt.AlignCenter)
+        label_mensaje.setStyleSheet("QLabel { color: red; }")
+        layout.addRow(label_mensaje)
+
+        button_box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        button_box.button(QDialogButtonBox.Save).setText("Guardar")
+        button_box.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        layout.addWidget(button_box)
+
+        def guardar():
+            nombre = nombre_input.text().strip()
+            codigo = codigo_input.text().strip()
+            comentario = comentario_input.text().strip()
+            nuevo_comp = componente_combo.currentData()
+            estado = 1 if estado_combo.currentText() == "Activo" else 0
+            if nombre == "" or nuevo_comp is None:
+                label_mensaje.setText("El nombre y el componente son obligatorios.")
+                return
+            existe, fila = VoladuraController.ctrlComprobarExisteNombreVoladura(idproyecto, nombre)
+            if existe and fila[0] != idvoladura:
+                label_mensaje.setText("Ya existe una voladura con ese nombre.")
+                return
+            datos = [nombre, codigo, comentario, estado, idvoladura]
+            data = [nuevo_comp, nombre, estado, idinstrumento]
+            if VoladuraController.ctrlActualizarVoladura(datos, data):
+                dialog.accept()
+                SubirVoladuras._refrescarArbol(treeWidget, reiniciarvistas)
+            else:
+                label_mensaje.setText("Error al actualizar los datos.")
+
+        button_box.accepted.connect(guardar)
+        button_box.rejected.connect(dialog.reject)
+        dialog.exec()
+
+    def eliminar_voladura(idinstrumento, nombre, item, treeWidget, reiniciarvistas):
+        dlg = QMessageBox()
+        dlg.setWindowTitle("Eliminar Voladura")
+        dlg.setText(f"¿Desea eliminar la voladura '{nombre}' y todas sus lecturas?")
+        dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.button(QMessageBox.Yes).setText("Sí")
+        dlg.button(QMessageBox.No).setText("No")
+        dlg.setIcon(QMessageBox.Question)
+        if dlg.exec() != QMessageBox.Yes:
+            return
+
+        # Obtener id_voladura ANTES de borrar la fila de instrumentacion
+        info = VoladuraController.ctrlObtenerInfoVoladura(idinstrumento)
+        if not info:
+            mostrar_mensaje("Eliminar Voladura", "No se pudo obtener la voladura.", "advertencia")
+            return
+        idvoladura = info[0]
+
+        if VoladuraController.ctrlEliminarVoladura(idinstrumento):
+            from views.datos_view import DatosView
+            VoladuraController.ctrlEliminarVoladuraData(DatosView.idproyecto, idvoladura)
+            # El refresco reconstruye el árbol completo (no tocar 'item' después)
+            SubirVoladuras._refrescarArbol(treeWidget, reiniciarvistas)
+        else:
+            mostrar_mensaje("Eliminar Voladura", "No se pudo eliminar la voladura.", "advertencia")
+
+    def personalizarVoladura(idinstrumento, nombre, callback_graficar=None):
+            estilo = VoladuraController.ctrlObtenerEstiloVoladura(idinstrumento)
+            grosor_ini, alto_ini, color_ini = estilo if estilo else (2.5, 0.05, "#ff0000")
+    
+            dialog = QDialog()
+            dialog.setWindowTitle(f"Personalizar Voladura - {nombre}")
+            form = QFormLayout(dialog)
+    
+            spin_grosor = QDoubleSpinBox()
+            spin_grosor.setRange(0.5, 15.0)
+            spin_grosor.setSingleStep(0.5)
+            spin_grosor.setValue(float(grosor_ini))
+    
+            spin_largo = QSpinBox()
+            spin_largo.setRange(1, 100)
+            spin_largo.setSuffix(" % del alto del gráfico")
+            spin_largo.setValue(int(round(float(alto_ini) * 100)))
+    
+            color_actual = {"hex": str(color_ini)}
+            btn_color = QPushButton()
+    
+            def pintar_boton():
+                btn_color.setText(color_actual["hex"])
+                btn_color.setStyleSheet(f"background-color: {color_actual['hex']}; "
+                                        f"color: {'black' if QColor(color_actual['hex']).lightness() > 128 else 'white'};")
+    
+            def elegir_color():
+                c = QColorDialog.getColor(QColor(color_actual["hex"]), dialog, "Color de la voladura")
+                if c.isValid():
+                    color_actual["hex"] = c.name()
+                    pintar_boton()
+    
+            pintar_boton()
+            btn_color.clicked.connect(elegir_color)
+    
+            form.addRow("Grosor:", spin_grosor)
+            form.addRow("Largo:", spin_largo)
+            form.addRow("Color:", btn_color)
+    
+            box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+            box.button(QDialogButtonBox.Save).setText("Guardar")
+            box.button(QDialogButtonBox.Cancel).setText("Cancelar")
+            form.addRow(box)
+    
+            def guardar():
+                ok = VoladuraController.ctrlGuardarEstiloVoladura(
+                    idinstrumento, spin_grosor.value(), spin_largo.value() / 100.0, color_actual["hex"])
+                if ok:
+                    dialog.accept()
+                    if callback_graficar:
+                        callback_graficar()
+                else:
+                    mostrar_mensaje("Personalizar", "No se pudo guardar el estilo.", "advertencia")
+    
+            box.accepted.connect(guardar)
+            box.rejected.connect(dialog.reject)
+            dialog.exec()
+
+    COL_COMPONENTE = 3
+
+    def _buscarVoladura(proyectoid, nombre, idcomponente):
+        lista = VoladuraController.ctrlListaVoladurasProyecto(proyectoid)
+        if lista:
+            for fila in lista:
+                if (str(fila[2]).strip().lower() == nombre.lower()
+                        and fila[SubirVoladuras.COL_COMPONENTE] == idcomponente):
+                    return fila[0]
+        return None
+
+
+class CargarVoladurasThread(QThread):
+    task_finishVoladura = Signal(dict)
+
+    def __init__(self, proyectoid, ubicacion_texto, idcomponente):
+        super().__init__()
+        self.proyectoid = proyectoid
+        self.ubicacion_texto = ubicacion_texto
+        self.idcomponente = idcomponente
+
+    def run(self):
+        resultado = {"ok": False, "mensaje": "Data duplicada.", "color": "red"}
+        try:
+            respuesta, erroneos = SubirVoladuras.registrarFormatoDataVoladuras(
+                self.proyectoid, self.ubicacion_texto, self.idcomponente)
+            if respuesta:
+                resultado["ok"] = True
+                if erroneos:
+                    resultado["mensaje"] = f"Archivos erróneos: {erroneos}"
+                    resultado["color"] = "orange"
+                else:
+                    resultado["mensaje"] = "Guardado correctamente."
+                    resultado["color"] = "green"
+            elif erroneos:
+                resultado["mensaje"] = f"Error en el formato de los archivos: {erroneos}"
+        except Exception:
+            resultado["mensaje"] = "Error al procesar los archivos."
+        self.task_finishVoladura.emit(resultado)
+
+    
