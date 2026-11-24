@@ -263,7 +263,7 @@ class DatosView:
                 if fechainicial and fechafinal:
                     ExportarData.validarExportarDataEquipos(DatosView.idproyecto, DatosView.nameproyecto, idzona, tipo, equipos, fechainicial, fechafinal)
                 else:
-                    if tipo == "Inclinómetros" or tipo == "Pluviómetros" or tipo == "TDR" or tipo == "Cotas de Terreno":
+                    if tipo in ("Inclinómetros", "Pluviómetros", "TDR", "Cotas de Terreno", "Voladuras"):
                         ExportarData.validarExportarDataEquipos(DatosView.idproyecto, DatosView.nameproyecto, idzona, tipo, equipos)
         else:
             mostrar_mensaje("Sin Datos", "No hay datos para exportar.", "advertencia")

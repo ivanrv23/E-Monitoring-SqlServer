@@ -21,6 +21,7 @@ from utils.common.metodosGenerales import MetodosGenerales
 from modules.empresa.softwareconfiguracion import SoftwareConfiguracion
 from modules.empresa.empresaconfiguracion import EmpresaConfiguracion
 from controllers.DatosController import DatosController
+from controllers.VoladuraController import VoladuraController
 
 class TimeWheel(QListWidget):
     def __init__(self, limit, parent=None):
@@ -319,6 +320,8 @@ class ExportarData():
                 ExportarData.exportarExcelAcelerografos(idproyecto, nameproyecto, idzona, equipos, time_inicio, time_fin)
             elif tipo == "TDR":
                 ExportarData.exportarZipSondajesTDR(idproyecto, nameproyecto, idzona, equipos)
+            elif tipo == "Voladuras":
+                ExportarData.exportarExcelVoladuras(idproyecto, nameproyecto, idzona, equipos, time_inicio, time_fin)
 
         def exportarDataEquiposCSV():
             time_inicio = dt_inicio.dateTime().toString(formato_sql)
@@ -1754,6 +1757,126 @@ class ExportarData():
             celda.alignment = centro
             celda.fill = color_fondo
             celda.border = borde_blanco
+
+    def exportarExcelVoladuras(idproyecto, nameproyecto, idzona, voladurasmarcadas, fechaini, fechafin):
+        respuesta = EmpresaConfiguracion.obtenerDataEmpresa()
+        logo = respuesta[4]
+        libro = Workbook()
+        cont = 0
+        for namevol, idinstrumento, idvol in voladurasmarcadas:
+            filas = VoladuraController.ctrlObtenerDataVoladuras(idproyecto, [idvol])
+            if not filas:
+                continue
+            # fila: ('VOLADURA', nombre, 'YYYY-MM-DD HH:MM:SS', ubicacion, cota, observacion, estado, id_detalle)
+            datos = []
+            for f in filas:
+                fechahora = str(f[2])
+                if f[6] != "Activo":
+                    continue
+                if not (fechaini <= fechahora <= fechafin):
+                    continue
+                fecha, hora = fechahora.split(" ")
+                a, m, d = fecha.split("-")
+                cota = None if f[4] is None else float(f[4])
+                datos.append([f"{d}/{m}/{a}", hora, f[3], cota, f[5]])
+            if not datos:
+                continue
+            info = VoladuraController.ctrlObtenerInfoVoladura(idinstrumento)
+            comentario = info[3] if info and info[3] else ""
+            titulo = "".join(c for c in str(namevol) if c not in '[]:*?/\\')[:31] or f"Voladura{cont + 1}"
+            if cont == 0:
+                hoja = libro.active
+                hoja.title = titulo
+            else:
+                hoja = libro.create_sheet(title=titulo)
+            ExportarData.configurarCabeceraHojaVoladura(hoja, nameproyecto, namevol, comentario, logo)
+            for fila in datos:
+                hoja.append(fila)
+            cont += 1
+
+        if cont == 0:
+            mostrar_mensaje("Sin Datos", "No hay lecturas en el rango seleccionado.", "advertencia")
+            return
+        rutaexcel = resource_path("resources/workspace/dataequipos.xlsx")
+        libro.save(rutaexcel)
+        archivo_destino, _ = QFileDialog.getSaveFileName(None, "Guardar Excel en", "Voladuras", "Archivos de Excel (*.xlsx);;Todos los archivos (*)")
+        if archivo_destino:
+            if not archivo_destino.lower().endswith('.xlsx'):
+                archivo_destino += '.xlsx'
+            try:
+                shutil.copy(rutaexcel, archivo_destino)
+                mostrar_mensaje("Data Exportada", f"El Excel se ha guardado en: {archivo_destino}", "informacion")
+            except Exception as e:
+                mostrar_mensaje("Error al Exportar", f"No se pudo guardar el Excel: {str(e)}", "advertencia")
+
+    def configurarCabeceraHojaVoladura(hoja, proyectoname, namevol, comentario, logo):
+        color_fondo = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
+        lado_n = Side(style="thin", color="000000")
+        lado_b = Side(style="thin", color="FFFFFF")
+        borde_negro = Border(left=lado_n, right=lado_n, top=lado_n, bottom=lado_n)
+        borde_blanco = Border(left=lado_b, right=lado_b, top=lado_b, bottom=lado_b)
+        centro = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        for col, ancho in {"A": 20, "B": 14, "C": 22, "D": 16, "E": 30}.items():
+            hoja.column_dimensions[col].width = ancho
+        for row in range(1, 5):
+            hoja.row_dimensions[row].height = 25
+
+        if logo:
+            imagen = ExcelImage(MetodosGenerales.convertirBlobImagen(logo))
+        else:
+            imagen = ExcelImage(resource_path("resources/logo.png"))
+        imagen.width = 132
+        imagen.height = 132
+        imagen.anchor = "A1"
+        hoja.merge_cells("A1:A4")
+        hoja.add_image(imagen)
+
+        hoja.merge_cells("B1:E4")
+        t = hoja["B1"]
+        t.value = f"FORMATO DE DATOS - VOLADURAS - {proyectoname.upper()}"
+        t.font = Font(size=16, bold=True)
+        t.alignment = centro
+
+        hoja.merge_cells("A5:E5")
+        hoja["A5"].value = "* Los datos no debe contener fórmulas y el Formato de fecha: día/mes/año completo."
+        hoja["A5"].font = Font(size=9, bold=True)
+        hoja.merge_cells("A6:E6")
+        hoja["A6"].value = "* El formato de hora: hh:mm:ss"
+        hoja["A6"].font = Font(size=9, bold=True)
+
+        hoja.merge_cells("A8:E9")
+        b = hoja["A8"]
+        b.value = "DATOS DE LA VOLADURA"
+        b.font = Font(size=13, bold=True, color="FFFFFF")
+        b.alignment = centro
+        b.fill = color_fondo
+
+        # Misma estructura que el formato de carga: C10 = nombre, C11 = comentario
+        for fila, etiqueta, valor in [(10, "Nombre:", namevol), (11, "Comentario:", comentario)]:
+            hoja.merge_cells(f"A{fila}:B{fila}")
+            lbl = hoja[f"A{fila}"]
+            lbl.value = etiqueta
+            lbl.font = Font(bold=True, color="FFFFFF")
+            lbl.fill = color_fondo
+            lbl.alignment = centro
+            hoja.merge_cells(f"C{fila}:E{fila}")
+            v = hoja[f"C{fila}"]
+            v.value = valor
+            v.alignment = centro
+
+        for rango in ["A1:A4", "B1:E4", "A5:E5", "A6:E6", "C10:E10", "C11:E11"]:
+            ExportarData._aplicar_borde(hoja, rango, borde_negro)
+        for rango in ["A8:E9", "A10:B10", "A11:B11"]:
+            ExportarData._aplicar_borde(hoja, rango, borde_blanco)
+
+        encabezados = ["Fecha", "Hora", "Ubicación", "Cota (msnm)", "Observación"]
+        for col, enc in enumerate(encabezados, 1):
+            c = hoja.cell(row=12, column=col, value=enc)
+            c.font = Font(bold=True, color="FFFFFF")
+            c.alignment = centro
+            c.fill = color_fondo
+            c.border = borde_blanco
 
     def descargarFormatoExcel(tipo):
         if tipo == "prisma":
