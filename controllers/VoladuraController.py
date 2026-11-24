@@ -61,3 +61,12 @@ class VoladuraController:
 
     def ctrlObtenerEstilosVoladuras(proyecto_id):
         return VoladuraModel.mdlObtenerEstilosVoladuras(proyecto_id)
+
+    def ctrlCambiarComponenteVoladuras(idcomponente, nuevocomponente):
+        return VoladuraModel.mdlCambiarComponenteVoladuras(idcomponente, nuevocomponente)
+
+    def ctrlEliminarVoladurasComponente(idproyecto, idcomponente):
+        return VoladuraModel.mdlEliminarVoladurasComponente(idproyecto, idcomponente)
+
+    def ctrlTraerDataVoladura(idvoladura):
+        return VoladuraModel.mdlTraerDataVoladura(idvoladura)

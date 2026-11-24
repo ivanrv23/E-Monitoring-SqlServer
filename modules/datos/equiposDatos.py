@@ -177,6 +177,14 @@ class EquiposDatos:
                     delete_prismasbaja = menu.addAction("Eliminar Prismas")
                     edit_prismasbaja.triggered.connect(lambda: SubirPrismas.dardealta_prismas(idzona, idproyecto, nombrezona, treeWidget, reiniciarvistas))
                     delete_prismasbaja.triggered.connect(lambda: SubirPrismas.eliminar_prismas(idzona, "Prismas de Baja", "11", treeWidget, reiniciarvistas))
+
+                elif tipo == "12": # Voladuras
+                    idzona = item.text(2)
+                    idproyecto = item.text(3)
+                    edit_voladuras = menu.addAction("Cambiar de Componente")
+                    delete_voladuras = menu.addAction("Eliminar Voladuras")
+                    edit_voladuras.triggered.connect(lambda: SubirVoladuras.cambiar_componente_voladuras(idzona, idproyecto, treeWidget, "Voladuras", "12", "voladura", reiniciarvistas))
+                    delete_voladuras.triggered.connect(lambda: SubirVoladuras.eliminar_voladuras(idproyecto, idzona, "Voladuras", "12", treeWidget, reiniciarvistas))
             else:    
                 if tipo == "prisma":
                     nombreprisma = item.text(0)
@@ -487,6 +495,9 @@ class EquiposDatos:
             return (nodo.text(0), nodo.text(2), nodo.text(3))
    
     def inicializar_lista_datos(tree_widget, proyecto_id, proyecto_name):
+        import traceback
+        print("### ARBOL COMPLETO RECONSTRUIDO ###")
+        traceback.print_stack()
         TreeCheckbox.limpiarArbolCheckboxes(tree_widget, proyecto_name)
         if proyecto_id:
             # LISTAR COMOPONENTES

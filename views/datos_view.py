@@ -1285,6 +1285,8 @@ class DatosView:
                     DatosView.obtenerEquiposMarcados(True)
                 else:
                     mostrar_mensaje("Eliminar Lectura", "No se pudo eliminar la lectura.", "advertencia")
+
+    COL_ID_PLUVIOMETRO = 9
     
     def delete_rows_pluviometros(table, selected_indexes, tablasql):
         dataeliminar = []
@@ -1293,7 +1295,7 @@ class DatosView:
             row = index.row()
             nombre = table.model().data(table.model().index(row, 1), Qt.DisplayRole)
             fecha = table.model().data(table.model().index(row, 2), Qt.DisplayRole)
-            iddetalle = table.model().data(table.model().index(row, 8), Qt.DisplayRole)
+            iddetalle = table.model().data(table.model().index(row, DatosView.COL_ID_PLUVIOMETRO), Qt.DisplayRole)
             dataeliminar.append((nombre, fecha, row))
             idseliminar.append((iddetalle))
         if len(idseliminar) > 0:
@@ -1430,7 +1432,7 @@ class DatosView:
             row = index.row()
             nombre = table.model().data(table.model().index(row, 1), Qt.DisplayRole)
             fecha = table.model().data(table.model().index(row, 2), Qt.DisplayRole)
-            iddetalle = table.model().data(table.model().index(row, 5), Qt.DisplayRole)
+            iddetalle = table.model().data(table.model().index(row, DatosView.COL_ID_COTATERRENO), Qt.DisplayRole)
             dataeliminar.append((nombre, fecha, row))
             idseliminar.append((iddetalle))
         if len(idseliminar) > 0:
@@ -1451,6 +1453,8 @@ class DatosView:
                         DatosView.obtenerEquiposMarcados(True)
                     else:
                         mostrar_mensaje("Eliminar Lecturas", "No se pudo eliminar las lecturas.", "advertencia")
+
+    COL_ID_COTATERRENO = 6
     
     # MENU TABLA CELDAS
     def generarMenuTablaCeldas(position, table, nombre, fecha, frecuendigi, frecuencihz, temperatura, desplaza, observa, estado, iddetalle, tablasql):
@@ -1791,6 +1795,8 @@ class DatosView:
                     DatosView.obtenerEquiposMarcados(True)
                 else:
                     mostrar_mensaje("Eliminar Lectura", "No se pudo eliminar la lectura.", "advertencia")
+
+    COL_ID_ACELEROGRAFO = 10
     
     def delete_rows_acelerografos(table, selected_indexes, tablasql):
         dataeliminar = []
@@ -1799,7 +1805,7 @@ class DatosView:
             row = index.row()
             nombre = table.model().data(table.model().index(row, 1), Qt.DisplayRole)
             fecha = table.model().data(table.model().index(row, 2), Qt.DisplayRole)
-            iddetalle = table.model().data(table.model().index(row, 9), Qt.DisplayRole)
+            iddetalle = table.model().data(table.model().index(row, DatosView.COL_ID_ACELEROGRAFO), Qt.DisplayRole)
             dataeliminar.append((nombre, fecha, row))
             idseliminar.append((iddetalle))
         if len(idseliminar) > 0:

@@ -229,6 +229,22 @@ def etiqueta_tiempo(tiempo):
     """Devuelve el nombre del eje X según la unidad de tiempo seleccionada."""
     return {"FECHA": "Fecha", "DIA": "Día", "HORA": "Hora"}.get(tiempo, "Fecha")
 
+def actualizar_estado_boton_evento(tiempo, btn_add_evento, check_ev_global=None, check_ev_equipo=None):
+    """
+    Los eventos solo tienen sentido con eje de FECHA.
+    En HORA o DIA deshabilita el botón (y lo desmarca si estaba activo).
+    """
+    permitido = (tiempo == "FECHA")
+
+    if btn_add_evento is not None and _objeto_qt_vivo(btn_add_evento):
+        if not permitido and btn_add_evento.isChecked():
+            btn_add_evento.setChecked(False)   # sale del modo "agregar evento"
+        btn_add_evento.setEnabled(permitido)
+        btn_add_evento.setToolTip("" if permitido else "Los eventos solo están disponibles con eje de Fecha")
+
+    for chk in (check_ev_global, check_ev_equipo):
+        if chk is not None and _objeto_qt_vivo(chk):
+            chk.setEnabled(permitido)
 
 def formatear_x_inspector(valor_x, tiempo):
     """Formatea el valor X del inspector según la unidad de tiempo."""
@@ -664,7 +680,7 @@ def on_hover_global(event):
         canvas.draw_idle()
         return
     
-    if btn_add_evento and btn_add_evento.isChecked():
+    if btn_add_evento and btn_add_evento.isChecked() and tiempo == "FECHA":
         annot.set_visible(False)
         punto_resaltado.set_visible(False)
         linea_fantasma.set_xdata([event.xdata])
@@ -1096,6 +1112,7 @@ def obtener_canvas_persistente(widget, modo="completo", total=0):
         btn_add_evento.setStyleSheet("""
             QPushButton { font-size: 11px; padding: 4px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; }
             QPushButton:checked { background-color: #ffcccc; border: 1px solid red; color: red; font-weight: bold; }
+            QPushButton:disabled { background-color: #e0e0e0; color: #999; border: 1px solid #ddd; }
         """)
         toolbar_layout.addWidget(btn_add_evento)
         tb.update({'check_ev_global': check_ev_global, 'check_ev_equipo': check_ev_equipo,
@@ -1621,6 +1638,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
         btn_add_evento.setStyleSheet("""
             QPushButton { font-size: 11px; padding: 4px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; }
             QPushButton:checked { background-color: #ffcccc; border: 1px solid red; color: red; font-weight: bold; }
+            QPushButton:disabled { background-color: #e0e0e0; color: #999; border: 1px solid #ddd; }
         """)
         toolbar_layout.addWidget(btn_add_evento)
                 # Guardar referencias para reutilizar en llamadas posteriores
@@ -1759,7 +1777,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
             ax, ax2, barras_pluviometro, fontsize=max(etiquesize - 1, 6), mostrar_valor=(config[24] == 0))
 
     col_voladuras = dibujar_voladuras(ax, voladura_data, tiempo, idproyecto)
-    extras_leyenda = [col_voladuras] if col_voladuras is not None else []
+    extras_leyenda = list(col_voladuras)
         
     # ============================================================
     # DIBUJO DE LÍNEAS Y TENDENCIAS
@@ -1974,6 +1992,7 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
 
     if _objeto_qt_vivo(getattr(widget, 'label_total', None)):
         widget.label_total.setText(f"Total: {df['Instrumento'].nunique()}")
+        actualizar_estado_boton_evento(tiempo, btn_add_evento, check_ev_global, check_ev_equipo)
 
     # ============================================================
     # GUARDAR ESTADO EN EL CANVAS (para eventos globales)
@@ -2252,7 +2271,7 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
             ax, ax2, barras_pluviometro, fontsize=max(etiquesize - 1, 6), mostrar_valor=(config[24] == 0))
 
     col_voladuras = dibujar_voladuras(ax, voladura_data, tiempo, idproyecto)
-    extras_leyenda = [col_voladuras] if col_voladuras is not None else []
+    extras_leyenda = list(col_voladuras)
 
     # Graficar datos
     lineas = []
@@ -2597,6 +2616,9 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
         'toggle_ev_equipo': toggle_ev_equipo,
         'on_toggle_add_evento': on_toggle_add_evento,
     }
+
+    actualizar_estado_boton_evento(tiempo, btn_add_evento, check_ev_global, check_ev_equipo)
+
     # Los eventos nuevos deben respetar el estado actual de los checks
     for obj in ev_globales:
         obj.set_visible(check_ev_global.isChecked())

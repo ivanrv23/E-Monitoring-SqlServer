@@ -180,7 +180,7 @@ class PluviometroModel:
     def mdlObtenerDataPluviometrosDetalle(idproyecto, idpluvio):
         conn = None
         tabla = f"pluviometro_detalle{idproyecto}"
-        sql = """SELECT p.nombre_pluviometro, d.fecha_pluviometro, d.medida_pluviometro 
+        sql = f"""SELECT p.nombre_pluviometro, d.fecha_pluviometro, d.medida_pluviometro 
             FROM {tabla} d INNER JOIN pluviometros p ON d.id_pluviometro = p.id_pluviometro WHERE d.id_pluviometro = ?;"""
         try:
             conn = Connection.connectionDB()
@@ -222,10 +222,11 @@ class PluviometroModel:
     # LISTAR LOS PLUVIÓMETROS POR PROYECTO    
     def mdlListarPluviometrosCombo(proyecto):
         conn = None
-        sql = """SELECT p.id_pluviometro, p.nombre_pluviometro, i.id_componente, p.codigo_pluviometro
+        sql = """SELECT p.id_pluviometro, p.nombre_pluviometro, p.codigo_pluviometro
         FROM pluviometros p
-        INNER JOIN instrumentacion i ON p.id_pluviometro = i.id_equipo AND i.tipo_equipo = 'PLUVIOMETRO'
-        WHERE p.id_proyecto = ? AND p.estado_pluviometro = 1;"""
+        WHERE p.id_proyecto = ? AND p.estado_pluviometro = 1
+        AND EXISTS (SELECT 1 FROM instrumentacion i
+                    WHERE i.id_equipo = p.id_pluviometro AND i.tipo_equipo = 'PLUVIOMETRO');"""
         try:
             conn = Connection.connectionDB()
             cur = conn.cursor()
@@ -383,49 +384,20 @@ class PluviometroModel:
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            # obtener info
             query_select = """SELECT * FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PLUVIOMETRO';"""
             cursor.execute(query_select, (idcomponente,))
             results = [tuple(row) for row in cursor.fetchall()]
-            if results:
-                query = """DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PLUVIOMETRO';"""
-                cursor.execute(query, (idcomponente,))
-                conn.commit()
-                if cursor.rowcount > 0:
-                    return results
-                else:
-                    return None
-            else:
+            if not results:
                 return None
+            cursor.execute("""DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'PLUVIOMETRO';""", (idcomponente,))
+            borrados = cursor.rowcount      # ANTES del commit
+            conn.commit()
+            return results if borrados > 0 else None
         except Exception as e:
             print(f"Error al eliminar pluviometros: {e}")
-            return None
-        finally:
             if conn:
-                conn.close()
-    
-    def mdlEliminarDataPluviometros(tabla, pluviometros):
-        conn = None
-        placeholders = ','.join(['?' for _ in pluviometros])
-        try:
-            conn = Connection.connectionDB()
-            cursor = conn.cursor()
-            # eliminar data
-            query_delete = f"""DELETE FROM {tabla} WHERE id_pluviometro IN ({placeholders});"""
-            cursor.execute(query_delete, pluviometros)
-            rows_data = cursor.rowcount
-            if rows_data > 0:
-                query_delete_cuerdas = f"DELETE FROM pluviometros WHERE id_pluviometro IN ({placeholders});"
-                cursor.execute(query_delete_cuerdas, pluviometros)
-                rows_cuerdas = cursor.rowcount
-                conn.commit()
-                return rows_cuerdas > 0
-            else:
                 conn.rollback()
-                return False
-        except Exception as e:
-            print(f"Error al eliminar data pluviometros: {e}")
-            return False
+            return None
         finally:
             if conn:
                 conn.close()
@@ -455,53 +427,80 @@ class PluviometroModel:
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            # obtener info para eliminar data
             query_select = """SELECT * FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'PLUVIOMETRO';"""
             cursor.execute(query_select, (idinstrumento,))
             row = cursor.fetchone()
             datapluvio = tuple(row) if row else None
-            if datapluvio:
-                query = """DELETE FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'PLUVIOMETRO';"""
-                cursor.execute(query, (idinstrumento,))
-                conn.commit()
-                if cursor.rowcount > 0:
-                    return datapluvio
-                else:
-                    return None
-            else:
+            if not datapluvio:
                 return None
+            cursor.execute("""DELETE FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'PLUVIOMETRO';""", (idinstrumento,))
+            borrados = cursor.rowcount      # ANTES del commit
+            conn.commit()
+            return datapluvio if borrados > 0 else None
         except Exception as e:
             print(f"Error al eliminar pluviometro: {e}")
+            if conn:
+                conn.rollback()
             return None
         finally:
             if conn:
                 conn.close()
-    
+
+    def mdlEliminarDataPluviometros(tabla, pluviometros):
+        conn = None
+        if not pluviometros:
+            return True
+        placeholders = ','.join(['?' for _ in pluviometros])
+        try:
+            conn = Connection.connectionDB()
+            cursor = conn.cursor()
+            # solo los que ya no están en ningún componente
+            cursor.execute(f"""SELECT p.id_pluviometro FROM pluviometros p
+                WHERE p.id_pluviometro IN ({placeholders})
+                AND NOT EXISTS (SELECT 1 FROM instrumentacion i
+                                WHERE i.id_equipo = p.id_pluviometro AND i.tipo_equipo = 'PLUVIOMETRO');""", pluviometros)
+            huerfanos = [r[0] for r in cursor.fetchall()]
+            if huerfanos:
+                ph = ','.join(['?' for _ in huerfanos])
+                cursor.execute("SELECT 1 FROM sys.tables WHERE name = ?", (tabla,))
+                if cursor.fetchone():
+                    cursor.execute(f"DELETE FROM {tabla} WHERE id_pluviometro IN ({ph});", huerfanos)
+                cursor.execute(f"DELETE FROM pluviometros WHERE id_pluviometro IN ({ph});", huerfanos)
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error al eliminar data pluviometros: {e}")
+            if conn:
+                conn.rollback()
+            return False
+        finally:
+            if conn:
+                conn.close()
+
     def mdlEliminarPluviometroData(tabla, idpluviometro):
         conn = None
         try:
             conn = Connection.connectionDB()
             cursor = conn.cursor()
-            # eliminar data
-            query_delete = f"""DELETE FROM {tabla} WHERE id_pluviometro = ?;"""
-            cursor.execute(query_delete, (idpluviometro,))
-            rows_data = cursor.rowcount
-            if rows_data > 0:
-                stmt_delete = "DELETE FROM pluviometros WHERE id_pluviometro = ?;"
-                cursor.execute(stmt_delete, (idpluviometro,))
-                rows_delete = cursor.rowcount
-                conn.commit()
-                return rows_delete > 0
-            else:
-                conn.rollback()
-                return False
+            cursor.execute("""SELECT 1 FROM instrumentacion
+                              WHERE id_equipo = ? AND tipo_equipo = 'PLUVIOMETRO';""", (idpluviometro,))
+            if cursor.fetchone():
+                return True  # sigue en otro componente: conservar pluviómetro y data
+            cursor.execute("SELECT 1 FROM sys.tables WHERE name = ?", (tabla,))
+            if cursor.fetchone():
+                cursor.execute(f"DELETE FROM {tabla} WHERE id_pluviometro = ?;", (idpluviometro,))
+            cursor.execute("DELETE FROM pluviometros WHERE id_pluviometro = ?;", (idpluviometro,))
+            conn.commit()
+            return True
         except Exception as e:
             print(f"Error al eliminar data pluviometro: {e}")
+            if conn:
+                conn.rollback()
             return False
         finally:
             if conn:
                 conn.close()
-    
+
     def mdlObtenerPluviometros(tabla, idcomponente, idinstrumento, fechaini, fechafin):
         conn = None
         try:
@@ -526,7 +525,29 @@ class PluviometroModel:
             if conn:
                 conn.close()
     
-    def mdlTraerDataPluviometro(idpluviometro):
+    def mdlTraerDataPluviometro(idpluviometro, idcomponente=None):
+        conn = None
+        sql = """SELECT i.id_instrumentacion, i.id_componente, c.nombre_componente FROM instrumentacion i
+        INNER JOIN componentes c ON i.id_componente = c.id_componente
+        WHERE i.id_equipo = ? AND i.tipo_equipo = 'PLUVIOMETRO'"""
+        params = [idpluviometro]
+        if idcomponente is not None:
+            sql += " AND i.id_componente = ?"
+            params.append(idcomponente)
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            row = cur.fetchone()
+            return tuple(row) if row else None
+        except Exception as e:
+            print("Error al traer data pluviometro: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    def mdlTraerComponentesPluviometro(idpluviometro):
         conn = None
         sql = """SELECT i.id_instrumentacion, i.id_componente, c.nombre_componente FROM instrumentacion i
         INNER JOIN componentes c ON i.id_componente = c.id_componente
@@ -535,14 +556,10 @@ class PluviometroModel:
             conn = Connection.connectionDB()
             cur = conn.cursor()
             cur.execute(sql, (idpluviometro,))
-            row = cur.fetchone()
-            if row:
-                return tuple(row)
-            else:
-                return None
+            return [tuple(r) for r in cur.fetchall()]
         except Exception as e:
-            print("Error al traer data pluviometro: " + str(e))
-            return None
+            print("Error al traer componentes pluviometro: " + str(e))
+            return []
         finally:
             if conn:
                 conn.close()
@@ -562,4 +579,29 @@ class PluviometroModel:
         finally:
             if conn:
                 conn.close()
-    
+
+
+    # Asociar un pluviómetro existente a un componente (sin moverlo de los demás)
+    def mdlAsociarPluviometroComponente(idpluviometro, nombre, idcomponente):
+        conn = None
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute("""SELECT 1 FROM instrumentacion
+                           WHERE id_equipo = ? AND tipo_equipo = 'PLUVIOMETRO' AND id_componente = ?;""",
+                        (idpluviometro, idcomponente))
+            if cur.fetchone():
+                return True  # ya está en ese componente
+            cur.execute("""INSERT INTO instrumentacion (id_componente, tipo_equipo, nombre_equipo, id_equipo, tabla_equipo)
+                           VALUES (?, ?, ?, ?, ?);""",
+                        (idcomponente, 'PLUVIOMETRO', nombre, idpluviometro, 'pluviometros'))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al asociar pluviometro a componente: " + str(e))
+            if conn:
+                conn.rollback()
+            return False
+        finally:
+            if conn:
+                conn.close()

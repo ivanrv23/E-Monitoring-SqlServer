@@ -70,6 +70,14 @@ class EquiposDesplazamiento:
                     delete_pluviometros = menu.addAction("Eliminar Pluviómetros")
                     edit_pluviometros.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.cambiar_componente_pluviometros(idzona, idproyecto, treeWidget, "Pluviómetros", "6", "pluviometro", reiniciarvistas)))
                     delete_pluviometros.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.eliminar_pluviometros(idproyecto, idzona, "Pluviómetros", "6", treeWidget, reiniciarvistas)))
+                elif tipo == "3": # Voladuras
+                    idzona = item.text(2)
+                    idproyecto = item.text(3)
+                    edit_voladuras = menu.addAction("Cambiar de Componente")
+                    delete_voladuras = menu.addAction("Eliminar Voladuras")
+                    edit_voladuras.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirVoladuras.cambiar_componente_voladuras(idzona, idproyecto, treeWidget, "Voladuras", "3", "voladura", reiniciarvistas)))
+                    delete_voladuras.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirVoladuras.eliminar_voladuras(idproyecto, idzona, "Voladuras", "3", treeWidget, reiniciarvistas)))
+                    
             else:    
                 if tipo == "prisma":
                     nombreprisma = item.text(0)

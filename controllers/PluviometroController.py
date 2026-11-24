@@ -104,9 +104,14 @@ class PluviometroController:
                     precipitaciones.extend(respuesta)
         return precipitaciones
     
-    def ctrlTraerDataPluviometro(idpiezometro):
-        respuesta = PluviometroModel.mdlTraerDataPluviometro(idpiezometro)
-        return respuesta
+    def ctrlAsociarPluviometroComponente(idpluviometro, nombre, idcomponente):
+        return PluviometroModel.mdlAsociarPluviometroComponente(idpluviometro, nombre, idcomponente)
+
+    def ctrlTraerDataPluviometro(idpiezometro, idcomponente=None):
+        return PluviometroModel.mdlTraerDataPluviometro(idpiezometro, idcomponente)
+
+    def ctrlTraerComponentesPluviometro(idpluviometro):
+        return PluviometroModel.mdlTraerComponentesPluviometro(idpluviometro)
     
     def ctrlCambiarPluviometroComponente(idinstrumento, idcomponente):
         respuesta = PluviometroModel.mdlCambiarPluviometroComponente(idinstrumento, idcomponente)

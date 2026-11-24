@@ -69,7 +69,7 @@ class SubirPluviometros:
             lista_pluviometros = PluviometroController.ctrlListarPluviometrosCombo(proyectoid)
             if lista_pluviometros is not None:
                 for fila in lista_pluviometros:
-                    comboPluviometros.addItem(str(fila[2]), fila[0])
+                    comboPluviometros.addItem(str(fila[1]), fila[0])
             else:
                 comboPluviometros.addItem("Sin Pluviómetros")
                 botonGuardarData.setEnabled(False)
@@ -416,10 +416,16 @@ class SubirPluviometros:
                     # Guardado de datos
                     if data:
                         respon = PluviometroController.ctrlGuardarPluviometrosTabla(proyectoid, data)
-                        
+
                         if respon:
-                            equipos.append(idpluviometro)
-                            respuesta = True
+                            # Agregar a la carpeta elegida SIN quitarlo de las otras
+                            asociado = PluviometroController.ctrlAsociarPluviometroComponente(
+                                idpluviometro, nombrepluvio, idcomponente)
+                            if asociado:
+                                equipos.append((idpluviometro, idcomponente))
+                                respuesta = True
+                            else:
+                                erroneos.append(file_name.split("/")[-1])
                         else:
                             erroneos.append(file_name.split("/")[-1])
                     else:
@@ -492,11 +498,12 @@ class SubirPluviometros:
         if result == QMessageBox.Yes:
             respuesta = PluviometroController.ctrlEliminarPluviometros(idzona)
             if respuesta:
+                # Los instrumentos ya se eliminaron: quitar del árbol de inmediato
+                TreeCheckbox.eliminarCheckboxGrupo(treewidget, idzona, grupo, tipo)
+                reiniciarvistas("Pluviómetro")
+
                 delete = PluviometroController.ctrlEliminarDataPiezometrosManuales(idproyecto, respuesta)
-                if delete:
-                    TreeCheckbox.eliminarCheckboxGrupo(treewidget, idzona, grupo, tipo)
-                    reiniciarvistas("Pluviómetro")
-                else:
+                if not delete:
                     mostrar_mensaje("Eliminar Pluviómetros", "Error al eliminar data Pluviómetros.", "advertencia")
             else:
                 mostrar_mensaje("Eliminar Pluviómetros", "No se pudo eliminar los Pluviómetros.", "advertencia")
@@ -576,7 +583,7 @@ class SubirPluviometros:
         botonguardar.clicked.connect(guardarNuevoPluviometro)
         dialogopluviometros.exec()
     
-    def eliminar_pluviometro(idproyecto, idinstrumento, nombrepluvio, nombregrupo, tipolista, treewidget, reiniciarvistas):
+    def eliminar_pluviometro(idproyecto, idinstrumento, nombrepluvio, nombregrupo, subgrupo, treewidget, reiniciarvistas):
         dlg = QMessageBox()
         dlg.setWindowTitle("Eliminar Pluviómetro")
         dlg.setText(f"¿Está seguro eliminar el Pluviómetro '{nombrepluvio}'?")
@@ -588,11 +595,12 @@ class SubirPluviometros:
         if result == QMessageBox.Yes:
             respuesta = PluviometroController.ctrlEliminarPluviometro(idinstrumento)
             if respuesta:
+                # El instrumento ya se eliminó: quitar del árbol de inmediato
+                TreeCheckbox.eliminarCheckbox(treewidget, nombregrupo, idinstrumento, subgrupo)
+                reiniciarvistas("Pluviómetro")
+
                 delete = PluviometroController.ctrlEliminarPluviometroData(idproyecto, respuesta)
-                if delete:
-                    TreeCheckbox.eliminarCheckbox(treewidget, nombregrupo, idinstrumento, tipolista)
-                    reiniciarvistas("Pluviómetro")
-                else:
+                if not delete:
                     mostrar_mensaje("Eliminar Pluviómetro", "Error al eliminar data del pluviómetro.", "advertencia")
             else:
                 mostrar_mensaje("Eliminar Pluviómetro", "No se pudo eliminar el pluviómetro.", "advertencia")
@@ -688,8 +696,8 @@ class CargarPluviometrosThread(QThread):
                     resultado["color"] = "green"
 
                 equipos_data = []
-                for idpluviometro in equipos:
-                    data = PluviometroController.ctrlTraerDataPluviometro(idpluviometro)
+                for idpluviometro, idcomp in equipos:
+                    data = PluviometroController.ctrlTraerDataPluviometro(idpluviometro, idcomp)
                     if not data:
                         continue
                     idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]

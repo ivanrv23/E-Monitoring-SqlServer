@@ -211,4 +211,9 @@ PRIMARY KEY CLUSTERED
 GO
 
 ALTER TABLE [dbo].[voladuras_data] ADD  CONSTRAINT [DF_voladuras_data_estado]  DEFAULT ((1)) FOR [estado_data]
-GO                                                                                                                                                                                                                                                                                               
+GO
+
+-------------------------------------------------------------------------
+
+ALTER TABLE [dbo].[voladura_detalle1] ALTER COLUMN [cota_detalle] DECIMAL(10,3) NULL;
+ALTER TABLE [dbo].[voladura_detalle1006] ALTER COLUMN [cota_detalle] DECIMAL(10,3) NULL;
