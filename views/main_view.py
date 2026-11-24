@@ -916,8 +916,7 @@ class MainView:
 
     def subirFormatoDataVoladura():
         if MainView.proyecto_id:
-            tree, reiniciar = MainView._arbolDatos()
-            SubirVoladuras.cargarDataFormatosVoladuras(MainView.main_window, MainView.proyecto_id, tree, reiniciar)
+            SubirVoladuras.cargarDataFormatosVoladuras(MainView.main_window, MainView.proyecto_id)
         else:
             mostrar_mensaje("Sin Proyecto", "Inicie un proyecto primero.", "advertencia")
 

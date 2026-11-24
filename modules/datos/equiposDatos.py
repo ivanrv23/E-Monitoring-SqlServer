@@ -177,10 +177,10 @@ class EquiposDatos:
                     delete_prismasbaja = menu.addAction("Eliminar Prismas")
                     edit_prismasbaja.triggered.connect(lambda: SubirPrismas.dardealta_prismas(idzona, idproyecto, nombrezona, treeWidget, reiniciarvistas))
                     delete_prismasbaja.triggered.connect(lambda: SubirPrismas.eliminar_prismas(idzona, "Prismas de Baja", "11", treeWidget, reiniciarvistas))
-
                 elif tipo == "12": # Voladuras
                     idzona = item.text(2)
                     idproyecto = item.text(3)
+                    nombrezona = item.parent().text(0)
                     edit_voladuras = menu.addAction("Cambiar de Componente")
                     delete_voladuras = menu.addAction("Eliminar Voladuras")
                     edit_voladuras.triggered.connect(lambda: SubirVoladuras.cambiar_componente_voladuras(idzona, idproyecto, treeWidget, "Voladuras", "12", "voladura", reiniciarvistas))
@@ -341,9 +341,12 @@ class EquiposDatos:
                     idcomponente = item.parent().parent().text(2)
                     idproyecto = item.parent().parent().text(3)
                     edit_voladura = menu.addAction("Editar Voladura")
+                    if EquiposDatos.validarAlgunHijoMarcado(item.parent()):
+                        move_voladura = menu.addAction("Cambiar de Componente")
+                        move_voladura.triggered.connect(lambda: SubirVoladuras.cambiar_componente_bloque_voladura(idproyecto, idcomponente, item.parent(), treeWidget, "Voladuras", "12", "voladura", reiniciarvistas))
                     delete_voladura = menu.addAction("Eliminar Voladura")
-                    edit_voladura.triggered.connect(lambda: SubirVoladuras.actualizarVoladura(idproyecto, idcomponente, idinstrumento, treeWidget, reiniciarvistas))
-                    delete_voladura.triggered.connect(lambda: SubirVoladuras.eliminar_voladura(idinstrumento, nombrevoladura, item, treeWidget, reiniciarvistas))
+                    edit_voladura.triggered.connect(lambda: SubirVoladuras.actualizarVoladura(idproyecto, idcomponente, idinstrumento, treeWidget, "Voladuras", "12", "voladura", reiniciarvistas))
+                    delete_voladura.triggered.connect(lambda: SubirVoladuras.eliminar_voladura(idproyecto, idinstrumento, nombrevoladura, "Voladuras", "voladura", treeWidget, reiniciarvistas))
             
             menu.exec(treeWidget.mapToGlobal(point))
     
@@ -496,7 +499,6 @@ class EquiposDatos:
    
     def inicializar_lista_datos(tree_widget, proyecto_id, proyecto_name):
         import traceback
-        print("### ARBOL COMPLETO RECONSTRUIDO ###")
         traceback.print_stack()
         TreeCheckbox.limpiarArbolCheckboxes(tree_widget, proyecto_name)
         if proyecto_id:

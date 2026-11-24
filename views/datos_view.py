@@ -111,6 +111,7 @@ class DatosView:
             PiezometrosView.reiniciarVistaPiezometros(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
         elif tipoequipo == "Pluviómetro":
             VisorView.reiniciarVistaVisor(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
+            DesplazamientoView.reiniciarVistaDesplazamiento(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
             VelocidadView.reiniciarVistaVelocidad(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
             PiezometrosView.reiniciarVistaPiezometros(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
         elif tipoequipo == "Cotaterreno":
@@ -126,6 +127,11 @@ class DatosView:
             SondajetdrView.reiniciarVistaTDR(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
         elif tipoequipo == "Adicional":
             VisorView.reiniciarVistaVisor(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
+        elif tipoequipo == "Voladura":
+            DesplazamientoView.reiniciarVistaDesplazamiento(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
+            VelocidadView.reiniciarVistaVelocidad(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
+            PiezometrosView.reiniciarVistaPiezometros(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
+            CeldasView.reiniciarVistaCeldas(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
         else:
             VisorView.reiniciarVistaVisor(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
             DesplazamientoView.reiniciarVistaDesplazamiento(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)

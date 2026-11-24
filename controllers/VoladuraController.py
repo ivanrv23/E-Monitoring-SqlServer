@@ -47,8 +47,10 @@ class VoladuraController:
     def ctrlEliminarVoladura(idinstrumento):
         return VoladuraModel.mdlEliminarVoladura(idinstrumento)
 
-    def ctrlEliminarVoladuraData(idproyecto, idvoladura):
-        return VoladuraModel.mdlEliminarVoladuraData(idproyecto, idvoladura)
+    def ctrlEliminarVoladuraData(idproyecto, dato):
+        tabla = f"voladura_detalle{idproyecto}"
+        respuesta = VoladuraModel.mdlEliminarVoladuraData(tabla, dato[4])
+        return respuesta
 
     def ctrlRegistrarFormatoVoladura(proyectoid, nombre, codigo, comentario, idcomponente):
         return VoladuraModel.mdlRegistrarFormatoVoladura(proyectoid, nombre, codigo, comentario, idcomponente)
@@ -65,8 +67,18 @@ class VoladuraController:
     def ctrlCambiarComponenteVoladuras(idcomponente, nuevocomponente):
         return VoladuraModel.mdlCambiarComponenteVoladuras(idcomponente, nuevocomponente)
 
-    def ctrlEliminarVoladurasComponente(idproyecto, idcomponente):
-        return VoladuraModel.mdlEliminarVoladurasComponente(idproyecto, idcomponente)
+    def ctrlEliminarVoladurasComponente(idcomponente):
+        return VoladuraModel.mdlEliminarVoladurasComponente(idcomponente)
+
+    def ctrlEliminarDataVoladuras(idproyecto, datos):
+        tabla = f"voladura_detalle{idproyecto}"
+        voladuras = [dato[4] for dato in datos]
+        respuesta = VoladuraModel.mdlEliminarDataVoladuras(tabla, voladuras)
+        return respuesta
 
     def ctrlTraerDataVoladura(idvoladura):
         return VoladuraModel.mdlTraerDataVoladura(idvoladura)
+
+    def ctrlCambiarVoladuraComponente(idinstrumento, idcomponente):
+            respuesta = VoladuraModel.mdlCambiarVoladuraComponente(idinstrumento, idcomponente)
+            return respuesta

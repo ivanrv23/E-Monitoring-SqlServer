@@ -179,24 +179,22 @@ class VoladuraModel:
             if conn:
                 conn.close()
 
-    # Elimina la voladura de instrumentación y devuelve la fila eliminada
-    @staticmethod
+    # Eliminar voladura
     def mdlEliminarVoladura(idinstrumento):
         conn = None
         try:
             conn = Connection.connectionDB()
-            cur = conn.cursor()
-            cur.execute("""SELECT * FROM instrumentacion
-                           WHERE id_instrumentacion = ? AND tipo_equipo = 'VOLADURA';""", (idinstrumento,))
-            row = cur.fetchone()
-            datavoladura = tuple(row) if row else None
-            if not datavoladura:
+            cursor = conn.cursor()
+            query_select = """SELECT * FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'VOLADURA';"""
+            cursor.execute(query_select, (idinstrumento,))
+            row = cursor.fetchone()
+            datapluvio = tuple(row) if row else None
+            if not datapluvio:
                 return None
-            cur.execute("""DELETE FROM instrumentacion
-                           WHERE id_instrumentacion = ? AND tipo_equipo = 'VOLADURA';""", (idinstrumento,))
-            eliminado = cur.rowcount > 0
+            cursor.execute("""DELETE FROM instrumentacion WHERE id_instrumentacion = ? AND tipo_equipo = 'VOLADURA';""", (idinstrumento,))
+            borrados = cursor.rowcount      # ANTES del commit
             conn.commit()
-            return datavoladura if eliminado else None
+            return datapluvio if borrados > 0 else None
         except Exception as e:
             print(f"Error al eliminar voladura: {e}")
             if conn:
@@ -205,22 +203,25 @@ class VoladuraModel:
         finally:
             if conn:
                 conn.close()
-
-    # Elimina las lecturas (tabla por proyecto) y la voladura en sí
+    
+    # Elimina la voladura
     @staticmethod
-    def mdlEliminarVoladuraData(idproyecto, idvoladura):
+    def mdlEliminarVoladuraData(tabla, idvoladura):
         conn = None
-        tabla = f"voladura_detalle{int(idproyecto)}"
         try:
             conn = Connection.connectionDB()
-            cur = conn.cursor()
-            cur.execute("SELECT OBJECT_ID(?, 'U');", (tabla,))
-            if cur.fetchone()[0] is not None:
-                cur.execute(f"DELETE FROM {tabla} WHERE id_voladura = ?;", (idvoladura,))
-            cur.execute("DELETE FROM voladuras WHERE id_voladura = ?;", (idvoladura,))
-            eliminado = cur.rowcount > 0
+            cursor = conn.cursor()
+            cursor.execute("""SELECT 1 FROM instrumentacion
+                WHERE id_equipo = ? AND tipo_equipo = 'VOLADURA';""", (idvoladura,))
+            if cursor.fetchone():
+                return True  # sigue en otro componente: conservar pluviómetro y data
+            cursor.execute("SELECT 1 FROM sys.tables WHERE name = ?", (tabla,))
+            if cursor.fetchone():
+                cursor.execute(f"DELETE FROM {tabla} WHERE id_voladura = ?;", (idvoladura,))
+            cursor.execute("DELETE FROM voladuras WHERE id_voladura = ?;", (idvoladura,))
+            cursor.execute("DELETE FROM voladuras_estilo WHERE id_voladura = ?;", (idvoladura,))
             conn.commit()
-            return eliminado
+            return True
         except Exception as e:
             print(f"Error al eliminar data voladura: {e}")
             if conn:
@@ -565,29 +566,46 @@ class VoladuraModel:
     # ------------------------------------------------------------------
     # OPERACIONES POR COMPONENTE (menú del grupo "Voladuras")
     # ------------------------------------------------------------------
-
-    # Mueve TODAS las voladuras de un componente a otro
-    @staticmethod
     def mdlCambiarComponenteVoladuras(idcomponente, nuevocomponente):
+        conn = None
+        sql = """UPDATE instrumentacion SET id_componente = ? WHERE id_componente = ? AND tipo_equipo = 'VOLADURA';"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            # guardar info
+            query_select = """SELECT * FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'VOLADURA';"""
+            cur.execute(query_select, (idcomponente,))
+            results = [tuple(row) for row in cur.fetchall()]
+            if results:
+                cur.execute(sql, (nuevocomponente, idcomponente))
+                conn.commit()
+                return results
+            else:
+                return None
+        except Exception as e:
+            print("Error al cambiar componente voladuras: " + str(e))
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    # Elimina TODAS las voladuras de un componente (instrumentación, lecturas, estilo y voladura)
+    def mdlEliminarVoladurasComponente(idcomponente):
         conn = None
         try:
             conn = Connection.connectionDB()
-            if not conn:
+            cursor = conn.cursor()
+            query_select = """SELECT * FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'VOLADURA';"""
+            cursor.execute(query_select, (idcomponente,))
+            results = [tuple(row) for row in cursor.fetchall()]
+            if not results:
                 return None
-            cur = conn.cursor()
-            cur.execute("""SELECT * FROM instrumentacion
-                           WHERE id_componente = ? AND tipo_equipo = 'VOLADURA';""", (idcomponente,))
-            filas = [tuple(r) for r in cur.fetchall()]
-            if not filas:
-                return None
-            cur.execute("""UPDATE instrumentacion SET id_componente = ?
-                           WHERE id_componente = ? AND tipo_equipo = 'VOLADURA';""",
-                        (nuevocomponente, idcomponente))
+            cursor.execute("""DELETE FROM instrumentacion WHERE id_componente = ? AND tipo_equipo = 'VOLADURA';""", (idcomponente,))
+            borrados = cursor.rowcount      # ANTES del commit
             conn.commit()
-            return filas
-        except Exception:
-            import traceback
-            traceback.print_exc()
+            return results if borrados > 0 else None
+        except Exception as e:
+            print(f"Error al eliminar voladuras: {e}")
             if conn:
                 conn.rollback()
             return None
@@ -595,35 +613,32 @@ class VoladuraModel:
             if conn:
                 conn.close()
 
-    # Elimina TODAS las voladuras de un componente (instrumentación, lecturas, estilo y voladura)
     @staticmethod
-    def mdlEliminarVoladurasComponente(idproyecto, idcomponente):
+    def mdlEliminarDataVoladuras(tabla, voladuras):
         conn = None
-        tabla = f"voladura_detalle{int(idproyecto)}"
+        if not voladuras:
+            return True
+        placeholders = ','.join(['?' for _ in voladuras])
         try:
             conn = Connection.connectionDB()
-            if not conn:
-                return False
-            cur = conn.cursor()
-            cur.execute("""SELECT id_equipo FROM instrumentacion
-                           WHERE id_componente = ? AND tipo_equipo = 'VOLADURA';""", (idcomponente,))
-            ids = [int(r[0]) for r in cur.fetchall()]
-            if not ids:
-                return False
-            ph = ",".join("?" * len(ids))
-
-            cur.execute("SELECT OBJECT_ID(?, 'U');", (tabla,))
-            if cur.fetchone()[0] is not None:
-                cur.execute(f"DELETE FROM {tabla} WHERE id_voladura IN ({ph});", ids)
-            cur.execute(f"DELETE FROM voladuras_estilo WHERE id_voladura IN ({ph});", ids)
-            cur.execute("""DELETE FROM instrumentacion
-                           WHERE id_componente = ? AND tipo_equipo = 'VOLADURA';""", (idcomponente,))
-            cur.execute(f"DELETE FROM voladuras WHERE id_voladura IN ({ph});", ids)
+            cursor = conn.cursor()
+            # solo los que ya no están en ningún componente
+            cursor.execute(f"""SELECT p.id_voladura FROM voladuras p
+                WHERE p.id_voladura IN ({placeholders})
+                AND NOT EXISTS (SELECT 1 FROM instrumentacion i
+                    WHERE i.id_equipo = p.id_voladura AND i.tipo_equipo = 'VOLADURA');""", voladuras)
+            huerfanos = [r[0] for r in cursor.fetchall()]
+            if huerfanos:
+                ph = ','.join(['?' for _ in huerfanos])
+                cursor.execute("SELECT 1 FROM sys.tables WHERE name = ?", (tabla,))
+                if cursor.fetchone():
+                    cursor.execute(f"DELETE FROM {tabla} WHERE id_voladura IN ({ph});", huerfanos)
+                cursor.execute(f"DELETE FROM voladuras WHERE id_voladura IN ({ph});", huerfanos)
+                cursor.execute(f"DELETE FROM voladuras_estilo WHERE id_voladura IN ({ph});", huerfanos)
             conn.commit()
             return True
-        except Exception:
-            import traceback
-            traceback.print_exc()
+        except Exception as e:
+            print(f"Error al eliminar data voladuras: {e}")
             if conn:
                 conn.rollback()
             return False
@@ -649,6 +664,22 @@ class VoladuraModel:
             import traceback
             traceback.print_exc()
             return None
+        finally:
+            if conn:
+                conn.close()
+
+    def mdlCambiarVoladuraComponente(idinstrumento, nuevocomponente):
+        conn = None
+        sql = """UPDATE instrumentacion SET id_componente = ? WHERE id_instrumentacion = ?;"""
+        try:
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute(sql, (nuevocomponente, idinstrumento))
+            conn.commit()
+            return True
+        except Exception as e:
+            print("Error al cambiar componente voladura: " + str(e))
+            return False
         finally:
             if conn:
                 conn.close()
