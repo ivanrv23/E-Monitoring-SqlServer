@@ -1,11 +1,9 @@
 import re
 import unicodedata
 import pandas as pd
-from openpyxl import load_workbook
 from datetime import datetime, time
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QComboBox, QPushButton, QMenu, QTableWidget,
-                               QLabel, QLineEdit, QFileDialog, QFormLayout, QDialogButtonBox,
-                               QMessageBox, QTreeWidget)
+                            QLabel, QLineEdit, QFileDialog, QFormLayout, QDialogButtonBox, QMessageBox, QTreeWidget, QTableView)
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import Qt, QThread, Signal
 from utils.common.rutasarchivos import resource_path
@@ -53,17 +51,14 @@ class SubirVoladuras:
                         print("      GRUPO:", grp.text(0), "| tipo:", grp.text(1),
                               "| hijos:", grp.childCount(), "| oculto:", grp.isHidden())
 
-            print("### ANTES ###")
             volcar(tree)
             try:
                 TreeCheckbox.eliminarCheckbox(tree, "Voladuras", idinstrumento, "voladura")
-                print("### TRAS ELIMINAR ###")
                 volcar(tree)
                 if vol:
                     TreeCheckbox.crearNuevoGrupoCheckboxesSimple(
                         tree, nombrezona, idcomponente, proyectoid,
                         "Voladuras", tipo, vol, "voladura")
-                print("### TRAS CREAR ###")
                 volcar(tree)
             except Exception:
                 import traceback
@@ -75,7 +70,6 @@ class SubirVoladuras:
             main = DatosView.main
         data = VoladuraController.ctrlTraerDataVoladura(idvoladura)
         if not data:
-            print("### ARBOL ### ctrlTraerDataVoladura devolvió None para", idvoladura)
             return
         idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
         vol = InterfazController.ctrlListarComponenteVoladura(idinstrumento)
@@ -183,11 +177,8 @@ class SubirVoladuras:
 
     # ------------------------------------------------------------------
     # CARGAR FORMATO (Excel)  -> reutiliza ui/cargardataformato.ui
-    # Formato esperado (igual que Cotas de Terreno):
-    #   C10 = nombre de la voladura, C11 = comentario
-    #   fila 12 = encabezados, datos desde la fila 13
     # ------------------------------------------------------------------
-    def cargarDataFormatosVoladuras(main, proyectoid, treeWidget=None, reiniciarvistas=None):
+    def cargarDataFormatosVoladuras(main, proyectoid):
         loader = QUiLoader()
         ui_file = loader.load(resource_path("ui/cargardataformato.ui"), None)
         dialogo = QDialog()
@@ -204,13 +195,13 @@ class SubirVoladuras:
         labelRespuesta = dialogo.findChild(QLabel, "label_mensaje")
         botonAceptar = dialogo.findChild(QPushButton, "btn_aceptar")
 
-        listacomponentes = VoladuraController.ctrlListarComponentesProyecto(proyectoid)
-        if listacomponentes:
-            for fila in listacomponentes:
-                comboComponentes.addItem(str(fila[1]), fila[0])
+        componentes = ProyectoController.ctrlObtenerComponentesProyecto(proyectoid)
+        if len(componentes) > 0:
+            for fila in componentes:
+                comboComponentes.addItem(str(fila[2]), fila[0])
             comboComponentes.setEnabled(True)
         else:
-            comboComponentes.addItem("Sin Carpetas")
+            comboComponentes.addItem("Sin Componentes")
             comboComponentes.setEnabled(False)
             botonAceptar.setEnabled(False)
 
@@ -227,6 +218,7 @@ class SubirVoladuras:
             idcomponente = comboComponentes.currentData()
             labelRespuesta.setText("")
             botonAceptar.setEnabled(False)
+
             loading = LoadingView.mostrarLoading()
             thread = CargarVoladurasThread(proyectoid, ubicacion_archivo.text(), idcomponente)
             SubirVoladuras._current_thread_voladura = thread
@@ -236,16 +228,25 @@ class SubirVoladuras:
                 botonAceptar.setEnabled(True)
                 labelRespuesta.setText(resultado.get("mensaje", ""))
                 labelRespuesta.setStyleSheet(f"color: {resultado.get('color', 'red')};")
-
                 if resultado.get("ok"):
-                    SubirVoladuras._refrescarArbol(treeWidget, reiniciarvistas)
-                    from views.datos_view import DatosView
-                    main_real = main if main is not None else DatosView.main
+                    ubicacion_archivo.clear()
                     for item in resultado.get("equipos_data", []):
-                        SubirVoladuras._actualizarGrupoArbolDatos(
-                            main_real,
-                            item["idinstrumento"], item["idcomponente"],
-                            item["nombrezona"], item["vol"], proyectoid, treeWidget)
+                        idinstrumento = item["idinstrumento"]
+                        idcomponente = item["idcomponente"]
+                        nombrezona = item["nombrezona"]
+                        voladu = item["vol"]
+
+                        treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
+                        treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+                        treewidgetanalisis = main.findChild(QTreeWidget, "tree_actual_analisis")
+                        TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Voladuras", idinstrumento, "voladura")
+                        TreeCheckbox.eliminarCheckbox(treewidgetveloci, "Voladuras", idinstrumento, "voladura")
+                        TreeCheckbox.eliminarCheckbox(treewidgetanalisis, "Voladuras", idinstrumento, "voladura")
+
+                        if voladu:
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "Voladuras", "12", voladu, "voladura")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetveloci, nombrezona, idcomponente, proyectoid, "Voladuras", "3", voladu, "voladura")
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetanalisis, nombrezona, idcomponente, proyectoid, "Voladuras", "3", voladu, "voladura")
 
                 SubirVoladuras._current_thread_voladura = None
 
@@ -390,7 +391,7 @@ class SubirVoladuras:
     # ------------------------------------------------------------------
     # EDITAR / ELIMINAR VOLADURA (menú del árbol)
     # ------------------------------------------------------------------
-    def actualizarVoladura(idproyecto, idcomponente, idinstrumento, treeWidget, reiniciarvistas):
+    def actualizarVoladura(idproyecto, idcomponente, idinstrumento, treewidget, nombregrupo, tipogrupo, subgrupo, reiniciarvistas):
         info = VoladuraController.ctrlObtenerInfoVoladura(idinstrumento)
         if not info:
             mostrar_mensaje("Sin Datos", "No se pudo cargar los datos de la voladura.", "advertencia")
@@ -434,6 +435,7 @@ class SubirVoladuras:
         layout.addWidget(button_box)
 
         def guardar():
+            nombrezona = componente_combo.currentText()
             nombre = nombre_input.text().strip()
             codigo = codigo_input.text().strip()
             comentario = comentario_input.text().strip()
@@ -448,46 +450,113 @@ class SubirVoladuras:
                 return
             datos = [nombre, codigo, comentario, estado, idvoladura]
             data = [nuevo_comp, nombre, estado, idinstrumento]
-            if VoladuraController.ctrlActualizarVoladura(datos, data):
+            respuesta = VoladuraController.ctrlActualizarVoladura(datos, data)
+            if respuesta:
                 dialog.accept()
-                from views.datos_view import DatosView
-                SubirVoladuras._actualizarGrupoArbol(idvoladura, idproyecto, DatosView.main, treeWidget)
-                if reiniciarvistas:
-                    reiniciarvistas("Voladura")
+                if str(idcomponente) == str(nuevo_comp):
+                    TreeCheckbox.actualizarTextoCheckboxEquipo(treewidget, idcomponente, nombregrupo, subgrupo, nombre_ini, nombre)
+                else:
+                    # Eliminar voladura
+                    TreeCheckbox.eliminarCheckbox(treewidget, nombregrupo, idinstrumento, subgrupo)
+                    # Crear voladura en nuevo componente
+                    voladur = InterfazController.ctrlListarComponentePluviometro(idinstrumento)
+                    if voladur:
+                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidget, nombrezona, nuevo_comp, idproyecto, nombregrupo, tipogrupo, voladur, subgrupo)
+                reiniciarvistas("Voladura")
             else:
-                label_mensaje.setText("Error al actualizar los datos.")
+                label_mensaje.setText("Error al actualizar la voladura.")
+                label_mensaje.setStyleSheet("color: red;")
 
         button_box.accepted.connect(guardar)
         button_box.rejected.connect(dialog.reject)
         dialog.exec()
 
-    def eliminar_voladura(idinstrumento, nombre, item, treeWidget, reiniciarvistas):
+    def eliminar_voladura(idproyecto, idinstrumento, nombrevoladu, nombregrupo, subgrupo, treewidget, reiniciarvistas):
         dlg = QMessageBox()
         dlg.setWindowTitle("Eliminar Voladura")
-        dlg.setText(f"¿Desea eliminar la voladura '{nombre}' y todas sus lecturas?")
+        dlg.setText(f"¿Está seguro eliminar la Voladura '{nombrevoladu}'?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         dlg.button(QMessageBox.Yes).setText("Sí")
         dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
-        if dlg.exec() != QMessageBox.Yes:
-            return
-
-        # Obtener id_voladura ANTES de borrar la fila de instrumentacion
-        info = VoladuraController.ctrlObtenerInfoVoladura(idinstrumento)
-        if not info:
-            mostrar_mensaje("Eliminar Voladura", "No se pudo obtener la voladura.", "advertencia")
-            return
-        idvoladura = info[0]
-
-        if VoladuraController.ctrlEliminarVoladura(idinstrumento):
-            from views.datos_view import DatosView
-            VoladuraController.ctrlEliminarVoladuraData(DatosView.idproyecto, idvoladura)
-            # El refresco reconstruye el árbol completo (no tocar 'item' después)
-            TreeCheckbox.eliminarCheckbox(treeWidget, "Voladuras", idinstrumento, "voladura")
-            if reiniciarvistas:
+        result = dlg.exec()
+        if result == QMessageBox.Yes:
+            respuesta = VoladuraController.ctrlEliminarVoladura(idinstrumento)
+            if respuesta:
+                # El instrumento ya se eliminó: quitar del árbol de inmediato
+                TreeCheckbox.eliminarCheckbox(treewidget, nombregrupo, idinstrumento, subgrupo)
                 reiniciarvistas("Voladura")
-        else:
-            mostrar_mensaje("Eliminar Voladura", "No se pudo eliminar la voladura.", "advertencia")
+
+                delete = VoladuraController.ctrlEliminarVoladuraData(idproyecto, respuesta)
+                if not delete:
+                    mostrar_mensaje("Eliminar Voladura", "Error al eliminar data de la voladura.", "advertencia")
+            else:
+                mostrar_mensaje("Eliminar Voladura", "No se pudo eliminar la voladura.", "advertencia")
+    
+    def cambiar_componente_bloque_voladura(idproyecto, idcomponente, parent, treewidget, nombregrupo, tipogrupo, subgrupo, reiniciarvistas):
+        dialog = QDialog()
+        dialog.setWindowTitle("Mover Voladuras Componente")
+        layout = QFormLayout(dialog)
+        # Campo componente
+        label_titulo = QLabel("Componente:")
+        combo_componente = QComboBox()
+        label_mensaje = QLabel("")
+        label_mensaje.setAlignment(Qt.AlignCenter)
+        label_mensaje.setStyleSheet("QLabel { color: red; }")
+        # cargar data componentes
+        componentes = ProyectoController.ctrlObtenerComponentesProyecto(idproyecto)
+        if componentes:
+            for fila in componentes:
+                combo_componente.addItem(str(fila[2]), fila[0])
+            combo_componente.setCurrentIndex(combo_componente.findData(idcomponente))
+        # Botones
+        layout.addRow(label_titulo)
+        layout.addRow(combo_componente)
+        layout.addRow(label_mensaje)
+        button_box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        # Cambiar los textos a español
+        button_box.button(QDialogButtonBox.Save).setText("Guardar")
+        button_box.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        layout.addWidget(button_box)
+        # Conectar los botones a las funciones correspondientes
+        def actualizarDatos():
+            componente = combo_componente.currentData()
+            nombrezona = combo_componente.currentText()
+            if str(idcomponente) == str(componente):
+                dialog.reject()
+            else:
+                result = False
+                hijos_marcados = []
+                for i in range(parent.childCount()):
+                    hijo = parent.child(i)
+                    if hijo is not None and hijo.checkState(0) == Qt.Checked:
+                        idinstrumento = hijo.text(2)
+                        respuesta = VoladuraController.ctrlCambiarVoladuraComponente(idinstrumento, componente)
+                        if respuesta:
+                            hijos_marcados.append(hijo)
+                            result = True
+                if result:
+                    dialog.reject()
+                    for hijo in hijos_marcados:
+                        idinstrumento = hijo.text(2)
+                        TreeCheckbox.eliminarCheckbox(treewidget, nombregrupo, idinstrumento, subgrupo)
+                        # Crear voladura en nuevo componente
+                        voladura = InterfazController.ctrlListarComponenteVoladura(idinstrumento)
+                        if voladura:
+                            TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidget, nombrezona, componente, idproyecto, nombregrupo, tipogrupo, voladura, subgrupo)
+                    reiniciarvistas("Voladuras")
+                    # Limpiar tabla
+                    from views.datos_view import DatosView
+                    from modules.datos.vistaDatos import VistaDatos
+                    tabla =  DatosView.main.findChild(QTableView, "table_datos")
+                    VistaDatos.limpiarTablaDatos(tabla)
+                else:
+                    label_mensaje.setText("Error al cambiar de componente.")
+        button_box.accepted.connect(actualizarDatos)
+        button_box.rejected.connect(dialog.reject)
+        # Mostrar el diálogo
+        dialog.setLayout(layout)
+        dialog.exec()
 
     # ------------------------------------------------------------------
     # CAMBIAR COMPONENTE / ELIMINAR TODAS (menú del grupo)
@@ -496,61 +565,72 @@ class SubirVoladuras:
         dialog = QDialog()
         dialog.setWindowTitle("Componente Voladuras")
         layout = QFormLayout(dialog)
-
+        # Campo componente
+        label_titulo = QLabel("Componente:")
         combo_componente = QComboBox()
         label_mensaje = QLabel("")
         label_mensaje.setAlignment(Qt.AlignCenter)
         label_mensaje.setStyleSheet("QLabel { color: red; }")
-
-        componentes = VoladuraController.ctrlListarComponentesProyecto(idproyecto) or []
-        for fila in componentes:
-            combo_componente.addItem(str(fila[1]), fila[0])
-        combo_componente.setCurrentIndex(combo_componente.findData(int(idcomponente)))
-
-        layout.addRow(QLabel("Componente:"))
+        # cargar data componentes
+        componentes = ProyectoController.ctrlObtenerComponentesProyecto(idproyecto)
+        if componentes:
+            for fila in componentes:
+                combo_componente.addItem(str(fila[2]), fila[0])
+            combo_componente.setCurrentIndex(combo_componente.findData(idcomponente))
+        # Botones
+        layout.addRow(label_titulo)
         layout.addRow(combo_componente)
         layout.addRow(label_mensaje)
-
         button_box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        # Cambiar los textos a español
         button_box.button(QDialogButtonBox.Save).setText("Guardar")
         button_box.button(QDialogButtonBox.Cancel).setText("Cancelar")
         layout.addWidget(button_box)
-
-        def guardar():
-            nuevo = combo_componente.currentData()
+        # Conectar los botones a las funciones correspondientes
+        def actualizarDatos():
+            componente = combo_componente.currentData()
             nombrezona = combo_componente.currentText()
-            if nuevo is None or str(idcomponente) == str(nuevo):
+            if str(idcomponente) == str(componente):
                 dialog.reject()
-                return
-            respuesta = VoladuraController.ctrlCambiarComponenteVoladuras(idcomponente, nuevo)
-            if respuesta:
-                dialog.reject()
-                TreeCheckbox.eliminarCheckboxGrupo(treewidget, idcomponente, nombregrupo, tipogrupo)
-                TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidget, nombrezona, nuevo, idproyecto, nombregrupo, tipogrupo, respuesta, subgrupo)
-                reiniciarvistas("Voladura")
             else:
-                label_mensaje.setText("Error al cambiar de componente.")
-
-        button_box.accepted.connect(guardar)
+                respuesta = VoladuraController.ctrlCambiarComponenteVoladuras(idcomponente, componente)
+                if respuesta:
+                    dialog.reject()
+                    # Eliminar voladuras
+                    TreeCheckbox.eliminarCheckboxGrupo(treewidget, idcomponente, nombregrupo, tipogrupo)
+                    # Crear voladura en nuevo componente
+                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidget, nombrezona, componente, idproyecto, nombregrupo, tipogrupo, respuesta, subgrupo)
+                    reiniciarvistas("Voladuras")
+                else:
+                    label_mensaje.setText("Error al cambiar de componente.")
+        button_box.accepted.connect(actualizarDatos)
         button_box.rejected.connect(dialog.reject)
+        # Mostrar el diálogo
+        dialog.setLayout(layout)
         dialog.exec()
-
-    def eliminar_voladuras(idproyecto, idcomponente, nombregrupo, tipogrupo, treewidget, reiniciarvistas):
+    
+    def eliminar_voladuras(idproyecto, idzona, grupo, tipo, treewidget, reiniciarvistas):
         dlg = QMessageBox()
         dlg.setWindowTitle("Eliminar Voladuras")
-        dlg.setText("¿Está seguro de eliminar todas las Voladuras y sus lecturas?")
+        dlg.setText(f"¿Está seguro eliminar todos las voladuras?")
         dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         dlg.button(QMessageBox.Yes).setText("Sí")
         dlg.button(QMessageBox.No).setText("No")
         dlg.setIcon(QMessageBox.Question)
-        if dlg.exec() != QMessageBox.Yes:
-            return
-        if VoladuraController.ctrlEliminarVoladurasComponente(idproyecto, idcomponente):
-            TreeCheckbox.eliminarCheckboxGrupo(treewidget, idcomponente, nombregrupo, tipogrupo)
-            reiniciarvistas("Voladura")
-        else:
-            mostrar_mensaje("Eliminar Voladuras", "No se pudieron eliminar las Voladuras.", "advertencia")
+        result = dlg.exec()
+        if result == QMessageBox.Yes:
+            respuesta = VoladuraController.ctrlEliminarVoladurasComponente(idzona)
+            if respuesta:
+                # Los instrumentos ya se eliminaron: quitar del árbol de inmediato
+                TreeCheckbox.eliminarCheckboxGrupo(treewidget, idzona, grupo, tipo)
+                reiniciarvistas("Voladura")
 
+                delete = VoladuraController.ctrlEliminarDataVoladuras(idproyecto, respuesta)
+                if not delete:
+                    mostrar_mensaje("Eliminar Voladuras", "Error al eliminar data Voladuras.", "advertencia")
+            else:
+                mostrar_mensaje("Eliminar Voladuras", "No se pudo eliminar las Voladuras.", "advertencia")
+    
     def personalizarVoladura(idinstrumento, nombre, callback_graficar=None):
             estilo = VoladuraController.ctrlObtenerEstiloVoladura(idinstrumento)
             grosor_ini, alto_ini, color_ini = estilo if estilo else (2.5, 0.05, "#ff0000")

@@ -73,7 +73,7 @@ class PluviometroController:
         respuesta = PluviometroModel.mdlEliminarPluviometros(idcomponente)
         return respuesta
     
-    def ctrlEliminarDataPiezometrosManuales(idproyecto, datos):
+    def ctrlEliminarDataPluviometros(idproyecto, datos):
         tabla = f"pluviometro_detalle{idproyecto}"
         pluvio = [dato[4] for dato in datos]
         respuesta = PluviometroModel.mdlEliminarDataPluviometros(tabla, pluvio)

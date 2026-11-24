@@ -254,6 +254,10 @@ class EquiposVelocidad:
                     pluviometros = InterfazController.ctrlListarPluviometrosComponente(proyecto_id, idzona)
                     if pluviometros:
                         TreeCheckbox.crearNuevoGrupoCheckboxesSimple(tree_widget, namezona, idzona, proyecto_id, "Pluviómetros", "2", pluviometros, "pluviometro")
+                    # Listar voladuras
+                    voladuras = InterfazController.ctrlListarVoladurasComponente(proyecto_id, idzona)
+                    if voladuras:
+                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(tree_widget, namezona, idzona, proyecto_id, "Voladuras", "3", voladuras, "voladura")
         
     @staticmethod
     def marcar_desmarcar_proyecto_completo(treeWidget, estado, callback_graficar):

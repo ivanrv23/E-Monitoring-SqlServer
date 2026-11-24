@@ -502,7 +502,7 @@ class SubirPluviometros:
                 TreeCheckbox.eliminarCheckboxGrupo(treewidget, idzona, grupo, tipo)
                 reiniciarvistas("Pluviómetro")
 
-                delete = PluviometroController.ctrlEliminarDataPiezometrosManuales(idproyecto, respuesta)
+                delete = PluviometroController.ctrlEliminarDataPluviometros(idproyecto, respuesta)
                 if not delete:
                     mostrar_mensaje("Eliminar Pluviómetros", "Error al eliminar data Pluviómetros.", "advertencia")
             else:
@@ -652,7 +652,7 @@ class SubirPluviometros:
                     for hijo in hijos_marcados:
                         idinstrumento = hijo.text(2)
                         TreeCheckbox.eliminarCheckbox(treewidget, nombregrupo, idinstrumento, subgrupo)
-                        # Crear prisma en nuevo componente
+                        # Crear pluviometro en nuevo componente
                         pluviometro = InterfazController.ctrlListarComponentePluviometro(idinstrumento)
                         if pluviometro:
                             TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidget, nombrezona, componente, idproyecto, nombregrupo, tipogrupo, pluviometro, subgrupo)
