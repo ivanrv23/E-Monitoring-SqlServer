@@ -693,9 +693,7 @@ class SubirVoladuras:
 
     ARBOLES = [
         ("tree_actual_datos", "12"),
-        # ("tree_actual_visor", "??"),
-        # ("tree_actual_desplazamiento", "??"),
-        # ("tree_actual_piezometros", "??"),
+        ("tree_actual_piezometros", "5"),
     ]
 
     def _buscarVoladura(proyectoid, nombre, idcomponente):

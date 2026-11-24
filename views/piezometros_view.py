@@ -19,6 +19,10 @@ from controllers.UmbralController import UmbralController
 from utils.shared.graficarUmbrales import GraficarUmbrales
 from utils.common.alertas import mostrar_mensaje
 from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
+from datetime import datetime
+import matplotlib.dates as mdates
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from controllers.VoladuraController import VoladuraController
 
 class PiezometrosView:
     main = None
@@ -426,6 +430,21 @@ class PiezometrosView:
                 if tipo[0] == tipolista:
                     equiposmarcados.append((region, lista_equipos))
         return equiposmarcados
+
+    @staticmethod
+    def obtenerDataVoladurasMarcadas(lista):
+        """Devuelve las lecturas de las voladuras marcadas en el árbol (o None)."""
+        ids_vol = []
+        for region, equipos in PiezometrosView.obtenerListaEquiposMarcados(lista, "Voladuras"):
+            for eq in equipos:
+                if not eq or not eq[1]:      # ("", "", "") = hijo no marcado
+                    continue
+                info = VoladuraController.ctrlObtenerInfoVoladura(eq[1])  # eq[1] = id instrumentación
+                if info:
+                    ids_vol.append(info[0])
+        if not ids_vol:
+            return None
+        return VoladuraController.ctrlObtenerDataVoladuras(PiezometrosView.idproyecto, ids_vol)
     
     @staticmethod
     def _repintarUmbrales(lista):
@@ -444,6 +463,7 @@ class PiezometrosView:
     def graficarPiezometrosCuerdaMarcados(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografico, tipomedida, tipotiempo, tendencias=None):
         widget_piezometros = PiezometrosView.main.findChild(QWidget, "widget_piezometros")
         labeltendencia = PiezometrosView.main.findChild(QLabel, "label_tendencia_piezometros")
+        voladura_data = PiezometrosView.obtenerDataVoladurasMarcadas(lista)
         # Acceder a la primera fila
         primera_fila = datos[0]
         # Obtener el último y el penúltimo valor de la primera fila
@@ -509,15 +529,16 @@ class PiezometrosView:
             config = SoftwareConfiguracion.obtenerDataSoftware()
             filtrado = config[16]
             if filtrado == 0:
-                procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, terrenos, PiezometrosView.cuerdafechainicial, PiezometrosView.cuerdafechafinal)
+                procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, terrenos, PiezometrosView.cuerdafechainicial, PiezometrosView.cuerdafechafinal, voladura_data=voladura_data)
             else:
-                procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, terrenos)
+                procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, terrenos, voladura_data=voladura_data)
         else:
             PiezometrosView.limpiarGraficaPiezometros()
         
     def graficarPiezometrosManualMarcados(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografico, tipomedida, tipotiempo, tendencias=None):
         widget_piezometros = PiezometrosView.main.findChild(QWidget, "widget_piezometros")
         labeltendencia = PiezometrosView.main.findChild(QLabel, "label_tendencia_piezometros")
+        voladura_data = PiezometrosView.obtenerDataVoladurasMarcadas(lista)
         if tipografico == 'NF':
             valor = 5
             titulo = "Nivel Freático en Cota"
@@ -580,15 +601,15 @@ class PiezometrosView:
             if len(datos) > 0:
                 # validar tipo de filtrado
                 if filtrado == 0:
-                    procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, terrenos, PiezometrosView.manualfechainicial, PiezometrosView.manualfechafinal)
+                    procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, terrenos, PiezometrosView.manualfechainicial, PiezometrosView.manualfechafinal, voladura_data=voladura_data)
                 else:
-                    procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, terrenos)
+                    procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, terrenos, voladura_data=voladura_data)
             else:
                 if dataterreno and tipografico == "NF":
                     if filtrado == 0:
-                        procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, terrenos, PiezometrosView.manualfechainicial, PiezometrosView.manualfechafinal)
+                        procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, terrenos, PiezometrosView.manualfechainicial, PiezometrosView.manualfechafinal, voladura_data=voladura_data)
                     else:
-                        procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, terrenos)
+                        procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, terrenos, voladura_data=voladura_data)
                 else:
                     PiezometrosView.limpiarGraficaPiezometros()
         else:
@@ -597,6 +618,7 @@ class PiezometrosView:
     def graficarCotasTerrenoMarcados(lista, idx_funda, idx_super, tipografico, tipomedida, tipotiempo, tendencias=None):
         widget_piezometros = PiezometrosView.main.findChild(QWidget, "widget_piezometros")
         labeltendencia = PiezometrosView.main.findChild(QLabel, "label_tendencia_piezometros")
+        voladura_data = PiezometrosView.obtenerDataVoladurasMarcadas(lista)
         # tipo de tiempo
         if tipotiempo  == "FECHA":
             indextiempo = 2
@@ -627,9 +649,9 @@ class PiezometrosView:
                     filtrado = config[16]
                     # validar tipo de filtrado
                     if filtrado == 0:
-                        procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, dataterreno, PiezometrosView.manualfechainicial, PiezometrosView.manualfechafinal)
+                        procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, dataterreno, PiezometrosView.manualfechainicial, PiezometrosView.manualfechafinal, voladura_data=voladura_data)
                     else:
-                        procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, dataterreno)
+                        procesar_grafica_piezometros(widget_piezometros, labeltendencia, datos, cotasmarcadas, 1, indextiempo, valor, idx_funda, idx_super, labelx, labely, tipografico, tipomedida, tipotiempo, titulo, PiezometrosView.idproyecto, modulo, pluviometros, tendencias, dataterreno, voladura_data=voladura_data)
                 else:
                     PiezometrosView.limpiarGraficaPiezometros()
         else:
@@ -855,4 +877,3 @@ class PiezometrosView:
                 botonvoz.setEnabled(False)
                 hilo_asistente = threading.Thread(target=AsistenteVoz.analizarPiezometros, args=(PiezometrosView.idproyecto, piezocuerdasmarcados, piezomanualesmarcados, PiezometrosView.cuerdafechainicial, PiezometrosView.cuerdafechafinal, PiezometrosView.manualfechainicial, PiezometrosView.manualfechafinal, tipografico, botonvoz))
                 hilo_asistente.start()
-    
