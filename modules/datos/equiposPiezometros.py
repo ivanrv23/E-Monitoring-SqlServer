@@ -8,6 +8,7 @@ from modules.datos.subirPluviometros import SubirPluviometros
 from modules.datos.subirCotasTerreno import SubirCotasTerreno
 from utils.shared.personalizacion import Personalizacion
 from controllers.InterfazController import InterfazController
+from modules.datos.subirVoladuras import SubirVoladuras
 
 class EquiposPiezometros:
     
@@ -113,6 +114,12 @@ class EquiposPiezometros:
                                 hijo.setCheckState(0, Qt.Unchecked)
                     # validar padre
                     EquiposPiezometros.actualizar_estado_padre_hijos(parent_item)
+                elif codigo == "5": # VOLADURAS
+                    nuevo = Qt.Checked if estado == Qt.Checked else Qt.Unchecked
+                    for i in range(parent_item.childCount()):
+                        parent_item.child(i).setCheckState(0, nuevo)
+                    EquiposPiezometros.actualizar_estado_padre_hijos(parent_item)
+
             else:  # child (Hijos del parent)
                 if codigo == "piezometrocuerda":
                     num_nietospiezo = parent_item.childCount()
@@ -182,6 +189,9 @@ class EquiposPiezometros:
                         parent_item.setCheckState(0, Qt.Unchecked)
                     # validar padre
                     EquiposPiezometros.actualizar_estado_padre_hijos(parent_item)
+                elif codigo == "voladura":
+                    parent_item.setCheckState(0, estado)
+                    EquiposPiezometros.actualizar_estado_padre_hijos(parent_item)
             # mostrar en la grafica
             obtenerEquiposMarcados()
     
@@ -231,6 +241,13 @@ class EquiposPiezometros:
                     delete_terrenos = menu.addAction("Eliminar Cotas de Terreno")
                     edit_terrenos.triggered.connect(lambda: SubirCotasTerreno.cambiar_componente_terrenos(idzona, idproyecto, treeWidget, "Cotas de Terreno", "4", "terreno", reiniciarVistas))
                     delete_terrenos.triggered.connect(lambda: SubirCotasTerreno.eliminar_terrenos(idproyecto, idzona, "Cotas de Terreno", "4", treeWidget, reiniciarVistas))
+                elif tipo == "5": # Voladuras
+                    idzona = item.text(2)
+                    idproyecto = item.text(3)
+                    edit_voladuras = menu.addAction("Cambiar de Componente")
+                    delete_voladuras = menu.addAction("Eliminar Voladuras")
+                    edit_voladuras.triggered.connect(lambda: SubirVoladuras.cambiar_componente_voladuras(idzona, idproyecto, treeWidget, "Voladuras", "5", "voladura", reiniciarVistas))
+                    delete_voladuras.triggered.connect(lambda: SubirVoladuras.eliminar_voladuras(idproyecto, idzona, "Voladuras", "5", treeWidget, reiniciarVistas))
             else:    
                 if tipo == "piezometrocuerda":
                     nombrepiezo = item.text(0)
@@ -306,6 +323,20 @@ class EquiposPiezometros:
                     custom_cotaterreno.triggered.connect(lambda: Personalizacion.personalizarEquipoGrafica(idproyecto, idinstrumento, nombreterreno, "COTA DE TERRENO"))
                     edit_cotaterreno.triggered.connect(lambda: SubirCotasTerreno.actualizarCotaTerreno(idproyecto, idcomponente, idinstrumento, treeWidget, "Cotas de Terreno", "4", "terreno", reiniciarVistas))
                     delete_cotaterreno.triggered.connect(lambda: SubirCotasTerreno.eliminar_cotaterreno(idproyecto, idinstrumento, nombreterreno, "Cotas de Terreno", "terreno", treeWidget, reiniciarVistas))
+                elif tipo == "voladura":
+                    nombrevoladura = item.text(0)
+                    idinstrumento = item.text(2)
+                    idcomponente = item.parent().parent().text(2)
+                    idproyecto = item.parent().parent().text(3)
+                    custom_voladura = menu.addAction("Personalizar Voladura")
+                    edit_voladura = menu.addAction("Editar Voladura")
+                    delete_voladura = menu.addAction("Eliminar Voladura")
+                    def _refrescar():
+                        from views.piezometros_view import PiezometrosView
+                        PiezometrosView.obtenerMostrarEquiposMarcados(treeWidget)
+                    custom_voladura.triggered.connect(lambda: SubirVoladuras.personalizarVoladura(idinstrumento, nombrevoladura, _refrescar))                    
+                    edit_voladura.triggered.connect(lambda: SubirVoladuras.actualizarVoladura(idproyecto, idcomponente, idinstrumento, treeWidget, reiniciarVistas))
+                    delete_voladura.triggered.connect(lambda: SubirVoladuras.eliminar_voladura(idinstrumento, nombrevoladura, item, treeWidget, reiniciarVistas))
             menu.exec(treeWidget.mapToGlobal(point))
     
     def validarMarcadoUnEquipoZona(datos, zona):
@@ -358,7 +389,7 @@ class EquiposPiezometros:
             for g in range(grupo.childCount()):
                 equipo = grupo.child(g)
                 nombre = equipo.text(1)
-                if str(nombre) != str(tipo) and str(nombre) != str(3) and str(nombre) != str(4):
+                if str(nombre) not in (str(tipo), "3", "4", "5"):
                     equipo.setCheckState(0, Qt.Unchecked)
                     EquiposPiezometros.desmarcarHijos(equipo)
     
@@ -560,6 +591,10 @@ class EquiposPiezometros:
                     terrenos = InterfazController.ctrlListarCotasTerrenoComponente(proyecto_id, idzona)
                     if terrenos:
                         TreeCheckbox.crearNuevoGrupoCheckboxesDoble(tree_widget, namezona, idzona, proyecto_id, "Cotas de Terreno", "4", terrenos, "terreno")
+                    # LISTAR VOLADURAS
+                    voladuras = InterfazController.ctrlListarVoladurasComponente(idzona)
+                    if voladuras:
+                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(tree_widget, namezona, idzona, proyecto_id, "Voladuras", "5", voladuras, "voladura")
 
     @staticmethod
     def filtrarArbolPorTexto(treeWidget, texto):
