@@ -23,59 +23,6 @@ class SubirVoladuras:
     _current_thread_voladura = None
 
     # ------------------------------------------------------------------
-    # REFRESCAR ÁRBOL DE EQUIPOS (pestaña Datos)
-    # ------------------------------------------------------------------
-    def _refrescarArbol(treeWidget, reiniciarvistas=None):
-        from modules.datos.equiposDatos import EquiposDatos
-        from views.datos_view import DatosView
-        if treeWidget is not None:
-            EquiposDatos.inicializar_lista_datos(treeWidget, DatosView.idproyecto, DatosView.nameproyecto)
-        DatosView.obtenerEquiposMarcados(True)
-        if reiniciarvistas:
-            reiniciarvistas("Voladura")
-
-    def _actualizarGrupoArbolDatos(main, idinstrumento, idcomponente, nombrezona, vol, proyectoid, treeWidget=None):
-        for nombre_arbol, tipo in SubirVoladuras.ARBOLES:
-            tree = main.findChild(QTreeWidget, nombre_arbol) if main is not None else None
-            if tree is None:
-                continue
-            if tree is None or tree.topLevelItemCount() == 0:
-                continue
-
-            def volcar(t):
-                for i in range(t.topLevelItemCount()):
-                    comp = t.topLevelItem(i)
-                    print("   COMP:", comp.text(0), "| id:", comp.text(2))
-                    for j in range(comp.childCount()):
-                        grp = comp.child(j)
-                        print("      GRUPO:", grp.text(0), "| tipo:", grp.text(1),
-                              "| hijos:", grp.childCount(), "| oculto:", grp.isHidden())
-
-            volcar(tree)
-            try:
-                TreeCheckbox.eliminarCheckbox(tree, "Voladuras", idinstrumento, "voladura")
-                volcar(tree)
-                if vol:
-                    TreeCheckbox.crearNuevoGrupoCheckboxesSimple(
-                        tree, nombrezona, idcomponente, proyectoid,
-                        "Voladuras", tipo, vol, "voladura")
-                volcar(tree)
-            except Exception:
-                import traceback
-                traceback.print_exc()
-
-    def _actualizarGrupoArbol(idvoladura, proyectoid, main=None, treeWidget=None):
-        if main is None:
-            from views.datos_view import DatosView
-            main = DatosView.main
-        data = VoladuraController.ctrlTraerDataVoladura(idvoladura)
-        if not data:
-            return
-        idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
-        vol = InterfazController.ctrlListarComponenteVoladura(idinstrumento)
-        SubirVoladuras._actualizarGrupoArbolDatos(
-            main, idinstrumento, idcomponente, nombrezona, vol, proyectoid, treeWidget)
-    # ------------------------------------------------------------------
     # CARGAR DESDE TABLA
     # Columnas: 0 Fecha | 1 Hora | 2 Ubicación | 3 Cota | 4 Observación
     # ------------------------------------------------------------------
@@ -163,7 +110,23 @@ class SubirVoladuras:
                 lblrespuesta.setStyleSheet("color: green;")
                 tabladata.setRowCount(0)
                 tabladata.insertRow(0)
-                SubirVoladuras._actualizarGrupoArbol(idvoladura, proyectoid, main, treeWidget)
+
+                # actualizar árbol checkbox
+                data = VoladuraController.ctrlTraerDataVoladura(idvoladura)
+                if data:
+                    idinstrumento, idcomponente, nombrezona = data[0], data[1], data[2]
+                    treewidgetdatos = main.findChild(QTreeWidget, "tree_actual_datos")
+                    treewidgetveloci = main.findChild(QTreeWidget, "tree_actual_desplazamiento")
+                    treewidgetanalisis = main.findChild(QTreeWidget, "tree_actual_analisis")
+                    TreeCheckbox.eliminarCheckbox(treewidgetdatos, "Voladuras", idinstrumento, "voladura")
+                    TreeCheckbox.eliminarCheckbox(treewidgetveloci, "Voladuras", idinstrumento, "voladura")
+                    TreeCheckbox.eliminarCheckbox(treewidgetanalisis, "Voladuras", idinstrumento, "voladura")
+                    # Crear piezometro cuerda en nuevo componente
+                    voladu = InterfazController.ctrlListarComponenteVoladura(idinstrumento)
+                    if voladu:
+                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetdatos, nombrezona, idcomponente, proyectoid, "Voladuras", "12", voladu, "voladura")
+                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetveloci, nombrezona, idcomponente, proyectoid, "Voladuras", "3", voladu, "voladura")
+                        TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidgetanalisis, nombrezona, idcomponente, proyectoid, "Voladuras", "3", voladu, "voladura")
             else:
                 lblrespuesta.setText("Error al registrar.")
                 lblrespuesta.setStyleSheet("color: red;")
@@ -375,7 +338,6 @@ class SubirVoladuras:
 
                 # 5) guardar lecturas
                 data = [(idvoladura,) + f for f in filas]
-                print("### PASO 5 VISTA ### filas:", len(data), "idvoladura:", idvoladura)
                 if VoladuraController.ctrlGuardarVoladuraTabla(proyectoid, data):
                     respuesta = True
                     if idvoladura not in equipos:
@@ -459,7 +421,7 @@ class SubirVoladuras:
                     # Eliminar voladura
                     TreeCheckbox.eliminarCheckbox(treewidget, nombregrupo, idinstrumento, subgrupo)
                     # Crear voladura en nuevo componente
-                    voladur = InterfazController.ctrlListarComponentePluviometro(idinstrumento)
+                    voladur = InterfazController.ctrlListarComponenteVoladura(idinstrumento)
                     if voladur:
                         TreeCheckbox.crearNuevoGrupoCheckboxesSimple(treewidget, nombrezona, nuevo_comp, idproyecto, nombregrupo, tipogrupo, voladur, subgrupo)
                 reiniciarvistas("Voladura")
@@ -632,62 +594,62 @@ class SubirVoladuras:
                 mostrar_mensaje("Eliminar Voladuras", "No se pudo eliminar las Voladuras.", "advertencia")
     
     def personalizarVoladura(idinstrumento, nombre, callback_graficar=None):
-            estilo = VoladuraController.ctrlObtenerEstiloVoladura(idinstrumento)
-            grosor_ini, alto_ini, color_ini = estilo if estilo else (2.5, 0.05, "#ff0000")
-    
-            dialog = QDialog()
-            dialog.setWindowTitle(f"Personalizar Voladura - {nombre}")
-            form = QFormLayout(dialog)
-    
-            spin_grosor = QDoubleSpinBox()
-            spin_grosor.setRange(0.5, 15.0)
-            spin_grosor.setSingleStep(0.5)
-            spin_grosor.setValue(float(grosor_ini))
-    
-            spin_largo = QSpinBox()
-            spin_largo.setRange(1, 100)
-            spin_largo.setSuffix(" % del alto del gráfico")
-            spin_largo.setValue(int(round(float(alto_ini) * 100)))
-    
-            color_actual = {"hex": str(color_ini)}
-            btn_color = QPushButton()
-    
-            def pintar_boton():
-                btn_color.setText(color_actual["hex"])
-                btn_color.setStyleSheet(f"background-color: {color_actual['hex']}; "
-                                        f"color: {'black' if QColor(color_actual['hex']).lightness() > 128 else 'white'};")
-    
-            def elegir_color():
-                c = QColorDialog.getColor(QColor(color_actual["hex"]), dialog, "Color de la voladura")
-                if c.isValid():
-                    color_actual["hex"] = c.name()
-                    pintar_boton()
-    
-            pintar_boton()
-            btn_color.clicked.connect(elegir_color)
-    
-            form.addRow("Grosor:", spin_grosor)
-            form.addRow("Largo:", spin_largo)
-            form.addRow("Color:", btn_color)
-    
-            box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
-            box.button(QDialogButtonBox.Save).setText("Guardar")
-            box.button(QDialogButtonBox.Cancel).setText("Cancelar")
-            form.addRow(box)
-    
-            def guardar():
-                ok = VoladuraController.ctrlGuardarEstiloVoladura(
-                    idinstrumento, spin_grosor.value(), spin_largo.value() / 100.0, color_actual["hex"])
-                if ok:
-                    dialog.accept()
-                    if callback_graficar:
-                        callback_graficar()
-                else:
-                    mostrar_mensaje("Personalizar", "No se pudo guardar el estilo.", "advertencia")
-    
-            box.accepted.connect(guardar)
-            box.rejected.connect(dialog.reject)
-            dialog.exec()
+        estilo = VoladuraController.ctrlObtenerEstiloVoladura(idinstrumento)
+        grosor_ini, alto_ini, color_ini = estilo if estilo else (2.5, 0.05, "#ff0000")
+
+        dialog = QDialog()
+        dialog.setWindowTitle(f"Personalizar Voladura - {nombre}")
+        form = QFormLayout(dialog)
+
+        spin_grosor = QDoubleSpinBox()
+        spin_grosor.setRange(0.5, 15.0)
+        spin_grosor.setSingleStep(0.5)
+        spin_grosor.setValue(float(grosor_ini))
+
+        spin_largo = QSpinBox()
+        spin_largo.setRange(1, 100)
+        spin_largo.setSuffix(" % del alto del gráfico")
+        spin_largo.setValue(int(round(float(alto_ini) * 100)))
+
+        color_actual = {"hex": str(color_ini)}
+        btn_color = QPushButton()
+
+        def pintar_boton():
+            btn_color.setText(color_actual["hex"])
+            btn_color.setStyleSheet(f"background-color: {color_actual['hex']}; "
+                                    f"color: {'black' if QColor(color_actual['hex']).lightness() > 128 else 'white'};")
+
+        def elegir_color():
+            c = QColorDialog.getColor(QColor(color_actual["hex"]), dialog, "Color de la voladura")
+            if c.isValid():
+                color_actual["hex"] = c.name()
+                pintar_boton()
+
+        pintar_boton()
+        btn_color.clicked.connect(elegir_color)
+
+        form.addRow("Grosor:", spin_grosor)
+        form.addRow("Largo:", spin_largo)
+        form.addRow("Color:", btn_color)
+
+        box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        box.button(QDialogButtonBox.Save).setText("Guardar")
+        box.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        form.addRow(box)
+
+        def guardar():
+            ok = VoladuraController.ctrlGuardarEstiloVoladura(
+                idinstrumento, spin_grosor.value(), spin_largo.value() / 100.0, color_actual["hex"])
+            if ok:
+                dialog.accept()
+                if callback_graficar:
+                    callback_graficar()
+            else:
+                mostrar_mensaje("Personalizar", "No se pudo guardar el estilo.", "advertencia")
+
+        box.accepted.connect(guardar)
+        box.rejected.connect(dialog.reject)
+        dialog.exec()
 
     COL_COMPONENTE = 3
 
