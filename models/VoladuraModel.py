@@ -362,6 +362,36 @@ class VoladuraModel:
             if conn:
                 conn.close()
 
+    @staticmethod
+    def mdlObtenerDataVoladurasFechas(idproyecto, ids, fechaini, fechafin):
+        conn = None
+        tabla = f"voladura_detalle{int(idproyecto)}"
+        try:
+            if not ids:
+                return None
+            conn = Connection.connectionDB()
+            cur = conn.cursor()
+            cur.execute("SELECT OBJECT_ID(?, 'U');", (tabla,))
+            if cur.fetchone()[0] is None:
+                return None
+            ph = ', '.join('?' for _ in ids)
+            sql = f"""SELECT v.nombre_voladura, d.fecha_detalle, COALESCE(d.ubicacion_detalle, ''),
+                            d.cota_detalle, COALESCE(d.observacion_detalle, ''), d.id_voladura
+                    FROM {tabla} d
+                    INNER JOIN voladuras v ON d.id_voladura = v.id_voladura
+                    WHERE d.id_voladura IN ({ph}) AND d.estado_detalle = 1
+                        AND d.fecha_detalle BETWEEN ? AND ?
+                    ORDER BY d.fecha_detalle;"""
+            cur.execute(sql, [int(i) for i in ids] + [fechaini, fechafin])
+            rows = [tuple(r) for r in cur.fetchall()]
+            return rows if rows else None
+        except Exception:
+            import traceback; traceback.print_exc()
+            return None
+        finally:
+            if conn:
+                conn.close()
+                
     # datos = [fecha, hora, ubicacion, cota, observacion, id_detalle]
     @staticmethod
     def mdlActualizarLecturaVoladura(idproyecto, datos):

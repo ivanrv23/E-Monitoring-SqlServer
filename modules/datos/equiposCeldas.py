@@ -64,6 +64,8 @@ class EquiposCeldas:
                     delete_celdas.triggered.connect(lambda: SubirCeldas.eliminar_celdas(idproyecto, idzona, "Celdas de Asentamiento", "1", treeWidget, reiniciarvistas))
                 elif tipo == "2": # Pluviómetros
                     pass             
+                elif tipo == "5": # Voladuras (grupo)
+                    pass
             else:    
                 if tipo == "celda":
                     nombrecelda = item.text(0)
@@ -97,8 +99,16 @@ class EquiposCeldas:
                     idproyecto = item.parent().parent().text(3)
                     custom_pluvio = menu.addAction("Personalizar Pluviómetro")
                     custom_pluvio.triggered.connect(lambda: Personalizacion.personalizarEquipoGrafica(idproyecto, idinstrumento, nombrepluvio, "PLUVIOMETRO"))
+                elif tipo == "voladura":
+                    nombrevol = item.text(0)
+                    idinstrumento = item.text(2)
+                    idproyecto = item.parent().parent().text(3)
+                    custom_vol = menu.addAction("Personalizar Voladura")
+                    custom_vol.triggered.connect(
+                        lambda: Personalizacion.personalizarEquipoGrafica(
+                            idproyecto, idinstrumento, nombrevol, "VOLADURA"))           
             menu.exec(treeWidget.mapToGlobal(point))
-    
+
     def validarMarcadoUnEquipoZona(datos, zona):
         respuesta = True
         if datos:
@@ -267,6 +277,12 @@ class EquiposCeldas:
                     if pluviometros:
                         TreeCheckbox.crearNuevoGrupoCheckboxesDoble(tree_widget, namezona, idzona, proyecto_id, "Pluviómetros", "2", pluviometros, "pluviometro")
 
+                    # LISTAR VOLADURAS
+                    voladuras = InterfazController.ctrlListarVoladurasComponente(idzona)
+                    if voladuras:
+                        TreeCheckbox.crearNuevoGrupoCheckboxesDoble(
+                            tree_widget, namezona, idzona, proyecto_id, "Voladuras", "5", voladuras, "voladura")
+ 
     @staticmethod
     def filtrarArbolPorTexto(treeWidget, texto):
         """Oculta/muestra items del árbol según coincidencia de texto (recursivo)."""

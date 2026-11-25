@@ -31,6 +31,8 @@ from utils.generic.calculardesviaciones import CalcularDesviaciones
 from modules.analisis.comportamientoprismas import GraficaComportamiento
 from services.security.session import Session
 from controllers.InterfazController import InterfazController
+from controllers.VoladuraController import VoladuraController
+from controllers.PluviometroController import PluviometroController
 
 # Subclase de AxisItem para forzar 3 decimales
 class DecimalAxis(pg.AxisItem):
@@ -868,6 +870,40 @@ class AnalisisView:
                 if tipo[0] == tipolista:
                     equiposmarcados.append((region, lista_equipos))
         return equiposmarcados
+
+    # ───────────── NUEVO: voladuras marcadas en el árbol ─────────────
+    @staticmethod
+    def _obtenerDataVoladuras():
+        """Filas de las voladuras marcadas en el árbol de Análisis, o None si no hay."""
+        tree = AnalisisView.main.findChild(QTreeWidget, "tree_actual_analisis")
+        lista = EquiposAnalisis.obtener_todos_elementos_marcados(tree)
+        if not lista:
+            return None
+        ids = []
+        for _, equipos in AnalisisView.obtenerListaEquiposMarcados(lista, "Voladuras"):
+            for eq in equipos:
+                info = VoladuraController.ctrlObtenerInfoVoladura(eq[1])  # eq[1] = id de instrumentación
+                if info:
+                    ids.append(info[0])                                    # info[0] = id_voladura
+        if not ids:
+            return None
+        return VoladuraController.ctrlObtenerDataVoladuras(AnalisisView.idproyecto, ids)
+
+    @staticmethod
+    def _obtenerDataPluviometros():
+        """Data del pluviómetro marcado en el árbol de Análisis, o None si no hay exactamente uno."""
+        tree = AnalisisView.main.findChild(QTreeWidget, "tree_actual_analisis")
+        lista = EquiposAnalisis.obtener_todos_elementos_marcados(tree)
+        if not lista:
+            return None
+        marcados = AnalisisView.obtenerListaEquiposMarcados(lista, "Pluviómetros")
+        if len(marcados) != 1:
+            return None
+        data = PluviometroController.ctrlObtenerPluviometros(
+            AnalisisView.idproyecto, marcados,
+            AnalisisView.fechainicial, AnalisisView.fechafinal
+        )
+        return data or None
     
     def graficarEquiposMarcadosAnalisis(prismasmarcados):
         tipo_grafico_analisis = AnalisisView.main.findChild(QComboBox, "combo_graficas_analisis")
@@ -946,12 +982,14 @@ class AnalisisView:
             datos = AnalisisController.ctrlCalcularDatosGrafica(AnalisisView.idproyecto, prismasmarcados, AnalisisView.fechainicial, AnalisisView.fechafinal, tipografico, filtrado, unidadmedida)
             if len(datos) > 0:
                 labeltendencia = AnalisisView.main.findChild(QLabel, "label_tendencia_analisis")
-                modulo, pluviometros = "ANALISIS", None
+                modulo = "ANALISIS"
+                pluviometros = AnalisisView._obtenerDataPluviometros()
                 tendencias = AnalisisView.obtenerTendenciasVigentes(prismasmarcados)
+                voladuras = AnalisisView._obtenerDataVoladuras()  # <-- NUEVO
                 if filtrado == 0:
-                    procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala, AnalisisView.fechainicial, AnalisisView.fechafinal)
+                    procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala, AnalisisView.fechainicial, AnalisisView.fechafinal, voladura_data=voladuras)
                 else:
-                    procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala)
+                    procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala, voladura_data=voladuras)
     
     def ocultarMostrarVistasAnalisis():
         combo_grafico_analisis = AnalisisView.main.findChild(QComboBox, "combo_graficas_analisis")
@@ -1328,7 +1366,9 @@ class AnalisisView:
         GraficaComportamiento.graficarComportamientoPrismas(
             AnalisisView.main, AnalisisView.idproyecto, idcomponente, idinstrumento, nombreprisma,
             AnalisisView.fechainicial, AnalisisView.fechafinal, filtrado,
-            AnalisisView.limpieza_comportamiento
+            AnalisisView.limpieza_comportamiento,
+            voladuras=AnalisisView._obtenerDataVoladuras(),
+            pluviometros=AnalisisView._obtenerDataPluviometros()
         )
 
     def graficarElipseArbol(prismasmarcados):
@@ -2233,12 +2273,14 @@ class AnalisisView:
                         elif metodoLimpieza == 'Ajustar Gráfico':
                             data = CalculosTendencias.ajustarCalculoSaltos(datos, prismasLimpieza, 1, idx_lectura)
                         labeltendencia = AnalisisView.main.findChild(QLabel, "label_tendencia_analisis")
-                        modulo, pluviometros = "ANALISIS", None
+                        modulo = "ANALISIS"
+                        pluviometros = AnalisisView._obtenerDataPluviometros()
                         tendencias = AnalisisView.obtenerTendenciasVigentes(prismasmarcados)
+                        voladuras = AnalisisView._obtenerDataVoladuras()  # <-- NUEVO
                         if filtrado == 0:
-                            procesar_grafica(widget_analisis, labeltendencia, data, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala, AnalisisView.fechainicial, AnalisisView.fechafinal)
+                            procesar_grafica(widget_analisis, labeltendencia, data, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala, AnalisisView.fechainicial, AnalisisView.fechafinal, voladura_data=voladuras)
                         else:
-                            procesar_grafica(widget_analisis, labeltendencia, data, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala)
+                            procesar_grafica(widget_analisis, labeltendencia, data, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala, voladura_data=voladuras)
     
     def mostrarModalTendencia(treeWidget):
         lista = EquiposAnalisis.obtener_todos_elementos_marcados(treeWidget)
@@ -2308,11 +2350,13 @@ class AnalisisView:
                     datos = AnalisisController.ctrlCalcularDatosGrafica(AnalisisView.idproyecto, prismasmarcados, AnalisisView.fechainicial, AnalisisView.fechafinal, tipografico, filtrado, unidadmedida)
                     if len(datos) > 0:
                         labeltendencia = AnalisisView.main.findChild(QLabel, "label_tendencia_analisis")
-                        modulo, pluviometros = "ANALISIS", None
+                        modulo = "ANALISIS"
+                        pluviometros = AnalisisView._obtenerDataPluviometros()
+                        voladuras = AnalisisView._obtenerDataVoladuras()  # <-- NUEVO
                         if filtrado == 0:
-                            procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, regresion, escala, AnalisisView.fechainicial, AnalisisView.fechafinal)
+                            procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, regresion, escala, AnalisisView.fechainicial, AnalisisView.fechafinal, voladura_data=voladuras)
                         else:
-                            procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, regresion, escala)
+                            procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, unidadtiempo, titulografica, AnalisisView.idproyecto, modulo, pluviometros, regresion, escala, voladura_data=voladuras)
 
     def mostrarModalConfiguracionEjesInversaVelocidad(treeWidget):
         lista = EquiposAnalisis.obtener_todos_elementos_marcados(treeWidget)
@@ -2391,12 +2435,14 @@ class AnalisisView:
                         datos = AnalisisController.ctrlCalcularDatosGrafica(AnalisisView.idproyecto, prismasmarcados, AnalisisView.fechainicial, AnalisisView.fechafinal, tipografico, filtrado, unidadmedida)
                         if len(datos) > 0:
                             labeltendencia = AnalisisView.main.findChild(QLabel, "label_tendencia_analisis")
-                            modulo, pluviometros = "ANALISIS", None
+                            modulo = "ANALISIS"
+                            pluviometros = AnalisisView._obtenerDataPluviometros()
                             tendencias = AnalisisView.obtenerTendenciasVigentes(prismasmarcados)
+                            voladuras = AnalisisView._obtenerDataVoladuras()  # <-- NUEVO
                             if filtrado == 0:
-                                procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, tiempomedida, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala, AnalisisView.fechainicial, AnalisisView.fechafinal)
+                                procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, tiempomedida, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala, AnalisisView.fechainicial, AnalisisView.fechafinal, voladura_data=voladuras)
                             else:
-                                procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, tiempomedida, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala)
+                                procesar_grafica(widget_analisis, labeltendencia, datos, 1, idx_fecha, idx_lectura, labelejex, labelejey, tipografico, unidadmedida, tiempomedida, titulografica, AnalisisView.idproyecto, modulo, pluviometros, tendencias, escala, voladura_data=voladuras)
     
     def mostrarModalConfiguracionEjesCoordenadas(treeWidget):
         lista = EquiposAnalisis.obtener_todos_elementos_marcados(treeWidget)

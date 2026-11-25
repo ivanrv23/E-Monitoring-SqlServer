@@ -18,6 +18,7 @@ from controllers.UmbralController import UmbralController
 from utils.shared.graficarUmbrales import GraficarUmbrales
 from utils.generic.graficarumbralespersonalizados import graficarUmbralesPersonalizado
 from controllers.PluviometroController import PluviometroController
+from controllers.VoladuraController import VoladuraController
 
 class CeldasView:
     main = None
@@ -409,7 +410,10 @@ class CeldasView:
                     CeldasView.graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, unidadtiempo, CeldasView.tendencia_activa)
                     CeldasView._repintarUmbrales(lista)
                 else:
-                    CeldasView.limpiarGraficaCeldas()
+                    if (CeldasView.obtenerListaEquiposMarcados(lista, "Pluviómetros") or
+                            CeldasView.obtenerListaEquiposMarcados(lista, "Voladuras")):
+                        CeldasView.graficarSoloPluviometro(lista, tipografica, unidadmedida,
+                                                        unidadtiempo, CeldasView.tendencia_activa)
             else:
                 CeldasView.limpiarGraficaCeldas()
         else:
@@ -433,6 +437,21 @@ class CeldasView:
                 if tipo[0] == tipolista:
                     equiposmarcados.append((region, lista_equipos))
         return equiposmarcados
+
+    @staticmethod
+    def obtenerDataVoladurasMarcadas(lista):
+        """Devuelve las lecturas de las voladuras marcadas en el árbol (o None)."""
+        ids_vol = []
+        for region, equipos in CeldasView.obtenerListaEquiposMarcados(lista, "Voladuras"):
+            for eq in equipos:
+                if not eq or not eq[1]:      # ("", "", "") = hijo no marcado
+                    continue
+                info = VoladuraController.ctrlObtenerInfoVoladura(eq[1])  # eq[1] = id instrumentación
+                if info:
+                    ids_vol.append(info[0])
+        if not ids_vol:
+            return None
+        return VoladuraController.ctrlObtenerDataVoladuras(CeldasView.idproyecto, ids_vol)
     
     def graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografico, unidadmedida, unidadtiempo, tendencias=None):
         widget_celdas = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
@@ -515,12 +534,13 @@ class CeldasView:
                 datapluvio = PluviometroController.ctrlObtenerPluviometros(CeldasView.idproyecto, pluviometrosmarcados, CeldasView.fechainicial, CeldasView.fechafinal)
                 if datapluvio:
                     pluviometros = datapluvio
+            voladura_data = CeldasView.obtenerDataVoladurasMarcadas(lista)
 
             # validar tipo de filtrado
             if filtrado == 0:
-                procesar_grafica_piezometros(widget_celdas, labeltendencia, datos, cotasmarcadas, 1, indextiempo, ubicacion, idx_funda, idx_super, labelx, labely, tipografico, unidadmedida, unidadtiempo, titulo, CeldasView.idproyecto, modulo, pluviometros, tendencias, None, CeldasView.fechainicial, CeldasView.fechafinal)
+                procesar_grafica_piezometros(widget_celdas, labeltendencia, datos, cotasmarcadas, 1, indextiempo, ubicacion, idx_funda, idx_super, labelx, labely, tipografico, unidadmedida, unidadtiempo, titulo, CeldasView.idproyecto, modulo, pluviometros, tendencias, None, CeldasView.fechainicial, CeldasView.fechafinal, voladura_data=voladura_data)
             else:
-                procesar_grafica_piezometros(widget_celdas, labeltendencia, datos, cotasmarcadas, 1, indextiempo, ubicacion, idx_funda, idx_super, labelx, labely, tipografico, unidadmedida, unidadtiempo, titulo, CeldasView.idproyecto, modulo, pluviometros, tendencias)
+                procesar_grafica_piezometros(widget_celdas, labeltendencia, datos, cotasmarcadas, 1, indextiempo, ubicacion, idx_funda, idx_super, labelx, labely, tipografico, unidadmedida, unidadtiempo, titulo, CeldasView.idproyecto, modulo, pluviometros, tendencias, voladura_data=voladura_data)
     
     def limpiarGraficaCeldas():
         widget_celdas = CeldasView.main.findChild(QWidget, "widget_celdas_asentamiento")
