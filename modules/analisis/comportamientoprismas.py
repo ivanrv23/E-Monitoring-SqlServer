@@ -172,7 +172,9 @@ class GraficaComportamiento:
     # ─────────────────────────────────────────────────────────────
     #  Método principal
     # ─────────────────────────────────────────────────────────────
-    def graficarComportamientoPrismas(main, idproyecto, idcomponente, idinstrumento, nombreprisma, fechainicial, fechafinal, filtrado, limpieza=None):
+    def graficarComportamientoPrismas(main, idproyecto, idcomponente, idinstrumento, nombreprisma,
+                                        fechainicial, fechafinal, filtrado, limpieza=None,
+                                        voladuras=None, pluviometros=None):
         widget           = main.findChild(QWidget,   "widget_graficas_comportamiento")
         comboGraficas    = main.findChild(QComboBox, "combo_tiposgrafica_comportamiento")
         comboUnidades    = main.findChild(QComboBox, "combo_unidades_comportamiento")
@@ -242,28 +244,30 @@ class GraficaComportamiento:
         datos_transformados = _aplicar_limpieza(datos_transformados, limpieza)
         widget.contexto_omision = {'nombre': nombreprisma}
         # ── 6. Graficar ───────────────────────────────────────────
-        procesar_grafica(
+        args = (
             widget,
             None,                 # labeltendencia
             datos_transformados,
-            1,                    # idx_nombre  → col[1] = etiqueta leyenda
-            2,                    # idx_fecha   → col[2] = hora_prisma
-            6,                    # idx_lectura → col[6] = lectura
+            1,                    # idx_nombre
+            2,                    # idx_fecha
+            6,                    # idx_lectura
             "Fechas",
             label_eje,
-            tipografica,             # graficatipo (para config de ejes)
+            tipografica,
             unidadmedida,
             "FECHA",
             titulografica,
             idproyecto,
             "ANALISIS",
-            None,                 # pluviometro_data
+            pluviometros,
             None,                 # equipostendencia
             None,                 # escala
-            fechainicial,
-            fechafinal,
         )
-    
+        if filtrado == 0:         # Filtro Absoluto: respeta el rango de fechas
+            procesar_grafica(*args, fechainicial, fechafinal, voladura_data=voladuras)
+        else:                     # Filtro Relativo: el rango lo define la data
+            procesar_grafica(*args, voladura_data=voladuras)
+            
     @staticmethod
     def configurarMarcadoDesmarcado(idproyecto, idcomponente, tipografica, reiniciar):
         if tipografica == "velocidad":

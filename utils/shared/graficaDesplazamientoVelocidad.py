@@ -254,6 +254,29 @@ def formatear_x_inspector(valor_x, tiempo):
         return f"{valor_x:.2f} h"
     else:  # DIA
         return f"{valor_x:.2f} d"
+
+def configurar_coordenadas_solo_primario(ax, ax2, tiempo, decimales=2):
+    """La barra del toolbar muestra solo (x, y) del eje de los equipos,
+    sin la segunda coordenada del eje de precipitación."""
+    def _fmt_x(x):
+        if tiempo == "FECHA":
+            return mdates.num2date(x).strftime('%d/%m/%Y')
+        return f"{x:.2f}"
+
+    def fmt_primario(x, y):
+        return f"(x, y) = ({_fmt_x(x)}, {y:.{decimales}f})"
+
+    def fmt_secundario(x, y):
+        # el evento llega al eje de arriba (ax2): se convierte a la escala de ax
+        try:
+            _, y1 = ax.transData.inverted().transform(ax2.transData.transform((x, y)))
+        except Exception:
+            y1 = y
+        return f"(x, y) = ({_fmt_x(x)}, {y1:.{decimales}f})"
+
+    ax.format_coord = fmt_primario
+    if ax2 is not None:
+        ax2.format_coord = fmt_secundario
     
 def plot_linea_suavizada(ax, x_data, y_data, tiempo, activo=False, **kwargs):
     marker = kwargs.pop('marker', None)
@@ -1291,7 +1314,8 @@ def dibujar_eventos(ax, id_proyecto, tipo_inst, instrumentos_dict, fecha_inicio,
     return globales, especificos
 
 def dibujar_voladuras(ax, voladura_data, tiempo, idproyecto=None,
-                      alto_def=0.05, grosor_def=2.5, color_def='#ff0000'):
+                      alto_def=0.05, grosor_def=2.5, color_def='#ff0000',
+                      fecha_inicio=None, fecha_fin=None):
     """Devuelve la lista de LineCollection (una por voladura, con su estilo guardado)."""
     if not voladura_data or tiempo != "FECHA":
         return []
@@ -1303,6 +1327,9 @@ def dibujar_voladuras(ax, voladura_data, tiempo, idproyecto=None,
     grupos = {}
     for r in voladura_data:
         if str(r[6]) == 'Activo':
+            f = pd.to_datetime(r[2])
+            if fecha_inicio is not None and (f < fecha_inicio or f > fecha_fin):
+                continue
             grupos.setdefault(str(r[1]), []).append(r[2])
 
     cols = []
@@ -1311,10 +1338,21 @@ def dibujar_voladuras(ax, voladura_data, tiempo, idproyecto=None,
         x = mdates.date2num(pd.to_datetime(fechas).to_pydatetime())
         segmentos = [[(xi, 0), (xi, alto)] for xi in x]
         col = LineCollection(segmentos, colors=color, linewidths=grosor,
-                             transform=ax.get_xaxis_transform(), zorder=4, label=nombre)
+                             transform=ax.get_xaxis_transform(), zorder=4,
+                             label='_nolegend_')          # <-- ya no lleva el nombre
         ax.add_collection(col, autolim=False)
+        col._nombre_voladura = nombre                     # por si lo necesitas luego
         cols.append(col)
-    return cols
+
+    if not cols:
+        return []
+
+    # Handle único: la primera colección representa a "Voladuras" en la leyenda
+    # y controla (oculta/muestra) a todas las demás.
+    principal = cols[0]
+    principal.set_label("Voladura")
+    principal._asociados = cols[1:]
+    return [principal]
 
 def registrar_handlers_eventos(widget, canvas, ev_globales, ev_especificos,
                                marcador_evento, label_evento, linea_fantasma,
@@ -1695,88 +1733,57 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     # ============================================================
     barras_pluviometro = None
     if tiempo == "FECHA":
-        if modulo != "ANALISIS":
-            if mostrarlluvia == 0:
-                if pluviometro_data:
-                    idpluvio = str(pluviometro_data[0][0])
-                    estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idpluvio, 0)
-                    df_pluviometro = pd.DataFrame(pluviometro_data, columns=['Codigo', 'Fecha', 'Lectura'])
-                    df_pluviometro['Fecha'] = pd.to_datetime(df_pluviometro['Fecha'])
-                    
-                    # Crear o reutilizar eje secundario
-                    if not hasattr(widget, 'mpl_ax2'):
-                        widget.mpl_ax2 = ax.twinx()
-                    ax2 = widget.mpl_ax2
-                    
-                    ancho = calcular_ancho_barras(df_pluviometro['Fecha'])
-                    if estilo:
-                        if posicionlluvia == 0:
-                            ax2.set_ylim(int(estilo[3]), 0)
-                        else:
-                            ax2.set_ylim(0, int(estilo[3]))
-                        barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color=estilo[5], width=ancho, label="Precipitación")
-                        ticks = generar_ticks_precipitacion(int(estilo[3]), int(estilo[4]))
-                        ax2.set_yticks(ticks)
-                    else:
-                        if posicionlluvia == 0:
-                            ax2.set_ylim(rango_max_lluvia, 0)
-                        else:
-                            ax2.set_ylim(0, rango_max_lluvia)
-                        barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color='cyan', width=ancho, alpha=0.5, label="Precipitación")
-                        ticks = generar_ticks_precipitacion(rango_max_lluvia, intervalo_lluvia)
-                        ax2.set_yticks(ticks)
-                    ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
+        if pluviometro_data:
+            # Con datos: se dibuja en cualquier módulo (incluido ANALISIS)
+            idpluvio = str(pluviometro_data[0][0])
+            estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idpluvio, 0)
+            df_pluviometro = pd.DataFrame(pluviometro_data, columns=['Codigo', 'Fecha', 'Lectura'])
+            df_pluviometro['Fecha'] = pd.to_datetime(df_pluviometro['Fecha'])
+
+            if not hasattr(widget, 'mpl_ax2'):
+                widget.mpl_ax2 = ax.twinx()
+            ax2 = widget.mpl_ax2
+
+            ancho = calcular_ancho_barras(df_pluviometro['Fecha'])
+            if estilo:
+                if posicionlluvia == 0:
+                    ax2.set_ylim(int(estilo[3]), 0)
                 else:
-                    if not hasattr(widget, 'mpl_ax2'):
-                        widget.mpl_ax2 = ax.twinx()
-                    ax2 = widget.mpl_ax2
-                    
-                    if posicionlluvia == 0:
-                        ax2.set_ylim(rango_max_lluvia, 0)
-                    else:
-                        ax2.set_ylim(0, rango_max_lluvia)
-                    ticks = generar_ticks_precipitacion(rango_max_lluvia, intervalo_lluvia)
-                    ax2.set_yticks(ticks)
-                    ax2.axhline(y=0, color='cyan', linestyle='-', linewidth=2, alpha=0.5)
-                    ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
-                    barras_pluviometro = mpatches.Patch(color='cyan', alpha=0.5)
+                    ax2.set_ylim(0, int(estilo[3]))
+                barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'],
+                                             color=estilo[5], width=ancho, label="Precipitación")
+                ax2.set_yticks(generar_ticks_precipitacion(int(estilo[3]), int(estilo[4])))
             else:
-                if pluviometro_data:
-                    idpluvio = str(pluviometro_data[0][0])
-                    estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idpluvio, 0)
-                    df_pluviometro = pd.DataFrame(pluviometro_data, columns=['Codigo', 'Fecha', 'Lectura'])
-                    df_pluviometro['Fecha'] = pd.to_datetime(df_pluviometro['Fecha'])
-                    
-                    if not hasattr(widget, 'mpl_ax2'):
-                        widget.mpl_ax2 = ax.twinx()
-                    ax2 = widget.mpl_ax2
-                    
-                    ancho = calcular_ancho_barras(df_pluviometro['Fecha'])
-                    
-                    if estilo:
-                        if posicionlluvia == 0:
-                            ax2.set_ylim(int(estilo[3]), 0)
-                        else:
-                            ax2.set_ylim(0, int(estilo[3]))
-                        barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color=estilo[5], width=ancho, label="Precipitación")
-                        ticks = generar_ticks_precipitacion(int(estilo[3]), int(estilo[4]))
-                        ax2.set_yticks(ticks)
-                    else:
-                        if posicionlluvia == 0:
-                            ax2.set_ylim(rango_max_lluvia, 0)
-                        else:
-                            ax2.set_ylim(0, rango_max_lluvia)
-                        barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'], color='cyan', width=ancho, alpha=0.5, label="Precipitación")
-                        ticks = generar_ticks_precipitacion(rango_max_lluvia, intervalo_lluvia)
-                        ax2.set_yticks(ticks)
-                    ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
+                if posicionlluvia == 0:
+                    ax2.set_ylim(rango_max_lluvia, 0)
+                else:
+                    ax2.set_ylim(0, rango_max_lluvia)
+                barras_pluviometro = ax2.bar(df_pluviometro['Fecha'], df_pluviometro['Lectura'],
+                                             color='cyan', width=ancho, alpha=0.5, label="Precipitación")
+                ax2.set_yticks(generar_ticks_precipitacion(rango_max_lluvia, intervalo_lluvia))
+            ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
+
+        elif modulo != "ANALISIS" and mostrarlluvia == 0:
+            # Sin datos: eje vacío, solo en los módulos que lo tenían antes
+            if not hasattr(widget, 'mpl_ax2'):
+                widget.mpl_ax2 = ax.twinx()
+            ax2 = widget.mpl_ax2
+            if posicionlluvia == 0:
+                ax2.set_ylim(rango_max_lluvia, 0)
+            else:
+                ax2.set_ylim(0, rango_max_lluvia)
+            ax2.set_yticks(generar_ticks_precipitacion(rango_max_lluvia, intervalo_lluvia))
+            ax2.axhline(y=0, color='cyan', linestyle='-', linewidth=2, alpha=0.5)
+            ax2.set_ylabel("Precipitación (mm)", fontsize=ejezise, rotation=270, labelpad=15)
+            barras_pluviometro = mpatches.Patch(color='cyan', alpha=0.5)
 
     etiquetas_lluvia = []
     if barras_pluviometro is not None and hasattr(barras_pluviometro, 'patches'):
         etiquetas_lluvia = configurar_lluvia_dinamica(
             ax, ax2, barras_pluviometro, fontsize=max(etiquesize - 1, 6), mostrar_valor=(config[24] == 0))
 
-    col_voladuras = dibujar_voladuras(ax, voladura_data, tiempo, idproyecto)
+    col_voladuras = dibujar_voladuras(ax, voladura_data, tiempo, idproyecto,
+                                        fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
     extras_leyenda = list(col_voladuras)
         
     # ============================================================
@@ -1921,15 +1928,10 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     
     plt.setp(ax.get_xticklabels(), rotation=90, ha="center", va="top", fontsize=etiquesize)
     plt.setp(ax.get_yticklabels(), fontsize=etiquesize)
-    
-    if modulo != "ANALISIS":
-        if mostrarlluvia == 0:
-            if tiempo == "FECHA" and ax2:
-                plt.setp(ax2.get_yticklabels(), fontsize=etiquesize)
-        else:
-            if tiempo == "FECHA" and ax2 and pluviometro_data:
-                plt.setp(ax2.get_yticklabels(), fontsize=etiquesize)
-    
+
+    if tiempo == "FECHA" and ax2 is not None:
+        plt.setp(ax2.get_yticklabels(), fontsize=etiquesize)
+
     if ejeymin != 0 or ejeymax != 0:
         if escala is None:
             ax.set_ylim(ejeymin * medida, ejeymax * medida)
@@ -1975,6 +1977,8 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
     
     linea_fantasma = ax.axvline(x=num_inicio, color='red', linestyle='--', linewidth=1.5, alpha=0.6)
     linea_fantasma.set_visible(False)
+
+    configurar_coordenadas_solo_primario(ax, ax2, tiempo, decimales)
     
     instrumentos_dict = {}
     for idinstrumento, datos_equipo in df.groupby('Instrumento'):
@@ -2270,7 +2274,8 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
         etiquetas_lluvia = configurar_lluvia_dinamica(
             ax, ax2, barras_pluviometro, fontsize=max(etiquesize - 1, 6), mostrar_valor=(config[24] == 0))
 
-    col_voladuras = dibujar_voladuras(ax, voladura_data, tiempo, idproyecto)
+    col_voladuras = dibujar_voladuras(ax, voladura_data, tiempo, idproyecto,
+                                  fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
     extras_leyenda = list(col_voladuras)
 
     # Graficar datos
@@ -2624,6 +2629,9 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
         obj.set_visible(check_ev_global.isChecked())
     for obj in ev_especificos:
         obj.set_visible(check_ev_equipo.isChecked())
+
+    configurar_coordenadas_solo_primario(ax, ax2, tiempo, decimales)
+    
     # =========================================================================
     def actualizar_leyenda():
         actualizar_leyenda_flujo(ax, canvas, figure, lineas, barras_pluviometro,
