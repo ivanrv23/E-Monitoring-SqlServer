@@ -59,17 +59,17 @@ class EquiposDesplazamiento:
                     edit_prismasalta = menu.addAction("Dar de Baja")
                     change_prismasalta = menu.addAction("Cambiar de Componente")
                     delete_prismasalta = menu.addAction("Eliminar Prismas")
-                    edit_prismasalta.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPrismas.dardebaja_prismas(idzona, idproyecto, nombrezona, treeWidget, "Prismas", "2", reiniciarvistas)))
-                    change_prismasalta.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPrismas.cambiar_componente_prismas(idzona, idproyecto, treeWidget, "Prismas", "2", "prisma", reiniciarvistas)))
-                    delete_prismasalta.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPrismas.eliminar_prismas(idzona, "Prismas", "2", treeWidget, reiniciarvistas)))
+                    edit_prismasalta.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPrismas.dardebaja_prismas(idzona, idproyecto, nombrezona, treeWidget, "Prismas", "1", reiniciarvistas)))
+                    change_prismasalta.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPrismas.cambiar_componente_prismas(idzona, idproyecto, treeWidget, "Prismas", "1", "prisma", reiniciarvistas)))
+                    delete_prismasalta.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPrismas.eliminar_prismas(idzona, "Prismas", "1", treeWidget, reiniciarvistas)))
                 elif tipo == "2": # Pluviometros
                     idzona = item.text(2)
                     idproyecto = item.text(3)
                     nombrezona = item.parent().text(0)
                     edit_pluviometros = menu.addAction("Cambiar de Componente")
                     delete_pluviometros = menu.addAction("Eliminar Pluviómetros")
-                    edit_pluviometros.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.cambiar_componente_pluviometros(idzona, idproyecto, treeWidget, "Pluviómetros", "6", "pluviometro", reiniciarvistas)))
-                    delete_pluviometros.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.eliminar_pluviometros(idproyecto, idzona, "Pluviómetros", "6", treeWidget, reiniciarvistas)))
+                    edit_pluviometros.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.cambiar_componente_pluviometros(idzona, idproyecto, treeWidget, "Pluviómetros", "2", "pluviometro", reiniciarvistas)))
+                    delete_pluviometros.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.eliminar_pluviometros(idproyecto, idzona, "Pluviómetros", "2", treeWidget, reiniciarvistas)))
                 elif tipo == "3": # Voladuras
                     idzona = item.text(2)
                     idproyecto = item.text(3)
@@ -105,12 +105,19 @@ class EquiposDesplazamiento:
                     custom_pluvio.triggered.connect(lambda: QTimer.singleShot(0, lambda: Personalizacion.personalizarPluviometroGrafica(idproyecto, idinstrumento, nombrepluvio, "PLUVIÓMETRO", 0)))
                     edit_pluviometro.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.actualizarPluviometro(idproyecto, idcomponente, idinstrumento, treeWidget, "Pluviómetros", "2", "pluviometro", reiniciarvistas)))
                     delete_pluviometro.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirPluviometros.eliminar_pluviometro(idproyecto, idinstrumento, nombrepluvio, "Pluviómetros", "pluviometro", treeWidget, reiniciarvistas)))
-
                 elif tipo == "voladura":
                     nombrevoladura = item.text(0)
                     idinstrumento = item.text(2)
+                    nombrezona = item.parent().parent().text(0)
+                    idcomponente = item.parent().parent().text(2)
+                    idproyecto = item.parent().parent().text(3)
                     custom_voladura = menu.addAction("Personalizar Voladura")
+                    edit_voladura = menu.addAction("Editar Voladura")
+                    delete_voladura = menu.addAction("Eliminar Voladura")
                     custom_voladura.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirVoladuras.personalizarVoladura(idinstrumento, nombrevoladura, callback_graficar)))
+                    edit_voladura.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirVoladuras.actualizarVoladura(idproyecto, idcomponente, idinstrumento, treeWidget, "Voladuras", "3", "voladura", reiniciarvistas)))
+                    delete_voladura.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirVoladuras.eliminar_voladura(idproyecto, idinstrumento, nombrevoladura, "Voladuras", "voladura", treeWidget, reiniciarvistas)))
+
             menu.exec(treeWidget.mapToGlobal(point))
     
     def validarMarcadoUnEquipoZona(datos, zona):

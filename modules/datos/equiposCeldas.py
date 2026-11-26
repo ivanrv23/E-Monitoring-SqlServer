@@ -7,6 +7,7 @@ from controllers.InterfazController import InterfazController
 from utils.shared.personalizacion import Personalizacion
 from controllers.PluviometroController import PluviometroController
 from modules.datos.subirVoladuras import SubirVoladuras
+from modules.datos.subirPluviometros import SubirPluviometros
 
 class EquiposCeldas:
 
@@ -64,9 +65,19 @@ class EquiposCeldas:
                     edit_celdas.triggered.connect(lambda: SubirCeldas.cambiar_componente_celdas(idzona, idproyecto, treeWidget, "Celdas de Asentamiento", "1", "celda", reiniciarvistas, vista))
                     delete_celdas.triggered.connect(lambda: SubirCeldas.eliminar_celdas(idproyecto, idzona, "Celdas de Asentamiento", "1", treeWidget, reiniciarvistas))
                 elif tipo == "2": # Pluviómetros
-                    pass             
+                    idzona = item.text(2)
+                    idproyecto = item.text(3)
+                    edit_pluviometros = menu.addAction("Cambiar de Componente")
+                    delete_pluviometros = menu.addAction("Eliminar Pluviómetros")
+                    edit_pluviometros.triggered.connect(lambda: SubirPluviometros.cambiar_componente_pluviometros(idzona, idproyecto, treeWidget, "Pluviómetros", "2", "pluviometro", reiniciarvistas))
+                    delete_pluviometros.triggered.connect(lambda: SubirPluviometros.eliminar_pluviometros(idproyecto, idzona, "Pluviómetros", "2", treeWidget, reiniciarvistas))
                 elif tipo == "5": # Voladuras (grupo)
-                    pass
+                    idzona = item.text(2)
+                    idproyecto = item.text(3)
+                    edit_voladuras = menu.addAction("Cambiar de Componente")
+                    delete_voladuras = menu.addAction("Eliminar Voladuras")
+                    edit_voladuras.triggered.connect(lambda: SubirVoladuras.cambiar_componente_voladuras(idzona, idproyecto, treeWidget, "Voladuras", "5", "voladura", reiniciarvistas))
+                    delete_voladuras.triggered.connect(lambda: SubirVoladuras.eliminar_voladuras(idproyecto, idzona, "Voladuras", "5", treeWidget, reiniciarvistas))
             else:    
                 if tipo == "celda":
                     nombrecelda = item.text(0)
@@ -96,23 +107,30 @@ class EquiposCeldas:
                 elif tipo == "pluviometro":
                     nombrepluvio = item.text(0)
                     idinstrumento = item.text(2)
+                    idcomponente = item.parent().parent().text(2)
                     idproyecto = item.parent().parent().text(3)
                     custom_pluvio = menu.addAction("Personalizar Pluviómetro")
-                    custom_pluvio.triggered.connect(lambda: Personalizacion.personalizarPluviometroGrafica(idproyecto, idinstrumento, nombrepluvio, "PLUVIÓMETRO", 0))                
+                    edit_pluviometro = menu.addAction("Editar Pluviómetro")
+                    delete_pluviometro = menu.addAction("Eliminar Pluviómetro")
+                    custom_pluvio.triggered.connect(lambda: Personalizacion.personalizarPluviometroGrafica(idproyecto, idinstrumento, nombrepluvio, "PLUVIÓMETRO", 0))
+                    edit_pluviometro.triggered.connect(lambda: SubirPluviometros.actualizarPluviometro(idproyecto, idcomponente, idinstrumento, treeWidget, "Pluviómetros", "2", "pluviometro", reiniciarvistas))
+                    delete_pluviometro.triggered.connect(lambda: SubirPluviometros.eliminar_pluviometro(idproyecto, idinstrumento, nombrepluvio, "Pluviómetros", "pluviometro", treeWidget, reiniciarvistas))
                 elif tipo == "voladura":
                     nombrevoladura = item.text(0)
                     idinstrumento = item.text(2)
                     idcomponente = item.parent().parent().text(2)
                     idproyecto = item.parent().parent().text(3)
                     custom_voladura = menu.addAction("Personalizar Voladura")
+                    edit_voladura = menu.addAction("Editar Voladura")
+                    delete_voladura = menu.addAction("Eliminar Voladura")
 
                     def _refrescar():
                         from views.celdas_view import CeldasView
                         CeldasView.obtenerMostrarEquiposMarcados(treeWidget)
 
-                    custom_voladura.triggered.connect(
-                        lambda: SubirVoladuras.personalizarVoladura(idinstrumento, nombrevoladura, _refrescar))
-                           
+                    custom_voladura.triggered.connect(lambda: SubirVoladuras.personalizarVoladura(idinstrumento, nombrevoladura, _refrescar))
+                    edit_voladura.triggered.connect(lambda: SubirVoladuras.actualizarVoladura(idproyecto, idcomponente, idinstrumento, treeWidget, "Voladuras", "5", "voladura", reiniciarvistas))
+                    delete_voladura.triggered.connect(lambda: SubirVoladuras.eliminar_voladura(idproyecto, idinstrumento, nombrevoladura, "Voladuras", "voladura", treeWidget, reiniciarvistas)) 
             menu.exec(treeWidget.mapToGlobal(point))
 
     def validarMarcadoUnEquipoZona(datos, zona):
