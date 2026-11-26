@@ -162,7 +162,7 @@ class EquiposVisor:
                     change_prisma = menu.addAction("Cambiar de Componente")
                     delete_prisma = menu.addAction("Eliminar Prisma")
                     edit_prisma.triggered.connect(lambda: SubirPrismas.dardebaja_prisma(main, idproyecto, idcomponente, nombreprisma, idinstrumento, nombrezona, treeWidget, reiniciarvistas))
-                    change_prisma.triggered.connect(lambda: SubirPrismas.cambiar_componente_prisma(idinstrumento, idcomponente, idproyecto, treeWidget, "Prismas", "1", "prisma", 1, reiniciarvistas))
+                    change_prisma.triggered.connect(lambda: SubirPrismas.cambiar_componente_prisma(idinstrumento, idcomponente, idproyecto, treeWidget, "Prismas", "2", "prisma", 1, reiniciarvistas))
                     delete_prisma.triggered.connect(lambda: SubirPrismas.eliminar_prisma(idinstrumento, nombreprisma, "Prismas", "prisma", treeWidget, reiniciarvistas))
                 elif tipo == "inclinometro":
                     estado = item.checkState(0)
@@ -554,7 +554,6 @@ class EquiposVisor:
         # 4. Forzar el refresco de los elementos gráficos en el Visor VTK
         callback_graficar()
     
-
     @staticmethod
     def marcar_desmarcar_proyecto_completo(treeWidget, estado, callback_graficar):
         """

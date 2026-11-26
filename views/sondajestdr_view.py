@@ -260,10 +260,10 @@ class SondajetdrView:
             SondajetdrView.umbral_modo = None
             return False
 
-        # ✅ OBTENER idinstru (igual que inclinómetros)
+        # OBTENER idinstru (igual que inclinómetros)
         idinstru = lista_tdr[0][1]  # índice 1 = idinstru
         
-        # ✅ TRAER idequipo desde base de datos (igual que inclinómetros)
+        # TRAER idequipo desde base de datos (igual que inclinómetros)
         idequipo = InstrumentacionController.ctrlObtenerIdequipoInstrumentacion(idinstru)
         if not idequipo:
             SondajetdrView.umbral_activo_tdr = False

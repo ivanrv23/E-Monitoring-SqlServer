@@ -410,10 +410,8 @@ class CeldasView:
                     CeldasView.graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, unidadtiempo, CeldasView.tendencia_activa)
                     CeldasView._repintarUmbrales(lista)
                 else:
-                    if (CeldasView.obtenerListaEquiposMarcados(lista, "Pluviómetros") or
-                            CeldasView.obtenerListaEquiposMarcados(lista, "Voladuras")):
-                        CeldasView.graficarSoloPluviometro(lista, tipografica, unidadmedida,
-                                                        unidadtiempo, CeldasView.tendencia_activa)
+                    if (CeldasView.obtenerListaEquiposMarcados(lista, "Pluviómetros") or CeldasView.obtenerListaEquiposMarcados(lista, "Voladuras")):
+                        CeldasView.graficarSoloPluviometro(lista, tipografica, unidadmedida, unidadtiempo, CeldasView.tendencia_activa)
             else:
                 CeldasView.limpiarGraficaCeldas()
         else:
@@ -780,8 +778,8 @@ class CeldasView:
                         if len(datos) > 0:
                             idx_funda, idx_super = 6, 7
                             CeldasView.graficarCeldasAsentamientoMarcadas(lista, datos, cotasmarcadas, idx_funda, idx_super, tipografica, unidadmedida, tipotiempo, CeldasView.tendencia_activa)
-                            if CeldasView.umbral_activo_celdas:          # <-- nuevo
-                                CeldasView._repintarUmbrales(lista)     # <-- nuevo
+                            if CeldasView.umbral_activo_celdas:
+                                CeldasView._repintarUmbrales(lista)
 
     def actualizarVistaCeldas(fechaini, fechafin, filtro=False):
         CeldasView.fechainicial = fechaini
@@ -796,10 +794,10 @@ class CeldasView:
         CeldasView.idproyecto = proyecto_id
         CeldasView.nameproyecto = proyecto_name
         CeldasView.estadochecklist = True
-        CeldasView.umbral_activo_celdas = False   # <-- nuevo
+        CeldasView.umbral_activo_celdas = False
         CeldasView.umbral_modo = None
         CeldasView.umbral_general_componente = None
-        CeldasView.umbrales_cache = None          # <-- nuevo
+        CeldasView.umbrales_cache = None
         CeldasView.tendencia_activa = None
         CeldasView.limpiarGraficaCeldas()
         # LIMPIAR EL BUSCADOR AL CAMBIAR DE PROYECTO

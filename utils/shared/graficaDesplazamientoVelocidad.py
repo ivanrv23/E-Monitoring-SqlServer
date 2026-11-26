@@ -384,7 +384,9 @@ def _fijar_visible(handle, estado):
 def _atenuar_entrada(visuales, visible):
     """Atenúa/reactiva ícono, puntito y texto de una entrada."""
     for a in visuales:
-        base = 0.7 if isinstance(a, Rectangle) else 1.0
+        base = getattr(a, '_alpha_base', None)
+        if base is None:
+            base = 0.7 if isinstance(a, Rectangle) else 1.0
         a.set_alpha(base if visible else 0.3 * base)
 
 
@@ -418,7 +420,7 @@ def _crear_icono_leyenda(handle, ancho=26, alto=14):
             da.add_artist(punto)
             visuales.append(punto)
 
-    elif isinstance(handle, PathCollection):     # scatter (Punto Inicial / Final)
+    elif isinstance(handle, PathCollection): # scatter (Punto Inicial / Final)
         fc = handle.get_facecolor()
         color = fc[0] if len(fc) else 'black'
         punto = Line2D([ancho / 2], [alto / 2], color=color, linestyle='none',
@@ -427,19 +429,25 @@ def _crear_icono_leyenda(handle, ancho=26, alto=14):
         da.add_artist(punto)
         visuales.append(punto)
 
-    elif isinstance(handle, LineCollection):     # voladuras
+    elif isinstance(handle, LineCollection): # voladuras
         ec = handle.get_edgecolor()
         color = ec[0] if len(ec) else 'red'
         rect = Rectangle((1, 2), ancho - 2, alto - 4, facecolor=color, edgecolor='none')
+        rect._alpha_base = 1.0
         da.add_artist(rect)
         visuales.append(rect)
 
-    else:                                        # barras / parche de lluvia
+    else: # barras / parche de lluvia
         patches = getattr(handle, 'patches', None)
         fuente_color = patches[0] if patches else handle
-        color = fuente_color.get_facecolor() if hasattr(fuente_color, 'get_facecolor') else 'cyan'
-        rect = Rectangle((1, 1), ancho - 2, alto - 2, facecolor=color,
-                         edgecolor='none', alpha=0.7)
+        fc = fuente_color.get_facecolor() if hasattr(fuente_color, 'get_facecolor') else (0, 1, 1, 1)
+        alpha_real = fuente_color.get_alpha() if hasattr(fuente_color, 'get_alpha') else None
+        if alpha_real is None:
+            alpha_real = fc[3] if len(fc) == 4 else 1.0
+
+        rect = Rectangle((1, 1), ancho - 2, alto - 2, facecolor=fc[:3], edgecolor='none')
+        rect._alpha_base = alpha_real
+        rect.set_alpha(alpha_real)
         da.add_artist(rect)
         visuales.append(rect)
 
@@ -1846,7 +1854,9 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
         else:
             equipo = idinstrumento
         
-        estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idinstrumento, 0)
+        estilo = None
+        if str(idinstrumento).isdigit():
+            estilo = ConfiguracionController.ctrlTraerEstiloEquipoGrafica(idproyecto, idinstrumento, 0)
         if estilo:
             if vertices == 1:
                 linea = plot_linea_suavizada(

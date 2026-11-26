@@ -386,7 +386,8 @@ class VoladuraModel:
             rows = [tuple(r) for r in cur.fetchall()]
             return rows if rows else None
         except Exception:
-            import traceback; traceback.print_exc()
+            import traceback;
+            traceback.print_exc()
             return None
         finally:
             if conn:

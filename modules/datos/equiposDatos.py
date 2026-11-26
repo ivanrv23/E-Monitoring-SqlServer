@@ -498,8 +498,6 @@ class EquiposDatos:
             return (nodo.text(0), nodo.text(2), nodo.text(3))
    
     def inicializar_lista_datos(tree_widget, proyecto_id, proyecto_name):
-        import traceback
-        traceback.print_stack()
         TreeCheckbox.limpiarArbolCheckboxes(tree_widget, proyecto_name)
         if proyecto_id:
             # LISTAR COMOPONENTES

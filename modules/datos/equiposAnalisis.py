@@ -49,9 +49,9 @@ class EquiposAnalisis:
                     edit_prismasalta = menu.addAction("Dar de Baja")
                     change_prismasalta = menu.addAction("Cambiar de Componente")
                     delete_prismasalta = menu.addAction("Eliminar Prismas")
-                    edit_prismasalta.triggered.connect(lambda: SubirPrismas.dardebaja_prismas(idzona, idproyecto, nombrezona, treeWidget, "Prismas", "2", reiniciarvistas))
-                    change_prismasalta.triggered.connect(lambda: SubirPrismas.cambiar_componente_prismas(idzona, idproyecto, treeWidget, "Prismas", "2", "prisma", reiniciarvistas))
-                    delete_prismasalta.triggered.connect(lambda: SubirPrismas.eliminar_prismas(idzona, "Prismas", "2", treeWidget, reiniciarvistas))
+                    edit_prismasalta.triggered.connect(lambda: SubirPrismas.dardebaja_prismas(idzona, idproyecto, nombrezona, treeWidget, "Prismas", "1", reiniciarvistas))
+                    change_prismasalta.triggered.connect(lambda: SubirPrismas.cambiar_componente_prismas(idzona, idproyecto, treeWidget, "Prismas", "1", "prisma", reiniciarvistas))
+                    delete_prismasalta.triggered.connect(lambda: SubirPrismas.eliminar_prismas(idzona, "Prismas", "1", treeWidget, reiniciarvistas))
                 elif tipo == "2": # Pluviometros
                     idzona = item.text(2)
                     idproyecto = item.text(3)
@@ -103,7 +103,7 @@ class EquiposAnalisis:
 
                     def _refrescar():
                         from views.analisis_view import AnalisisView
-                        AnalisisView.obtenerMostrarEquiposMarcados(treeWidget)
+                        AnalisisView.obtenerMostrarPrismasMarcados(treeWidget)
 
                     custom_voladura.triggered.connect(lambda: SubirVoladuras.personalizarVoladura(idinstrumento, nombrevoladura, _refrescar))
                     edit_voladura.triggered.connect(lambda: SubirVoladuras.actualizarVoladura(idproyecto, idcomponente, idinstrumento, treeWidget, "Voladuras", "3", "voladura", reiniciarvistas))

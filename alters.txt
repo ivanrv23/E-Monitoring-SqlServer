@@ -180,9 +180,6 @@ CREATE TABLE voladuras (
     estado_voladura INT NOT NULL DEFAULT 1
 );
 
------------------------------------------------
-
-ALTER TABLE voladuras_data ADD estado_data BIT NOT NULL CONSTRAINT DF_voladuras_data_estado DEFAULT 1;
 
 -----------------------------------------------
 
@@ -193,27 +190,8 @@ CREATE TABLE voladuras_estilo (
     color       VARCHAR(20) NOT NULL DEFAULT '#ff0000'
 );
 
----------------------------------------------------------
-CREATE TABLE [dbo].[voladura_detalle1](
-	[id_voladura_data] [int] IDENTITY(1,1) NOT NULL,
-	[id_voladura] [int] NOT NULL,
-	[fecha] [date] NOT NULL,
-	[hora] [time](7) NOT NULL,
-	[ubicacion] [varchar](255) NULL,
-	[cota] [float] NOT NULL,
-	[observacion] [varchar](500) NULL,
-	[estado_data] [bit] NOT NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[id_voladura_data] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-
-ALTER TABLE [dbo].[voladuras_data] ADD  CONSTRAINT [DF_voladuras_data_estado]  DEFAULT ((1)) FOR [estado_data]
-GO
 
 -------------------------------------------------------------------------
 
-ALTER TABLE [dbo].[voladura_detalle1] ALTER COLUMN [cota_detalle] DECIMAL(10,3) NULL;
-ALTER TABLE [dbo].[voladura_detalle1006] ALTER COLUMN [cota_detalle] DECIMAL(10,3) NULL;
+ALTER TABLE configuraciongrafica ADD valor_lluvia INT DEFAULT 0;
+ALTER TABLE Software_EventosGrafica ADD activo TINYINT DEFAULT 0;

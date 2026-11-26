@@ -1335,8 +1335,6 @@ class AnalisisModel:
             return True, existe
         except Exception as e:
             print(f"Error: {e}")
-            import traceback
-            traceback.print_exc()
             if conn:
                 try:
                     conn.rollback()

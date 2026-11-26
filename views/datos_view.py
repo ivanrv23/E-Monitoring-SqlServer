@@ -1979,9 +1979,6 @@ class DatosView:
                 label_mensaje.setText("El formato de fecha no es válido.")
                 return
             datocota = cota_input.text().strip()
-            if not (MetodosGenerales.validarEsNumero(datocota) and datocota != ""):
-                label_mensaje.setText("La cota no es válida.")
-                return
             partes = datofecha.split(" ")
             solofecha = partes[0]
             solohora = partes[1] if len(partes) > 1 else "00:00:00"

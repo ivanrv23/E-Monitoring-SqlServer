@@ -77,7 +77,6 @@ class EquiposDesplazamiento:
                     delete_voladuras = menu.addAction("Eliminar Voladuras")
                     edit_voladuras.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirVoladuras.cambiar_componente_voladuras(idzona, idproyecto, treeWidget, "Voladuras", "3", "voladura", reiniciarvistas)))
                     delete_voladuras.triggered.connect(lambda: QTimer.singleShot(0, lambda: SubirVoladuras.eliminar_voladuras(idproyecto, idzona, "Voladuras", "3", treeWidget, reiniciarvistas)))
-                    
             else:    
                 if tipo == "prisma":
                     nombreprisma = item.text(0)
