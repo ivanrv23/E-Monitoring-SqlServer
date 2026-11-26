@@ -114,6 +114,8 @@ class DatosView:
             DesplazamientoView.reiniciarVistaDesplazamiento(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
             VelocidadView.reiniciarVistaVelocidad(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
             PiezometrosView.reiniciarVistaPiezometros(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
+            CeldasView.reiniciarVistaCeldas(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
+            AnalisisView.reiniciarVistaAnalisis(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
         elif tipoequipo == "Cotaterreno":
             PiezometrosView.reiniciarVistaPiezometros(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
         elif tipoequipo == "Celda":
@@ -132,6 +134,7 @@ class DatosView:
             VelocidadView.reiniciarVistaVelocidad(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
             PiezometrosView.reiniciarVistaPiezometros(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
             CeldasView.reiniciarVistaCeldas(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
+            AnalisisView.reiniciarVistaAnalisis(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)        
         else:
             VisorView.reiniciarVistaVisor(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)
             DesplazamientoView.reiniciarVistaDesplazamiento(DatosView.main, DatosView.idproyecto, DatosView.nameproyecto)

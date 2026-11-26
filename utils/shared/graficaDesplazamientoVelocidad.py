@@ -255,6 +255,43 @@ def formatear_x_inspector(valor_x, tiempo):
     else:  # DIA
         return f"{valor_x:.2f} d"
 
+def buscar_barra_lluvia(barras, event, tol=3):
+    """Devuelve (fecha, valor_mm, x_num, altura) si el mouse está sobre una barra de lluvia."""
+    patches = getattr(barras, 'patches', None)
+    if not patches or not patches[0].get_visible():
+        return None
+    for p in patches:
+        h = float(p.get_height())
+        if h <= 0:
+            continue
+        bb = p.get_window_extent()
+        if (bb.x0 - tol) <= event.x <= (bb.x1 + tol) and bb.y0 <= event.y <= bb.y1:
+            x_num = p.get_x() + p.get_width() / 2
+            return mdates.num2date(x_num).replace(tzinfo=None), h, x_num
+    return None
+
+
+def mostrar_inspector_lluvia(ax, ax2, annot, punto_resaltado, barra, tiempo):
+    """Muestra el tooltip del inspector para una barra de precipitación."""
+    fecha, valor, x_num = barra
+    punto_resaltado.set_visible(False)
+    # la barra vive en ax2: se pasa su posición a coordenadas de ax (donde está annot)
+    px = ax2.transData.transform((x_num, valor))
+    xa, ya = ax.transData.inverted().transform(px)
+    x_rel, y_rel = ax.transAxes.inverted().transform(px)
+    offset_x, offset_y, ha, va = 15, 15, 'left', 'bottom'
+    if y_rel > 0.70: va, offset_y = 'top', -15
+    if x_rel > 0.65: ha, offset_x = 'right', -15
+    annot.xy = (xa, ya)
+    annot.xytext = (offset_x, offset_y)
+    annot.set_ha(ha)
+    annot.set_va(va)
+    annot.set_text(f"Precipitación\nFecha: {fecha.strftime('%d/%m/%Y %H:%M')}\nValor: {valor:.1f} mm")
+    annot.set_fontsize(9)
+    annot.set_color('#333333')
+    annot.set_visible(True)
+    annot.set_zorder(999)
+
 def configurar_coordenadas_solo_primario(ax, ax2, tiempo, decimales=2):
     """La barra del toolbar muestra solo (x, y) del eje de los equipos,
     sin la segunda coordenada del eje de precipitación."""
@@ -694,7 +731,8 @@ def on_hover_global(event):
     lineas = canvas.lineas_actuales
     df = canvas.df_actual
     
-    if event.inaxes != ax:
+    axes_validos = [a for a in (ax, ax2) if a is not None]
+    if event.inaxes not in axes_validos:
         if annot.get_visible(): annot.set_visible(False)
         if punto_resaltado.get_visible(): punto_resaltado.set_visible(False)
         if linea_fantasma.get_visible(): linea_fantasma.set_visible(False)
@@ -817,7 +855,13 @@ def on_hover_global(event):
         annot.set_zorder(999)
         canvas.draw_idle()
     else:
-        if annot.get_visible():
+        barra = None
+        if tiempo == "FECHA" and ax2 is not None:
+            barra = buscar_barra_lluvia(cfg.get('barras_pluviometro'), event)
+        if barra:
+            mostrar_inspector_lluvia(ax, ax2, annot, punto_resaltado, barra, tiempo)
+            canvas.draw_idle()
+        elif annot.get_visible():
             annot.set_visible(False)
             punto_resaltado.set_visible(False)
             canvas.draw_idle()
@@ -2026,7 +2070,8 @@ def procesar_grafica(widget, labeltendencia, data, idx_nombre, idx_fecha, idx_le
         'objetos_eventos': objetos_eventos,
         'ev_globales': ev_globales,
         'ev_especificos': ev_especificos,
-        'nombre_a_id': nombre_a_id
+        'nombre_a_id': nombre_a_id,
+        'barras_pluviometro': barras_pluviometro,
     }
     
     # ============================================================
@@ -2658,7 +2703,8 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
             mostrar_mensaje("Error", "No se pudo omitir la lectura.", "error")
                     
     def on_hover(event):
-        if event.inaxes != ax:
+        axes_validos = [a for a in (ax, ax2) if a is not None]
+        if event.inaxes not in axes_validos:
             if annot.get_visible(): annot.set_visible(False)
             if punto_resaltado.get_visible(): punto_resaltado.set_visible(False)
             if linea_fantasma.get_visible(): linea_fantasma.set_visible(False)
@@ -2776,7 +2822,13 @@ def procesar_grafica_piezometros(widget, labeltendencia, data, cotasmarcadas, id
             annot.set_zorder(999)
             canvas.draw_idle()
         else:
-            if annot.get_visible():
+            barra = None
+            if tiempo == "FECHA" and ax2 is not None:
+                barra = buscar_barra_lluvia(barras_pluviometro, event)
+            if barra:
+                mostrar_inspector_lluvia(ax, ax2, annot, punto_resaltado, barra, tiempo)
+                canvas.draw_idle()
+            elif annot.get_visible():
                 annot.set_visible(False)
                 punto_resaltado.set_visible(False)
                 canvas.draw_idle()

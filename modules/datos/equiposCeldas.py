@@ -6,6 +6,7 @@ from modules.datos.subirCeldas import SubirCeldas
 from controllers.InterfazController import InterfazController
 from utils.shared.personalizacion import Personalizacion
 from controllers.PluviometroController import PluviometroController
+from modules.datos.subirVoladuras import SubirVoladuras
 
 class EquiposCeldas:
 
@@ -92,21 +93,26 @@ class EquiposCeldas:
                     idproyecto = item.parent().parent().parent().text(3)
                     custom_cota = menu.addAction("Personalizar Cota")
                     custom_cota.triggered.connect(lambda: Personalizacion.personalizarEquipoGrafica(idproyecto, idinstrumento, nombrecota, f"COTA DE CELDA {nombrecelda}", tipoinstru))
-
                 elif tipo == "pluviometro":
                     nombrepluvio = item.text(0)
                     idinstrumento = item.text(2)
                     idproyecto = item.parent().parent().text(3)
                     custom_pluvio = menu.addAction("Personalizar Pluviómetro")
-                    custom_pluvio.triggered.connect(lambda: Personalizacion.personalizarEquipoGrafica(idproyecto, idinstrumento, nombrepluvio, "PLUVIOMETRO"))
+                    custom_pluvio.triggered.connect(lambda: Personalizacion.personalizarPluviometroGrafica(idproyecto, idinstrumento, nombrepluvio, "PLUVIÓMETRO", 0))                
                 elif tipo == "voladura":
-                    nombrevol = item.text(0)
+                    nombrevoladura = item.text(0)
                     idinstrumento = item.text(2)
+                    idcomponente = item.parent().parent().text(2)
                     idproyecto = item.parent().parent().text(3)
-                    custom_vol = menu.addAction("Personalizar Voladura")
-                    custom_vol.triggered.connect(
-                        lambda: Personalizacion.personalizarEquipoGrafica(
-                            idproyecto, idinstrumento, nombrevol, "VOLADURA"))           
+                    custom_voladura = menu.addAction("Personalizar Voladura")
+
+                    def _refrescar():
+                        from views.celdas_view import CeldasView
+                        CeldasView.obtenerMostrarEquiposMarcados(treeWidget)
+
+                    custom_voladura.triggered.connect(
+                        lambda: SubirVoladuras.personalizarVoladura(idinstrumento, nombrevoladura, _refrescar))
+                           
             menu.exec(treeWidget.mapToGlobal(point))
 
     def validarMarcadoUnEquipoZona(datos, zona):

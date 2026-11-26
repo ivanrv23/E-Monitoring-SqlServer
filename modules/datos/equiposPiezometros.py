@@ -329,14 +329,14 @@ class EquiposPiezometros:
                     idcomponente = item.parent().parent().text(2)
                     idproyecto = item.parent().parent().text(3)
                     custom_voladura = menu.addAction("Personalizar Voladura")
-                    edit_voladura = menu.addAction("Editar Voladura")
-                    delete_voladura = menu.addAction("Eliminar Voladura")
+                    # edit_voladura = menu.addAction("Editar Voladura")
+                    # delete_voladura = menu.addAction("Eliminar Voladura")
                     def _refrescar():
                         from views.piezometros_view import PiezometrosView
                         PiezometrosView.obtenerMostrarEquiposMarcados(treeWidget)
                     custom_voladura.triggered.connect(lambda: SubirVoladuras.personalizarVoladura(idinstrumento, nombrevoladura, _refrescar))                    
-                    edit_voladura.triggered.connect(lambda: SubirVoladuras.actualizarVoladura(idproyecto, idcomponente, idinstrumento, treeWidget, reiniciarVistas))
-                    delete_voladura.triggered.connect(lambda: SubirVoladuras.eliminar_voladura(idinstrumento, nombrevoladura, item, treeWidget, reiniciarVistas))
+                    # edit_voladura.triggered.connect(lambda: SubirVoladuras.actualizarVoladura(idproyecto, idcomponente, idinstrumento, treeWidget, nombregrupo, tipogrupo, subgrupo, reiniciarVistas))
+                    # delete_voladura.triggered.connect(lambda: SubirVoladuras.eliminar_voladura(idinstrumento, nombrevoladura, item, treeWidget, reiniciarVistas))
             menu.exec(treeWidget.mapToGlobal(point))
     
     def validarMarcadoUnEquipoZona(datos, zona):
